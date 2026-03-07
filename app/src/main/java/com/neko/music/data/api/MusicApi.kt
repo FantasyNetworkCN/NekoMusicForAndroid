@@ -177,4 +177,33 @@ class MusicApi(private val context: Context) {
             Result.failure(e)
         }
     }
+    
+    suspend fun getLatest(limit: Int = 300): Result<List<Music>> {
+        return try {
+            Log.d("MusicApi", "Fetching latest music with limit: $limit")
+            val response = client.get("$baseUrl/api/music/latest?limit=$limit&t=${System.currentTimeMillis()}")
+            Log.d("MusicApi", "Response status: ${response.status}")
+            val responseText = response.body<String>()
+            Log.d("MusicApi", "Response raw text: $responseText")
+            
+            val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
+            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
+            val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
+            val data = jsonResponse["data"]
+            
+            Log.d("MusicApi", "Parsed response - success: $success, message: $message, data: $data")
+            
+            if (success && data != null) {
+                val results = json.decodeFromJsonElement<List<Music>>(data)
+                Log.d("MusicApi", "Found ${results.size} latest music")
+                Result.success(results)
+            } else {
+                Log.e("MusicApi", "Latest music fetch failed: $message")
+                Result.failure(Exception(message))
+            }
+        } catch (e: Exception) {
+            Log.e("MusicApi", "Latest music fetch error", e)
+            Result.failure(e)
+        }
+    }
 }

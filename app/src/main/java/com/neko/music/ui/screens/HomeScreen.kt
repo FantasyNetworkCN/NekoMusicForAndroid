@@ -53,7 +53,8 @@ fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onNavigateToFavorite: () -> Unit = {},
     onNavigateToPlaylist: (Int) -> Unit = {},
-    onNavigateToRanking: () -> Unit = {}
+    onNavigateToRanking: () -> Unit = {},
+    onNavigateToLatest: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
@@ -64,6 +65,7 @@ fun HomeScreen(
     // 推荐歌单状态
     var recommendedPlaylists by remember { mutableStateOf<List<PlaylistInfo>>(emptyList()) }
     var rankingMusic by remember { mutableStateOf<List<com.neko.music.data.model.Music>>(emptyList()) }
+    var latestMusic by remember { mutableStateOf<List<com.neko.music.data.model.Music>>(emptyList()) }
     var playlistsLoading by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf(false) }
     
@@ -73,7 +75,7 @@ fun HomeScreen(
         loadError = false
         scope.launch {
             try {
-                // 并行获取热门音乐和歌单
+                // 并行获取热门音乐、最新音乐和歌单
                 val playlistsDeferred = async {
                     Log.d("HomeScreen", "开始加载推荐歌单...")
                     val playlistApi = PlaylistApi(null, context)
@@ -86,8 +88,15 @@ fun HomeScreen(
                     musicApi.getRanking(200)
                 }
                 
+                val latestDeferred = async {
+                    Log.d("HomeScreen", "开始加载最新音乐...")
+                    val musicApi = com.neko.music.data.api.MusicApi(context)
+                    musicApi.getLatest(300)
+                }
+                
                 val playlistResponse = playlistsDeferred.await()
                 val rankingResult = rankingDeferred.await()
+                val latestResult = latestDeferred.await()
                 
                 // 处理歌单响应
                 if (playlistResponse.success && playlistResponse.playlists != null) {
@@ -103,6 +112,14 @@ fun HomeScreen(
                     Log.d("HomeScreen", "热门音乐加载成功: ${musicList.size}首")
                 }.onFailure { error ->
                     Log.e("HomeScreen", "热门音乐加载失败: ${error.message}")
+                }
+                
+                // 处理最新音乐响应
+                latestResult.onSuccess { musicList ->
+                    latestMusic = musicList
+                    Log.d("HomeScreen", "最新音乐加载成功: ${musicList.size}首")
+                }.onFailure { error ->
+                    Log.e("HomeScreen", "最新音乐加载失败: ${error.message}")
                 }
                 
                 if (playlistResponse.success && playlistResponse.playlists == null) {
@@ -377,6 +394,15 @@ fun HomeScreen(
                                     RankingMusicCard(
                                         musicList = rankingMusic,
                                         onClick = { onNavigateToRanking() }
+                                    )
+                                }
+                            }
+                            // 最新音乐
+                            if (latestMusic.isNotEmpty()) {
+                                item {
+                                    LatestMusicCard(
+                                        musicList = latestMusic,
+                                        onClick = { onNavigateToLatest() }
                                     )
                                 }
                             }

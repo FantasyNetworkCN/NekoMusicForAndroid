@@ -74,6 +74,7 @@ import com.neko.music.ui.screens.AccountInfoScreen
 import com.neko.music.ui.screens.MyPlaylistsScreen
 import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
+import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.theme.Neko云音乐Theme
 import kotlinx.coroutines.async
@@ -355,6 +356,10 @@ fun MainScreen() {
                     onNavigateToRanking = {
                         Log.d("MainActivity", "导航到排行榜页面")
                         navController.navigate("ranking")
+                    },
+                    onNavigateToLatest = {
+                        Log.d("MainActivity", "导航到最新音乐页面")
+                        navController.navigate("latest")
                     }
                 )
             }
@@ -447,6 +452,13 @@ fun MainScreen() {
             composable("ranking") {
                 val scope = androidx.compose.runtime.rememberCoroutineScope()
                 RankingScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable("latest") {
+                LatestScreen(
                     onBackClick = {
                         navController.popBackStack()
                     }
