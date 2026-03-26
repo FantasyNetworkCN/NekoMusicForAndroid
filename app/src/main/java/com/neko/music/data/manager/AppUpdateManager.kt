@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * 版本信息 JSON 数据类
@@ -158,20 +159,107 @@ class AppUpdateManager(private val context: Context) {
         onProgress: (Long, Long) -> Unit
     ): File? = withContext(Dispatchers.IO) {
         return@withContext try {
-            val response = client.get(url)
-            val contentLength = response.headers["Content-Length"]?.firstOrNull()?.toLong() ?: 0L
+            // 删除旧的更新文件
+            val oldApkFile = File(context.getExternalFilesDir(null), "update.apk")
+            if (oldApkFile.exists()) {
+                oldApkFile.delete()
+                Log.d("AppUpdateManager", "已删除旧的更新文件")
+            }
             
-            val apkFile = File(context.getExternalFilesDir(null), "update.apk")
+            // 创建临时文件用于下载
+            val tempFile = File(context.getExternalFilesDir(null), "update_temp.apk")
             
-            val bytes = response.body<ByteArray>()
-            apkFile.writeBytes(bytes)
+            val httpResponse = client.prepareGet(url) {
+                accept(io.ktor.http.ContentType.Application.OctetStream)
+            }.execute()
+            val contentLength = httpResponse.headers["Content-Length"]?.firstOrNull()?.toLong() ?: 0L
             
-            onProgress(bytes.size.toLong(), contentLength)
+            if (contentLength > 0) {
+                onProgress(0L, contentLength)
+            }
             
-            apkFile
+            // 使用ByteReadChannel流式下载
+            val byteReadChannel = httpResponse.body<io.ktor.utils.io.ByteReadChannel>()
+            val outputStream = FileOutputStream(tempFile)
+            val buffer = java.nio.ByteBuffer.allocate(8192)
+            var totalBytes = 0L
+            
+            Log.d("AppUpdateManager", "开始下载，Content-Length: $contentLength")
+            
+            try {
+                while (!byteReadChannel.isClosedForRead) {
+                    buffer.clear()
+                    val bytesRead = byteReadChannel.readAvailable(buffer)
+                    if (bytesRead < 0) break  // 流结束
+                    if (bytesRead == 0) continue  // 暂时没有数据，继续等待
+                    
+                    buffer.flip()
+                    val data = ByteArray(bytesRead)
+                    buffer.get(data)
+                    outputStream.write(data)
+                    totalBytes += bytesRead
+                    
+                    // 每下载8KB更新一次进度
+                    if (totalBytes % 8192 == 0L || (contentLength > 0 && totalBytes == contentLength)) {
+                        Log.d("AppUpdateManager", "下载进度: $totalBytes / $contentLength")
+                        onProgress(totalBytes, contentLength)
+                    }
+                }
+            } finally {
+                outputStream.close()
+                byteReadChannel.cancel(null)
+            }
+            
+            // 确保最后一次更新进度
+            onProgress(totalBytes, contentLength)
+            
+            // 下载完成后重命名为正式文件名
+            if (tempFile.exists() && tempFile.length() > 0) {
+                val apkFile = File(context.getExternalFilesDir(null), "update.apk")
+                if (tempFile.renameTo(apkFile)) {
+                    Log.d("AppUpdateManager", "下载完成: ${apkFile.absolutePath}, 大小: ${apkFile.length()} 字节")
+                    apkFile
+                } else {
+                    Log.e("AppUpdateManager", "重命名文件失败")
+                    tempFile.delete()  // 清理临时文件
+                    null
+                }
+            } else {
+                Log.e("AppUpdateManager", "下载文件为空或不存在")
+                tempFile.delete()  // 清理临时文件
+                null
+            }
         } catch (e: Exception) {
             Log.e("AppUpdateManager", "下载 APK 失败", e)
+            // 清理临时文件
+            val tempFile = File(context.getExternalFilesDir(null), "update_temp.apk")
+            if (tempFile.exists()) {
+                tempFile.delete()
+                Log.d("AppUpdateManager", "已清理失败的临时文件")
+            }
             null
+        }
+    }
+    
+    /**
+     * 清理所有更新相关的文件（包括临时文件）
+     */
+    fun cleanupUpdateFiles(): Boolean {
+        return try {
+            val externalDir = context.getExternalFilesDir(null)
+            if (externalDir != null && externalDir.exists()) {
+                externalDir.listFiles()?.filter { 
+                    it.name.endsWith(".apk") || it.name.startsWith("update_temp")
+                }?.forEach { 
+                    Log.d("AppUpdateManager", "删除文件: ${it.name}")
+                    it.delete() 
+                }
+                Log.d("AppUpdateManager", "清理更新文件成功")
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("AppUpdateManager", "清理更新文件失败", e)
+            false
         }
     }
     

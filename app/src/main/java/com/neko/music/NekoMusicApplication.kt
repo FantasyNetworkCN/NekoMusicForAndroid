@@ -1,10 +1,67 @@
 package com.neko.music
 
 import android.app.Application
+import android.content.SharedPreferences
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import java.io.File
 
 class NekoMusicApplication : Application(), ImageLoaderFactory {
+    
+    private lateinit var prefs: SharedPreferences
+    
+    override fun onCreate() {
+        super.onCreate()
+        prefs = getSharedPreferences("app_update", MODE_PRIVATE)
+        
+        // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
+        checkAndCleanupUpdateFiles()
+    }
+    
+    private fun checkAndCleanupUpdateFiles() {
+        try {
+            val currentVersionCode = try {
+                packageManager.getPackageInfo(packageName, 0).let {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        it.longVersionCode.toInt()
+                    } else {
+                        it.versionCode
+                    }
+                }
+            } catch (e: Exception) {
+                return
+            }
+            
+            val lastVersionCode = prefs.getInt("last_version_code", -1)
+            
+            // 如果版本号变化了，说明更新成功，删除更新文件
+            if (lastVersionCode != -1 && lastVersionCode != currentVersionCode) {
+                android.util.Log.d("NekoMusicApplication", "检测到版本更新，清理更新文件")
+                cleanupUpdateFiles()
+            }
+            
+            // 更新当前版本号
+            prefs.edit().putInt("last_version_code", currentVersionCode).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("NekoMusicApplication", "检查更新文件失败", e)
+        }
+    }
+    
+    private fun cleanupUpdateFiles() {
+        try {
+            val externalDir = getExternalFilesDir(null)
+            if (externalDir?.exists() == true) {
+                externalDir.listFiles()?.filter { 
+                    it.name.endsWith(".apk") || it.name.startsWith("update_temp")
+                }?.forEach { 
+                    android.util.Log.d("NekoMusicApplication", "删除更新文件: ${it.name}")
+                    it.delete() 
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("NekoMusicApplication", "清理更新文件失败", e)
+        }
+    }
     
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)

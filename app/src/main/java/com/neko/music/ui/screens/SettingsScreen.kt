@@ -139,6 +139,9 @@ fun SettingsScreen(
             isDownloading = true
             downloadProgress = 0f
 
+            // 清理所有旧的更新文件
+            updateManager.cleanupUpdateFiles()
+
             try {
                 val apkFile = updateManager.downloadApk(
                     updateInfo!!.updateUrl,
