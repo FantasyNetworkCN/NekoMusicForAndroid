@@ -94,7 +94,7 @@ class FuckChinaOSFloatService : Service() {
         val btnPlayPause = floatView?.findViewById<ImageButton>(R.id.float_play_pause)
         val btnPrevious = floatView?.findViewById<ImageButton>(R.id.float_previous)
         val btnNext = floatView?.findViewById<ImageButton>(R.id.float_next)
-        val layoutFloat = floatView?.findViewById<LinearLayout>(R.id.float_layout)
+        val layoutFloat = floatView?.findViewById<android.widget.FrameLayout>(R.id.float_layout)
         val infoLayout = floatView?.findViewById<LinearLayout>(R.id.float_info_layout)
         val playAnimation = floatView?.findViewById<PlayAnimationView>(R.id.float_play_animation)
         
@@ -116,24 +116,28 @@ class FuckChinaOSFloatService : Service() {
         }
 
         // 添加拖动功能（包含点击处理）
-        // FrameLayout 作为触摸事件的处理器
+        // 使用 FrameLayout 作为触摸事件的处理器
         val touchSlop = ViewConfiguration.get(this).scaledTouchSlop.toFloat()
         var startX = 0f
         var startY = 0f
         var isDragging = false
         var viewInitialX = 0
         var viewInitialY = 0
+        var hasIntercepted = false
 
         layoutFloat?.setOnTouchListener(object : View.OnTouchListener {
             override fun onTouch(view: View, event: MotionEvent): Boolean {
+                android.util.Log.d("FuckChinaOSFloatService", "Touch event: ${event.action}, isDragging=$isDragging, hasIntercepted=$hasIntercepted")
+                
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
                         startY = event.rawY
                         isDragging = false
+                        hasIntercepted = false
                         viewInitialX = layoutParams?.x ?: 0
                         viewInitialY = layoutParams?.y ?: 0
-                        // 不拦截，让子视图接收事件
+                        // 不拦截，让子视图可以点击
                         return false
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -143,43 +147,49 @@ class FuckChinaOSFloatService : Service() {
                         if (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop) {
                             if (!isDragging) {
                                 isDragging = true
-                                // 禁用子视图的点击，让父视图拦截事件
+                                android.util.Log.d("FuckChinaOSFloatService", "Start dragging, dx=$dx, dy=$dy")
+                                // 禁用子视图的点击，防止它们拦截事件
                                 val contentLayout = floatView?.findViewById<LinearLayout>(R.id.float_content_layout)
                                 contentLayout?.isClickable = false
                                 for (i in 0 until (contentLayout?.childCount ?: 0)) {
                                     contentLayout?.getChildAt(i)?.isClickable = false
                                     contentLayout?.getChildAt(i)?.isFocusable = false
                                 }
+                                // 标记已经拦截，后续事件都由我们处理
+                                hasIntercepted = true
+                                // 取消子视图的事件
+                                view.parent?.requestDisallowInterceptTouchEvent(true)
                             }
                             
-                            layoutParams?.x = viewInitialX + dx.toInt()
-                            layoutParams?.y = viewInitialY + dy.toInt()
-                            windowManager?.updateViewLayout(floatView, layoutParams)
-                            return true
+                            if (isDragging) {
+                                layoutParams?.x = viewInitialX + dx.toInt()
+                                layoutParams?.y = viewInitialY + dy.toInt()
+                                windowManager?.updateViewLayout(floatView, layoutParams)
+                                return true
+                            }
                         }
-                        return false
+                        return hasIntercepted
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        if (!isDragging) {
-                            android.util.Log.d("FuckChinaOSFloatService", "Layout clicked")
-                            val openIntent = Intent(this@FuckChinaOSFloatService, com.neko.music.MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            }
-                            startActivity(openIntent)
-                        } else {
-                            // 恢复子视图的点击功能
-                            val contentLayout = floatView?.findViewById<LinearLayout>(R.id.float_content_layout)
-                            contentLayout?.isClickable = true
-                            for (i in 0 until (contentLayout?.childCount ?: 0)) {
-                                contentLayout?.getChildAt(i)?.isClickable = true
-                                contentLayout?.getChildAt(i)?.isFocusable = true
-                            }
+                        android.util.Log.d("FuckChinaOSFloatService", "Touch up, isDragging=$isDragging")
+                        
+                        // 恢复子视图的点击功能
+                        val contentLayout = floatView?.findViewById<LinearLayout>(R.id.float_content_layout)
+                        contentLayout?.isClickable = true
+                        for (i in 0 until (contentLayout?.childCount ?: 0)) {
+                            contentLayout?.getChildAt(i)?.isClickable = true
+                            contentLayout?.getChildAt(i)?.isFocusable = true
                         }
+                        
+                        val result = hasIntercepted
+                        hasIntercepted = false
                         isDragging = false
-                        return false
+                        
+                        // 如果没有拖动且没有拦截，让子视图处理点击
+                        return result
                     }
                 }
-                return false
+                return hasIntercepted
             }
         })
         
