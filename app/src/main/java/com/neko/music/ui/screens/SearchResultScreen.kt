@@ -269,7 +269,12 @@ fun SearchResultScreen(
                     if (searchType == "music") {
                         MusicList(
                             musics = searchResults,
-                            onMusicClick = onMusicClick
+                            onMusicClick = { music ->
+                                // 保存单曲名称到历史记录
+                                historyManager.addSearchHistory(music.title, searchQuery)
+                                // 调用原有的点击事件
+                                onMusicClick(music)
+                            }
                         )
                     } else if (searchType == "playlist") {
                         PlaylistList(

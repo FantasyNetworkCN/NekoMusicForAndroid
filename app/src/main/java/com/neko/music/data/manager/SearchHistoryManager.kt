@@ -15,10 +15,27 @@ class SearchHistoryManager(context: Context) {
         val history = getSearchHistory().toMutableList()
         
         // 移除已存在的相同查询
-        history.removeAll { it.query == query }
+        history.removeAll { it.query == query && it.type == "keyword" }
         
         // 添加新查询到开头
-        history.add(0, SearchHistory(query, System.currentTimeMillis()))
+        history.add(0, SearchHistory(query, System.currentTimeMillis(), "keyword"))
+        
+        // 限制历史记录数量
+        if (history.size > maxHistorySize) {
+            history.removeAt(history.size - 1)
+        }
+        
+        saveHistory(history)
+    }
+    
+    fun addSearchHistory(musicName: String, searchQuery: String) {
+        val history = getSearchHistory().toMutableList()
+        
+        // 移除已存在的相同单曲
+        history.removeAll { it.query == musicName && it.type == "music" }
+        
+        // 添加单曲名称到开头
+        history.add(0, SearchHistory(musicName, System.currentTimeMillis(), "music"))
         
         // 限制历史记录数量
         if (history.size > maxHistorySize) {
