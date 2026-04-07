@@ -10,6 +10,13 @@ android {
     namespace = "com.neko.music"
     compileSdk = 36
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.neko.music"
         minSdk = 23
@@ -63,10 +70,7 @@ android {
         compose = true
         buildConfig = true
     }
-    
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
+
     
     // 配置打包选项
     packaging {
@@ -189,5 +193,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-
+    kapt("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
 }

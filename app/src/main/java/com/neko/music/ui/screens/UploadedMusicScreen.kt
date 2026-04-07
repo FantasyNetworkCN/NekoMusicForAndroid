@@ -3,13 +3,16 @@ package com.neko.music.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Error
@@ -24,6 +27,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -34,11 +38,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
+import com.neko.music.util.LrcParser
 import com.neko.music.ui.theme.*
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -57,6 +65,7 @@ fun UploadedMusicScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var showUploadDialog by remember { mutableStateOf(false) }
 
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
@@ -108,6 +117,19 @@ fun UploadedMusicScreen(
                         )
                     }
                 },
+                actions = {
+                    if (!isLoading && !showError) {
+                        IconButton(
+                            onClick = { showUploadDialog = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.UploadFile,
+                                contentDescription = stringResource(id = R.string.upload_music),
+                                tint = RoseRed
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -144,6 +166,36 @@ fun UploadedMusicScreen(
                 }
             }
         }
+    }
+
+    // 上传对话框
+    if (showUploadDialog) {
+        UploadMusicDialog(
+            onDismiss = { showUploadDialog = false },
+            onUploadSuccess = {
+                showUploadDialog = false
+                // 重新加载音乐列表
+                isLoading = true
+                scope.launch {
+                    try {
+                        val userApi = com.neko.music.data.api.UserApi(token)
+                        val response = userApi.getUploadedMusic()
+                        if (response.success) {
+                            musicList = response.musicList
+                        } else {
+                            showError = true
+                            errorMessage = response.message
+                        }
+                    } catch (e: Exception) {
+                        showError = true
+                        errorMessage = "获取数据失败: ${e.message}"
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            token = token
+        )
     }
 }
 
@@ -378,6 +430,632 @@ fun MusicItem(
 }
 
 private fun formatDuration(seconds: Int): String {
+    val minutes = seconds / 60
+    val secs = seconds % 60
+    return String.format("%d:%02d", minutes, secs)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UploadMusicDialog(
+    onDismiss: () -> Unit,
+    onUploadSuccess: () -> Unit,
+    token: String?
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    // 预加载字符串资源（用于在非 Composable 上下文中使用）
+    val pleaseSelectLanguage = stringResource(id = R.string.please_select_language)
+    val pleaseFillRequiredFields = stringResource(id = R.string.please_fill_required_fields)
+    val fileReadFailed = stringResource(id = R.string.file_read_failed)
+    val uploadFailed = stringResource(id = R.string.upload_failed)
+    val unsupportedLyricsFormat = stringResource(id = R.string.unsupported_lyrics_format)
+    val invalidLyricsTimestamp = stringResource(id = R.string.invalid_lyrics_timestamp)
+    val lyricsFileReadFailed = stringResource(id = R.string.lyrics_file_read_failed)
+    
+    // 语言选项
+    val languageOptions = listOf(
+        stringResource(id = R.string.language_chinese) to "zh",
+        stringResource(id = R.string.language_cantonese) to "yue",
+        stringResource(id = R.string.language_shanghainese) to "wuu",
+        stringResource(id = R.string.language_english) to "en",
+        stringResource(id = R.string.language_japanese) to "ja",
+        stringResource(id = R.string.language_korean) to "ko",
+        stringResource(id = R.string.language_french) to "fr",
+        stringResource(id = R.string.language_german) to "de",
+        stringResource(id = R.string.language_russian) to "ru",
+        stringResource(id = R.string.language_instrumental) to "instrumental"
+    )
+    
+    // 音乐信息
+    var title by remember { mutableStateOf("") }
+    var artist by remember { mutableStateOf("") }
+    var album by remember { mutableStateOf("") }
+    var language by remember { mutableStateOf(pleaseSelectLanguage) }
+    var tags by remember { mutableStateOf("") }
+    var duration by remember { mutableStateOf("") }
+    
+    // 文件
+    var audioFile by remember { mutableStateOf<android.net.Uri?>(null) }
+    var audioFileName by remember { mutableStateOf("") }
+    var lyricsFile by remember { mutableStateOf<android.net.Uri?>(null) }
+    var lyricsPreview by remember { mutableStateOf("") }
+    var coverImage by remember { mutableStateOf<android.net.Uri?>(null) }
+    var coverBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf(0f) }
+    var isParsing by remember { mutableStateOf(false) }
+    
+    var languageExpanded by remember { mutableStateOf(false) }
+    
+    // 文件选择器
+    val audioFileLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val fileName = getFileName(context, it)
+            val fileExtension = fileName?.substringAfterLast('.', "")?.lowercase() ?: ""
+            
+            // 检查文件格式是否支持
+            val supportedFormats = listOf("mp3", "wav", "flac")
+            if (fileExtension !in supportedFormats) {
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.unsupported_audio_format),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@let
+            }
+            
+            audioFileName = fileName ?: "audio.mp3"
+            audioFile = uri
+            
+            // 自动解析音乐元数据
+            isParsing = true
+            scope.launch {
+                try {
+                    val metadata = parseAudioMetadata(context, uri)
+                    title = metadata.title
+                    artist = metadata.artist
+                    album = metadata.album
+                    duration = metadata.duration
+                    // 如果音频文件有内嵌封面，则自动显示
+                    if (metadata.cover != null) {
+                        coverBitmap = metadata.cover
+                    }
+                } catch (e: Exception) {
+                    // 解析失败，保持原样
+                } finally {
+                    isParsing = false
+                }
+            }
+        }
+    }
+    
+    val lyricsFileLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val fileName = getFileName(context, it)
+            
+            // 使用JNI检查文件扩展名是否为lrc
+            if (fileName != null && !LrcParser.isLrcFile(fileName)) {
+                android.widget.Toast.makeText(
+                    context,
+                    unsupportedLyricsFormat,
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@let
+            }
+            
+            // 使用JNI验证 LRC 文件内容是否包含时间戳
+            scope.launch {
+                try {
+                    val content = context.contentResolver.openInputStream(uri)?.bufferedReader(StandardCharsets.UTF_8).use { it?.readText() }
+                    if (content == null || !LrcParser.isValidLrcContent(content)) {
+                        android.widget.Toast.makeText(
+                            context,
+                            invalidLyricsTimestamp,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        return@launch
+                    }
+                    
+                    // 使用JNI解析歌词预览
+                    val preview = LrcParser.parseLrcPreview(content)
+                    
+                    // 验证通过，设置歌词文件和预览内容
+                    lyricsFile = uri
+                    lyricsPreview = preview
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(
+                        context,
+                        lyricsFileReadFailed,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+    
+    val coverImageLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        coverImage = uri
+        // 用户手动选择封面时，清除自动提取的封面
+        coverBitmap = null
+    }
+    
+    AlertDialog(
+        onDismissRequest = { if (!isUploading) onDismiss() },
+        title = {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isUploading) "上传中 ${uploadProgress.toInt()}%" 
+                            else stringResource(id = R.string.upload_music_dialog_title),
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (isParsing) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+                if (isUploading) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { uploadProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = RoseRed
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 音频文件选择
+                OutlinedButton(
+                    onClick = { audioFileLauncher.launch("audio/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isUploading
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (audioFile != null) {
+                            if (isParsing) stringResource(id = R.string.parsing_metadata)
+                            else "${stringResource(id = R.string.audio_file_selected, audioFileName)}"
+                        } else "${stringResource(id = R.string.select_audio_file)} *",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                // 时长显示（自动解析后显示）
+                if (duration.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = RoseRed.copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "${stringResource(id = R.string.music_duration)}: $duration",
+                            modifier = Modifier.padding(12.dp),
+                            fontSize = 14.sp,
+                            color = RoseRed,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                // 歌词文件选择
+                OutlinedButton(
+                    onClick = { lyricsFileLauncher.launch("*/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isUploading
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (lyricsFile != null) stringResource(id = R.string.lyrics_file_selected) 
+                            else "${stringResource(id = R.string.select_lyrics_file)} ${stringResource(id = R.string.optional_field)}",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                // 歌词预览
+                if (lyricsFile != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.preview),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = lyricsPreview.ifEmpty { "加载中..." },
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+                
+                // 封面图片选择
+                OutlinedButton(
+                    onClick = { coverImageLauncher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isUploading
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            coverImage != null -> stringResource(id = R.string.cover_image_selected)
+                            coverBitmap != null -> "${stringResource(id = R.string.cover_image_auto_extracted)}"
+                            else -> "${stringResource(id = R.string.select_cover_image)} ${stringResource(id = R.string.optional_field)}"
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                // 封面预览
+                if (coverImage != null || coverBitmap != null) {
+                    Card(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .align(Alignment.CenterHorizontally),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (coverImage != null) {
+                            // 显示用户手动选择的封面
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(coverImage)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = stringResource(id = R.string.preview),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else if (coverBitmap != null) {
+                            // 显示从音频文件自动提取的封面
+                            Image(
+                                bitmap = coverBitmap!!.asImageBitmap(),
+                                contentDescription = stringResource(id = R.string.preview),
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                // 音乐信息输入
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("${stringResource(id = R.string.music_title)} *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isParsing && !isUploading
+                )
+                
+                OutlinedTextField(
+                    value = artist,
+                    onValueChange = { artist = it },
+                    label = { Text("${stringResource(id = R.string.music_artist)} *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isParsing && !isUploading
+                )
+                
+                OutlinedTextField(
+                    value = album,
+                    onValueChange = { album = it },
+                    label = { Text(stringResource(id = R.string.music_album)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isParsing && !isUploading
+                )
+                
+                // 语言下拉选择
+                ExposedDropdownMenuBox(
+                    expanded = languageExpanded,
+                    onExpandedChange = { if (!isUploading) languageExpanded = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = language,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(id = R.string.music_language)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        singleLine = true,
+                        enabled = !isUploading
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = languageExpanded,
+                        onDismissRequest = { languageExpanded = false }
+                    ) {
+                        languageOptions.forEach { (displayName, value) ->
+                            DropdownMenuItem(
+                                text = { Text(displayName) },
+                                onClick = {
+                                    language = displayName
+                                    languageExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                OutlinedTextField(
+                    value = tags,
+                    onValueChange = { tags = it },
+                    label = { Text(stringResource(id = R.string.music_tags)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isUploading
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    // 验证必填字段
+                    if (title.isBlank() || artist.isBlank() || audioFile == null) {
+                        android.widget.Toast.makeText(
+                            context,
+                            pleaseFillRequiredFields,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        return@Button
+                    }
+                    
+                    // 验证语言选择
+                    if (language == pleaseSelectLanguage) {
+                        android.widget.Toast.makeText(
+                            context,
+                            pleaseSelectLanguage,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        return@Button
+                    }
+                    
+                    isUploading = true
+                    uploadProgress = 0f
+                    
+                    scope.launch {
+                        try {
+                            // 模拟进度更新 - 读取文件阶段
+                            launch {
+                                while (isUploading && uploadProgress < 30f) {
+                                    kotlinx.coroutines.delay(50)
+                                    uploadProgress = (uploadProgress + 2f).coerceAtMost(30f)
+                                }
+                            }
+                            
+                            // 读取文件
+                            val audioBytes = context.contentResolver.openInputStream(audioFile!!)?.use { it.readBytes() }
+                            val lyricsBytes = lyricsFile?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
+                            val coverBytes = if (coverBitmap != null) {
+                                // 将Bitmap转换为ByteArray
+                                val stream = java.io.ByteArrayOutputStream()
+                                coverBitmap!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
+                                stream.toByteArray()
+                            } else {
+                                // 使用用户手动选择的封面
+                                coverImage?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
+                            }
+                            
+                            // 模拟进度更新 - 准备上传阶段
+                            uploadProgress = 30f
+                            
+                            // 将语言名称转换为语言代码
+                            val languageCode = languageOptions.find { it.first == language }?.second ?: ""
+                            
+                            // 模拟进度更新 - 上传中阶段
+                            launch {
+                                while (isUploading && uploadProgress < 90f) {
+                                    kotlinx.coroutines.delay(100)
+                                    uploadProgress = (uploadProgress + 5f).coerceAtMost(90f)
+                                }
+                            }
+                            
+                            if (audioBytes != null) {
+                                val userApi = com.neko.music.data.api.UserApi(token)
+                                val response = userApi.uploadMusic(
+                                    audioFile = audioBytes,
+                                    audioFileName = audioFileName,
+                                    title = title,
+                                    artist = artist,
+                                    album = album,
+                                    language = languageCode,
+                                    tags = tags,
+                                    lyricsFile = lyricsBytes,
+                                    coverImage = coverBytes
+                                )
+                                
+                                uploadProgress = 100f
+                                
+                                if (response.success) {
+                                    onUploadSuccess()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        response.message,
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    fileReadFailed,
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "$uploadFailed ${e.message}",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } finally {
+                            isUploading = false
+                            uploadProgress = 0f
+                        }
+                    }
+                },
+                enabled = !isUploading && !isParsing,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RoseRed
+                )
+            ) {
+                if (isUploading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(stringResource(id = R.string.upload_music))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isUploading
+            ) {
+                Text(stringResource(id = android.R.string.cancel))
+            }
+        }
+    )
+}
+
+private fun getFileName(context: android.content.Context, uri: android.net.Uri): String? {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) {
+                    result = it.getString(index)
+                }
+            }
+        }
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/')
+        if (cut != -1) {
+            result = result?.substring(cut!! + 1)
+        }
+    }
+    return result
+}
+
+// 音频元数据数据类
+private data class AudioMetadata(
+    val title: String = "",
+    val artist: String = "",
+    val album: String = "",
+    val duration: String = "",
+    val language: String = "",
+    val cover: android.graphics.Bitmap? = null
+)
+
+// 解析音频文件元数据
+private suspend fun parseAudioMetadata(
+    context: android.content.Context,
+    uri: android.net.Uri
+): AudioMetadata = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    val retriever = android.media.MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(context, uri)
+        
+        // 提取元数据
+        val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE) ?: ""
+        val artist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: ""
+        val album = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: ""
+        
+        // 提取时长
+        val durationMs = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        val duration = formatDurationFromMs(durationMs)
+        
+        // 提取封面图片
+        val cover = retriever.embeddedPicture?.let { 
+            android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) 
+        }
+        
+        AudioMetadata(
+            title = title,
+            artist = artist,
+            album = album,
+            duration = duration,
+            language = "",
+            cover = cover
+        )
+    } catch (e: Exception) {
+        // 解析失败，返回空值
+        AudioMetadata()
+    } finally {
+        retriever.release()
+    }
+}
+
+// 格式化时长（毫秒转 mm:ss）
+private fun formatDurationFromMs(ms: Long): String {
+    val seconds = ms / 1000
     val minutes = seconds / 60
     val secs = seconds % 60
     return String.format("%d:%02d", minutes, secs)
