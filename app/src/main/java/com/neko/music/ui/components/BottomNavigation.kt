@@ -178,6 +178,7 @@ fun BottomNavigationBar(
                                 indication = null
                             ) {
                                 if (currentRoute != item.route) {
+                                    // 切换到不同的标签页
                                     navController.navigate(item.route) {
                                         popUpTo(navController.graph.startDestinationId) {
                                             saveState = true
@@ -185,6 +186,9 @@ fun BottomNavigationBar(
                                         launchSingleTop = true
                                         restoreState = true
                                     }
+                                } else {
+                                    // 点击当前选中的标签页，返回到该标签页的首页
+                                    navController.popBackStack(item.route, inclusive = false)
                                 }
                             },
                         contentAlignment = Alignment.Center
