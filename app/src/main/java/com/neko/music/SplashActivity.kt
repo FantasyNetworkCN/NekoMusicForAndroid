@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -162,7 +163,7 @@ fun AppTitle(alpha: Float) {
 @Composable
 fun AppSubtitle(alpha: Float) {
     Text(
-        text = "听见你的世界",
+        text = stringResource(id = R.string.splash_slogan),
         fontSize = 16.sp,
         fontWeight = FontWeight.Normal,
         color = Color.White.copy(alpha = 0.8f),

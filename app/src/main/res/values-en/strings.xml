@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Neko Cloud Music</string>
-    <string name="widget_description">Neko Cloud Music Desktop Player</string>
+    <string name="app_name">Neko Music</string>
+    <string name="widget_description">Neko Music Desktop Player</string>
     
     <!-- Settings -->
     <string name="settings">Settings</string>
@@ -165,7 +165,7 @@
     <string name="playback_speed_x">Speed: %dx</string>
     <string name="sleep_timer">Sleep Timer</string>
     <string name="sleep_timer_cancelled">Sleep timer cancelled</string>
-    <string name="sleep_timer_hours_minutes">Close after %dh %dm</string>
+    <string name="sleep_timer_hours_minutes" formatted="false">Close after %dh %dm</string>
     <string name="sleep_timer_hours">Close after %dh</string>
     <string name="sleep_timer_minutes">Close after %dm</string>
     <string name="add_to_playlist">Add to Playlist</string>
@@ -198,20 +198,8 @@
     <string name="no_description_nya">No description yet Nya!</string>
     <string name="songs_count">%d songs</string>
     <string name="author_prefix">Artist: %s</string>
-
-    <!-- Latest Music -->
-    <string name="latest_music">Latest Music</string>
-    <string name="loading_latest_music">Loading latest music...</string>
-    <string name="load_failed">Load Failed</string>
-    <string name="network_error">Network connection seems to have problems</string>
-    <string name="retry">Retry</string>
-    <string name="no_latest_music">No latest music</string>
-    <string name="just_now">Just now</string>
-    <string name="minutes_ago">%dm ago</string>
-    <string name="hours_ago">%dh ago</string>
-    <string name="days_ago">%dd ago</string>
-    <string name="play_all_failed">Play all failed</string>
-    <string name="play_failed">Play failed</string>
+    <string name="no_search_playlist_found">No playlists found</string>
+    <string name="no_search_artist_found">No artists found</string>
 
     <!-- Uploaded Music -->
     <string name="loading_data">Loading...</string>
@@ -219,6 +207,7 @@
     <string name="album_cover">Album Cover</string>
     <string name="music_note">Music</string>
     <string name="empty">Empty</string>
+    <string name="uploading_progress">Uploading %d%%</string>
 
     <!-- Playlist Detail -->
     <string name="playlist_cover">Playlist Cover</string>
@@ -399,4 +388,75 @@
     <string name="hot_music_desc">Most played songs</string>
     <string name="songs_count_short">%d songs</string>
     <string name="play_count">%d plays</string>
+    
+    <!-- Splash Screen -->
+    <string name="splash_slogan">Hear Your World</string>
+    
+    <!-- Auth Error -->
+    <string name="auth_expired">Login expired, please login again</string>
+    
+    <!-- Download -->
+    <string name="downloading_progress" formatted="false">Downloading: %s - %s</string>
+    <string name="download_started">Download started</string>
+    <string name="download_manager_unavailable">Download manager unavailable</string>
+    <string name="download_started_with_lyrics">Download started with lyrics</string>
+    
+    <!-- Hot Music -->
+    <string name="total_hot_music">Total %d hot songs</string>
+    
+    <!-- Share -->
+    <string name="share_to_qq">Share to QQ</string>
+    <string name="playlist_link">Playlist Link</string>
+    
+    <!-- Sleep Timer -->
+    <string name="sleep_timer_seconds">Close after %ds</string>
+    
+    <!-- Music Link -->
+    <string name="music_link">Music Link</string>
+    
+    <!-- Notification Channel -->
+    <string name="music_playback">Music Playback</string>
+    <string name="music_playback_notification">Music Playback Notification</string>
+
+    <!-- Latest Music -->
+    <string name="latest_music">Latest Music</string>
+    <string name="latest_music_title">Latest Music</string>
+    <string name="click_latest_music_info">Click latest music, total %d songs</string>
+    <string name="songs_count_format">%d songs</string>
+    <string name="loading_latest_music">Loading latest music...</string>
+    <string name="load_failed">Load Failed</string>
+    <string name="network_error">Network connection seems to have problems</string>
+    <string name="retry">Retry</string>
+    <string name="no_latest_music">No latest music</string>
+    <string name="minutes_ago">%dm ago</string>
+    <string name="hours_ago">%dh ago</string>
+    <string name="days_ago">%dd ago</string>
+
+    <!-- Playlist Detail -->
+
+    <!-- Player -->
+    <string name="playback_speed_format">Playback speed: %.1fx</string>
+    <string name="added_to_playlist_format">Added to %s</string>
+    <string name="add_to_playlist_failed">Failed to add: %s</string>
+    <string name="create_playlist_failed">Failed to create: %s</string>
+    <string name="play_failed">Play failed: %s</string>
+    <string name="play_all_failed">Play all failed</string>
+    <string name="download_failed_format">Download failed: %s</string>
+    <string name="loading_failed_format">Loading failed: %s</string>
+    <string name="refresh_failed_format">Refresh failed: %s</string>
+    <string name="delete_failed_format">Delete failed: %s</string>
+    <string name="operation_failed_generic">Operation failed</string>
+
+    <!-- Time Format -->
+    <string name="just_now">Just now</string>
+    <string name="minutes_ago_format">%dm ago</string>
+    <string name="hours_ago_format">%dh ago</string>
+    <string name="days_ago_format">%dd ago</string>
+    <string name="minutes_unit">minutes</string>
+
+    <!-- Share -->
+    <string name="share_music_text">[%s-%s] Neko Music https://music.cnmsb.xin/detail/%d</string>
+    <string name="share_playlist_text">I found a treasure playlist on Neko Music %s - https://music.cnmsb.xin/playlist/%d, it is amazing! Come and listen meow~</string>
+    <string name="share_playlist">Share Playlist</string>
+    <string name="removed_from_playlist_success">Removed from playlist</string>
 </resources>

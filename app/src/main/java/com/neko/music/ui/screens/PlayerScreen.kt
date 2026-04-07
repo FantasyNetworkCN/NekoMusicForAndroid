@@ -522,8 +522,8 @@ fun PlayerScreen(
                     showShareDialog = false
                     try {
                         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val shareText = "【${currentMusic.title}-${currentMusic.artist}】 Neko云音乐 https://music.cnmsb.xin/detail/${currentMusic.id}"
-                        val clip = android.content.ClipData.newPlainText("音乐链接", shareText)
+                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
+                        val clip = android.content.ClipData.newPlainText(context.getString(R.string.music_link), shareText)
                         clipboardManager.setPrimaryClip(clip)
                         Toast.makeText(context, linkCopied, Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
@@ -543,7 +543,7 @@ fun PlayerScreen(
                             },
                             onFailure = { error ->
                                 val errorMsg = error.message ?: "Unknown error"
-                                Toast.makeText(context, "下载失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.download_failed_format, errorMsg), Toast.LENGTH_SHORT).show()
                             }
                         )
                     } catch (e: Exception) {
@@ -556,7 +556,7 @@ fun PlayerScreen(
                 scope.launch {
                     showShareDialog = false
                     try {
-                        val shareText = "我在Neko云音乐发现宝藏音乐！${currentMusic.artist}唱的《${currentMusic.title}》https://music.cnmsb.xin/detail/${currentMusic.id} 大家快来听喵~"
+                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
                         val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
 
                         // 先尝试使用Twitter应用
@@ -583,7 +583,7 @@ fun PlayerScreen(
             },
             onSpeedChange = { speed ->
                 playerManager.setPlaybackSpeed(speed)
-                Toast.makeText(context, String.format("播放速度: %.1fx", speed), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.playback_speed_format, speed), Toast.LENGTH_SHORT).show()
             },
             currentSpeed = playbackSpeed,
             onSleepTimerChange = { minutes ->
@@ -597,11 +597,11 @@ fun PlayerScreen(
                         val hours = minutes / 60
                         val mins = minutes % 60
                         if (hours > 0 && mins > 0) {
-                            String.format("%d小时%d分钟后关闭", hours, mins)
+                            context.getString(R.string.sleep_timer_hours_minutes, hours, mins)
                         } else if (hours > 0) {
-                            String.format("%d小时后关闭", hours)
+                            context.getString(R.string.sleep_timer_hours, hours)
                         } else {
-                            String.format("%d分钟后关闭", minutes)
+                            context.getString(R.string.sleep_timer_minutes, minutes)
                         }
                     }
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -626,7 +626,7 @@ fun PlayerScreen(
                             Log.d("PlayerScreen", "API响应: success=${response.success}, message=${response.message}")
 
                             if (response.success) {
-                                Toast.makeText(context, "已添加到${playlist.name}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.added_to_playlist_format, playlist.name), Toast.LENGTH_SHORT).show()
                                 showShareDialog = false
                             } else {
                                 Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
@@ -638,7 +638,7 @@ fun PlayerScreen(
                     } catch (e: Exception) {
                         Log.e("PlayerScreen", "添加到歌单失败", e)
                         val errorMsg = e.message ?: "Unknown error"
-                        Toast.makeText(context, "添加失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.add_to_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -705,7 +705,7 @@ fun PlayerScreen(
                     } catch (e: Exception) {
                         Log.e("PlayerScreen", "创建歌单失败", e)
                         val errorMsg = e.message ?: "Unknown error"
-                        Toast.makeText(context, "创建失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.create_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
                     }
                 }
             },

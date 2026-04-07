@@ -1115,7 +1115,7 @@ fun UpdateErrorDialog(
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "${playlist.musicCount}首",
+                        text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
                         fontSize = 12.sp,
                         color = Color.White,
                         fontWeight = FontWeight.Medium
@@ -1236,7 +1236,7 @@ fun MusicCard(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "${music.playCount ?: 0}次",
+                    text = stringResource(id = R.string.play_count, music.playCount ?: 0),
                     fontSize = 12.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Medium
@@ -1367,7 +1367,7 @@ fun RankingCard(
                 
                 // 播放次数
                 Text(
-                    text = "${music.playCount ?: 0}次",
+                    text = stringResource(id = R.string.play_count, music.playCount ?: 0),
                     fontSize = 12.sp,
                     color = RoseRed.copy(alpha = 0.8f),
                     fontWeight = FontWeight.Medium
@@ -1384,7 +1384,7 @@ fun RankingCard(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "共 ${musicList.size} 首热门音乐",
+                    text = stringResource(id = R.string.total_hot_music, musicList.size),
                     fontSize = 12.sp,
                     color = Color.White.copy(alpha = 0.5f)
                 )
@@ -1454,7 +1454,7 @@ fun PlaylistCard(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "${playlist.musicCount}首",
+                    text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
                     fontSize = 11.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Medium

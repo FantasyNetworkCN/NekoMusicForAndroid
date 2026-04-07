@@ -414,7 +414,7 @@ fun LatestItem(
         if (music.createdAt != null) {
             try {
                 val timestamp = music.createdAt.toLong()
-                formatUploadTime(timestamp)
+                formatUploadTime(context, timestamp)
             } catch (e: Exception) {
                 ""
             }
@@ -515,15 +515,15 @@ fun LatestItem(
     }
 }
 
-fun formatUploadTime(timestamp: Long): String {
+fun formatUploadTime(context: android.content.Context, timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
     
     return when {
-        diff < 60 * 1000 -> "刚刚"
-        diff < 60 * 60 * 1000 -> "${diff / (60 * 1000)}分钟前"
-        diff < 24 * 60 * 60 * 1000 -> "${diff / (60 * 60 * 1000)}小时前"
-        diff < 30 * 24 * 60 * 60 * 1000 -> "${diff / (24 * 60 * 60 * 1000)}天前"
+        diff < 60 * 1000 -> context.getString(R.string.just_now)
+        diff < 60 * 60 * 1000 -> context.getString(R.string.minutes_ago_format, diff / (60 * 1000))
+        diff < 24 * 60 * 60 * 1000 -> context.getString(R.string.hours_ago_format, diff / (60 * 60 * 1000))
+        diff < 30 * 24 * 60 * 60 * 1000 -> context.getString(R.string.days_ago_format, diff / (24 * 60 * 60 * 1000))
         else -> {
             val sdf = SimpleDateFormat("MM-dd", Locale.getDefault())
             sdf.format(Date(timestamp))

@@ -113,7 +113,7 @@ fun PlaylistDetailScreen(
             }
         } catch (e: Exception) {
             Log.e("PlaylistDetailScreen", "加载歌单音乐失败", e)
-            errorMessage = "加载失败: ${e.message}"
+            errorMessage = context.getString(R.string.load_failed_msg, e.message ?: "")
         } finally {
             isLoading = false
             isCheckingFavorite = false
@@ -157,7 +157,7 @@ fun PlaylistDetailScreen(
                         isFavorited = !isFavorited
                         android.widget.Toast.makeText(
                             context,
-                            if (isFavorited) "收藏成功" else "取消收藏成功",
+                            if (isFavorited) context.getString(R.string.add_to_favorites_success) else context.getString(R.string.remove_from_favorites_success),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     } else {
@@ -171,7 +171,7 @@ fun PlaylistDetailScreen(
             } catch (e: Exception) {
                 android.widget.Toast.makeText(
                     context,
-                    "操作失败: ${e.message}",
+                    context.getString(R.string.operation_failed_msg, e.message ?: ""),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
@@ -188,7 +188,7 @@ fun PlaylistDetailScreen(
                     if (response.success) {
                         android.widget.Toast.makeText(
                             context,
-                            "已从歌单中移除",
+                            context.getString(R.string.removed_from_playlist_success),
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         // 重新加载歌单音乐列表
@@ -207,7 +207,7 @@ fun PlaylistDetailScreen(
             } catch (e: Exception) {
                 android.widget.Toast.makeText(
                     context,
-                    "移除失败: ${e.message}",
+                    context.getString(R.string.remove_from_playlist_failed, e.message ?: ""),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
@@ -368,7 +368,7 @@ fun PlaylistDetailScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "${musicList.size} 首歌曲",
+                        text = stringResource(id = R.string.songs_count_label, musicList.size),
                         fontSize = 14.sp,
                         color = if (isDarkTheme) {
                             Color(0xFFB8B8D1).copy(alpha = 0.8f)
@@ -397,7 +397,7 @@ fun PlaylistDetailScreen(
                     } else {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "暂无描述，点击此处修改Nya！",
+                            text = stringResource(id = R.string.no_description_click_to_edit),
                             fontSize = 13.sp,
                             color = if (isDarkTheme) {
                                 Color(0xFFB8B8D1).copy(alpha = 0.8f)
@@ -429,7 +429,10 @@ fun PlaylistDetailScreen(
                                     .clip(CircleShape)
                             )
                             Text(
-                                text = if (displayCreatorUsername != null) "创建者: $displayCreatorUsername" else "创建者ID: $displayCreatorUserId",
+                                text = if (displayCreatorUsername != null) 
+                                    stringResource(id = R.string.creator_info, displayCreatorUsername) 
+                                else 
+                                    stringResource(id = R.string.creator_id_info, displayCreatorUserId ?: 0),
                                 fontSize = 12.sp,
                                 color = if (isDarkTheme) {
                                     Color(0xFFB8B8D1).copy(alpha = 0.8f)
@@ -517,7 +520,7 @@ fun PlaylistDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "暂无歌曲",
+                        text = stringResource(id = R.string.no_songs),
                         fontSize = 16.sp,
                         color = if (isDarkTheme) {
                             Color(0xFFB8B8D1).copy(alpha = 0.8f)
@@ -566,7 +569,7 @@ fun PlaylistDetailScreen(
                 onDismissRequest = { showEditDescriptionDialog = false },
                 title = {
                     Text(
-                        text = "编辑歌单描述",
+                        text = stringResource(id = R.string.edit_description),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isDarkTheme) {
@@ -582,7 +585,7 @@ fun PlaylistDetailScreen(
                         onValueChange = { editingDescription = it },
                         placeholder = { 
                             Text(
-                                "请输入歌单描述",
+                                stringResource(id = R.string.enter_description),
                                 color = if (isDarkTheme) {
                                     Color(0xFFB8B8D1).copy(alpha = 0.6f)
                                 } else {
@@ -628,7 +631,7 @@ fun PlaylistDetailScreen(
                                             currentDescription = editingDescription
                                             android.widget.Toast.makeText(
                                                 context,
-                                                "描述已更新",
+                                                context.getString(R.string.description_updated_success),
                                                 android.widget.Toast.LENGTH_SHORT
                                             ).show()
                                             showEditDescriptionDialog = false
@@ -643,7 +646,7 @@ fun PlaylistDetailScreen(
                                 } catch (e: Exception) {
                                     android.widget.Toast.makeText(
                                         context,
-                                        "更新失败: ${e.message}",
+                                        context.getString(R.string.description_update_failed_msg, e.message ?: ""),
                                         android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -655,7 +658,7 @@ fun PlaylistDetailScreen(
                         )
                     ) {
                         Text(
-                            "确定",
+                            stringResource(id = R.string.confirm),
                             color = if (isDarkTheme) {
                                 Color.White.copy(alpha = 0.95f)
                             } else {
@@ -667,7 +670,7 @@ fun PlaylistDetailScreen(
                 dismissButton = {
                     TextButton(onClick = { showEditDescriptionDialog = false }) {
                         Text(
-                            "取消",
+                            stringResource(id = R.string.cancel),
                             color = if (isDarkTheme) {
                                 Color(0xFFB8B8D1).copy(alpha = 0.8f)
                             } else {
@@ -735,7 +738,7 @@ fun PlaylistDetailScreen(
 
                             // 分享标题
                             Text(
-                                text = "分享歌单",
+                                text = stringResource(id = R.string.share_playlist),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (shareDialogIsDarkTheme) {
@@ -758,7 +761,7 @@ fun PlaylistDetailScreen(
                                 item {
                                     ShareGridItem(
                                         iconRes = R.drawable.twitter,
-                                        label = "分享到推特",
+                                        label = stringResource(id = R.string.share_to_twitter),
                                         color = Color(0xFF1DA1F2),
                                         onClick = {
                                             val shareText = "我在Neko云音乐发现了宝藏歌单《$playlistName》- https://music.cnmsb.xin/playlist/$playlistId，里面超好听！大家快来听喵~"
@@ -774,7 +777,7 @@ fun PlaylistDetailScreen(
                                 item {
                                     ShareGridItem(
                                         iconRes = R.drawable.qq,
-                                        label = "分享到QQ",
+                                        label = stringResource(id = R.string.share_to_qq),
                                         color = Color(0xFF12B7F5),
                                         onClick = {
                                             android.widget.Toast.makeText(context, "我他妈注册补上傻逼QQ开放平台！", android.widget.Toast.LENGTH_SHORT).show()
@@ -785,15 +788,15 @@ fun PlaylistDetailScreen(
                                 item {
                                     ShareGridItem(
                                         iconRes = R.drawable.copy_link,
-                                        label = "复制链接",
+                                        label = stringResource(id = R.string.copy_link),
                                         color = RoseRed,
                                         onClick = {
                                             val shareUrl = "https://music.cnmsb.xin/playlist/$playlistId"
-                                            val shareText = "我在Neko云音乐发现了宝藏歌单《$playlistName》- https://music.cnmsb.xin/playlist/$playlistId，里面超好听！大家快来听喵~"
-                                            val clip = android.content.ClipData.newPlainText("歌单链接", shareText)
+                                            val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+                                            val clip = android.content.ClipData.newPlainText(context.getString(R.string.playlist_link), shareText)
                                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                             clipboard.setPrimaryClip(clip)
-                                            android.widget.Toast.makeText(context, "链接已复制", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
                                             showShareDialog = false
                                         }
                                     )
@@ -809,7 +812,7 @@ fun PlaylistDetailScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "取消",
+                                    text = stringResource(id = R.string.cancel),
                                     fontSize = 16.sp,
                                     color = if (shareDialogIsDarkTheme) {
                                         Color(0xFFB8B8D1).copy(alpha = 0.8f)

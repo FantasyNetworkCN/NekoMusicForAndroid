@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.getSystemService
+import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import kotlinx.coroutines.delay
@@ -57,7 +58,7 @@ class DownloadHelper(private val context: Context) {
                     DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE
                 )
                 setTitle(music.title)
-                setDescription("正在下载: ${music.artist} - ${music.title}")
+                setDescription(context.getString(R.string.downloading_progress, music.artist, music.title))
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(
                     Environment.DIRECTORY_DOWNLOADS,
@@ -71,9 +72,9 @@ class DownloadHelper(private val context: Context) {
             val downloadId = downloadManager?.enqueue(request)
 
             if (downloadId != null) {
-                continuation.resume(Result.success("下载已开始"))
+                continuation.resume(Result.success(context.getString(R.string.download_started)))
             } else {
-                continuation.resume(Result.failure(Exception("下载管理器不可用")))
+                continuation.resume(Result.failure(Exception(context.getString(R.string.download_manager_unavailable))))
             }
         } catch (e: Exception) {
             Log.e("DownloadHelper", "下载失败", e)
@@ -93,10 +94,10 @@ class DownloadHelper(private val context: Context) {
                     if (lyrics.isNotEmpty()) {
                         saveLyrics(music, lyrics)
                     }
-                    Result.success("下载已开始，包含歌词")
+                    Result.success(context.getString(R.string.download_started_with_lyrics))
                 },
                 onFailure = {
-                    Result.success("下载已开始")
+                    Result.success(context.getString(R.string.download_started))
                 }
             )
         } catch (e: Exception) {

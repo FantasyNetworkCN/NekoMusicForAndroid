@@ -282,7 +282,7 @@ fun MyPlaylistsScreen(
             }
         } catch (e: Exception) {
             Log.e("MyPlaylistsScreen", "刷新失败", e)
-            errorMessage = "刷新失败: ${e.message}"
+            errorMessage = context.getString(R.string.refresh_failed_format, e.message ?: "")
             showError = true
         } finally {
             isRefreshing = false
@@ -333,7 +333,7 @@ fun MyPlaylistsScreen(
                 }
             } catch (e: Exception) {
                 Log.e("MyPlaylistsScreen", "操作失败", e)
-                errorMessage = "操作失败: ${e.message}"
+                errorMessage = context.getString(R.string.operation_failed_generic)
                 showError = true
             }
         }
@@ -358,7 +358,7 @@ fun MyPlaylistsScreen(
                 }
             } catch (e: Exception) {
                 Log.e("MyPlaylistsScreen", "删除失败", e)
-                errorMessage = "删除失败: ${e.message}"
+                errorMessage = context.getString(R.string.delete_failed_format, e.message ?: "")
                 showError = true
             }
         }
