@@ -923,6 +923,18 @@ fun UploadMusicDialog(
                             
                             if (audioBytes != null) {
                                 val userApi = com.neko.music.data.api.UserApi(token)
+                                // 将时长字符串转换为秒数
+                                val durationSeconds = if (duration.contains(":")) {
+                                    val parts = duration.split(":")
+                                    if (parts.size == 2) {
+                                        parts[0].toIntOrNull()?.times(60)?.plus(parts[1].toIntOrNull() ?: 0) ?: 0
+                                    } else {
+                                        0
+                                    }
+                                } else {
+                                    duration.toIntOrNull() ?: 0
+                                }
+                                
                                 val response = userApi.uploadMusic(
                                     audioFile = audioBytes,
                                     audioFileName = audioFileName,
@@ -931,6 +943,8 @@ fun UploadMusicDialog(
                                     album = album,
                                     language = languageCode,
                                     tags = tags,
+                                    duration = durationSeconds,  // 添加 duration 参数
+                                    uploadUserId = 0,  // 添加 uploadUserId 参数
                                     lyricsFile = lyricsBytes,
                                     coverImage = coverBytes
                                 )
@@ -1021,6 +1035,7 @@ private data class AudioMetadata(
     val artist: String = "",
     val album: String = "",
     val duration: String = "",
+    val durationSeconds: Int = 0,  // 添加秒数字段
     val language: String = "",
     val cover: android.graphics.Bitmap? = null
 )
@@ -1042,6 +1057,7 @@ private suspend fun parseAudioMetadata(
         // 提取时长
         val durationMs = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
         val duration = formatDurationFromMs(durationMs)
+        val durationSeconds = (durationMs / 1000).toInt()  // 计算秒数
         
         // 提取封面图片
         val cover = retriever.embeddedPicture?.let { 
@@ -1053,6 +1069,7 @@ private suspend fun parseAudioMetadata(
             artist = artist,
             album = album,
             duration = duration,
+            durationSeconds = durationSeconds,  // 添加秒数
             language = "",
             cover = cover
         )
