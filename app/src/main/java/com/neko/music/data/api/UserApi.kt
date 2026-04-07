@@ -261,7 +261,7 @@ class UserApi(private val token: String? = null) {
                             if (lyricsFile != null) {
                                 append("lyricsFile", lyricsFile, Headers.build {
                                     append(HttpHeaders.ContentDisposition, "filename=lyrics.lrc")
-                                    append(HttpHeaders.ContentType, "text/plain")
+                                    append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
                                 })
                             }
                             

@@ -136,8 +136,8 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             continue
         }
         
-        // 匹配时间标签 [00:00.000] 或 [00:00.60] 或 [0:05.123]
-        val timePattern = Regex("""\[(\d{1,2}):(\d{1,2})\.(\d{2,3})\]""")
+        // 匹配时间标签 [mm:ss.xx]（强制两位毫秒）
+        val timePattern = Regex("""\[(\d{1,2}):(\d{1,2})\.(\d{2})\]""")
         val match = timePattern.find(line)
         
         if (match != null) {
@@ -145,13 +145,8 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             val seconds = match.groupValues[2].toInt()
             val milliseconds = match.groupValues[3].toInt()
             
-            // 根据毫秒位数计算时间
-            val time = minutes * 60 + seconds + 
-                if (milliseconds.toString().length == 2) {
-                    milliseconds / 100f
-                } else {
-                    milliseconds / 1000f
-                }
+            // 计算时间（毫秒只有两位，所以直接除以 100）
+            val time = minutes * 60 + seconds + milliseconds / 100f
             
             // 提取歌词文本（移除时间标签）
             val text = line.replace(timePattern, "").trim()

@@ -16,12 +16,12 @@ Java_com_neko_music_util_LrcParser_nativeIsValidLrcContent(JNIEnv *env, jclass t
         return JNI_FALSE;
     }
 
-    // LRC 时间戳格式：[mm:ss.xx] 或 [mm:ss.xxx]
+    // LRC 时间戳格式：[mm:ss.xx]（强制两位毫秒）
     // mm: 分钟（00-59）
     // ss: 秒（00-59）
-    // xx 或 xxx: 毫秒（00-999）
+    // xx: 毫秒（00-99，必须两位）
     regex_t regex;
-    int ret = regcomp(&regex, "\\[[0-5][0-9]:[0-5][0-9]\\.[0-9][0-9]\\([0-9]\\)?\\]", REG_EXTENDED);
+    int ret = regcomp(&regex, "\\[[0-5][0-9]:[0-5][0-9]\\.[0-9][0-9]\\]", REG_EXTENDED);
     if (ret != 0) {
         (*env)->ReleaseStringUTFChars(env, content, contentStr);
         return JNI_FALSE;
