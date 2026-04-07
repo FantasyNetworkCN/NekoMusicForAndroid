@@ -85,8 +85,9 @@ fun SearchResultScreen(
     
     val context = LocalContext.current
     val historyManager = remember { SearchHistoryManager(context) }
-    var searchQuery by remember { mutableStateOf(initialQuery) }
-    var searchType by remember { mutableStateOf("music") } // music 或 playlist
+    val searchStatePrefs = remember { context.getSharedPreferences("search_state", android.content.Context.MODE_PRIVATE) }
+    var searchQuery by remember { mutableStateOf(initialQuery.ifEmpty { searchStatePrefs.getString("last_search_query", "") ?: "" } ) }
+    var searchType by remember { mutableStateOf(searchStatePrefs.getString("last_search_type", "music") ?: "music") } // music 或 playlist
     var searchResults by remember { mutableStateOf<List<Music>>(emptyList()) }
     var playlistResults by remember { mutableStateOf<List<com.neko.music.data.api.PlaylistInfo>>(emptyList()) }
     var artistResults by remember { mutableStateOf<List<com.neko.music.data.model.Artist>>(emptyList()) }
@@ -96,6 +97,48 @@ fun SearchResultScreen(
     
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
+    
+    // 保存搜索状态
+    androidx.compose.runtime.LaunchedEffect(searchQuery, searchType) {
+        searchStatePrefs.edit()
+            .putString("last_search_query", searchQuery)
+            .putString("last_search_type", searchType)
+            .apply()
+    }
+    
+    // 如果有保存的搜索内容且不是初始查询，自动加载搜索结果
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val savedQuery = searchStatePrefs.getString("last_search_query", "") ?: ""
+        val savedType = searchStatePrefs.getString("last_search_type", "music") ?: "music"
+        
+        // 只有当初始查询为空且存在保存的查询时才自动加载
+        if (initialQuery.isEmpty() && savedQuery.isNotEmpty()) {
+            searchQuery = savedQuery
+            searchType = savedType
+            isLoading = true
+            errorMessage = null
+            
+            if (searchType == "music") {
+                performSearch(musicApi, savedQuery, scope) { results, error ->
+                    searchResults = results
+                    isLoading = false
+                    errorMessage = error
+                }
+            } else if (searchType == "playlist") {
+                performPlaylistSearch(savedQuery, scope) { results, error ->
+                    playlistResults = results
+                    isLoading = false
+                    errorMessage = error
+                }
+            } else if (searchType == "artist") {
+                performArtistSearch(savedQuery, scope) { results, error ->
+                    artistResults = results
+                    isLoading = false
+                    errorMessage = error
+                }
+            }
+        }
+    }
     
     // 实时搜索 - 输入后立即请求
     androidx.compose.runtime.LaunchedEffect(searchQuery, searchType) {
