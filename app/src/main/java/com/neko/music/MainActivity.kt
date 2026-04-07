@@ -412,6 +412,12 @@ fun MainScreen() {
                 HomeScreen(
                     onSearchClick = {
                         Log.d("MainActivity", "导航到搜索页面")
+                        // 清除保存的搜索状态，让用户看到一个干净的搜索界面
+                        val searchStatePrefs = context.getSharedPreferences("search_state", android.content.Context.MODE_PRIVATE)
+                        searchStatePrefs.edit()
+                            .remove("last_search_query")
+                            .remove("last_search_type")
+                            .apply()
                         navController.navigate("search")
                     },
                     onNavigateToFavorite = {
