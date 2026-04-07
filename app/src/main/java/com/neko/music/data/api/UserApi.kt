@@ -224,6 +224,94 @@ class UserApi(private val token: String? = null) {
             )
         }
     }
+
+    /**
+     * 上传音乐
+     */
+    suspend fun uploadMusic(
+        audioFile: ByteArray,
+        audioFileName: String,
+        title: String,
+        artist: String,
+        album: String,
+        language: String,
+        tags: String,
+        lyricsFile: ByteArray? = null,
+        coverImage: ByteArray? = null
+    ): UploadMusicResponse {
+        return try {
+            Log.d("UserApi", "开始上传音乐: $title - $artist")
+            
+            val response = client.post("$baseUrl/api/music/upload") {
+                headers {
+                    token?.let { append("Authorization", "Bearer $it") }
+                }
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            // 音乐文件
+                            append("audio", audioFile, Headers.build {
+                                append(HttpHeaders.ContentDisposition, "filename=$audioFileName")
+                                append(HttpHeaders.ContentType, "audio/mpeg")
+                            })
+                            
+                            // 歌词文件（可选）
+                            if (lyricsFile != null) {
+                                append("lyrics", lyricsFile, Headers.build {
+                                    append(HttpHeaders.ContentDisposition, "filename=lyrics.lrc")
+                                    append(HttpHeaders.ContentType, "text/plain")
+                                })
+                            }
+                            
+                            // 封面图片（可选）
+                            if (coverImage != null) {
+                                append("cover", coverImage, Headers.build {
+                                    append(HttpHeaders.ContentDisposition, "filename=cover.jpg")
+                                    append(HttpHeaders.ContentType, "image/jpeg")
+                                })
+                            }
+                            
+                            // 音乐信息
+                            append("title", title)
+                            append("artist", artist)
+                            append("album", album)
+                            append("language", language)
+                            append("tags", tags)
+                        }
+                    )
+                )
+            }
+
+            val responseText = response.body<String>()
+            Log.d("UserApi", "上传音乐响应状态: ${response.status}")
+            Log.d("UserApi", "上传音乐响应内容: $responseText")
+
+            // 如果响应为空，根据状态码判断成功
+            if (responseText.isBlank()) {
+                val success = response.status.value in 200..299
+                val message = if (success) "上传成功" else "上传失败"
+                return UploadMusicResponse(success = success, message = message)
+            }
+
+            // 如果响应不为空，尝试解析 JSON
+            try {
+                val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
+                val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
+                val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
+                val musicId = jsonResponse["musicId"]?.toString()?.toIntOrNull()
+
+                UploadMusicResponse(success = success, message = message, musicId = musicId)
+            } catch (jsonException: Exception) {
+                // JSON 解析失败，根据状态码判断
+                val success = response.status.value in 200..299
+                val message = if (success) "上传成功" else "上传失败: $responseText"
+                UploadMusicResponse(success = success, message = message)
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "上传音乐失败", e)
+            UploadMusicResponse(success = false, message = "网络错误: ${e.message}")
+        }
+    }
 }
 
 // 数据模型
@@ -323,4 +411,11 @@ data class UploadedMusicResponse(
     val userId: Int,
     val musicList: List<UploadedMusic>,
     val total: Int
+)
+
+@Serializable
+data class UploadMusicResponse(
+    val success: Boolean,
+    val message: String,
+    val musicId: Int? = null
 )

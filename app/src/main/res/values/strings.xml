@@ -398,4 +398,47 @@
     <string name="hot_music_desc">播放次数最高的歌曲</string>
     <string name="songs_count_short">%d首</string>
     <string name="play_count">%d次</string>
+
+    <!-- 上传音乐 -->
+    <string name="upload_music">上传音乐</string>
+    <string name="uploading">上传中...</string>
+    <string name="upload_success">上传成功</string>
+    <string name="upload_failed">上传失败: %s</string>
+    <string name="select_audio_file">选择音频文件</string>
+    <string name="select_lyrics_file">选择歌词文件</string>
+    <string name="select_cover_image">选择封面图片</string>
+    <string name="audio_file_selected">已选择: %s</string>
+    <string name="lyrics_file_selected">已选择歌词</string>
+    <string name="cover_image_selected">已选择封面</string>
+    <string name="cover_image_auto_extracted">封面已自动提取</string>
+    <string name="music_title">标题</string>
+    <string name="music_artist">艺术家</string>
+    <string name="music_album">专辑</string>
+    <string name="music_language">语言</string>
+    <string name="music_tags">标签（用逗号分隔）</string>
+    <string name="music_duration">时长</string>
+    <string name="required_field">* 必填</string>
+    <string name="optional_field">（可选）</string>
+    <string name="please_fill_required_fields">请填写必填字段</string>
+    <string name="please_select_audio_file">请选择音频文件</string>
+    <string name="file_read_failed">读取文件失败</string>
+    <string name="upload_music_dialog_title">上传音乐</string>
+    <string name="preview">预览</string>
+    <string name="parsing_metadata">正在解析音乐信息...</string>
+    <string name="please_select_language">请选择</string>
+    <string name="language_chinese">中文</string>
+    <string name="language_cantonese">粤语</string>
+    <string name="language_shanghainese">上海话</string>
+    <string name="language_english">英语</string>
+    <string name="language_japanese">日语</string>
+    <string name="language_korean">韩语</string>
+    <string name="language_french">法语</string>
+    <string name="language_german">德语</string>
+    <string name="language_russian">俄语</string>
+    <string name="language_instrumental">纯音乐</string>
+    <string name="duration_auto_parsing">自动解析中...</string>
+    <string name="unsupported_audio_format">不支持的音频格式，仅支持 WAV、FLAC、MP3 格式</string>
+    <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
+    <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
+    <string name="lyrics_file_read_failed">读取歌词文件失败</string>
 </resources>
