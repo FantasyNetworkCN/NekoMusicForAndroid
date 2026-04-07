@@ -24,6 +24,7 @@ class UserApi(private val token: String? = null) {
                 ignoreUnknownKeys = true
                 prettyPrint = true
                 isLenient = true
+                coerceInputValues = true
             })
         }
         install(io.ktor.client.plugins.HttpTimeout) {
@@ -408,7 +409,7 @@ data class UploadedMusic(
     val tags: String,
     val fileFormat: String,
     val filePath: String,
-    val coverPath: String,
+    val coverPath: String? = null,
     val createdAt: String
 )
 

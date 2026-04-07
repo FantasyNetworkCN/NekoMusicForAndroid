@@ -375,26 +375,15 @@ fun MusicItem(
                         )
                     )
             ) {
-                if (music.coverPath.isNotEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data("${baseUrl}/api/music/cover/${music.id}")
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = stringResource(id = R.string.album_cover),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = stringResource(id = R.string.music_note),
-                        tint = RoseRed,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(32.dp)
-                    )
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data("${baseUrl}/api/music/cover/${music.id}")
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = stringResource(id = R.string.album_cover),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
