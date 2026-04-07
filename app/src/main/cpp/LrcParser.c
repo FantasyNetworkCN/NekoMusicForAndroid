@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <regex.h>
 
+/*
+TODO: 歌词时间戳校验有误，需修复
+@wuwenjun
+完成后请移除此TODO
+*/
+
 // 检查LRC文件内容是否包含有效的时间戳
 JNIEXPORT jboolean JNICALL
 Java_com_neko_music_util_LrcParser_nativeIsValidLrcContent(JNIEnv *env, jclass type, jstring content) {

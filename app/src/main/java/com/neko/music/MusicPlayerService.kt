@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
 import kotlinx.coroutines.launch
 
@@ -134,10 +135,10 @@ class MusicPlayerService : Service() {
 
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "音乐播放",
+                getString(R.string.music_playback),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "音乐播放通知"
+                description = getString(R.string.music_playback_notification)
                 setShowBadge(false)
                 enableVibration(false)
                 setSound(null, null)
@@ -174,7 +175,7 @@ class MusicPlayerService : Service() {
             val timeText = buildString {
                 if (hours > 0) append("${hours}小时")
                 if (minutes > 0) append("${minutes}分钟")
-                append("${seconds}秒后关闭")
+                append("${seconds}${getString(R.string.sleep_timer_seconds)}")
             }
 
             "$artist - $timeText"

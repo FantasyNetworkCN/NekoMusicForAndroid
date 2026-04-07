@@ -243,7 +243,7 @@ fun ArtistDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = errorMessage ?: "加载失败",
+                            text = errorMessage ?: context.getString(R.string.loading_failed_format, ""),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp
                         )
@@ -336,7 +336,7 @@ fun ArtistDetailScreen(
                                             Log.e("ArtistDetailScreen", "播放全部失败", e)
                                             android.widget.Toast.makeText(
                                                 context,
-                                                "播放失败: ${e.message}",
+                                                context.getString(R.string.play_failed, e.message ?: ""),
                                                 android.widget.Toast.LENGTH_SHORT
                                             ).show()
                                         }
