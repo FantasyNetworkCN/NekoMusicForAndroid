@@ -1,13 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup rules for Neko Music
    See https://developer.android.com/guide/topics/data/autobackup
    for details.
    Note: This file is ignored for devices older than API 31
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- 排除缓存目录 -->
+    <exclude domain="cache"/>
+
+    <!-- 排除外部存储 -->
+    <exclude domain="external"/>
+
+    <!-- 排除数据库（默认备份，不需要include） -->
+    <!-- 排除SharedPreferences（默认备份，不需要include） -->
+
+    <!-- 排除内部存储中的特定目录 -->
+    <exclude domain="file" path="cache/"/>
+    <exclude domain="file" path="*.cache"/>
+    <exclude domain="file" path="temp/"/>
+    <exclude domain="file" path="*.tmp"/>
+    <exclude domain="file" path="music_cache/"/>
+    <exclude domain="file" path="downloads/"/>
+    <exclude domain="file" path="image_cache/"/>
+    <exclude domain="file" path="logs/"/>
+    <exclude domain="file" path="*.log"/>
 </full-backup-content>

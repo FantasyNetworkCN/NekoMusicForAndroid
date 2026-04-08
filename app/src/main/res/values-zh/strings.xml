@@ -102,6 +102,7 @@
     <string name="please_enter_email_first">请先输入邮箱</string>
 
     <!-- 账号信息 -->
+    <string name="update_failed_msg">❌ 更新失败</string>
     <string name="account_info">账号信息</string>
     <string name="avatar">头像</string>
     <string name="user_avatar">用户头像</string>
@@ -234,6 +235,7 @@
     <string name="recommended_playlists_exception">推荐歌单异常: %s</string>
     <string name="installing_update">正在安装更新...</string>
     <string name="update_dialog">发现新版本</string>
+    <string name="new_version_found">发现新版本</string>
     <string name="new_version">新版本：%s</string>
     <string name="version_code">版本号：%d</string>
 
@@ -371,6 +373,7 @@
     <string name="play_count">%d次</string>
 
     <!-- 启动页 -->
+    <string name="lyrics_file_read_failed">读取歌词文件失败</string>
     <string name="splash_slogan">听见你的世界</string>
     
     <!-- 认证错误 -->
@@ -440,4 +443,59 @@
     <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
     <string name="share_playlist">分享歌单</string>
     <string name="removed_from_playlist_success">已从歌单中移除</string>
+    <string name="email">邮箱</string>
+    <string name="password">密码</string>
+    <string name="username">用户名</string>
+    <string name="confirm_password">确认密码</string>
+    <string name="verification_code">验证码</string>
+    <string name="register">注册</string>
+    <string name="drag_scale_avatar">拖动和缩放图片以选择头像区域</string>
+    <string name="complete">完成</string>
+    <string name="more">更多</string>
+    <string name="downloading_update_progress">正在下载更新</string>
+    <string name="downloading_update_failed">下载失败，请稍后重试</string>
+    <string name="downloading_update_failed_msg">下载失败：%s</string>
+    <string name="version_code_display">版本号：%d</string>
+    <string name="later">稍后</string>
+    <string name="download_complete">下载完成</string>
+    <string name="upload_music">上传音乐</string>
+    <string name="uploading">上传中...</string>
+    <string name="upload_success">上传成功</string>
+    <string name="upload_failed">上传失败: %s</string>
+    <string name="select_audio_file">选择音频文件</string>
+    <string name="select_lyrics_file">选择歌词文件</string>
+    <string name="select_cover_image">选择封面图片</string>
+    <string name="audio_file_selected">已选择: %s</string>
+    <string name="lyrics_file_selected">已选择歌词</string>
+    <string name="cover_image_selected">已选择封面</string>
+    <string name="cover_image_auto_extracted">封面已自动提取</string>
+    <string name="music_title">标题</string>
+    <string name="music_artist">艺术家</string>
+    <string name="music_album">专辑</string>
+    <string name="music_language">语言</string>
+    <string name="music_tags">标签（用逗号分隔）</string>
+    <string name="music_duration">时长</string>
+    <string name="required_field">* 必填</string>
+    <string name="optional_field">（可选）</string>
+    <string name="please_fill_required_fields">请填写必填字段</string>
+    <string name="please_select_audio_file">请选择音频文件</string>
+    <string name="file_read_failed">读取文件失败</string>
+    <string name="upload_music_dialog_title">上传音乐</string>
+    <string name="preview">预览</string>
+    <string name="parsing_metadata">正在解析音乐信息...</string>
+    <string name="please_select_language">请选择</string>
+    <string name="language_chinese">中文</string>
+    <string name="language_cantonese">粤语</string>
+    <string name="language_shanghainese">上海话</string>
+    <string name="language_english">英语</string>
+    <string name="language_japanese">日语</string>
+    <string name="language_korean">韩语</string>
+    <string name="language_french">法语</string>
+    <string name="language_german">德语</string>
+    <string name="language_russian">俄语</string>
+    <string name="language_instrumental">纯音乐</string>
+    <string name="duration_auto_parsing">自动解析中...</string>
+    <string name="unsupported_audio_format">不支持的音频格式，仅支持 WAV、FLAC、MP3 格式</string>
+    <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
+    <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
 </resources>
