@@ -15,26 +15,6 @@
         <!-- 备份内部存储中的用户数据文件 -->
         <include domain="file" path="playlists/"/>
         <include domain="file" path="user_data/"/>
-
-        <!-- 排除缓存文件 -->
-        <exclude domain="cache"/>
-        <exclude domain="file" path="cache/"/>
-        <exclude domain="file" path="*.cache"/>
-
-        <!-- 排除临时文件 -->
-        <exclude domain="file" path="temp/"/>
-        <exclude domain="file" path="*.tmp"/>
-
-        <!-- 排除下载的音乐文件（这些可以从服务器重新获取） -->
-        <exclude domain="file" path="music_cache/"/>
-        <exclude domain="file" path="downloads/"/>
-
-        <!-- 排除图片缓存 -->
-        <exclude domain="file" path="image_cache/"/>
-
-        <!-- 排除日志文件 -->
-        <exclude domain="file" path="logs/"/>
-        <exclude domain="file" path="*.log"/>
     </cloud-backup>
 
     <device-transfer>
@@ -49,18 +29,5 @@
         <include domain="file" path="playlists/"/>
         <include domain="file" path="user_data/"/>
         <include domain="file" path="settings/"/>
-
-        <!-- 排除缓存文件 -->
-        <exclude domain="cache"/>
-        <exclude domain="file" path="cache/"/>
-        <exclude domain="file" path="*.cache"/>
-
-        <!-- 排除临时文件 -->
-        <exclude domain="file" path="temp/"/>
-        <exclude domain="file" path="*.tmp"/>
-
-        <!-- 排除日志文件 -->
-        <exclude domain="file" path="logs/"/>
-        <exclude domain="file" path="*.log"/>
     </device-transfer>
 </data-extraction-rules>
