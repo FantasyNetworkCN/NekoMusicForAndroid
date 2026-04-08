@@ -1,0 +1,16 @@
+# ninja log v5
+0	36	1775560853152575843	CMakeFiles/LrcParser.dir/LrcParser.c.o	6a27b963414c30b1
+36	48	1775560853165575587	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67
+0	1	0	clean	fcfa824df3e3333a
+0	46	1775560900772642550	CMakeFiles/LrcParser.dir/LrcParser.c.o	6a27b963414c30b1
+46	82	1775560900806641887	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67
+0	2	0	clean	fcfa824df3e3333a
+11	175	1775562083124738246	CMakeFiles/LrcParser.dir/LrcParser.c.o	6a27b963414c30b1
+175	239	1775562083191738145	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67
+1	10	0	clean	fcfa824df3e3333a
+0	275	1775571471073398160	CMakeFiles/LrcParser.dir/LrcParser.c.o	6a27b963414c30b1
+275	405	1775571471208397359	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67
+0	1	0	clean	fcfa824df3e3333a
+1	260	1775571779721687738	CMakeFiles/LrcParser.dir/LrcParser.c.o	6a27b963414c30b1
+260	363	1775571779821686032	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67
+4	120	1775571973755647475	/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/build/intermediates/cxx/Debug/1oz13713/obj/arm64-v8a/libLrcParser.so	82ecbd75ba2d1b67

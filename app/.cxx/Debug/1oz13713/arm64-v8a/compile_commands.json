@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/.cxx/Debug/1oz13713/arm64-v8a",
+  "command": "/home/wuwenjun/Android/Sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-none-linux-android23 --sysroot=/home/wuwenjun/Android/Sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DLrcParser_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/LrcParser.dir/LrcParser.c.o -c /home/wuwenjun/桌面/github/NekoMusicForAndroid/app/src/main/cpp/LrcParser.c",
+  "file": "/home/wuwenjun/桌面/github/NekoMusicForAndroid/app/src/main/cpp/LrcParser.c"
+}
+]
