@@ -2,6 +2,7 @@ package com.neko.music.util
 
 import android.content.Context
 import android.widget.Toast
+import com.neko.music.R
 import com.neko.music.data.manager.TokenManager
 import io.ktor.serialization.JsonConvertException
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -52,7 +53,7 @@ object AuthErrorHandler {
             // 显示 Toast 提示
             Toast.makeText(
                 context,
-                "登录状态失效，请重新登录",
+                context.getString(R.string.auth_expired),
                 Toast.LENGTH_LONG
             ).show()
         }

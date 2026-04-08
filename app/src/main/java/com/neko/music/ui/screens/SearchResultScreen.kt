@@ -155,7 +155,7 @@ fun SearchResultScreen(
                 }
             } else if (searchType == "playlist") {
                 // 歌单搜索
-                performPlaylistSearch(searchQuery, scope) { results, error ->
+                performPlaylistSearch(searchQuery, context, scope) { results, error ->
                     playlistResults = results
                     searchResults = emptyList()
                     artistResults = emptyList()
@@ -164,7 +164,7 @@ fun SearchResultScreen(
                 }
             } else {
                 // 歌手搜索
-                performArtistSearch(searchQuery, scope) { results, error ->
+                performArtistSearch(searchQuery, context, scope) { results, error ->
                     artistResults = results
                     searchResults = emptyList()
                     playlistResults = emptyList()
@@ -773,6 +773,7 @@ onFailure = { error ->
 
 suspend fun performPlaylistSearch(
     query: String,
+    context: android.content.Context,
     scope: kotlinx.coroutines.CoroutineScope,
     onResult: (List<com.neko.music.data.api.PlaylistInfo>, String?) -> Unit
 ) {
@@ -831,10 +832,10 @@ suspend fun performPlaylistSearch(
                     Log.d("SearchScreen", "搜索到 ${playlists.size} 个歌单")
                     onResult(playlists, null)
                 } else {
-                    onResult(emptyList(), "未找到歌单")
+                    onResult(emptyList(), context.getString(R.string.no_search_playlist_found))
                 }
             } else {
-                onResult(emptyList(), "搜索失败")
+                onResult(emptyList(), context.getString(R.string.search_failed))
             }
         } catch (e: Exception) {
             Log.e("SearchScreen", "歌单搜索请求失败 - ${e.message}", e)
@@ -845,6 +846,7 @@ suspend fun performPlaylistSearch(
 
 suspend fun performArtistSearch(
     query: String,
+    context: android.content.Context,
     scope: kotlinx.coroutines.CoroutineScope,
     onResult: (List<com.neko.music.data.model.Artist>, String?) -> Unit
 ) {
@@ -917,10 +919,10 @@ suspend fun performArtistSearch(
                     Log.d("SearchScreen", "搜索到 ${artists.size} 个歌手: $name")
                     onResult(artists, null)
                 } else {
-                    onResult(emptyList(), "未找到歌手")
+                    onResult(emptyList(), context.getString(R.string.no_search_artist_found))
                 }
             } else {
-                onResult(emptyList(), "搜索失败")
+                onResult(emptyList(), context.getString(R.string.search_failed))
             }
         } catch (e: Exception) {
             Log.e("SearchScreen", "歌手搜索请求失败 - ${e.message}", e)

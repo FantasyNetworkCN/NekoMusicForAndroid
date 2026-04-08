@@ -166,7 +166,6 @@
     <string name="playback_speed_x">倍速: %dx</string>
     <string name="sleep_timer">定时关闭</string>
     <string name="sleep_timer_cancelled">定时关闭已取消</string>
-    <string name="sleep_timer_hours_minutes">%d小时%d分钟后关闭</string>
     <string name="sleep_timer_hours">%d小时后关闭</string>
     <string name="sleep_timer_minutes">%d分钟后关闭</string>
     <string name="add_to_playlist">添加到歌单</string>
@@ -199,20 +198,8 @@
     <string name="no_description_nya">暂时没有描述Nya！</string>
     <string name="songs_count">%d 首音乐</string>
     <string name="author_prefix">作者：%s</string>
-
-    <!-- 最新音乐 -->
-    <string name="latest_music">最新音乐</string>
-    <string name="loading_latest_music">正在加载最新音乐...</string>
-    <string name="load_failed">加载失败</string>
-    <string name="network_error">网络连接似乎出现了问题</string>
-    <string name="retry">重试</string>
-    <string name="no_latest_music">暂无最新音乐</string>
-    <string name="just_now">刚刚</string>
-    <string name="minutes_ago">%d分钟前</string>
-    <string name="hours_ago">%d小时前</string>
-    <string name="days_ago">%d天前</string>
-    <string name="play_all_failed">播放全部失败</string>
-    <string name="play_failed">播放失败</string>
+    <string name="no_search_playlist_found">未找到歌单</string>
+    <string name="no_search_artist_found">未找到歌手</string>
 
     <!-- 上传音乐 -->
     <string name="loading_data">加载中...</string>
@@ -399,6 +386,7 @@
     <!-- 首页 -->
     <string name="hot_music_desc">播放次数最高的歌曲</string>
     <string name="songs_count_short">%d首</string>
+    <string name="songs_count_format">%d首</string>
     <string name="play_count">%d次</string>
 
     <!-- 上传音乐 -->
@@ -443,4 +431,78 @@
     <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
     <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
     <string name="lyrics_file_read_failed">读取歌词文件失败</string>
+    
+    <!-- 启动页 -->
+    <string name="splash_slogan">听见你的世界</string>
+    
+    <!-- 认证错误 -->
+    <string name="auth_expired">登录状态失效，请重新登录</string>
+    
+    <!-- 下载 -->
+    <string name="downloading_progress" formatted="false">正在下载: %s - %s</string>
+    <string name="download_started">下载已开始</string>
+    <string name="download_manager_unavailable">下载管理器不可用</string>
+    <string name="download_started_with_lyrics">下载已开始，包含歌词</string>
+    
+    <!-- 热门音乐 -->
+    <string name="total_hot_music">共 %d 首热门音乐</string>
+    
+    <!-- 分享 -->
+    <string name="share_to_qq">分享到QQ</string>
+    <string name="playlist_link">歌单链接</string>
+    
+    <!-- 定时关闭 -->
+    <string name="sleep_timer_hours_minutes" formatted="false">%d小时%d分钟后关闭</string>
+    <string name="sleep_timer_seconds">%d秒后关闭</string>
+    
+    <!-- 音乐链接 -->
+    <string name="music_link">音乐链接</string>
+    
+    <!-- 通知频道 -->
+    <string name="music_playback">音乐播放</string>
+    <string name="music_playback_notification">音乐播放通知</string>
+    
+    <!-- 上传 -->
+    <string name="uploading_progress">上传中 %d%%</string>
+
+    <!-- 最新音乐 -->
+    <string name="latest_music">最新音乐</string>
+    <string name="latest_music_title">最新音乐</string>
+    <string name="click_latest_music_info">点击最新音乐，共%d首</string>
+    <string name="loading_latest_music">正在加载最新音乐...</string>
+    <string name="load_failed">加载失败</string>
+    <string name="network_error">网络连接似乎出现了问题</string>
+    <string name="retry">重试</string>
+    <string name="no_latest_music">暂无最新音乐</string>
+    <string name="minutes_ago">%d分钟前</string>
+    <string name="hours_ago">%d小时前</string>
+    <string name="days_ago">%d天前</string>
+
+    <!-- 歌单详情 -->
+
+    <!-- 播放器 -->
+    <string name="playback_speed_format">播放速度: %.1fx</string>
+    <string name="added_to_playlist_format">已添加到%s</string>
+    <string name="add_to_playlist_failed">添加失败: %s</string>
+    <string name="create_playlist_failed">创建失败: %s</string>
+    <string name="play_failed">播放失败: %s</string>
+    <string name="play_all_failed">播放全部失败</string>
+    <string name="download_failed_format">下载失败: %s</string>
+    <string name="loading_failed_format">加载失败: %s</string>
+    <string name="refresh_failed_format">刷新失败: %s</string>
+    <string name="delete_failed_format">删除失败: %s</string>
+    <string name="operation_failed_generic">操作失败</string>
+
+    <!-- 时间格式 -->
+    <string name="just_now">刚刚</string>
+    <string name="minutes_ago_format">%d分钟前</string>
+    <string name="hours_ago_format">%d小时前</string>
+    <string name="days_ago_format">%d天前</string>
+    <string name="minutes_unit">分钟</string>
+
+    <!-- 分享 -->
+    <string name="share_music_text">[%s-%s] Neko云音乐 https://music.cnmsb.xin/detail/%d</string>
+    <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
+    <string name="share_playlist">分享歌单</string>
+    <string name="removed_from_playlist_success">已从歌单中移除</string>
 </resources>

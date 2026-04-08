@@ -87,7 +87,7 @@ fun UploadedMusicScreen(
                     }
                 } catch (e: Exception) {
                     showError = true
-                    errorMessage = "获取数据失败: ${e.message}"
+                    errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
                 } finally {
                     isLoading = false
                 }
@@ -189,7 +189,7 @@ fun UploadedMusicScreen(
                         }
                     } catch (e: Exception) {
                         showError = true
-                        errorMessage = "获取数据失败: ${e.message}"
+                        errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
                     } finally {
                         isLoading = false
                     }
@@ -604,7 +604,7 @@ fun UploadMusicDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isUploading) "上传中 ${uploadProgress.toInt()}%" 
+                        text = if (isUploading) stringResource(id = R.string.uploading_progress, uploadProgress.toInt())
                             else stringResource(id = R.string.upload_music_dialog_title),
                         fontWeight = FontWeight.Bold
                     )
@@ -717,7 +717,7 @@ fun UploadMusicDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = lyricsPreview.ifEmpty { "加载中..." },
+                                text = lyricsPreview.ifEmpty { stringResource(id = R.string.loading_data) },
                                 fontSize = 10.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 3,

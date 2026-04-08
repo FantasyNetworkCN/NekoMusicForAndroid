@@ -33,6 +33,11 @@ fun LatestMusicCard(
     musicList: List<com.neko.music.data.model.Music>,
     onClick: () -> Unit
 ) {
+    // 预加载字符串资源
+    val latestMusicTitle = stringResource(id = R.string.latest_music_title)
+    val clickLatestMusicInfo = stringResource(id = R.string.click_latest_music_info, musicList.size)
+    val songsCountFormat = stringResource(id = R.string.songs_count_format, musicList.size)
+    
     Column(
         modifier = Modifier
             .width(160.dp)
@@ -40,7 +45,7 @@ fun LatestMusicCard(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) {
-                android.util.Log.d("LatestMusicCard", "点击最新音乐，共${musicList.size}首")
+                android.util.Log.d("LatestMusicCard", clickLatestMusicInfo)
                 onClick()
             },
         horizontalAlignment = Alignment.CenterHorizontally
@@ -79,7 +84,7 @@ fun LatestMusicCard(
                         .data(coverUrl ?: "https://music.cnmsb.xin/api/user/avatar/default")
                         .crossfade(true)
                         .build(),
-                    contentDescription = "最新音乐",
+                    contentDescription = latestMusicTitle,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -107,7 +112,7 @@ fun LatestMusicCard(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "${musicList.size}首",
+                    text = songsCountFormat,
                     fontSize = 11.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
@@ -119,7 +124,7 @@ fun LatestMusicCard(
         
         // 标题
         Text(
-            text = "最新音乐",
+            text = latestMusicTitle,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = SkyBlue.copy(alpha = 0.9f),
