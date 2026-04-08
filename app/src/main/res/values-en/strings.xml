@@ -390,6 +390,7 @@
     <string name="play_count">%d plays</string>
     
     <!-- Splash Screen -->
+    <string name="lyrics_file_read_failed">Failed to read lyrics file</string>
     <string name="splash_slogan">Hear Your World</string>
     
     <!-- Auth Error -->
@@ -459,4 +460,44 @@
     <string name="share_playlist_text">I found a treasure playlist on Neko Music %s - https://music.cnmsb.xin/playlist/%d, it is amazing! Come and listen meow~</string>
     <string name="share_playlist">Share Playlist</string>
     <string name="removed_from_playlist_success">Removed from playlist</string>
+    <string name="upload_music">Upload music</string>
+    <string name="uploading">Uploading...</string>
+    <string name="upload_success">Upload successful</string>
+    <string name="upload_failed">Upload failed: %s</string>
+    <string name="select_audio_file">Select audio file</string>
+    <string name="select_lyrics_file">Select lyrics file</string>
+    <string name="select_cover_image">Select cover image</string>
+    <string name="audio_file_selected">Selected: %s</string>
+    <string name="lyrics_file_selected">Lyrics selected</string>
+    <string name="cover_image_selected">Cover selected</string>
+    <string name="cover_image_auto_extracted">Cover image automatically extracted</string>
+    <string name="music_title">Title</string>
+    <string name="music_artist">artist</string>
+    <string name="music_album">album</string>
+    <string name="music_language">language</string>
+    <string name="music_tags">Tags (separated by commas)</string>
+    <string name="music_duration">duration</string>
+    <string name="required_field">*Required</string>
+    <string name="optional_field">(optional)</string>
+    <string name="please_fill_required_fields">Please fill in the required fields.</string>
+    <string name="please_select_audio_file">Please select an audio file</string>
+    <string name="file_read_failed">Failed to read file</string>
+    <string name="upload_music_dialog_title">Upload music</string>
+    <string name="preview">Preview</string>
+    <string name="parsing_metadata">Parsing music information...</string>
+    <string name="please_select_language">Please select</string>
+    <string name="language_chinese">Chinese</string>
+    <string name="language_cantonese">Cantonese</string>
+    <string name="language_shanghainese">Shanghainese</string>
+    <string name="language_english">English</string>
+    <string name="language_japanese">Japanese</string>
+    <string name="language_korean">Korean</string>
+    <string name="language_french">French</string>
+    <string name="language_german">German</string>
+    <string name="language_russian">Russian</string>
+    <string name="language_instrumental">pure music</string>
+    <string name="duration_auto_parsing">Automatic parsing in progress...</string>
+    <string name="unsupported_audio_format">Unsupported audio formats: Only WAV, FLAC, and MP3 formats are supported.</string>
+    <string name="unsupported_lyrics_format">Lyrics files only support LRC format.</string>
+    <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
 </resources>
