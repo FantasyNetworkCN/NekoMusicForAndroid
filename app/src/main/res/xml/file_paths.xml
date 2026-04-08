@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+   FileProvider paths for Neko Music
+   用于配置应用可以安全地共享给其他应用的文件路径
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 音乐下载目录 -->
+    <external-path
+        name="music_downloads"
+        path="Music/NekoMusic/" />
+
+    <!-- 音乐缓存目录 -->
+    <external-cache-path
+        name="music_cache"
+        path="music/" />
+
+    <!-- 图片缓存目录 -->
+    <external-cache-path
+        name="image_cache"
+        path="images/" />
+
+    <!-- 临时文件目录 -->
+    <external-cache-path
+        name="temp_files"
+        path="temp/" />
+
+    <!-- 应用私有外部存储 -->
+    <external-files-path
+        name="app_files"
+        path="." />
+
+    <!-- 通用外部文件访问（用于兼容性） -->
     <external-path
         name="external_files"
         path="." />
