@@ -178,15 +178,13 @@ fun BottomNavigationBar(
                                 indication = null
                             ) {
                                 if (currentRoute != item.route) {
-                                    // 切换到不同的标签页，先清除该路由的所有历史记录
-                                    navController.popBackStack(item.route, inclusive = true)
-                                    // 然后导航到目标路由，不保存状态以确保每次都回到首页
+                                    // 切换到不同的标签页
                                     navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = false
+                                        // 弹出导航堆栈中所有页面，直到目标页面，但不包含目标页面
+                                        popUpTo(item.route) {
+                                            inclusive = true
                                         }
                                         launchSingleTop = true
-                                        restoreState = false
                                     }
                                 } else {
                                     // 点击当前选中的标签页，返回到该标签页的首页
