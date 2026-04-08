@@ -1,19 +1,66 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Data extraction rules for Neko Music
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
    for details.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- 备份用户数据库（播放列表、搜索历史等） -->
+        <include domain="database" path="app_database"/>
+
+        <!-- 备份SharedPreferences（用户设置、主题设置等） -->
+        <include domain="sharedpref" path="*.xml"/>
+
+        <!-- 备份内部存储中的用户数据文件 -->
+        <include domain="file" path="playlists/"/>
+        <include domain="file" path="user_data/"/>
+
+        <!-- 排除缓存文件 -->
+        <exclude domain="cache"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="*.cache"/>
+
+        <!-- 排除临时文件 -->
+        <exclude domain="file" path="temp/"/>
+        <exclude domain="file" path="*.tmp"/>
+
+        <!-- 排除下载的音乐文件（这些可以从服务器重新获取） -->
+        <exclude domain="file" path="music_cache/"/>
+        <exclude domain="file" path="downloads/"/>
+
+        <!-- 排除图片缓存 -->
+        <exclude domain="file" path="image_cache/"/>
+
+        <!-- 排除日志文件 -->
+        <exclude domain="file" path="logs/"/>
+        <exclude domain="file" path="*.log"/>
     </cloud-backup>
-    <!--
+
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- 设备传输时备份更多数据 -->
+        <!-- 备份所有数据库 -->
+        <include domain="database" path="."/>
+
+        <!-- 备份所有SharedPreferences -->
+        <include domain="sharedpref" path="."/>
+
+        <!-- 备份内部存储中的所有用户数据 -->
+        <include domain="file" path="playlists/"/>
+        <include domain="file" path="user_data/"/>
+        <include domain="file" path="settings/"/>
+
+        <!-- 排除缓存文件 -->
+        <exclude domain="cache"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="*.cache"/>
+
+        <!-- 排除临时文件 -->
+        <exclude domain="file" path="temp/"/>
+        <exclude domain="file" path="*.tmp"/>
+
+        <!-- 排除日志文件 -->
+        <exclude domain="file" path="logs/"/>
+        <exclude domain="file" path="*.log"/>
     </device-transfer>
-    -->
 </data-extraction-rules>
