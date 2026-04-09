@@ -32,10 +32,10 @@ interface PlaylistDao {
     @Query("UPDATE playlist SET addedAt = :timestamp WHERE musicId = :musicId")
     suspend fun updateAddedAt(musicId: Int, timestamp: Long = System.currentTimeMillis())
     
-    @Query("SELECT * FROM playlist WHERE musicId > :currentMusicId ORDER BY musicId ASC LIMIT 1")
+    @Query("SELECT * FROM playlist WHERE id > (SELECT id FROM playlist WHERE musicId = :currentMusicId LIMIT 1) ORDER BY id ASC LIMIT 1")
     suspend fun getNextMusic(currentMusicId: Int): PlaylistEntity?
     
-    @Query("SELECT * FROM playlist WHERE musicId < :currentMusicId ORDER BY musicId DESC LIMIT 1")
+    @Query("SELECT * FROM playlist WHERE id < (SELECT id FROM playlist WHERE musicId = :currentMusicId LIMIT 1) ORDER BY id DESC LIMIT 1")
     suspend fun getPreviousMusic(currentMusicId: Int): PlaylistEntity?
     
     @Query("SELECT * FROM playlist ORDER BY musicId ASC LIMIT 1")

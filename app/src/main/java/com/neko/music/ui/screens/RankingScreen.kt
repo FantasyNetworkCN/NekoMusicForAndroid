@@ -40,7 +40,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RankingScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onNavigateToPlayer: (Music) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -232,6 +233,8 @@ fun RankingScreen(
                                                 music.coverFilePath ?: "",
                                                 fullCoverUrl
                                             )
+                                            // 跳转到播放页面，传递音乐信息
+                                            onNavigateToPlayer(music)
                                         } catch (e: Exception) {
                                             Log.e("RankingScreen", "播放失败", e)
                                         }

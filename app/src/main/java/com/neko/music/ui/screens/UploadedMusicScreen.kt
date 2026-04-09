@@ -57,7 +57,8 @@ private const val baseUrl = "https://music.cnmsb.xin"
 fun UploadedMusicScreen(
     onBackClick: () -> Unit = {},
     onMusicClick: (UploadedMusic) -> Unit = {},
-    token: String? = null
+    token: String? = null,
+    userId: Int = -1
 ) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -194,7 +195,8 @@ fun UploadedMusicScreen(
                     }
                 }
             },
-            token = token
+            token = token,
+            userId = userId
         )
     }
 }
@@ -440,7 +442,8 @@ private fun formatDuration(seconds: Int): String {
 fun UploadMusicDialog(
     onDismiss: () -> Unit,
     onUploadSuccess: () -> Unit,
-    token: String?
+    token: String?,
+    userId: Int = -1
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -475,6 +478,7 @@ fun UploadMusicDialog(
     var language by remember { mutableStateOf(pleaseSelectLanguage) }
     var tags by remember { mutableStateOf("") }
     var duration by remember { mutableStateOf("") }
+    var durationSeconds by remember { mutableStateOf(0) }  // 添加时长秒数
     
     // 文件
     var audioFile by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -489,6 +493,8 @@ fun UploadMusicDialog(
     var isParsing by remember { mutableStateOf(false) }
     
     var languageExpanded by remember { mutableStateOf(false) }
+    var showFullLyricsDialog by remember { mutableStateOf(false) }
+    var fullLyricsContent by remember { mutableStateOf("") }
     
     // 文件选择器
     val audioFileLauncher = rememberLauncherForActivityResult(
@@ -521,6 +527,7 @@ fun UploadMusicDialog(
                     artist = metadata.artist
                     album = metadata.album
                     duration = metadata.duration
+                    durationSeconds = metadata.durationSeconds  // 设置时长秒数
                     // 如果音频文件有内嵌封面，则自动显示
                     if (metadata.cover != null) {
                         coverBitmap = metadata.cover
@@ -569,6 +576,7 @@ fun UploadMusicDialog(
                     // 验证通过，设置歌词文件和预览内容
                     lyricsFile = uri
                     lyricsPreview = preview
+                    fullLyricsContent = content  // 保存完整歌词内容
                 } catch (e: Exception) {
                     android.widget.Toast.makeText(
                         context,
@@ -691,7 +699,8 @@ fun UploadMusicDialog(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(80.dp),
+                            .height(80.dp)
+                            .clickable { showFullLyricsDialog = true },
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
@@ -903,15 +912,16 @@ fun UploadMusicDialog(
                             val languageCode = languageOptions.find { it.first == language }?.second ?: ""
                             
                             // 模拟进度更新 - 上传中阶段
-                            launch {
-                                while (isUploading && uploadProgress < 90f) {
+                            val uploadJob = launch {
+                                while (isUploading && uploadProgress < 95f) {
                                     kotlinx.coroutines.delay(100)
-                                    uploadProgress = (uploadProgress + 5f).coerceAtMost(90f)
+                                    uploadProgress = (uploadProgress + 5f).coerceAtMost(95f)
                                 }
                             }
                             
                             if (audioBytes != null) {
                                 val userApi = com.neko.music.data.api.UserApi(token)
+                                
                                 val response = userApi.uploadMusic(
                                     audioFile = audioBytes,
                                     audioFileName = audioFileName,
@@ -920,10 +930,14 @@ fun UploadMusicDialog(
                                     album = album,
                                     language = languageCode,
                                     tags = tags,
+                                    duration = durationSeconds,  // 直接使用解析出的秒数
+                                    uploadUserId = userId,  // 使用真实的用户 ID
                                     lyricsFile = lyricsBytes,
                                     coverImage = coverBytes
                                 )
                                 
+                                // API调用完成后，等待模拟进度完成到95%，然后设置为100%
+                                uploadJob.join()
                                 uploadProgress = 100f
                                 
                                 if (response.success) {
@@ -979,6 +993,49 @@ fun UploadMusicDialog(
             }
         }
     )
+    
+    // 完整歌词对话框
+    if (showFullLyricsDialog) {
+        AlertDialog(
+            onDismissRequest = { showFullLyricsDialog = false },
+            title = {
+                Text(
+                    text = "完整歌词",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = fullLyricsContent,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showFullLyricsDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RoseRed
+                    )
+                ) {
+                    Text(stringResource(id = android.R.string.ok))
+                }
+            }
+        )
+    }
 }
 
 private fun getFileName(context: android.content.Context, uri: android.net.Uri): String? {
@@ -1010,6 +1067,7 @@ private data class AudioMetadata(
     val artist: String = "",
     val album: String = "",
     val duration: String = "",
+    val durationSeconds: Int = 0,  // 添加秒数字段
     val language: String = "",
     val cover: android.graphics.Bitmap? = null
 )
@@ -1031,6 +1089,7 @@ private suspend fun parseAudioMetadata(
         // 提取时长
         val durationMs = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
         val duration = formatDurationFromMs(durationMs)
+        val durationSeconds = (durationMs / 1000).toInt()  // 计算秒数
         
         // 提取封面图片
         val cover = retriever.embeddedPicture?.let { 
@@ -1042,6 +1101,7 @@ private suspend fun parseAudioMetadata(
             artist = artist,
             album = album,
             duration = duration,
+            durationSeconds = durationSeconds,  // 添加秒数
             language = "",
             cover = cover
         )

@@ -1,6 +1,5 @@
 package com.neko.music
 
-import android.R.attr.visible
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -23,15 +22,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.setValue
-import coil.ImageLoader
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
@@ -124,6 +120,9 @@ class MainActivity : ComponentActivity() {
         // 启动音乐播放服务（前台服务，保持后台运行）
         MusicPlayerService.startService(this)
 
+        // 检查所有开关状态并启动相应的服务
+        checkAndStartServices()
+
         setContent {
             Neko云音乐Theme {
                 Surface(
@@ -136,6 +135,47 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    /**
+     * 检查所有开关状态并启动相应的服务
+     */
+    private fun checkAndStartServices() {
+        // 检查桌面歌词开关
+        val desktopLyricPrefs = getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE)
+        val isDesktopLyricEnabled = desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)
+        
+        if (isDesktopLyricEnabled) {
+            // 检查悬浮窗权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.canDrawOverlays(this)) {
+                    val intent = Intent(this, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                    intent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                    startService(intent)
+                    Log.d("MainActivity", "桌面歌词已开启，启动桌面歌词服务")
+                } else {
+                    Log.d("MainActivity", "桌面歌词已开启但没有悬浮窗权限")
+                }
+            }
+        }
+        
+        // 检查灵动岛开关
+        val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
+        val isFuckChinaOSEnabled = floatPrefs.getBoolean("fuck_china_os_enabled", false)
+        
+        if (isFuckChinaOSEnabled) {
+            // 检查悬浮窗权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.canDrawOverlays(this)) {
+                    val intent = Intent(this, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
+                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
+                    startService(intent)
+                    Log.d("MainActivity", "灵动岛已开启，启动灵动岛服务")
+                } else {
+                    Log.d("MainActivity", "灵动岛已开启但没有悬浮窗权限")
+                }
+            }
+        }
+    }
+
     /**
      * 应用语言设置
      */
@@ -368,6 +408,12 @@ fun MainScreen() {
                 HomeScreen(
                     onSearchClick = {
                         Log.d("MainActivity", "导航到搜索页面")
+                        // 清除保存的搜索状态，让用户看到一个干净的搜索界面
+                        val searchStatePrefs = context.getSharedPreferences("search_state", android.content.Context.MODE_PRIVATE)
+                        searchStatePrefs.edit()
+                            .remove("last_search_query")
+                            .remove("last_search_type")
+                            .apply()
                         navController.navigate("search")
                     },
                     onNavigateToFavorite = {
@@ -482,6 +528,11 @@ fun MainScreen() {
                 RankingScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     }
                 )
             }
@@ -489,6 +540,11 @@ fun MainScreen() {
                 LatestScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     }
                 )
             }
@@ -503,7 +559,8 @@ fun MainScreen() {
                         val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
                         navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     },
-                    token = tokenManager.getToken()
+                    token = tokenManager.getToken(),
+                    userId = tokenManager.getUserId()
                 )
             }
             composable(

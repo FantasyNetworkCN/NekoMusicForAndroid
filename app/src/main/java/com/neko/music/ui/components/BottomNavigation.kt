@@ -178,13 +178,17 @@ fun BottomNavigationBar(
                                 indication = null
                             ) {
                                 if (currentRoute != item.route) {
+                                    // 切换到不同的标签页
                                     navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
+                                        // 弹出导航堆栈中所有页面，直到目标页面，但不包含目标页面
+                                        popUpTo(item.route) {
+                                            inclusive = true
                                         }
                                         launchSingleTop = true
-                                        restoreState = true
                                     }
+                                } else {
+                                    // 点击当前选中的标签页，返回到该标签页的首页
+                                    navController.popBackStack(item.route, inclusive = false)
                                 }
                             },
                         contentAlignment = Alignment.Center

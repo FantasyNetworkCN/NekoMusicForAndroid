@@ -8,13 +8,13 @@ import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.compose.ui.platform.LocalContext
 import coil.load
 import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
@@ -23,7 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -36,6 +35,18 @@ class FuckChinaOSFloatService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var updateJob: Job? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    
+    // 缓存当前显示的数据，避免不必要的更新
+    private var cachedTitle: String? = null
+    private var cachedArtist: String? = null
+    private var cachedIsPlaying: Boolean? = null
+    private var cachedCoverPath: String? = null
+    
+    // 拖动相关变量
+    private var initialX = 0
+    private var initialY = 0
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
 
     companion object {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_FLOAT"
@@ -80,7 +91,7 @@ class FuckChinaOSFloatService : Service() {
         val btnPlayPause = floatView?.findViewById<ImageButton>(R.id.float_play_pause)
         val btnPrevious = floatView?.findViewById<ImageButton>(R.id.float_previous)
         val btnNext = floatView?.findViewById<ImageButton>(R.id.float_next)
-        val layoutFloat = floatView?.findViewById<LinearLayout>(R.id.float_layout)
+        val layoutFloat = floatView?.findViewById<android.widget.FrameLayout>(R.id.float_layout)
         val infoLayout = floatView?.findViewById<LinearLayout>(R.id.float_info_layout)
         val playAnimation = floatView?.findViewById<PlayAnimationView>(R.id.float_play_animation)
         
@@ -101,26 +112,77 @@ class FuckChinaOSFloatService : Service() {
             MusicPlayerManager.getInstance(this).next()
         }
 
-        // 点击整个悬浮窗打开应用
-        layoutFloat?.setOnClickListener {
-            android.util.Log.d("FuckChinaOSFloatService", "Layout clicked")
-            val openIntent = Intent(this, com.neko.music.MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            startActivity(openIntent)
+        // 使用JNI实现拖动功能
+        // 使用 DynamicIslandRenderer 进行高性能触摸处理
+        try {
+            com.neko.music.util.DynamicIslandRenderer.initialize()
+        } catch (e: Exception) {
+            android.util.Log.e("FuckChinaOSFloatService", "Failed to initialize JNI renderer", e)
         }
-        
-        // 确保按钮可以点击
-        btnPlayPause?.isClickable = true
-        btnPrevious?.isClickable = true
-        btnNext?.isClickable = true
-        layoutFloat?.isClickable = true
+
+        layoutFloat?.setOnTouchListener(object : View.OnTouchListener {
+            override fun onTouch(view: View, event: MotionEvent): Boolean {
+                try {
+                    val action = when (event.action) {
+                        MotionEvent.ACTION_DOWN -> com.neko.music.util.DynamicIslandRenderer.ACTION_DOWN
+                        MotionEvent.ACTION_UP -> com.neko.music.util.DynamicIslandRenderer.ACTION_UP
+                        MotionEvent.ACTION_MOVE -> com.neko.music.util.DynamicIslandRenderer.ACTION_MOVE
+                        MotionEvent.ACTION_CANCEL -> com.neko.music.util.DynamicIslandRenderer.ACTION_CANCEL
+                        else -> return false
+                    }
+                    
+                    val result = com.neko.music.util.DynamicIslandRenderer.handleTouchEvent(
+                        action, 
+                        event.rawX, 
+                        event.rawY
+                    )
+                    
+                    when (result) {
+                        com.neko.music.util.DynamicIslandRenderer.TouchResult.DRAGGING -> {
+                            // 更新窗口位置
+                            val (x, y) = com.neko.music.util.DynamicIslandRenderer.getPosition()
+                            layoutParams?.x = x
+                            layoutParams?.y = y
+                            windowManager?.updateViewLayout(floatView, layoutParams)
+                            return true
+                        }
+                        com.neko.music.util.DynamicIslandRenderer.TouchResult.DRAG_END -> {
+                            // 拖动结束，更新最终位置
+                            val (x, y) = com.neko.music.util.DynamicIslandRenderer.getPosition()
+                            layoutParams?.x = x
+                            layoutParams?.y = y
+                            windowManager?.updateViewLayout(floatView, layoutParams)
+                            return true
+                        }
+                        com.neko.music.util.DynamicIslandRenderer.TouchResult.CLICK -> {
+                            // 点击事件，返回false让子视图处理
+                            return false
+                        }
+                        com.neko.music.util.DynamicIslandRenderer.TouchResult.NOT_HANDLED -> {
+                            // 未处理，返回false让子视图处理
+                            return false
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("FuckChinaOSFloatService", "JNI touch handling error", e)
+                    // JNI失败，使用备用逻辑
+                    return false
+                }
+            }
+        })
     }
 
     private fun showFloatView() {
         if (isViewAdded || floatView == null) return
         
         try {
+            // 使用JNI获取默认配置
+            val defaultPosition = try {
+                com.neko.music.util.DynamicIslandRenderer.getDefaultPosition()
+            } catch (e: Exception) {
+                Pair(0, 80) // 默认值
+            }
+            
             layoutParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -136,8 +198,9 @@ class FuckChinaOSFloatService : Service() {
                 PixelFormat.TRANSLUCENT
             )
             
-            layoutParams?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            layoutParams?.y = 80 // 距离顶部80像素
+            layoutParams?.gravity = Gravity.TOP or Gravity.START
+            layoutParams?.x = defaultPosition.first
+            layoutParams?.y = defaultPosition.second
             
             // 直接显示
             floatView?.alpha = 1f
@@ -191,42 +254,64 @@ class FuckChinaOSFloatService : Service() {
         val coverView = floatView?.findViewById<android.widget.ImageView>(R.id.float_cover)
         val playAnimation = floatView?.findViewById<PlayAnimationView>(R.id.float_play_animation)
         
-        tvTitle?.text = playerManager.currentMusicTitle.value ?: "Neko云音乐"
-        tvArtist?.text = playerManager.currentMusicArtist.value ?: "暂无播放"
+        // 获取当前数据
+        val currentTitle = playerManager.currentMusicTitle.value ?: "Neko云音乐"
+        val currentArtist = playerManager.currentMusicArtist.value ?: "暂无播放"
+        val currentIsPlaying = playerManager.isPlaying.value
+        val currentCoverPath = playerManager.currentMusicCover.value
         
-        btnPlayPause?.setImageResource(
-            if (playerManager.isPlaying.value) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
-        )
+        // 只在数据变化时更新标题
+        if (cachedTitle != currentTitle) {
+            tvTitle?.text = currentTitle
+            tvTitle?.isSelected = true // 启用 Marquee 效果
+            cachedTitle = currentTitle
+        }
+        
+        // 只在数据变化时更新艺术家
+        if (cachedArtist != currentArtist) {
+            tvArtist?.text = currentArtist
+            cachedArtist = currentArtist
+        }
+        
+        // 只在数据变化时更新播放状态
+        if (cachedIsPlaying != currentIsPlaying) {
+            btnPlayPause?.setImageResource(
+                if (currentIsPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+            )
 
-        // 更新播放动画
-        if (playerManager.isPlaying.value) {
-            playAnimation?.visibility = View.VISIBLE
-            playAnimation?.setPlaying(true)
-        } else {
-            playAnimation?.visibility = View.INVISIBLE
-            playAnimation?.setPlaying(false)
+            // 更新播放动画
+            if (currentIsPlaying) {
+                playAnimation?.visibility = View.VISIBLE
+                playAnimation?.setPlaying(true)
+            } else {
+                playAnimation?.visibility = View.INVISIBLE
+                playAnimation?.setPlaying(false)
+            }
+            cachedIsPlaying = currentIsPlaying
         }
 
-        // 更新封面（如果有）
-        val coverPath = playerManager.currentMusicCover.value
-        if (coverPath != null && coverPath.isNotEmpty()) {
-            if (coverPath.startsWith("http")) {
-                // 网络URL，使用 Coil 加载
-                coverView?.load(coverPath) {
-                    placeholder(R.mipmap.ic_launcher)
-                    error(R.mipmap.ic_launcher)
-                    crossfade(true)
+        // 只在封面路径变化时更新封面
+        if (cachedCoverPath != currentCoverPath) {
+            if (currentCoverPath != null && currentCoverPath.isNotEmpty()) {
+                if (currentCoverPath.startsWith("http")) {
+                    // 网络URL，使用 Coil 加载
+                    coverView?.load(currentCoverPath) {
+                        placeholder(R.mipmap.ic_launcher)
+                        error(R.mipmap.ic_launcher)
+                        crossfade(true)
+                    }
+                } else {
+                    // 本地路径，使用 Uri
+                    try {
+                        coverView?.setImageURI(android.net.Uri.parse(currentCoverPath))
+                    } catch (e: Exception) {
+                        coverView?.setImageResource(R.mipmap.ic_launcher)
+                    }
                 }
             } else {
-                // 本地路径，使用 Uri
-                try {
-                    coverView?.setImageURI(android.net.Uri.parse(coverPath))
-                } catch (e: Exception) {
-                    coverView?.setImageResource(R.mipmap.ic_launcher)
-                }
+                coverView?.setImageResource(R.mipmap.ic_launcher)
             }
-        } else {
-            coverView?.setImageResource(R.mipmap.ic_launcher)
+            cachedCoverPath = currentCoverPath
         }
     }
 
@@ -235,6 +320,14 @@ class FuckChinaOSFloatService : Service() {
         hideFloatView()
         updateJob?.cancel()
         serviceScope.cancel()
+        
+        // 清理JNI资源
+        try {
+            com.neko.music.util.DynamicIslandRenderer.cleanup()
+        } catch (e: Exception) {
+            android.util.Log.e("FuckChinaOSFloatService", "Failed to cleanup JNI renderer", e)
+        }
+        
         instance = null
     }
 }

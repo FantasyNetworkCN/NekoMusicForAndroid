@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/float_layout"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:background="@drawable/widget_background"
-    android:padding="8dp"
-    android:gravity="center_vertical"
-    android:clickable="true"
-    android:focusable="false">
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/float_content_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/widget_background"
+        android:padding="8dp"
+        android:gravity="center_vertical">
 
     <!-- 音乐封面 -->
     <ImageView
@@ -42,10 +45,12 @@
             android:textSize="15sp"
             android:textStyle="bold"
             android:maxWidth="150dp"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
             android:singleLine="true"
-            android:clickable="false"
-            android:focusable="false" />
+            android:marqueeRepeatLimit="marquee_forever"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="false" />
 
         <TextView
             android:id="@+id/float_artist"
@@ -113,4 +118,5 @@
             android:clickable="true"
             android:focusable="true" />
     </LinearLayout>
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>
