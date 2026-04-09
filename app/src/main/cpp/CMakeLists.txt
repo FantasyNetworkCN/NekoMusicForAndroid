@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.4.1)
 # 项目声明
 project(NekoMusicNative)
 
+# 引入 FetchContent 模块
+include(FetchContent)
+
 # 配置 STL 为 c++_shared
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,7 +66,15 @@ set(OPENXR_BUILD_FROM_SOURCE TRUE)
 
 if(OPENXR_BUILD_FROM_SOURCE)
     message(STATUS "Building OpenXR loader from source to ensure proper exports")
-    
+
+    # 使用 FetchContent 下载 OpenXR SDK
+    FetchContent_Declare(
+        openxr_sdk
+        GIT_REPOSITORY https://github.com/KhronosGroup/OpenXR-SDK-Source.git
+        GIT_TAG release-1.0.34
+        GIT_SHALLOW TRUE
+    )
+
     # 设置OpenXR构建选项
     set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(BUILD_API_LAYERS OFF CACHE BOOL "" FORCE)
@@ -75,13 +86,13 @@ if(OPENXR_BUILD_FROM_SOURCE)
     set(XR_USE_GRAPHICS_API_OPENGL_ES ON CACHE BOOL "" FORCE)
     set(BUILD_WITH_SYSTEM_JSONCPP OFF CACHE BOOL "" FORCE)
     set(OPENXR_USE_BUILT_IN_JSONCPP ON CACHE BOOL "" FORCE)
-    
+
     # 定义JSON_USE_EXCEPTIONS以避免编译错误
     add_definitions(-DJSON_USE_EXCEPTIONS=0)
-    
-    # 将OpenXR SDK作为子目录添加
-    add_subdirectory(${CMAKE_SOURCE_DIR}/openxr_sdk ${CMAKE_BINARY_DIR}/openxr_sdk EXCLUDE_FROM_ALL)
-    
+
+    # 使 OpenXR SDK 可用
+    FetchContent_MakeAvailable(openxr_sdk)
+
     # 复制构建的OpenXR loader到输出目录
     add_custom_command(TARGET VRHUDRenderer POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -89,10 +100,10 @@ if(OPENXR_BUILD_FROM_SOURCE)
         ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libopenxr_loader.so
         COMMENT "Copying built OpenXR loader to output directory"
     )
-    
+
     target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=1)
     target_include_directories(VRHUDRenderer PRIVATE
-        ${CMAKE_SOURCE_DIR}/openxr_sdk/include
+        ${openxr_sdk_SOURCE_DIR}/include
     )
 elseif(OPENXR_LOADER)
     message(STATUS "Found OpenXR loader: ${OPENXR_LOADER}")
