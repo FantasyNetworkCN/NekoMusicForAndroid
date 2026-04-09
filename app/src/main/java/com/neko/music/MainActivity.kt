@@ -528,6 +528,11 @@ fun MainScreen() {
                 RankingScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     }
                 )
             }
@@ -535,6 +540,11 @@ fun MainScreen() {
                 LatestScreen(
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     }
                 )
             }

@@ -45,10 +45,12 @@
             android:textSize="15sp"
             android:textStyle="bold"
             android:maxWidth="150dp"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
             android:singleLine="true"
-            android:clickable="false"
-            android:focusable="false" />
+            android:marqueeRepeatLimit="marquee_forever"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:clickable="false" />
 
         <TextView
             android:id="@+id/float_artist"

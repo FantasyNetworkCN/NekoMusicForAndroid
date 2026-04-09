@@ -42,7 +42,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LatestScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onNavigateToPlayer: (Music) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -234,6 +235,8 @@ fun LatestScreen(
                                                 music.coverFilePath ?: "",
                                                 fullCoverUrl
                                             )
+                                            // 跳转到播放页面，传递音乐信息
+                                            onNavigateToPlayer(music)
                                         } catch (e: Exception) {
                                             Log.e("LatestScreen", "播放失败", e)
                                         }

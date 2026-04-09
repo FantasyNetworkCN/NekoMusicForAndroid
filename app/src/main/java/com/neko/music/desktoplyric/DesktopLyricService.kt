@@ -348,14 +348,17 @@ class DesktopLyricService : Service() {
                 var translation: String? = null
                 if (i + 1 < lines.size) {
                     val nextLine = lines[i + 1].trim()
-                    // 翻译行通常以 { } 包裹
-                    if (nextLine.startsWith("{") && nextLine.endsWith("}")) {
+                    // 翻译行通常以 { } 包裹，并且包含 JSON 数据
+                    if (nextLine.startsWith("{") && nextLine.endsWith("}") && nextLine.contains("\"translation\"")) {
                         try {
                             val jsonContent = nextLine.substring(1, nextLine.length - 1)
-                            // 尝试解析JSON
-                            // 这里简化处理，直接作为翻译
-                            translation = jsonContent
+                            // 解析 JSON 提取翻译内容
+                            val jsonObject = org.json.JSONObject(jsonContent)
+                            if (jsonObject.has("translation")) {
+                                translation = jsonObject.getString("translation")
+                            }
                         } catch (e: Exception) {
+                            android.util.Log.e("DesktopLyricService", "解析翻译失败: ${e.message}")
                             translation = null
                         }
                     }

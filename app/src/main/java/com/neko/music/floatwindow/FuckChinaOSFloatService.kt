@@ -263,6 +263,7 @@ class FuckChinaOSFloatService : Service() {
         // 只在数据变化时更新标题
         if (cachedTitle != currentTitle) {
             tvTitle?.text = currentTitle
+            tvTitle?.isSelected = true // 启用 Marquee 效果
             cachedTitle = currentTitle
         }
         

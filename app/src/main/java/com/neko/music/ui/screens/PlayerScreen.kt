@@ -910,14 +910,39 @@ fun CoverImage(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = music.title,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        val scrollState = rememberScrollState()
+                        val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
+                        
+                        LaunchedEffect(shouldScroll, music.title) {
+                            if (shouldScroll) {
+                                while (true) {
+                                    delay(3000)
+                                    scrollState.animateScrollTo(scrollState.maxValue, animationSpec = tween(5000))
+                                    delay(3000)
+                                    scrollState.animateScrollTo(0, animationSpec = tween(5000))
+                                }
+                            }
+                        }
+                        
+                        Text(
+                            text = music.title,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(scrollState, enabled = false)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -1041,14 +1066,39 @@ fun LyricSongInfoBar(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = music.title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
+                        // 歌名 - 自动滚动
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            val scrollState = rememberScrollState()
+                            val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
+                            
+                            LaunchedEffect(shouldScroll, music.title) {
+                                if (shouldScroll) {
+                                    while (true) {
+                                        delay(3000)
+                                        scrollState.animateScrollTo(scrollState.maxValue, animationSpec = tween(5000))
+                                        delay(3000)
+                                        scrollState.animateScrollTo(0, animationSpec = tween(5000))
+                                    }
+                                }
+                            }
+                            
+                            Text(
+                                text = music.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(scrollState, enabled = false)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(2.dp))
 
