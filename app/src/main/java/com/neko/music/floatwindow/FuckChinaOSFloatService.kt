@@ -115,89 +115,68 @@ class FuckChinaOSFloatService : Service() {
             MusicPlayerManager.getInstance(this).next()
         }
 
-        // 添加拖动功能（包含点击处理）
-        // 使用 FrameLayout 作为触摸事件的处理器
+        // 添加拖动功能（优化版本）
         val touchSlop = ViewConfiguration.get(this).scaledTouchSlop.toFloat()
         var startX = 0f
         var startY = 0f
         var isDragging = false
         var viewInitialX = 0
         var viewInitialY = 0
-        var hasIntercepted = false
+        var actionDownTime = 0L
 
         layoutFloat?.setOnTouchListener(object : View.OnTouchListener {
             override fun onTouch(view: View, event: MotionEvent): Boolean {
-                android.util.Log.d("FuckChinaOSFloatService", "Touch event: ${event.action}, isDragging=$isDragging, hasIntercepted=$hasIntercepted")
-                
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
                         startY = event.rawY
                         isDragging = false
-                        hasIntercepted = false
+                        actionDownTime = System.currentTimeMillis()
                         viewInitialX = layoutParams?.x ?: 0
                         viewInitialY = layoutParams?.y ?: 0
-                        // 不拦截，让子视图可以点击
-                        return false
+                        // 返回 true 表示我们处理这个事件，这样可以拦截后续事件
+                        return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val dx = event.rawX - startX
-                        val dy = event.rawY - startY
-                        
-                        if (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop) {
-                            if (!isDragging) {
-                                isDragging = true
-                                android.util.Log.d("FuckChinaOSFloatService", "Start dragging, dx=$dx, dy=$dy")
-                                // 禁用子视图的点击，防止它们拦截事件
-                                val contentLayout = floatView?.findViewById<LinearLayout>(R.id.float_content_layout)
-                                contentLayout?.isClickable = false
-                                for (i in 0 until (contentLayout?.childCount ?: 0)) {
-                                    contentLayout?.getChildAt(i)?.isClickable = false
-                                    contentLayout?.getChildAt(i)?.isFocusable = false
-                                }
-                                // 标记已经拦截，后续事件都由我们处理
-                                hasIntercepted = true
-                                // 取消子视图的事件
-                                view.parent?.requestDisallowInterceptTouchEvent(true)
-                            }
+                        if (!isDragging) {
+                            val dx = event.rawX - startX
+                            val dy = event.rawY - startY
                             
-                            if (isDragging) {
-                                layoutParams?.x = viewInitialX + dx.toInt()
-                                layoutParams?.y = viewInitialY + dy.toInt()
-                                windowManager?.updateViewLayout(floatView, layoutParams)
-                                return true
+                            if (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop) {
+                                isDragging = true
+                                android.util.Log.d("FuckChinaOSFloatService", "Start dragging")
                             }
                         }
-                        return hasIntercepted
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        android.util.Log.d("FuckChinaOSFloatService", "Touch up, isDragging=$isDragging")
                         
-                        // 恢复子视图的点击功能
-                        val contentLayout = floatView?.findViewById<LinearLayout>(R.id.float_content_layout)
-                        contentLayout?.isClickable = true
-                        for (i in 0 until (contentLayout?.childCount ?: 0)) {
-                            contentLayout?.getChildAt(i)?.isClickable = true
-                            contentLayout?.getChildAt(i)?.isFocusable = true
+                        if (isDragging) {
+                            layoutParams?.x = viewInitialX + (event.rawX - startX).toInt()
+                            layoutParams?.y = viewInitialY + (event.rawY - startY).toInt()
+                            windowManager?.updateViewLayout(floatView, layoutParams)
+                            return true
                         }
                         
-                        val result = hasIntercepted
-                        hasIntercepted = false
-                        isDragging = false
+                        return false
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val duration = System.currentTimeMillis() - actionDownTime
                         
-                        // 如果没有拖动且没有拦截，让子视图处理点击
-                        return result
+                        if (!isDragging && duration < 300) {
+                            // 短暂点击，返回 false 让子视图处理
+                            return false
+                        }
+                        
+                        // 拖动结束
+                        isDragging = false
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        isDragging = false
+                        return true
                     }
                 }
-                return hasIntercepted
+                return false
             }
         })
-        
-        // 确保按钮可以点击
-        btnPlayPause?.isClickable = true
-        btnPrevious?.isClickable = true
-        btnNext?.isClickable = true
-        layoutFloat?.isClickable = true
     }
 
     private fun showFloatView() {
