@@ -64,6 +64,9 @@ object VRHUDRenderer {
                 return false
             }
 
+            // 设置Android上下文（OpenXR Android平台必需）
+            nativeSetAndroidContext(context)
+
             // 初始化JNI层
             val result = nativeInitialize(displayWidth, displayHeight)
             if (!result) {
@@ -252,6 +255,7 @@ object VRHUDRenderer {
     fun isSpatialHUDSupported(): Boolean = isSpatialHUDSupported
 
     // JNI方法声明
+    private external fun nativeSetAndroidContext(context: Context)
     private external fun nativeInitialize(displayWidth: Int, displayHeight: Int): Boolean
     private external fun nativeUpdateLyric(lyric: String, translation: String)
     private external fun nativeSetVisible(visible: Boolean)
