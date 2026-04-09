@@ -24,6 +24,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Neko云音乐"
         android:usesCleartextTraffic="true">
+
+        <!-- VR设备配置：声明VR特性，在VR设备上运行时自动获得overlay权限 -->
+        <meta-data
+            android:name="com.oculus.vr.support"
+            android:value="true" />
+        <meta-data
+            android:name="com.samsung.android.vr.application.mode"
+            android:value="vr_only" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -59,6 +67,19 @@
         <service
             android:name=".desktoplyric.DesktopLyricService"
             android:exported="false" />
+
+        <!-- VR歌词无障碍服务 -->
+        <service
+            android:name=".accessibility.VRLyricAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/vr_lyric_accessibility_service_config" />
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"
