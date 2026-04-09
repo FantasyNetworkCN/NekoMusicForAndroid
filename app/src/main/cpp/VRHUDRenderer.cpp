@@ -40,6 +40,9 @@ typedef int64_t XrFormat;
 #define XR_ERROR_FORM_FACTOR_UNSUPPORTED -7
 #define XR_ERROR_SESSION_NOT_RUNNING -8
 
+// 特殊值
+#define XR_NULL_HANDLE 0
+
 // API版本
 #define XR_CURRENT_API_VERSION_MAJOR 1
 #define XR_CURRENT_API_VERSION_MINOR 0
@@ -71,6 +74,7 @@ typedef int64_t XrFormat;
 #define XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO 16
 #define XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO 17
 #define XR_TYPE_LOADER_INIT_INFO_BASE_KHR 18
+#define XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR 19
 
 // Layer flags
 #define XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT 0x00000001
@@ -276,6 +280,7 @@ typedef struct {
 } XrLoaderInitInfoAndroidKHR;
 
 // OpenXR函数指针
+typedef XrResult (*XrGetInstanceProcAddrFunc)(XrInstance instance, const char* name, void** function);
 typedef XrResult (*XrCreateInstanceFunc)(const XrInstanceCreateInfo* createInfo, XrInstance* instance);
 typedef XrResult (*XrDestroyInstanceFunc)(XrInstance instance);
 typedef XrResult (*XrGetSystemFunc)(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId);
@@ -302,6 +307,7 @@ namespace VRHUDState {
     bool isVisible = false;
     
     // OpenXR函数指针
+    XrGetInstanceProcAddrFunc xrGetInstanceProcAddr = nullptr;
     XrCreateInstanceFunc xrCreateInstance = nullptr;
     XrDestroyInstanceFunc xrDestroyInstance = nullptr;
     XrGetSystemFunc xrGetSystem = nullptr;
@@ -377,7 +383,8 @@ bool loadOpenXRLibrary() {
     
     LOGI("OpenXR library loaded successfully, loading functions...");
     
-    // 直接加载xrCreateInstance，不依赖xrInitializeLoaderKHR
+    // 加载OpenXR核心函数
+    VRHUDState::xrGetInstanceProcAddr = (XrGetInstanceProcAddrFunc)dlsym(VRHUDState::openxrLoader, "xrGetInstanceProcAddr");
     VRHUDState::xrCreateInstance = (XrCreateInstanceFunc)dlsym(VRHUDState::openxrLoader, "xrCreateInstance");
     VRHUDState::xrDestroyInstance = (XrDestroyInstanceFunc)dlsym(VRHUDState::openxrLoader, "xrDestroyInstance");
     VRHUDState::xrGetSystem = (XrGetSystemFunc)dlsym(VRHUDState::openxrLoader, "xrGetSystem");
@@ -409,6 +416,23 @@ bool loadOpenXRLibrary() {
     return true;
 }
 
+// 设置Android上下文
+extern "C" JNIEXPORT void JNICALL
+Java_com_neko_music_util_VRHUDRenderer_nativeSetAndroidContext(JNIEnv* env, jclass clazz, jobject context) {
+    if (context != nullptr) {
+        VRHUDState::androidContext = env->NewGlobalRef(context);
+        LOGI("Android context set");
+    }
+}
+
+// 获取JavaVM
+extern "C" JNIEXPORT jint JNICALL
+JNI_OnLoad(JavaVM* vm, void* reserved) {
+    VRHUDState::javaVM = vm;
+    LOGI("JNI_OnLoad: JavaVM captured");
+    return JNI_VERSION_1_6;
+}
+
 // 初始化VR HUD
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass clazz, jint displayWidth, jint displayHeight) {
@@ -424,6 +448,82 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
     if (!loadOpenXRLibrary()) {
         LOGE("Initialization failed: Cannot load OpenXR library");
         return JNI_FALSE;
+    }
+    
+    // 初始化OpenXR loader（Android平台必须）
+    if (VRHUDState::xrGetInstanceProcAddr && VRHUDState::javaVM && VRHUDState::androidContext) {
+        LOGI("Initializing OpenXR loader with Android context...");
+        LOGI("JavaVM: %p, Context: %p", VRHUDState::javaVM, VRHUDState::androidContext);
+        
+        // 验证Context是否有效
+        JNIEnv* testEnv = nullptr;
+        jint attachResult = VRHUDState::javaVM->GetEnv((void**)&testEnv, JNI_VERSION_1_6);
+        LOGI("JNI GetEnv result: %d, JNIEnv: %p", attachResult, testEnv);
+        
+        if (attachResult == JNI_EDETACHED) {
+            LOGI("Current thread detached from JVM, attaching...");
+            if (VRHUDState::javaVM->AttachCurrentThread(&testEnv, nullptr) != JNI_OK) {
+                LOGE("Failed to attach current thread to JVM");
+            } else {
+                LOGI("Successfully attached current thread to JVM");
+            }
+        }
+        
+        // 使用 xrGetInstanceProcAddr 获取 xrInitializeLoaderKHR 函数指针
+        XrInitializeLoaderKHRFunc initializeLoader = nullptr;
+        XrResult result = VRHUDState::xrGetInstanceProcAddr(
+            XR_NULL_HANDLE, 
+            "xrInitializeLoaderKHR", 
+            reinterpret_cast<void**>(&initializeLoader)
+        );
+        
+        LOGI("xrGetInstanceProcAddr result: %d, initializeLoader: %p", result, initializeLoader);
+        
+        if (result == XR_SUCCESS && initializeLoader != nullptr) {
+            XrLoaderInitInfoAndroidKHR loaderInitInfo;
+            memset(&loaderInitInfo, 0, sizeof(loaderInitInfo));
+            loaderInitInfo.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+            loaderInitInfo.application_vm = VRHUDState::javaVM;
+            loaderInitInfo.application_context = VRHUDState::androidContext;
+            
+            LOGI("Calling xrInitializeLoaderKHR with type=%d, vm=%p, context=%p",
+                 loaderInitInfo.type, loaderInitInfo.application_vm, loaderInitInfo.application_context);
+            
+            result = initializeLoader((XrLoaderInitInfoBaseKHR*)&loaderInitInfo);
+            
+            LOGI("xrInitializeLoaderKHR returned: %d", result);
+            
+            if (result != XR_SUCCESS) {
+                LOGE("Failed to initialize OpenXR loader: %d", result);
+                if (result == XR_ERROR_VALIDATION_FAILURE) {
+                    LOGE("XR_ERROR_VALIDATION_FAILURE: Invalid parameters or structure type");
+                } else if (result == XR_ERROR_RUNTIME_FAILURE) {
+                    LOGE("XR_ERROR_RUNTIME_FAILURE: Runtime failure, possibly missing VR runtime");
+                } else if (result == XR_ERROR_FUNCTION_UNSUPPORTED) {
+                    LOGE("XR_ERROR_FUNCTION_UNSUPPORTED: Function not supported on this platform");
+                }
+                LOGW("Continuing without loader initialization - may fail on Android");
+            } else {
+                LOGI("OpenXR loader initialized successfully");
+            }
+        } else {
+            LOGE("Failed to get xrInitializeLoaderKHR function: %d", result);
+            if (result == XR_ERROR_FUNCTION_UNSUPPORTED) {
+                LOGE("xrInitializeLoaderKHR is not supported - this is critical for Android");
+            }
+            LOGW("Continuing without loader initialization - may fail on Android");
+        }
+    } else {
+        LOGW("xrGetInstanceProcAddr or Android context not available - continuing without loader init");
+        if (!VRHUDState::xrGetInstanceProcAddr) {
+            LOGE("xrGetInstanceProcAddr is NULL");
+        }
+        if (!VRHUDState::javaVM) {
+            LOGE("javaVM is NULL");
+        }
+        if (!VRHUDState::androidContext) {
+            LOGE("androidContext is NULL");
+        }
     }
     
     // 创建XrInstance
