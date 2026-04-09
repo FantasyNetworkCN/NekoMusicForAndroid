@@ -3,6 +3,25 @@ cmake_minimum_required(VERSION 3.4.1)
 # 项目声明
 project(NekoMusicNative)
 
+# 配置 STL 为 c++_shared
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 设置 STL 为 shared 模式（Android Gradle 插件通过 -DANDROID_STL 传递）
+if(DEFINED ANDROID_STL)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_STL=${ANDROID_STL}")
+endif()
+
+# 设置编译选项以确保16KB对齐
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdata-sections -ffunction-sections -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdata-sections -ffunction-sections -ffunction-sections -fdata-sections")
+
+# 设置链接器选项确保16KB对齐
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,separate-loadable-segments")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack")
+
 # 创建LrcParser库
 add_library(
         LrcParser
@@ -31,11 +50,69 @@ add_library(
         VRHUDRenderer.cpp
 )
 
+# 查找OpenXR库
+find_library(OPENXR_LOADER
+    NAMES openxr_loader
+    PATHS
+    ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}
+    DOC "OpenXR loader library"
+)
+
+# 添加OpenXR包含目录
+if(OPENXR_LOADER)
+    message(STATUS "Found OpenXR loader: ${OPENXR_LOADER}")
+    
+    # 将OpenXR库文件复制到构建输出目录
+    add_custom_command(TARGET VRHUDRenderer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${OPENXR_LOADER}
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libopenxr_loader.so
+        COMMENT "Copying OpenXR loader to output directory"
+    )
+    
+    # 链接OpenXR库（运行时动态加载）
+    target_link_libraries(VRHUDRenderer dl)
+    target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=1)
+else()
+    message(WARNING "OpenXR loader not found - 3D spatial HUD will use fallback")
+    target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=0)
+endif()
+
 # 查找系统库
 find_library(
         log-lib
         log
 )
+
+# 查找OVR库（Oculus VR SDK）
+# OVR SDK通常位于：${CMAKE_SOURCE_DIR}/../jniLibs 或 ${ANDROID_NDK}/sources/android/native_app_glue
+# 这里我们尝试从Oculus SDK的标准位置查找
+find_path(OVR_INCLUDE_DIR
+    NAMES OVR_CAPI.h
+    PATHS
+    ${CMAKE_SOURCE_DIR}/../jniLibs/include
+    ${CMAKE_SOURCE_DIR}/include
+    ${ANDROID_NDK}/sources/third_party/vr/libovr/include
+    ${ANDROID_NDK}/sources/android/native_app_glue
+    DOC "OVR include directory"
+)
+
+find_library(OVR_LIB
+    NAMES ovr
+    PATHS
+    ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}
+    ${CMAKE_SOURCE_DIR}/../jniLibs
+    ${ANDROID_NDK}/sources/third_party/vr/libovr/libs/${ANDROID_ABI}
+    DOC "OVR library"
+)
+
+# 添加OVR包含目录
+if(OVR_INCLUDE_DIR)
+    target_include_directories(VRHUDRenderer PRIVATE ${OVR_INCLUDE_DIR})
+    message(STATUS "Found OVR include directory: ${OVR_INCLUDE_DIR}")
+else()
+    message(WARNING "OVR include directory not found - VR HUD features may be limited")
+endif()
 
 # 链接库
 target_link_libraries(
@@ -43,9 +120,23 @@ target_link_libraries(
         ${log-lib}
 )
 
+# 为LrcParser设置链接器选项
+target_link_options(LrcParser PRIVATE
+    LINKER:-z,max-page-size=16384
+    LINKER:-z,separate-loadable-segments
+    LINKER:--gc-sections
+)
+
 target_link_libraries(
         DesktopLyricRenderer
         ${log-lib}
+)
+
+# 为DesktopLyricRenderer设置链接器选项
+target_link_options(DesktopLyricRenderer PRIVATE
+    LINKER:-z,max-page-size=16384
+    LINKER:-z,separate-loadable-segments
+    LINKER:--gc-sections
 )
 
 target_link_libraries(
@@ -53,8 +144,41 @@ target_link_libraries(
         ${log-lib}
 )
 
+# 为DynamicIslandRenderer设置链接器选项
+target_link_options(DynamicIslandRenderer PRIVATE
+    LINKER:-z,max-page-size=16384
+    LINKER:-z,separate-loadable-segments
+    LINKER:--gc-sections
+)
+
 target_link_libraries(
         VRHUDRenderer
         ${log-lib}
         dl
+        android
+        EGL
+        GLESv3
 )
+
+# 为VRHUDRenderer设置链接器选项
+target_link_options(VRHUDRenderer PRIVATE
+    LINKER:-z,max-page-size=16384
+    LINKER:-z,separate-loadable-segments
+    LINKER:--gc-sections
+    LINKER:-z,noexecstack
+)
+
+# 如果找到OVR库，则链接它
+if(OVR_LIB)
+    target_link_libraries(VRHUDRenderer ${OVR_LIB})
+    message(STATUS "Found OVR library: ${OVR_LIB}")
+    target_compile_definitions(VRHUDRenderer PRIVATE OVR_SDK_AVAILABLE=1)
+else()
+    message(WARNING "OVR library not found - VR HUD will use fallback implementation")
+    target_compile_definitions(VRHUDRenderer PRIVATE OVR_SDK_AVAILABLE=0)
+endif()
+
+# 确保在所有情况下都正确设置OVR_SDK_AVAILABLE
+if(NOT DEFINED OVR_LIB)
+    target_compile_definitions(VRHUDRenderer PRIVATE OVR_SDK_AVAILABLE=0)
+endif()

@@ -256,6 +256,22 @@ fun PlayerScreen(
         )
     }
 
+    // VR设备检查
+    val isVRDevice by remember { 
+        mutableStateOf(com.neko.music.util.DeviceDetector.isVRDevice()) 
+    }
+    
+    // 3D空间HUD检查
+    var is3DSpatialHUDAvailable by remember {
+        mutableStateOf(
+            if (isVRDevice) {
+                com.neko.music.desktoplyric.VRHUDLyricManager.getInstance(context).is3DSpatialHUDAvailable()
+            } else {
+                false
+            }
+        )
+    }
+
     // 登录提示
     
     val playModeChanged by playerManager.playModeChanged.collectAsState()
@@ -393,14 +409,28 @@ fun PlayerScreen(
             context.startService(serviceIntent)
         } else {
             // 开启桌面歌词，先检查权限
-            if (!hasOverlayPermission) {
-                showOverlayPermissionDialog = true
+            if (isVRDevice) {
+                // VR设备使用3D空间HUD
+                if (!is3DSpatialHUDAvailable) {
+                    android.util.Log.w("PlayerScreen", "3D Spatial HUD not available on VR device")
+                } else {
+                    isDesktopLyricEnabled = true
+                    desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
+                    val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                    context.startService(serviceIntent)
+                }
             } else {
-                isDesktopLyricEnabled = true
-                desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
-                val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
-                serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
-                context.startService(serviceIntent)
+                // 普通设备需要检查悬浮窗权限
+                if (!hasOverlayPermission) {
+                    showOverlayPermissionDialog = true
+                } else {
+                    isDesktopLyricEnabled = true
+                    desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
+                    val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                    context.startService(serviceIntent)
+                }
             }
         }
         Unit

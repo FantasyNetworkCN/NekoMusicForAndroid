@@ -99,6 +99,43 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // 检测是否为VR设备
+        val isVRDevice = com.neko.music.util.DeviceDetector.isVRDevice()
+        Log.d("MainActivity", "Device type: ${if (isVRDevice) "VR Headset" else "Normal Phone"}")
+
+        // VR设备检测
+        if (isVRDevice) {
+            Log.d("MainActivity", "VR device detected, checking VR mode preference")
+            
+            // 检查用户是否启用了VR模式
+            val vrModePrefs = getSharedPreferences("vr_settings", Context.MODE_PRIVATE)
+            val useVRMode = vrModePrefs.getBoolean("use_vr_mode", true) // 默认启用VR模式
+            
+            if (useVRMode) {
+                // 尝试预检查OpenXR是否可用
+                val displayMetrics = resources.displayMetrics
+                val testRenderer = com.neko.music.util.VRHUDRenderer
+                val preCheckSuccess = testRenderer.initialize(this, displayMetrics.widthPixels, displayMetrics.heightPixels)
+                
+                // 清理预检查
+                if (preCheckSuccess) {
+                    testRenderer.cleanup()
+                }
+                
+                if (preCheckSuccess && testRenderer.isSpatialHUDSupported()) {
+                    Log.d("MainActivity", "VR mode available, starting VR Activity")
+                    // 启动VR模式
+                    val vrIntent = Intent(this, com.neko.music.vr.VRActivity::class.java)
+                    startActivity(vrIntent)
+                    finish()
+                    return
+                } else {
+                    Log.d("MainActivity", "VR mode not available, using normal mode")
+                    // VR模式不可用，使用普通模式
+                }
+            }
+        }
+
         // 应用语言设置
         applyLanguage()
 
