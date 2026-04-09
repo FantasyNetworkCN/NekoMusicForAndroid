@@ -297,7 +297,7 @@ class MusicPlayerService : Service() {
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSessionToken)
-                    .setShowActionsInCompactView(0, 1, 2) // 在紧凑视图显示前3个按钮（上一首、播放/暂停、下一首）
+                    .setShowActionsInCompactView(0, 1, 2, 3) // 在紧凑视图显示4个按钮（上一首、播放/暂停、下一首、词）
                     .setShowCancelButton(false)
             )
             // 添加播放控制按钮
