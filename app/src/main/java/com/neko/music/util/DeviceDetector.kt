@@ -79,7 +79,8 @@ object DeviceDetector {
             "magic_leap", // Magic Leap
             "daydream", // Google Daydream
             "cardboard", // Google Cardboard
-            "vr_headset", "vr_head", "vr_device" // 通用VR标识
+            "vr_headset", "vr_head", "vr_device", // 通用VR标识
+            "sparrow" // PICO 4或其他VR设备代号
         )
 
         val combinedInfo = "$manufacturer $model $product $device".lowercase()
