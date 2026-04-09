@@ -487,6 +487,7 @@
     <string name="file_read_failed">读取文件失败</string>
     <string name="upload_music_dialog_title">上传音乐</string>
     <string name="preview">预览</string>
+    <string name="full_lyrics">完整歌词</string>
     <string name="parsing_metadata">正在解析音乐信息...</string>
     <string name="please_select_language">请选择</string>
     <string name="language_chinese">中文</string>
