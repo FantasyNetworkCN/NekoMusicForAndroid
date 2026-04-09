@@ -15,6 +15,7 @@ import android.widget.TextView
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.util.DesktopLyricRenderer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 data class LrcLine(
     val time: Float, // 时间（秒）
@@ -43,6 +45,9 @@ class DesktopLyricService : Service() {
     private var currentLyrics: List<LrcLine> = emptyList()
     private var currentProgress: Long = 0L
     private var currentMusicId: Int = -1
+    
+    // 使用JNI渲染器
+    private var useJNIRenderer = true
     
     // 拖动相关变量
     private var startX = 0f
@@ -69,6 +74,18 @@ class DesktopLyricService : Service() {
         instance = this
         // 在onCreate中初始化touchSlop，此时Context已经准备好
         touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()
+        
+        // 初始化JNI渲染器
+        if (useJNIRenderer) {
+            try {
+                DesktopLyricRenderer.initialize()
+                android.util.Log.d("DesktopLyricService", "JNI renderer initialized successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("DesktopLyricService", "Failed to initialize JNI renderer, falling back to Kotlin", e)
+                useJNIRenderer = false
+            }
+        }
+        
         createLyricView()
         showLyricView()
         startLyricUpdate()
@@ -201,10 +218,38 @@ class DesktopLyricService : Service() {
         
         // 获取当前播放进度
         currentProgress = playerManager.currentPosition.value
+        val currentTime = currentProgress / 1000f
         
         // 更新歌词显示
+        if (useJNIRenderer) {
+            // 使用JNI渲染器
+            try {
+                val jsonData = DesktopLyricRenderer.getCurrentLyric(currentTime)
+                val json = JSONObject(jsonData)
+                val hasLyric = json.optBoolean("hasLyric", false)
+                
+                if (hasLyric) {
+                    tvLyric?.text = json.optString("text", "暂无歌词")
+                    tvTranslation?.text = json.optString("translation", "")
+                } else {
+                    tvLyric?.text = "暂无歌词"
+                    tvTranslation?.text = ""
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
+                useJNIRenderer = false
+                // 回退到Kotlin实现
+                updateLyricViewKotlin(tvLyric, tvTranslation, currentTime)
+            }
+        } else {
+            // 使用Kotlin实现
+            updateLyricViewKotlin(tvLyric, tvTranslation, currentTime)
+        }
+    }
+    
+    private fun updateLyricViewKotlin(tvLyric: TextView?, tvTranslation: TextView?, currentTime: Float) {
         if (currentLyrics.isNotEmpty()) {
-            val currentLine = currentLyrics.lastOrNull { it.time <= currentProgress / 1000f }
+            val currentLine = currentLyrics.lastOrNull { it.time <= currentTime }
             
             if (currentLine != null) {
                 tvLyric?.text = currentLine.text
@@ -222,6 +267,9 @@ class DesktopLyricService : Service() {
     private suspend fun loadLyrics(musicId: Int) {
         if (musicId <= 0) {
             currentLyrics = emptyList()
+            if (useJNIRenderer) {
+                DesktopLyricRenderer.parseLyrics("", -1)
+            }
             return
         }
         
@@ -246,16 +294,34 @@ class DesktopLyricService : Service() {
             val result = musicApi.getMusicLyrics(currentMusic)
             result.fold(
                 onSuccess = { lyricsText ->
-                    currentLyrics = parseLrcLyrics(lyricsText)
+                    // 使用JNI渲染器
+                    if (useJNIRenderer) {
+                        try {
+                            DesktopLyricRenderer.parseLyrics(lyricsText, musicId)
+                            currentLyrics = emptyList() // 清空Kotlin数据
+                        } catch (e: Exception) {
+                            android.util.Log.e("DesktopLyricService", "JNI parse error, using Kotlin", e)
+                            useJNIRenderer = false
+                            currentLyrics = parseLrcLyrics(lyricsText)
+                        }
+                    } else {
+                        currentLyrics = parseLrcLyrics(lyricsText)
+                    }
                 },
                 onFailure = { error ->
                     android.util.Log.e("DesktopLyricService", "Failed to load lyrics", error)
                     currentLyrics = emptyList()
+                    if (useJNIRenderer) {
+                        DesktopLyricRenderer.parseLyrics("", -1)
+                    }
                 }
             )
         } catch (e: Exception) {
             android.util.Log.e("DesktopLyricService", "Error loading lyrics", e)
             currentLyrics = emptyList()
+            if (useJNIRenderer) {
+                DesktopLyricRenderer.parseLyrics("", -1)
+            }
         }
     }
 
@@ -307,6 +373,16 @@ class DesktopLyricService : Service() {
         hideLyricView()
         updateJob?.cancel()
         serviceScope.cancel()
+        
+        // 清理JNI渲染器
+        if (useJNIRenderer) {
+            try {
+                DesktopLyricRenderer.cleanup()
+            } catch (e: Exception) {
+                android.util.Log.e("DesktopLyricService", "Error cleaning up JNI renderer", e)
+            }
+        }
+        
         instance = null
     }
 }
