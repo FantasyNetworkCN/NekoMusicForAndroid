@@ -1,7 +1,5 @@
 package com.neko.music.util
 
-import android.content.Context
-
 /**
  * 桌面歌词渲染器 - 使用C++实现的JNI接口
  * 专为VR HUD优化，提供高性能的歌词渲染功能
