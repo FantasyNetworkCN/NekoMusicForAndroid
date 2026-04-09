@@ -15,6 +15,11 @@
     <string name="fuck_china_os">Dynamic Island</string>
     <string name="fuck_china_os_subtitle">Show playback controls in the status bar center. Fuck you Chinese OS</string>
     <string name="desktop_lyric_subtitle">Display the currently playing lyrics at the top of the screen</string>
+    
+    <!-- VR Lyrics Accessibility Service -->
+    <string name="vr_lyric_accessibility_service_description">VR Lyrics HUD - Display lyrics globally in VR environment</string>
+    <string name="vr_lyric_accessibility_service_summary">Lyrics display service optimized for VR devices, shows lyrics in all apps</string>
+    
     <string name="language">Language</string>
     <string name="language_subtitle">Select app display language</string>
     <string name="language_follow_system">Follow System</string>
@@ -488,6 +493,7 @@
     <string name="file_read_failed">Failed to read file</string>
     <string name="upload_music_dialog_title">Upload music</string>
     <string name="preview">Preview</string>
+    <string name="full_lyrics">Full Lyrics</string>
     <string name="parsing_metadata">Parsing music information...</string>
     <string name="please_select_language">Please select</string>
     <string name="language_chinese">Chinese</string>

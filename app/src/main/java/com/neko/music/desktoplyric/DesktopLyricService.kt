@@ -48,7 +48,11 @@ class DesktopLyricService : Service() {
     
     // 使用JNI渲染器
     private var useJNIRenderer = true
-    
+
+    // VR HUD管理器
+    private var vrHUDManager: VRHUDLyricManager? = null
+    private var isVRDevice = false
+
     // 拖动相关变量
     private var startX = 0f
     private var startY = 0f
@@ -56,7 +60,7 @@ class DesktopLyricService : Service() {
     private var viewInitialX = 0
     private var viewInitialY = 0
     private var touchSlop = 0f
-    
+
     // 位置保存相关的SharedPreferences
     private val positionPrefs by lazy {
         getSharedPreferences("desktop_lyric_position", Context.MODE_PRIVATE)
@@ -77,6 +81,12 @@ class DesktopLyricService : Service() {
         super.onCreate()
         android.util.Log.d("DesktopLyricService", "Service onCreate")
         instance = this
+
+        // 检测设备类型
+        isVRDevice = com.neko.music.util.DeviceDetector.isVRDevice()
+        android.util.Log.d("DesktopLyricService", "Device type: ${if (isVRDevice) "VR Headset" else "Normal Phone"}")
+        android.util.Log.d("DesktopLyricService", com.neko.music.util.DeviceDetector.getDeviceInfo())
+
         // 在onCreate中初始化touchSlop，此时Context已经准备好
         touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()
         
@@ -90,8 +100,16 @@ class DesktopLyricService : Service() {
                 useJNIRenderer = false
             }
         }
-        
-        createLyricView()
+
+        // 根据设备类型创建对应的视图
+        if (isVRDevice) {
+            // VR设备：使用HUD管理器
+            vrHUDManager = VRHUDLyricManager.getInstance(this)
+        } else {
+            // 普通手机：使用原有的桌面歌词视图
+            createLyricView()
+        }
+
         showLyricView()
         startLyricUpdate()
     }
@@ -153,8 +171,18 @@ class DesktopLyricService : Service() {
     }
 
     private fun showLyricView() {
-        if (isViewAdded || lyricView == null) return
-        
+        if (isViewAdded) return
+
+        if (isVRDevice) {
+            // VR设备：使用HUD管理器
+            vrHUDManager?.show()
+            isViewAdded = true
+            updateLyricView()
+            android.util.Log.d("DesktopLyricService", "VR HUD shown successfully")
+        } else {
+            // 普通手机：使用原有的桌面歌词视图
+            if ( lyricView == null) return
+
         try {
             layoutParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -170,24 +198,25 @@ class DesktopLyricService : Service() {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT
             )
-            
+
             layoutParams?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            
+
             // 加载保存的位置
             val savedPosition = loadPosition()
             layoutParams?.y = savedPosition
-            
+
             lyricView?.alpha = 1f
             lyricView?.scaleX = 1f
             lyricView?.scaleY = 1f
-            
+
             windowManager?.addView(lyricView, layoutParams)
             isViewAdded = true
-            
+
             updateLyricView()
             android.util.Log.d("DesktopLyricService", "Lyric view added successfully at y=$savedPosition")
-        } catch (e: Exception) {
-            android.util.Log.e("DesktopLyricService", "Error showing lyric view", e)
+            } catch (e: Exception) {
+                android.util.Log.e("DesktopLyricService", "Error showing lyric view", e)
+            }
         }
     }
 
@@ -201,15 +230,23 @@ class DesktopLyricService : Service() {
     }
 
     private fun hideLyricView() {
-        if (!isViewAdded || lyricView == null || windowManager == null) return
-        
-        try {
-            // 保存当前位置
+        if (!isViewAdded) return
+
+        if (isVRDevice) {
+            // VR设备：隐藏HUD
+            vrHUDManager?.hide()
+            isViewAdded = false
+        } else {
+            // 普通手机：移除原有视图
+            if (lyricView == null || windowManager == null) return
+
+            try {
+                // 保存当前位置
             savePosition()
             windowManager?.removeView(lyricView)
             isViewAdded = false
         } catch (e: Exception) {
-            e.printStackTrace()
+            e.printStackTrace()}
         }
     }
 
@@ -225,13 +262,10 @@ class DesktopLyricService : Service() {
 
     private fun updateLyricView() {
         val playerManager = MusicPlayerManager.getInstance(this)
-        
-        val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
-        val tvTranslation = lyricView?.findViewById<TextView>(R.id.desktop_lyric_translation)
-        
+
         // 获取当前音乐ID
         val musicId = playerManager.currentMusicId.value ?: -1
-        
+
         // 如果音乐ID变化，重新加载歌词
         if (musicId != currentMusicId) {
             currentMusicId = musicId
@@ -239,12 +273,66 @@ class DesktopLyricService : Service() {
                 loadLyrics(musicId)
             }
         }
-        
+
         // 获取当前播放进度
         currentProgress = playerManager.currentPosition.value
         val currentTime = currentProgress / 1000f
-        
-        // 更新歌词显示
+
+        // 根据设备类型更新歌词显示
+        if (isVRDevice) {
+            // VR设备：使用HUD管理器
+            updateLyricViewVR(currentTime)
+        } else {
+            // 普通手机：使用原有的TextView
+            val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
+            val tvTranslation = lyricView?.findViewById<TextView>(R.id.desktop_lyric_translation)
+            updateLyricViewPhone(tvLyric, tvTranslation, currentTime)
+        }
+    }
+
+    /**
+     * 更新VR设备的歌词显示
+     */
+    private fun updateLyricViewVR(currentTime: Float) {
+        var lyricText = ""
+        var translationText = ""
+
+        if (useJNIRenderer) {
+            // 使用JNI渲染器
+            try {
+                val jsonData = DesktopLyricRenderer.getCurrentLyric(currentTime)
+                val json = JSONObject(jsonData)
+                val hasLyric = json.optBoolean("hasLyric", false)
+if (hasLyric) {
+                    lyricText = json.optString("text", "暂无歌词")
+                    translationText = json.optString("translation", "")
+                } else {
+                    lyricText = "暂无歌词"
+                    translationText = ""
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
+                useJNIRenderer = false
+                // 回退到Kotlin实现
+                val kotlinResult = getCurrentLyricKotlin(currentTime)
+                lyricText = kotlinResult.first
+                translationText = kotlinResult.second
+            }
+        } else {
+            // 使用Kotlin实现
+            val kotlinResult = getCurrentLyricKotlin(currentTime)
+            lyricText = kotlinResult.first
+            translationText = kotlinResult.second
+        }
+
+        // 更新HUD
+        vrHUDManager?.updateLyric(lyricText, translationText)
+    }
+
+    /**
+     * 更新普通手机的歌词显示
+     */
+    private fun updateLyricViewPhone(tvLyric: TextView?, tvTranslation: TextView?, currentTime: Float) {
         if (useJNIRenderer) {
             // 使用JNI渲染器
             try {
@@ -305,10 +393,20 @@ class DesktopLyricService : Service() {
     }
     
     private fun updateLyricViewKotlin(tvLyric: TextView?, tvTranslation: TextView?, currentTime: Float) {
+        val (lyricText, translationText) = getCurrentLyricKotlin(currentTime)
+        tvLyric?.text = lyricText
+        tvTranslation?.text = translationText
+    }
+
+    /**
+     * 使用Kotlin实现获取当前歌词（用于HUD和回退）
+     */
+    private fun getCurrentLyricKotlin(currentTime: Float): Pair<String, String> {
         if (currentLyrics.isNotEmpty()) {
             val currentLine = currentLyrics.lastOrNull { it.time <= currentTime }
 
             if (currentLine != null) {
+                return Pair(currentLine.text, currentLine.translation ?: "")
                 val newText = currentLine.text
                 val newTranslation = currentLine.translation ?: ""
 
@@ -353,10 +451,8 @@ class DesktopLyricService : Service() {
                 tvLyric?.text = "暂无歌词"
                 tvTranslation?.text = ""
             }
-        } else {
-            tvLyric?.text = "暂无歌词"
-            tvTranslation?.text = ""
         }
+        return Pair("暂无歌词", "")
     }
 
     private suspend fun loadLyrics(musicId: Int) {
@@ -425,7 +521,7 @@ class DesktopLyricService : Service() {
         val result = mutableListOf<LrcLine>()
         var i = 0
         val timeRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]")
-        
+
         while (i < lines.size) {
             val line = lines[i]
             // 解析时间戳 [mm:ss.xx]
@@ -457,13 +553,13 @@ class DesktopLyricService : Service() {
                 }
                 
                 result.add(LrcLine(time, text, translation))
-                
+
                 // 如果有翻译行，跳过它
                 if (hasTranslation) {
                     i++
                 }
             }
-            
+
             i++
         }
         
@@ -475,7 +571,13 @@ class DesktopLyricService : Service() {
         hideLyricView()
         updateJob?.cancel()
         serviceScope.cancel()
-        
+
+        // 清理VR HUD管理器
+        if (isVRDevice) {
+            VRHUDLyricManager.destroy()
+            vrHUDManager = null
+        }
+
         // 清理JNI渲染器
         if (useJNIRenderer) {
             try {
@@ -484,7 +586,7 @@ class DesktopLyricService : Service() {
                 android.util.Log.e("DesktopLyricService", "Error cleaning up JNI renderer", e)
             }
         }
-        
+
         instance = null
     }
 }
