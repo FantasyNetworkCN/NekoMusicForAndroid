@@ -65,6 +65,8 @@ object VRHUDRenderer {
             }
 
             // 设置Android上下文（OpenXR Android平台必需）
+            // OpenXR 可能需要 Activity Context，直接传入原始 context
+            Log.d(TAG, "Setting Android context: ${context.javaClass.simpleName}")
             nativeSetAndroidContext(context)
 
             // 初始化JNI层

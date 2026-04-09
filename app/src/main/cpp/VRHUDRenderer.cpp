@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <cstring>
+#include <cstddef>
 #include <android/log.h>
 #include <sys/system_properties.h>
 #include <dlfcn.h>
@@ -74,7 +75,7 @@ typedef int64_t XrFormat;
 #define XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO 16
 #define XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO 17
 #define XR_TYPE_LOADER_INIT_INFO_BASE_KHR 18
-#define XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR 19
+#define XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR 1000089000
 
 // Layer flags
 #define XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT 0x00000001
@@ -357,32 +358,34 @@ namespace VRHUDState {
 // 加载OpenXR库
 bool loadOpenXRLibrary() {
     LOGI("Attempting to load OpenXR library...");
-    
-    // 尝试从系统路径加载OpenXR运行时
+
+    // 在Pico设备上，应用无法直接加载系统库（权限限制）
+    // 必须使用应用内打包的libopenxr_loader.so
     const char* systemLibraries[] = {
-        "/system/lib64/libopenxr_loader.so",
-        "/system/lib/libopenxr_loader.so",
-        "/vendor/lib64/libopenxr_loader.so",
-        "/vendor/lib/libopenxr_loader.so",
-        "libopenxr_loader.so"  // 应用内库
+        "libopenxr_loader.so"  // 应用内打包的loader（必须使用）
     };
-    
-    for (int i = 0; i < 5; i++) {
+
+    const char* libraryNames[] = {
+        "App bundled loader"
+    };
+
+    // 加载应用内loader
+    for (int i = 0; i < 1; i++) {
         VRHUDState::openxrLoader = dlopen(systemLibraries[i], RTLD_LAZY);
         if (VRHUDState::openxrLoader) {
-            LOGI("Loaded OpenXR library from: %s", systemLibraries[i]);
+            LOGI("Loaded OpenXR library from: %s (%s)", systemLibraries[i], libraryNames[i]);
             break;
         }
     }
-    
+
     if (!VRHUDState::openxrLoader) {
         const char* error = dlerror();
-        LOGE("Failed to load libopenxr_loader.so from any location: %s", error ? error : "unknown error");
+        LOGE("Failed to load libopenxr_loader.so: %s", error ? error : "unknown error");
         return false;
     }
-    
+
     LOGI("OpenXR library loaded successfully, loading functions...");
-    
+
     // 加载OpenXR核心函数
     VRHUDState::xrGetInstanceProcAddr = (XrGetInstanceProcAddrFunc)dlsym(VRHUDState::openxrLoader, "xrGetInstanceProcAddr");
     VRHUDState::xrCreateInstance = (XrCreateInstanceFunc)dlsym(VRHUDState::openxrLoader, "xrCreateInstance");
@@ -403,15 +406,15 @@ bool loadOpenXRLibrary() {
     VRHUDState::xrReleaseSwapchainImage = (XrReleaseSwapchainImageFunc)dlsym(VRHUDState::openxrLoader, "xrReleaseSwapchainImage");
     VRHUDState::xrWaitSwapchainImage = (XrWaitSwapchainImageFunc)dlsym(VRHUDState::openxrLoader, "xrWaitSwapchainImage");
     VRHUDState::xrEnumerateInstanceExtensionProperties = (XrEnumerateInstanceExtensionPropertiesFunc)dlsym(VRHUDState::openxrLoader, "xrEnumerateInstanceExtensionProperties");
-    
+
     // 检查关键函数是否加载成功
-    if (!VRHUDState::xrCreateInstance || !VRHUDState::xrDestroyInstance || 
-        !VRHUDState::xrGetSystem || !VRHUDState::xrCreateSession || 
+    if (!VRHUDState::xrCreateInstance || !VRHUDState::xrDestroyInstance ||
+        !VRHUDState::xrGetSystem || !VRHUDState::xrCreateSession ||
         !VRHUDState::xrBeginSession || !VRHUDState::xrEndFrame) {
         LOGE("Failed to load all OpenXR functions");
         return false;
     }
-    
+
     LOGI("All OpenXR functions loaded successfully");
     return true;
 }
@@ -419,10 +422,73 @@ bool loadOpenXRLibrary() {
 // 设置Android上下文
 extern "C" JNIEXPORT void JNICALL
 Java_com_neko_music_util_VRHUDRenderer_nativeSetAndroidContext(JNIEnv* env, jclass clazz, jobject context) {
-    if (context != nullptr) {
-        VRHUDState::androidContext = env->NewGlobalRef(context);
-        LOGI("Android context set");
+    LOGI("=== nativeSetAndroidContext called ===");
+    
+    if (context == nullptr) {
+        LOGE("Received null context!");
+        return;
     }
+    
+    LOGI("Original context: %p", context);
+    LOGI("JNIEnv: %p", env);
+    LOGI("Checking if context is valid...");
+    
+    // 验证原始 Context 是否有效
+    jclass contextClass = env->GetObjectClass(context);
+    if (contextClass == nullptr) {
+        LOGE("Failed to get context class - context may be invalid!");
+        return;
+    }
+    
+    // 获取 Context 类名
+    jmethodID getNameMethod = env->GetMethodID(contextClass, "getClass", "()Ljava/lang/Class;");
+    if (getNameMethod != nullptr) {
+        jobject classObj = env->CallObjectMethod(context, getNameMethod);
+        if (classObj != nullptr) {
+            jmethodID getSimpleNameMethod = env->GetMethodID(env->GetObjectClass(classObj), "getSimpleName", "()Ljava/lang/String;");
+            if (getSimpleNameMethod != nullptr) {
+                jstring name = (jstring)env->CallObjectMethod(classObj, getSimpleNameMethod);
+                if (name != nullptr) {
+                    const char* nameStr = env->GetStringUTFChars(name, nullptr);
+                    LOGI("Context type: %s", nameStr);
+                    env->ReleaseStringUTFChars(name, nameStr);
+                }
+            }
+            env->DeleteLocalRef(classObj);
+        }
+    }
+    
+    env->DeleteLocalRef(contextClass);
+    
+    // 删除旧的 GlobalRef（如果存在）
+    if (VRHUDState::androidContext != nullptr) {
+        LOGI("Deleting old GlobalRef: %p", VRHUDState::androidContext);
+        env->DeleteGlobalRef(VRHUDState::androidContext);
+        VRHUDState::androidContext = nullptr;
+    }
+    
+    // 创建新的 GlobalRef
+    LOGI("Creating new GlobalRef...");
+    jobject globalRef = env->NewGlobalRef(context);
+    
+    if (globalRef == nullptr) {
+        LOGE("Failed to create GlobalRef for Android context!");
+        VRHUDState::androidContext = nullptr;
+    } else {
+        VRHUDState::androidContext = globalRef;
+        LOGI("GlobalRef created successfully: %p", VRHUDState::androidContext);
+        
+        // 验证 GlobalRef 是否有效
+        jclass globalRefClass = env->GetObjectClass(globalRef);
+        if (globalRefClass == nullptr) {
+            LOGE("GlobalRef is invalid!");
+        } else {
+            LOGI("GlobalRef is valid");
+            env->DeleteLocalRef(globalRefClass);
+        }
+    }
+    
+    LOGI("=== nativeSetAndroidContext completed ===");
 }
 
 // 获取JavaVM
@@ -450,73 +516,74 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
         return JNI_FALSE;
     }
     
-    // 初始化OpenXR loader（Android平台必须）
-    if (VRHUDState::xrGetInstanceProcAddr && VRHUDState::javaVM && VRHUDState::androidContext) {
+    // 在Pico设备上，必须在调用任何OpenXR函数之前先调用xrInitializeLoaderKHR
+    // 直接从loader获取函数指针，而不是通过xrGetInstanceProcAddr
+    if (VRHUDState::openxrLoader && VRHUDState::javaVM && VRHUDState::androidContext) {
         LOGI("Initializing OpenXR loader with Android context...");
         LOGI("JavaVM: %p, Context: %p", VRHUDState::javaVM, VRHUDState::androidContext);
-        
-        // 验证Context是否有效
-        JNIEnv* testEnv = nullptr;
-        jint attachResult = VRHUDState::javaVM->GetEnv((void**)&testEnv, JNI_VERSION_1_6);
-        LOGI("JNI GetEnv result: %d, JNIEnv: %p", attachResult, testEnv);
-        
+
+        // 获取当前线程的JNIEnv
+        JNIEnv* env = nullptr;
+        jint attachResult = VRHUDState::javaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+
         if (attachResult == JNI_EDETACHED) {
             LOGI("Current thread detached from JVM, attaching...");
-            if (VRHUDState::javaVM->AttachCurrentThread(&testEnv, nullptr) != JNI_OK) {
+            if (VRHUDState::javaVM->AttachCurrentThread(&env, nullptr) != JNI_OK) {
                 LOGE("Failed to attach current thread to JVM");
             } else {
                 LOGI("Successfully attached current thread to JVM");
             }
         }
-        
-        // 使用 xrGetInstanceProcAddr 获取 xrInitializeLoaderKHR 函数指针
-        XrInitializeLoaderKHRFunc initializeLoader = nullptr;
-        XrResult result = VRHUDState::xrGetInstanceProcAddr(
-            XR_NULL_HANDLE, 
-            "xrInitializeLoaderKHR", 
-            reinterpret_cast<void**>(&initializeLoader)
-        );
-        
-        LOGI("xrGetInstanceProcAddr result: %d, initializeLoader: %p", result, initializeLoader);
-        
-        if (result == XR_SUCCESS && initializeLoader != nullptr) {
+
+        // 直接从loader获取xrInitializeLoaderKHR函数指针
+        XrInitializeLoaderKHRFunc initializeLoader = (XrInitializeLoaderKHRFunc)dlsym(VRHUDState::openxrLoader, "xrInitializeLoaderKHR");
+
+        LOGI("Direct dlsym result: %p", initializeLoader);
+
+        if (initializeLoader != nullptr) {
+            // 使用正确的结构体对齐方式初始化
             XrLoaderInitInfoAndroidKHR loaderInitInfo;
             memset(&loaderInitInfo, 0, sizeof(loaderInitInfo));
             loaderInitInfo.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+            loaderInitInfo.next = nullptr;
             loaderInitInfo.application_vm = VRHUDState::javaVM;
             loaderInitInfo.application_context = VRHUDState::androidContext;
-            
-            LOGI("Calling xrInitializeLoaderKHR with type=%d, vm=%p, context=%p",
-                 loaderInitInfo.type, loaderInitInfo.application_vm, loaderInitInfo.application_context);
-            
-            result = initializeLoader((XrLoaderInitInfoBaseKHR*)&loaderInitInfo);
-            
+
+            LOGI("Calling xrInitializeLoaderKHR directly...");
+            LOGI("  Structure size: %zu bytes", sizeof(loaderInitInfo));
+            LOGI("  type: %d", loaderInitInfo.type);
+            LOGI("  application_vm: %p", loaderInitInfo.application_vm);
+            LOGI("  application_context: %p", loaderInitInfo.application_context);
+
+            XrResult result = initializeLoader(reinterpret_cast<XrLoaderInitInfoBaseKHR*>(&loaderInitInfo));
+
             LOGI("xrInitializeLoaderKHR returned: %d", result);
-            
+
             if (result != XR_SUCCESS) {
                 LOGE("Failed to initialize OpenXR loader: %d", result);
                 if (result == XR_ERROR_VALIDATION_FAILURE) {
                     LOGE("XR_ERROR_VALIDATION_FAILURE: Invalid parameters or structure type");
                 } else if (result == XR_ERROR_RUNTIME_FAILURE) {
-                    LOGE("XR_ERROR_RUNTIME_FAILURE: Runtime failure, possibly missing VR runtime");
+                    LOGE("XR_ERROR_RUNTIME_FAILURE: Runtime failure");
                 } else if (result == XR_ERROR_FUNCTION_UNSUPPORTED) {
-                    LOGE("XR_ERROR_FUNCTION_UNSUPPORTED: Function not supported on this platform");
+                    LOGE("XR_ERROR_FUNCTION_UNSUPPORTED: Function not supported");
                 }
-                LOGW("Continuing without loader initialization - may fail on Android");
+                LOGW("Continuing without loader initialization - may fail");
             } else {
                 LOGI("OpenXR loader initialized successfully");
             }
         } else {
-            LOGE("Failed to get xrInitializeLoaderKHR function: %d", result);
-            if (result == XR_ERROR_FUNCTION_UNSUPPORTED) {
-                LOGE("xrInitializeLoaderKHR is not supported - this is critical for Android");
+            LOGE("Failed to get xrInitializeLoaderKHR function via dlsym");
+            const char* error = dlerror();
+            if (error) {
+                LOGE("dlerror: %s", error);
             }
-            LOGW("Continuing without loader initialization - may fail on Android");
+            LOGW("Continuing without loader initialization - may fail");
         }
     } else {
-        LOGW("xrGetInstanceProcAddr or Android context not available - continuing without loader init");
-        if (!VRHUDState::xrGetInstanceProcAddr) {
-            LOGE("xrGetInstanceProcAddr is NULL");
+        LOGW("OpenXR loader or Android context not available");
+        if (!VRHUDState::openxrLoader) {
+            LOGE("openxrLoader is NULL");
         }
         if (!VRHUDState::javaVM) {
             LOGE("javaVM is NULL");
@@ -525,7 +592,7 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
             LOGE("androidContext is NULL");
         }
     }
-    
+
     // 创建XrInstance
     LOGI("Creating XrInstance...");
     XrInstanceCreateInfo instanceCreateInfo;
@@ -756,6 +823,13 @@ Java_com_neko_music_util_VRHUDRenderer_nativeCleanup(JNIEnv* env, jclass clazz) 
         VRHUDState::openxrLoader = nullptr;
     }
     
+    // 释放 Android Context 的 Global Reference
+    if (VRHUDState::androidContext != nullptr && env) {
+        env->DeleteGlobalRef(VRHUDState::androidContext);
+        VRHUDState::androidContext = nullptr;
+        LOGI("Released Android context GlobalRef");
+    }
+    
     VRHUDState::isInitialized = false;
     VRHUDState::isVisible = false;
 }
@@ -797,8 +871,18 @@ Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass cla
     if (!VRHUDState::isInitialized || !VRHUDState::isVisible) return;
     
     if (VRHUDState::useSimplifiedMode) {
-        // 简化模式：只记录日志，不进行实际渲染
-        LOGD("Render frame in simplified mode (HUD simulation)");
+        // 简化模式：定期输出状态信息
+        static int frameCount = 0;
+        frameCount++;
+        if (frameCount % 300 == 0) { // 每5秒输出一次（假设60fps）
+            LOGI("Simplified mode active - HUD simulation running");
+            LOGI("  Visible: %s", VRHUDState::isVisible ? "true" : "false");
+            LOGI("  Position: (%.2f, %.2f, %.2f)", 
+                 VRHUDState::hudPose.position[0],
+                 VRHUDState::hudPose.position[1], 
+                 VRHUDState::hudPose.position[2]);
+            LOGI("  Lyric: %s", VRHUDState::currentLyric.c_str());
+        }
         return;
     }
     

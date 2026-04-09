@@ -69,8 +69,10 @@
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
-            android:configChanges="orientation|screenSize|keyboardHidden"
-            android:hardwareAccelerated="true">
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|navigation"
+            android:hardwareAccelerated="true"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -79,10 +81,21 @@
                 <category android:name="com.picovr.intent.category.VR" />
             </intent-filter>
             
+            <!-- Oculus VR配置 -->
+            <meta-data android:name="com.oculus.vr.support" android:value="true" />
+            <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
+            <meta-data android:name="com.oculus.ossplash.background" android:value="#000000" />
+            
             <!-- PVR VR模式配置 -->
             <meta-data android:name="com.pvr.vr.mode" android:value="vr" />
             <meta-data android:name="pvr.app.type" android:value="vr" />
             <meta-data android:name="pvr.display.orientation" android:value="180" />
+            <meta-data android:name="pvr.handtracking" android:value="true" />
+            <meta-data android:name="pvr.controller" android:value="true" />
+            
+            <!-- VR应用特性 -->
+            <meta-data android:name="android.software.vr.mode" android:value="true" />
+            <meta-data android:name="android.hardware.vr.headtracking" android:value="true" />
         </activity>
         
         <service
