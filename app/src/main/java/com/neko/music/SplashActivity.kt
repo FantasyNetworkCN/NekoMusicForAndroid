@@ -62,7 +62,7 @@ class SplashActivity : ComponentActivity() {
 
     override fun onBackPressed() {
         // 开屏页面不允许返回，防止用户退出应用
-        // moveTaskToBack(false)
+        super.onBackPressed()
     }
 }
 

@@ -43,6 +43,11 @@ class MusicPlayerService : Service() {
         // 确保 MediaSession 已初始化
         playerManager.ensureMediaSessionInitialized(this)
 
+        // 初始化桌面歌词状态
+        val lyricPrefs = getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE)
+        val lyricEnabled = lyricPrefs.getBoolean("desktop_lyric_enabled", false)
+        playerManager.updateDesktopLyricState(lyricEnabled)
+
         // 初始化焦点锁定状态
         val focusLockPrefs = getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
         val focusLockEnabled = focusLockPrefs.getBoolean("focus_lock_enabled", false)
@@ -152,7 +157,8 @@ class MusicPlayerService : Service() {
                     } else {
                         // 直接切换状态
                         lyricPrefs.edit().putBoolean("desktop_lyric_enabled", newState).apply()
-                        
+                        playerManager.updateDesktopLyricState(newState)
+
                         // 控制桌面歌词服务
                         val lyricServiceIntent = Intent(this, com.neko.music.desktoplyric.DesktopLyricService::class.java)
                         if (newState) {
@@ -297,7 +303,7 @@ class MusicPlayerService : Service() {
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSessionToken)
-                    .setShowActionsInCompactView(0, 1, 2) // 在紧凑视图显示前3个按钮（上一首、播放/暂停、下一首）
+                    .setShowActionsInCompactView(0, 1, 2, 3) // 在紧凑视图显示4个按钮（上一首、播放/暂停、下一首、词）
                     .setShowCancelButton(false)
             )
             // 添加播放控制按钮

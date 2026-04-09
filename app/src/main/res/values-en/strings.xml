@@ -14,6 +14,7 @@
     <string name="focus_lock_subtitle">Won\'t be interrupted by other apps when enabled, allows simultaneous playback</string>
     <string name="fuck_china_os">Dynamic Island</string>
     <string name="fuck_china_os_subtitle">Show playback controls in the status bar center. Fuck you Chinese OS</string>
+    <string name="desktop_lyric_subtitle">Display the currently playing lyrics at the top of the screen</string>
     <string name="language">Language</string>
     <string name="language_subtitle">Select app display language</string>
     <string name="language_follow_system">Follow System</string>
@@ -264,6 +265,9 @@
     <string name="notification_permission_message">To remind you when sleep timer ends,\nnotification permission is required</string>
     <string name="authorize">Authorize</string>
 
+    <!-- Desktop Lyric Permission -->
+    <string name="desktop_lyric_permission_message">To display desktop lyrics,\nneeds overlay permission</string>
+
     <!-- Player -->
     <string name="now_playing">Now Playing</string>
     <string name="cover">Cover</string>
@@ -500,4 +504,5 @@
     <string name="unsupported_audio_format">Unsupported audio formats: Only WAV, FLAC, and MP3 formats are supported.</string>
     <string name="unsupported_lyrics_format">Lyrics files only support LRC format.</string>
     <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
+    <string name="desktop_lyric">Desktop lyric</string>
 </resources>

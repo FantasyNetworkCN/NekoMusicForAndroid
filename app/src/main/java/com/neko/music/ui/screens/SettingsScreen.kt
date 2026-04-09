@@ -83,26 +83,6 @@ fun SettingsScreen(
     val floatPrefs = remember { context.getSharedPreferences("float_window", Context.MODE_PRIVATE) }
     var isFuckChinaOSEnabled by remember { mutableStateOf(floatPrefs.getBoolean("fuck_china_os_enabled", false)) }
     
-    // 桌面歌词设置
-    val desktopLyricPrefs = remember { context.getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE) }
-    var isDesktopLyricEnabled by remember { mutableStateOf(desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)) }
-    
-    // 监听桌面歌词状态变化（当通过通知栏按钮切换时，设置界面也能同步）
-    LaunchedEffect(Unit) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "desktop_lyric_enabled") {
-                isDesktopLyricEnabled = desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)
-            }
-        }
-        desktopLyricPrefs.registerOnSharedPreferenceChangeListener(listener)
-        
-        try {
-            kotlinx.coroutines.delay(Long.MAX_VALUE)
-        } finally {
-            desktopLyricPrefs.unregisterOnSharedPreferenceChangeListener(listener)
-        }
-    }
-    
     // 焦点锁定设置
     val focusLockPrefs = remember { context.getSharedPreferences("player_prefs", Context.MODE_PRIVATE) }
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
@@ -375,37 +355,6 @@ fun SettingsScreen(
                                     context.startService(serviceIntent)
                                 } else {
                                     serviceIntent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_HIDE
-                                    context.startService(serviceIntent)
-                                }
-                            }
-                        }
-                    )
-                    
-                    SettingSwitchItem(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.desktop_lyric),
-                        subtitle = stringResource(id = R.string.desktop_lyric_subtitle),
-                        checked = isDesktopLyricEnabled,
-                        onCheckedChange = { enabled ->
-                            // 如果开启但没有权限，先请求权限（开关状态不变，等用户授权后手动开启）
-                            if (enabled && !hasOverlayPermission) {
-                                val intent = Intent(
-                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:${context.packageName}")
-                                )
-                                context.startActivity(intent)
-                            } else {
-                                // 有权限或关闭时，直接执行
-                                isDesktopLyricEnabled = enabled
-                                desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", enabled).apply()
-                                
-                                // 控制桌面歌词服务
-                                val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
-                                if (enabled) {
-                                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
-                                    context.startService(serviceIntent)
-                                } else {
-                                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_HIDE
                                     context.startService(serviceIntent)
                                 }
                             }

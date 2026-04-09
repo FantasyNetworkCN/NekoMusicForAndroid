@@ -1,6 +1,7 @@
 package com.neko.music.service
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.PowerManager
@@ -82,6 +83,9 @@ class MusicPlayerManager private constructor(context: Context) {
     // 标记 MediaSession 是否已初始化
     private var isMediaSessionInitialized = false
 
+    // 桌面歌词启用状态
+    private var isDesktopLyricEnabled = false
+
     fun ensureMediaSessionInitialized(serviceContext: Context) {
         if (isMediaSessionInitialized) {
             return
@@ -117,6 +121,12 @@ class MusicPlayerManager private constructor(context: Context) {
 
     fun getMediaSessionToken(): android.support.v4.media.session.MediaSessionCompat.Token? {
         return mediaSession?.sessionToken
+    }
+
+    fun updateDesktopLyricState(enabled: Boolean) {
+        isDesktopLyricEnabled = enabled
+        // 更新MediaSession以显示正确的歌词按钮状态
+        updatePlaybackState()
     }
 
     private val _isPlaying = MutableStateFlow(false)
@@ -651,6 +661,36 @@ class MusicPlayerManager private constructor(context: Context) {
                         "ACTION_TOGGLE_FAVORITE" -> {
                             toggleFavorite()
                         }
+                        "ACTION_TOGGLE_LYRIC" -> {
+                            // 切换桌面歌词状态
+                            val context = appContext
+                            if (context != null) {
+                                val lyricPrefs = context.getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE)
+                                val newState = !isDesktopLyricEnabled
+
+                                // 如果要开启但没有悬浮窗权限，先请求权限
+                                if (newState && !android.provider.Settings.canDrawOverlays(context)) {
+                                    Log.d("MusicPlayerManager", "桌面歌词需要悬浮窗权限")
+                                    return
+                                }
+
+                                // 切换状态
+                                lyricPrefs.edit().putBoolean("desktop_lyric_enabled", newState).apply()
+                                isDesktopLyricEnabled = newState
+
+                                // 控制桌面歌词服务
+                                val lyricServiceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                                if (newState) {
+                                    lyricServiceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                                    context.startService(lyricServiceIntent)
+                                } else {
+                                    lyricServiceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_HIDE
+                                    context.startService(lyricServiceIntent)
+                                }
+
+                                Log.d("MusicPlayerManager", "桌面歌词已${if (newState) "开启" else "关闭"}")
+                            }
+                        }
                     }
                 }
             })
@@ -698,6 +738,13 @@ class MusicPlayerManager private constructor(context: Context) {
                     "ACTION_TOGGLE_FAVORITE",
                     if (_isFavorite.value) "取消收藏" else "收藏",
                     if (_isFavorite.value) com.neko.music.R.drawable.ic_favorite_filled else com.neko.music.R.drawable.ic_favorite_border
+                ).build()
+            )
+            .addCustomAction(
+                PlaybackStateCompat.CustomAction.Builder(
+                    "ACTION_TOGGLE_LYRIC",
+                    if (isDesktopLyricEnabled) "关闭歌词" else "歌词",
+                    if (isDesktopLyricEnabled) com.neko.music.R.drawable.ic_widget_lyric else com.neko.music.R.drawable.ic_widget_lyric
                 ).build()
             )
             .setState(

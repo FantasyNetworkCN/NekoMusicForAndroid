@@ -1,6 +1,8 @@
 package com.neko.music.ui.screens
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.util.Log
 import androidx.compose.foundation.Image
 import android.os.Build
@@ -238,6 +240,22 @@ fun PlayerScreen(
         null
     }
 
+    // 桌面歌词设置
+    val desktopLyricPrefs = remember { context.getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE) }
+    var isDesktopLyricEnabled by remember { mutableStateOf(desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+
+    // 悬浮窗权限检查
+    var hasOverlayPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.provider.Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+        )
+    }
+
     // 登录提示
     
     val playModeChanged by playerManager.playModeChanged.collectAsState()
@@ -337,6 +355,55 @@ fun PlayerScreen(
                 }
             )
         }
+    }
+
+    // 监听桌面歌词状态变化
+    LaunchedEffect(Unit) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "desktop_lyric_enabled") {
+                isDesktopLyricEnabled = desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)
+            }
+        }
+        desktopLyricPrefs.registerOnSharedPreferenceChangeListener(listener)
+        
+        try {
+            kotlinx.coroutines.delay(Long.MAX_VALUE)
+        } finally {
+            desktopLyricPrefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    // 监听悬浮窗权限状态变化
+    LaunchedEffect(Unit) {
+        hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.provider.Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+
+    // 桌面歌词切换逻辑
+    val toggleDesktopLyric = {
+        if (isDesktopLyricEnabled) {
+            // 关闭桌面歌词
+            isDesktopLyricEnabled = false
+            desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", false).apply()
+            val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+            serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_HIDE
+            context.startService(serviceIntent)
+        } else {
+            // 开启桌面歌词，先检查权限
+            if (!hasOverlayPermission) {
+                showOverlayPermissionDialog = true
+            } else {
+                isDesktopLyricEnabled = true
+                desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
+                val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                context.startService(serviceIntent)
+            }
+        }
+        Unit
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -458,7 +525,9 @@ fun PlayerScreen(
                     }
                 },
                 showLyrics = showLyrics,
-                isLoggedIn = isLoggedIn
+                isLoggedIn = isLoggedIn,
+                isDesktopLyricEnabled = isDesktopLyricEnabled,
+                onDesktopLyricClick = toggleDesktopLyric
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -469,10 +538,11 @@ fun PlayerScreen(
                 currentTime = currentTime,
                 totalTime = totalTime,
                 isLoading = isLoading,
-                onProgressChange = {
+                onProgressChange = { value ->
                     if (duration > 0) {
-                        playerManager.seekTo((it * duration).toLong())
+                        playerManager.seekTo((value * duration).toLong())
                     }
+                    Unit
                 }
             )
 
@@ -809,6 +879,109 @@ fun PlayerScreen(
             }
         }
     }
+
+    // 悬浮窗权限请求对话框
+    if (showOverlayPermissionDialog) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showOverlayPermissionDialog = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true,
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (isSystemInDarkTheme()) {
+                            Color.Black.copy(alpha = 0.7f)
+                        } else {
+                            Color.Black.copy(alpha = 0.4f)
+                        }
+                    )
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showOverlayPermissionDialog = false }
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                        .padding(24.dp)
+                        .width(300.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.desktop_lyric),
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = stringResource(id = R.string.desktop_lyric_permission_message),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+                                    .clickable { showOverlayPermissionDialog = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.cancel),
+                                    fontSize = 15.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .background(RoseRed, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        val intent = Intent(
+                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:${context.packageName}")
+                                        )
+                                        context.startActivity(intent)
+                                        showOverlayPermissionDialog = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.authorize),
+                                    fontSize = 15.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1023,7 +1196,9 @@ fun LyricSongInfoBar(
             isFavorite: Boolean,
             onFavoriteClick: () -> Unit,
             showLyrics: Boolean,
-            isLoggedIn: Boolean = true
+            isLoggedIn: Boolean = true,
+            isDesktopLyricEnabled: Boolean = false,
+            onDesktopLyricClick: () -> Unit = {}
         ) {
             Box(
                 modifier = Modifier
@@ -1111,19 +1286,44 @@ fun LyricSongInfoBar(
                     }
                 }
 
-                // 收藏按钮 - 始终在右侧固定位置
-                IconButton(
-                    onClick = onFavoriteClick,
+                // 右侧按钮组
+                Row(
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(36.dp)
+                        .align(Alignment.CenterEnd),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                        tint = if (isFavorite) RoseRed else Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    // 收藏按钮
+                    IconButton(
+                        onClick = onFavoriteClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
+                            tint = if (isFavorite) RoseRed else Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // 桌面歌词按钮
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isDesktopLyricEnabled) RoseRed.copy(alpha = 0.15f) else Color.Transparent
+                            )
+                            .clickable(onClick = onDesktopLyricClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "词",
+                            fontSize = 14.sp,
+                            fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isDesktopLyricEnabled) RoseRed else Color.Gray
+                        )
+                    }
                 }
             }
         }
