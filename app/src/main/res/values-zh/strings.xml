@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Neko云音乐</string>
-    <string name="app_name_vr">Neko VR 模式</string>
     <string name="widget_description">Neko云音乐桌面播放器</string>
     
     <!-- 设置页面 -->

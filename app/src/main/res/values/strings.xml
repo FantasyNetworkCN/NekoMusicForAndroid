@@ -513,5 +513,4 @@
     <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
     <string name="share_playlist">分享歌单</string>
     <string name="removed_from_playlist_success">已从歌单中移除</string>
-    <string name="app_name_vr">Neko云音乐(VR)</string>
 </resources>

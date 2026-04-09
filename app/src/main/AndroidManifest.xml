@@ -49,28 +49,7 @@
             android:label="@string/app_name"
             android:theme="@style/Theme.Neko云音乐"
             android:launchMode="singleTask"
-            android:alwaysRetainTaskState="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-        <activity
-            android:name=".SplashActivity"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.Neko云Music.Splash"
-            android:noHistory="true" />
-        
-        <!-- VR渲染Activity -->
-        <activity
-            android:name=".vr.VRActivity"
-            android:exported="true"
-            android:label="@string/app_name_vr"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
-            android:launchMode="singleTask"
+            android:alwaysRetainTaskState="true"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|navigation"
             android:hardwareAccelerated="true"

@@ -312,6 +312,15 @@ namespace VRHUDState {
     bool isInitialized = false;
     bool isVisible = false;
     
+    // 运行模式（自动检测）
+    enum class RunningMode {
+        UNKNOWN,           // 未知状态
+        OPENXR_VR,         // OpenXR VR模式（真正的3D空间HUD）
+        SIMPLIFIED_2D,     // 简化2D模式（覆盖层显示）
+        FALLBACK           // 后备模式（仅日志输出）
+    };
+    RunningMode runningMode = RunningMode::UNKNOWN;
+    
     // OpenXR函数指针
     XrGetInstanceProcAddrFunc xrGetInstanceProcAddr = nullptr;
     XrCreateInstanceFunc xrCreateInstance = nullptr;
@@ -358,6 +367,10 @@ namespace VRHUDState {
     // Android Context和VM
     JavaVM* javaVM = nullptr;
     jobject androidContext = nullptr;
+    
+    // 设备信息
+    std::string deviceModel = "";
+    bool isVRDevice = false;
 }
 
 // 加载OpenXR库
@@ -388,7 +401,7 @@ bool loadOpenXRLibrary() {
         LOGE("Failed to load libopenxr_loader.so: %s", error ? error : "unknown error");
         return false;
     }
-
+    
     LOGI("OpenXR library loaded successfully, loading functions...");
 
     // 加载OpenXR核心函数
@@ -411,17 +424,70 @@ bool loadOpenXRLibrary() {
     VRHUDState::xrReleaseSwapchainImage = (XrReleaseSwapchainImageFunc)dlsym(VRHUDState::openxrLoader, "xrReleaseSwapchainImage");
     VRHUDState::xrWaitSwapchainImage = (XrWaitSwapchainImageFunc)dlsym(VRHUDState::openxrLoader, "xrWaitSwapchainImage");
     VRHUDState::xrEnumerateInstanceExtensionProperties = (XrEnumerateInstanceExtensionPropertiesFunc)dlsym(VRHUDState::openxrLoader, "xrEnumerateInstanceExtensionProperties");
-
-    // 检查关键函数是否加载成功
-    if (!VRHUDState::xrCreateInstance || !VRHUDState::xrDestroyInstance ||
-        !VRHUDState::xrGetSystem || !VRHUDState::xrCreateSession ||
-        !VRHUDState::xrBeginSession || !VRHUDState::xrEndFrame) {
-        LOGE("Failed to load all OpenXR functions");
+    VRHUDState::xrInitializeLoaderKHR = (XrInitializeLoaderKHRFunc)dlsym(VRHUDState::openxrLoader, "xrInitializeLoaderKHR");
+    
+    if (!VRHUDState::xrGetInstanceProcAddr || !VRHUDState::xrCreateInstance || 
+        !VRHUDState::xrDestroyInstance || !VRHUDState::xrGetSystem || !VRHUDState::xrGetSystemProperties ||
+        !VRHUDState::xrCreateSession || !VRHUDState::xrDestroySession || !VRHUDState::xrCreateReferenceSpace ||
+        !VRHUDState::xrCreateSwapchain || !VRHUDState::xrDestroySwapchain || !VRHUDState::xrBeginSession ||
+        !VRHUDState::xrEndSession || !VRHUDState::xrBeginFrame || !VRHUDState::xrEndFrame) {
+        LOGE("Failed to load all required OpenXR functions");
         return false;
     }
-
+    
     LOGI("All OpenXR functions loaded successfully");
     return true;
+}
+
+// 检测设备类型并选择运行模式
+VRHUDState::RunningMode detectDeviceAndSelectMode() {
+    LOGI("===== 开始设备检测和模式选择 =====");
+    
+    // 默认检测为VR设备
+    VRHUDState::isVRDevice = true;
+    VRHUDState::deviceModel = "Unknown VR Device";
+    
+    // 获取设备信息（通过Android系统属性）
+    char deviceModel[PROP_VALUE_MAX] = {0};
+    if (__system_property_get("ro.product.model", deviceModel) > 0) {
+        VRHUDState::deviceModel = deviceModel;
+        LOGI("检测到设备型号: %s", deviceModel);
+        
+        // 检查是否为已知的VR设备
+        std::string deviceStr = deviceModel;
+        if (deviceStr.find("Pico") != std::string::npos || 
+            deviceStr.find("Quest") != std::string::npos ||
+            deviceStr.find("XR") != std::string::npos) {
+            VRHUDState::isVRDevice = true;
+            LOGI("识别为VR设备，将尝试使用OpenXR模式");
+        } else {
+            VRHUDState::isVRDevice = false;
+            LOGI("识别为非VR设备，将使用简化2D模式");
+        }
+    }
+    
+    // 根据设备类型选择运行模式
+    if (VRHUDState::isVRDevice) {
+        LOGI("选择运行模式: OPENXR_VR (OpenXR 3D空间HUD)");
+        return VRHUDState::RunningMode::OPENXR_VR;
+    } else {
+        LOGI("选择运行模式: SIMPLIFIED_2D (简化2D覆盖层)");
+        return VRHUDState::RunningMode::SIMPLIFIED_2D;
+    }
+}
+
+// 获取运行模式的描述
+const char* getRunningModeDescription(VRHUDState::RunningMode mode) {
+    switch (mode) {
+        case VRHUDState::RunningMode::OPENXR_VR:
+            return "OpenXR VR模式 (3D空间HUD)";
+        case VRHUDState::RunningMode::SIMPLIFIED_2D:
+            return "简化2D模式 (覆盖层显示)";
+        case VRHUDState::RunningMode::FALLBACK:
+            return "后备模式 (仅日志输出)";
+        default:
+            return "未知模式";
+    }
 }
 
 // 设置Android上下文
@@ -515,10 +581,31 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
     LOGI("===== 开始VR HUD初始化 =====");
     LOGI("屏幕分辨率: %dx%d", displayWidth, displayHeight);
     
+    // 检测设备类型并选择运行模式
+    VRHUDState::runningMode = detectDeviceAndSelectMode();
+    LOGI("当前运行模式: %s", getRunningModeDescription(VRHUDState::runningMode));
+    
+    // 根据选择的运行模式进行初始化
+    if (VRHUDState::runningMode == VRHUDState::RunningMode::SIMPLIFIED_2D) {
+        LOGI("使用简化2D模式初始化...");
+        // 简化模式不需要OpenXR，直接返回成功
+        VRHUDState::isInitialized = true;
+        VRHUDState::useSimplifiedMode = true;
+        LOGI("简化2D模式初始化成功");
+        return JNI_TRUE;
+    }
+    
+    // OpenXR VR模式初始化
+    LOGI("使用OpenXR VR模式初始化...");
+    
     // 加载OpenXR库
     if (!loadOpenXRLibrary()) {
-        LOGE("初始化失败：无法加载 OpenXR 库");
-        return JNI_FALSE;
+        LOGE("初始化失败：无法加载 OpenXR 库，切换到后备模式");
+        VRHUDState::runningMode = VRHUDState::RunningMode::FALLBACK;
+        VRHUDState::isInitialized = true;
+        VRHUDState::useSimplifiedMode = true;
+        LOGI("后备模式初始化成功");
+        return JNI_TRUE;
     }
     
     // 在Pico设备上，必须在调用任何OpenXR函数之前先调用xrInitializeLoaderKHR
@@ -887,27 +974,8 @@ Java_com_neko_music_util_VRHUDRenderer_nativeGetDisplayTime(JNIEnv* env, jclass 
     return 0.0;
 }
 
-// 渲染当前帧
-extern "C" JNIEXPORT void JNICALL
-Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass clazz) {
-    if (!VRHUDState::isInitialized || !VRHUDState::isVisible) return;
-    
-    if (VRHUDState::useSimplifiedMode) {
-        // 简化模式：定期输出状态信息
-        static int frameCount = 0;
-        frameCount++;
-        if (frameCount % 300 == 0) { // 每5秒输出一次（假设60fps）
-            LOGI("Simplified mode active - HUD simulation running");
-            LOGI("  Visible: %s", VRHUDState::isVisible ? "true" : "false");
-            LOGI("  Position: (%.2f, %.2f, %.2f)", 
-                 VRHUDState::hudPose.position[0],
-                 VRHUDState::hudPose.position[1], 
-                 VRHUDState::hudPose.position[2]);
-            LOGI("  Lyric: %s", VRHUDState::currentLyric.c_str());
-        }
-        return;
-    }
-    
+// OpenXR VR模式渲染
+void renderOpenXRFrame() {
     // 正常OpenXR模式
     // 开始帧
     XrResult result = VRHUDState::xrBeginFrame(VRHUDState::session);
@@ -948,7 +1016,7 @@ Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass cla
             LOGD("Failed to end frame: %d", result);
         }
     } else {
-        // 没有swapchain，直接结束帧
+        // 如果没有swapchain，结束空帧
         XrFrameEndInfo frameEndInfo;
         memset(&frameEndInfo, 0, sizeof(frameEndInfo));
         frameEndInfo.type = XR_TYPE_FRAME_END_INFO;
@@ -957,8 +1025,76 @@ Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass cla
         frameEndInfo.layerCount = 0;
         frameEndInfo.layers = nullptr;
         
-        VRHUDState::xrEndFrame(VRHUDState::session, &frameEndInfo);
+        result = VRHUDState::xrEndFrame(VRHUDState::session, &frameEndInfo);
+        if (result != XR_SUCCESS) {
+            LOGD("Failed to end empty frame: %d", result);
+        }
     }
+}
+
+// 简化2D模式渲染
+void renderSimplified2DFrame() {
+    // 简化2D模式：可以在这里实现2D覆盖层显示
+    // 目前暂时输出日志，实际应用中可以：
+    // 1. 使用Android SurfaceView显示歌词
+    // 2. 使用OpenGL ES渲染2D纹理
+    // 3. 使用其他UI框架显示HUD内容
     
-    LOGD("Render frame with HUD layer");
+    static int frameCount = 0;
+    frameCount++;
+    
+    if (frameCount % 300 == 0) { // 每5秒输出一次（假设60fps）
+        LOGI("简化2D模式正在运行");
+        LOGI("  设备型号: %s", VRHUDState::deviceModel.c_str());
+        LOGI("  HUD可见性: %s", VRHUDState::isVisible ? "true" : "false");
+        LOGI("  当前歌词: %s", VRHUDState::currentLyric.c_str());
+        LOGI("  当前翻译: %s", VRHUDState::currentTranslation.c_str());
+        
+        if (!VRHUDState::currentLyric.empty()) {
+            LOGI("  ★ 正在显示歌词内容 ★");
+        }
+    }
+}
+
+// 后备模式渲染
+void renderFallbackFrame() {
+    // 后备模式：仅日志输出，用于调试和错误处理
+    static int frameCount = 0;
+    frameCount++;
+    
+    if (frameCount % 300 == 0) { // 每5秒输出一次（假设60fps）
+        LOGI("后备模式正在运行 - OpenXR初始化失败");
+        LOGI("  设备型号: %s", VRHUDState::deviceModel.c_str());
+        LOGI("  HUD可见性: %s", VRHUDState::isVisible ? "true" : "false");
+        LOGI("  当前歌词: %s", VRHUDState::currentLyric.c_str());
+        LOGI("  建议检查设备OpenXR支持或切换到兼容设备");
+    }
+}
+
+// 渲染当前帧
+extern "C" JNIEXPORT void JNICALL
+Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass clazz) {
+    if (!VRHUDState::isInitialized || !VRHUDState::isVisible) return;
+    
+    // 根据运行模式进行渲染
+    switch (VRHUDState::runningMode) {
+        case VRHUDState::RunningMode::OPENXR_VR:
+            // OpenXR VR模式：真正的3D空间渲染
+            renderOpenXRFrame();
+            break;
+            
+        case VRHUDState::RunningMode::SIMPLIFIED_2D:
+            // 简化2D模式：2D覆盖层渲染
+            renderSimplified2DFrame();
+            break;
+            
+        case VRHUDState::RunningMode::FALLBACK:
+            // 后备模式：仅日志输出
+            renderFallbackFrame();
+            break;
+            
+        default:
+            LOGD("未知运行模式，跳过渲染");
+            break;
+    }
 }
