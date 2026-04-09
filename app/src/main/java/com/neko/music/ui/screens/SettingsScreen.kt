@@ -87,6 +87,22 @@ fun SettingsScreen(
     val desktopLyricPrefs = remember { context.getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE) }
     var isDesktopLyricEnabled by remember { mutableStateOf(desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)) }
     
+    // 监听桌面歌词状态变化（当通过通知栏按钮切换时，设置界面也能同步）
+    LaunchedEffect(Unit) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "desktop_lyric_enabled") {
+                isDesktopLyricEnabled = desktopLyricPrefs.getBoolean("desktop_lyric_enabled", false)
+            }
+        }
+        desktopLyricPrefs.registerOnSharedPreferenceChangeListener(listener)
+        
+        try {
+            kotlinx.coroutines.delay(Long.MAX_VALUE)
+        } finally {
+            desktopLyricPrefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+    
     // 焦点锁定设置
     val focusLockPrefs = remember { context.getSharedPreferences("player_prefs", Context.MODE_PRIVATE) }
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
