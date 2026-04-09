@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 关闭状态：灰色空心音符 + 禁用圆圈 -->
+    <path
+        android:fillColor="#808080"
+        android:pathData="M12,3v9.28c-0.47,-0.17 -0.97,-0.28 -1.5,-0.28C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21c2.31,0 4.2,-1.75 4.45,-4H15V6h4V3h-7z"/>
+    <!-- 禁用斜线 -->
+    <path
+        android:strokeColor="#808080"
+        android:strokeWidth="2"
+        android:pathData="M4,20L20,4"/>
+</vector>

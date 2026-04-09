@@ -82,15 +82,34 @@ public:
                 
                 // 检查下一行是否有翻译
                 std::string translation;
+                bool hasTranslation = false;
                 if (i + 1 < lines.size()) {
                     const std::string& nextLine = lines[i + 1];
-                    // 翻译行通常以 { } 包裹
+                    // 翻译行通常以 { } 包裹，且不包含时间戳
                     if (!nextLine.empty() && nextLine[0] == '{' && nextLine.back() == '}') {
-                        translation = nextLine.substr(1, nextLine.length() - 2);
+                        // 检查是否包含时间戳，如果包含则不是翻译行
+                        if (!std::regex_search(nextLine, timeRegex)) {
+                            hasTranslation = true;
+                            // 提取花括号内的内容
+                            std::string content = nextLine.substr(1, nextLine.length() - 2);
+                            // 去掉转义字符和引号
+                            content.erase(std::remove(content.begin(), content.end(), '\\'), content.end());
+                            content.erase(std::remove(content.begin(), content.end(), '"'), content.end());
+                            content.erase(std::remove(content.begin(), content.end(), '\''), content.end());
+                            // 去除前后空白
+                            content.erase(0, content.find_first_not_of(" \t\r\n"));
+                            content.erase(content.find_last_not_of(" \t\r\n") + 1);
+                            translation = content;
+                        }
                     }
                 }
                 
                 lyrics.emplace_back(time, text, translation);
+                
+                // 如果找到翻译行，跳过它
+                if (hasTranslation) {
+                    i++;
+                }
             }
         }
         
