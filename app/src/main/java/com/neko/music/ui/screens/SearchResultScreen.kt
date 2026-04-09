@@ -125,13 +125,13 @@ fun SearchResultScreen(
                     errorMessage = error
                 }
             } else if (searchType == "playlist") {
-                performPlaylistSearch(savedQuery, scope) { results, error ->
+                performPlaylistSearch(savedQuery, context, scope) { results, error ->
                     playlistResults = results
                     isLoading = false
                     errorMessage = error
                 }
             } else if (searchType == "artist") {
-                performArtistSearch(savedQuery, scope) { results, error ->
+                performArtistSearch(savedQuery, context, scope) { results, error ->
                     artistResults = results
                     isLoading = false
                     errorMessage = error
