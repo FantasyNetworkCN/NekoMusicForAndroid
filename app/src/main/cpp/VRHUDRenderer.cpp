@@ -46,9 +46,9 @@ typedef int64_t XrFormat;
 
 // API版本
 #define XR_CURRENT_API_VERSION_MAJOR 1
-#define XR_CURRENT_API_VERSION_MINOR 0
+#define XR_CURRENT_API_VERSION_MINOR 1
 #define XR_CURRENT_API_VERSION_PATCH 0
-#define XR_CURRENT_API_VERSION ((uint64_t)XR_CURRENT_API_VERSION_MAJOR << 48) | ((uint64_t)XR_CURRENT_API_VERSION_MINOR << 32) | XR_CURRENT_API_VERSION_PATCH
+#define XR_CURRENT_API_VERSION ((XR_CURRENT_API_VERSION_MAJOR) | (XR_CURRENT_API_VERSION_MINOR << 16))
 
 // 扩展
 #define XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME "XR_KHR_opengl_es_enable"
@@ -234,21 +234,26 @@ typedef struct {
     uint32_t layerCount;
 } XrFrameEndInfo;
 
-typedef struct XrInstanceCreateInfo XrInstanceCreateInfo;
+typedef uint64_t XrInstanceCreateFlags;
 
-struct XrInstanceCreateInfo {
-    XrStructureType type;
-    void* next;
+typedef struct {
     char applicationName[256];
     uint32_t applicationVersion;
-    char engineName[256];
+    uint32_t engineName;
     uint32_t engineVersion;
     uint32_t apiVersion;
+} XrApplicationInfo;
+
+typedef struct {
+    XrStructureType type;
+    const void* next;
+    XrApplicationInfo applicationInfo;
+    XrInstanceCreateFlags flags;
     uint32_t enabledExtensionCount;
-    const char** enabledExtensionNames;
+    const char* const* enabledExtensionNames;
     uint32_t enabledApiLayerCount;
-    const char** enabledApiLayerNames;
-};
+    const char* const* enabledApiLayerNames;
+} XrInstanceCreateInfo;
 
 typedef struct {
     XrStructureType type;
@@ -535,12 +540,22 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
             }
         }
 
-        // 直接从loader获取xrInitializeLoaderKHR函数指针
-        XrInitializeLoaderKHRFunc initializeLoader = (XrInitializeLoaderKHRFunc)dlsym(VRHUDState::openxrLoader, "xrInitializeLoaderKHR");
+        // 通过xrGetInstanceProcAddr获取xrInitializeLoaderKHR函数指针
+        XrInitializeLoaderKHRFunc initializeLoader = nullptr;
+        void* functionPtr = nullptr;
+        XrResult getInstanceResult = VRHUDState::xrGetInstanceProcAddr(
+            XR_NULL_HANDLE, 
+            "xrInitializeLoaderKHR", 
+            &functionPtr
+        );
 
-        LOGI("Direct dlsym result: %p", initializeLoader);
+        if (getInstanceResult == XR_SUCCESS && functionPtr != nullptr) {
+            initializeLoader = reinterpret_cast<XrInitializeLoaderKHRFunc>(functionPtr);
+        }
 
-        if (initializeLoader != nullptr) {
+        LOGI("xrGetInstanceProcAddr 调用 xrInitializeLoaderKHR 返回：%d，结果：%p", getInstanceResult, initializeLoader);
+
+        if (getInstanceResult == XR_SUCCESS && initializeLoader != nullptr) {
             // 使用正确的结构体对齐方式初始化
             XrLoaderInitInfoAndroidKHR loaderInitInfo;
             memset(&loaderInitInfo, 0, sizeof(loaderInitInfo));
@@ -549,37 +564,36 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
             loaderInitInfo.application_vm = VRHUDState::javaVM;
             loaderInitInfo.application_context = VRHUDState::androidContext;
 
-            LOGI("Calling xrInitializeLoaderKHR directly...");
-            LOGI("  Structure size: %zu bytes", sizeof(loaderInitInfo));
+            LOGI("通过函数指针调用 xrInitializeLoaderKHR...");
+            LOGI("  结构体大小：%zu 字节", sizeof(loaderInitInfo));
             LOGI("  type: %d", loaderInitInfo.type);
             LOGI("  application_vm: %p", loaderInitInfo.application_vm);
             LOGI("  application_context: %p", loaderInitInfo.application_context);
 
             XrResult result = initializeLoader(reinterpret_cast<XrLoaderInitInfoBaseKHR*>(&loaderInitInfo));
 
-            LOGI("xrInitializeLoaderKHR returned: %d", result);
+            LOGI("xrInitializeLoaderKHR 返回：%d", result);
 
             if (result != XR_SUCCESS) {
-                LOGE("Failed to initialize OpenXR loader: %d", result);
+                LOGE("OpenXR加载器初始化失败: %d", result);
                 if (result == XR_ERROR_VALIDATION_FAILURE) {
-                    LOGE("XR_ERROR_VALIDATION_FAILURE: Invalid parameters or structure type");
+                    LOGE("XR_ERROR_VALIDATION_FAILURE：参数或结构类型无效");
                 } else if (result == XR_ERROR_RUNTIME_FAILURE) {
-                    LOGE("XR_ERROR_RUNTIME_FAILURE: Runtime failure");
+                    LOGE("XR_ERROR_RUNTIME_FAILURE：运行时故障");
                 } else if (result == XR_ERROR_FUNCTION_UNSUPPORTED) {
-                    LOGE("XR_ERROR_FUNCTION_UNSUPPORTED: Function not supported");
+                    LOGE("XR_ERROR_FUNCTION_UNSUPPORTED：函数不受支持");
                 }
-                LOGW("Continuing without loader initialization - may fail");
+                LOGW("未初始化加载器而继续操作 - 可能失败");
             } else {
-                LOGI("OpenXR loader initialized successfully");
+                LOGI("OpenXR加载器初始化成功");
             }
         } else {
-            LOGE("Failed to get xrInitializeLoaderKHR function via dlsym");
-            const char* error = dlerror();
-            if (error) {
-                LOGE("dlerror: %s", error);
-            }
-            LOGW("Continuing without loader initialization - may fail");
-        }
+                    LOGE("Failed to get xrInitializeLoaderKHR function via xrGetInstanceProcAddr, result: %d", getInstanceResult);
+                    if (getInstanceResult != XR_SUCCESS) {
+                        LOGE("xrGetInstanceProcAddr failed with code: %d", getInstanceResult);
+                    }
+                    LOGW("Continuing without loader initialization - may fail");
+                }
     } else {
         LOGW("OpenXR loader or Android context not available");
         if (!VRHUDState::openxrLoader) {
@@ -598,11 +612,19 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
     XrInstanceCreateInfo instanceCreateInfo;
     memset(&instanceCreateInfo, 0, sizeof(instanceCreateInfo));
     instanceCreateInfo.type = XR_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.applicationVersion = 1;
-    instanceCreateInfo.apiVersion = (uint32_t)XR_CURRENT_API_VERSION;
-    strncpy((char*)instanceCreateInfo.applicationName, "NekoMusic VR HUD", 256);
+    instanceCreateInfo.next = nullptr;
+    instanceCreateInfo.flags = 0;
+    instanceCreateInfo.applicationInfo.applicationVersion = 1;
+    instanceCreateInfo.applicationInfo.apiVersion = (uint32_t)XR_CURRENT_API_VERSION;
+    LOGI("XR_CURRENT_API_VERSION macro value: %u", (uint32_t)XR_CURRENT_API_VERSION);
+    LOGI("instanceCreateInfo.applicationInfo.apiVersion value: %u", instanceCreateInfo.applicationInfo.apiVersion);
+    strncpy(instanceCreateInfo.applicationInfo.applicationName, "NekoMusic VR HUD", 256);
+    instanceCreateInfo.applicationInfo.engineName = 0;
+    instanceCreateInfo.applicationInfo.engineVersion = 0;
     instanceCreateInfo.enabledExtensionCount = 0;
+    instanceCreateInfo.enabledExtensionNames = nullptr;
     instanceCreateInfo.enabledApiLayerCount = 0;
+    instanceCreateInfo.enabledApiLayerNames = nullptr;
     
     XrResult result = VRHUDState::xrCreateInstance(&instanceCreateInfo, &VRHUDState::instance);
     if (result != XR_SUCCESS) {
