@@ -83,6 +83,7 @@
     <string name="error">错误</string>
 
     <!-- 登录相关 -->
+    <string name="success">成功</string>
     <string name="app_title">Neko 云音乐</string>
     <string name="welcome_back">欢迎回来</string>
     <string name="create_new_account">创建新账号</string>
