@@ -59,20 +59,20 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("debug")
-            
+
             // 启用更严格的优化
             isDebuggable = false
             isJniDebuggable = false
             renderscriptOptimLevel = 3
         }
     }
-    
-    // R8配置
+
+    // R8配置和资源压缩
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    
+
     // Lint配置
     lint {
         // 禁用有问题的lint检查，避免lint工具崩溃
@@ -82,7 +82,6 @@ android {
         abortOnError = false
     }
 
-    
     // 配置打包选项
     packaging {
         resources {
@@ -99,12 +98,6 @@ android {
             excludes += "/META-INF/INDEX.LIST"
             excludes += "/META-INF/io.netty.versions.properties"
         }
-    }
-    
-    // 配置资源压缩
-    buildFeatures {
-        compose = true
-        buildConfig = true
     }
     
     compileOptions {

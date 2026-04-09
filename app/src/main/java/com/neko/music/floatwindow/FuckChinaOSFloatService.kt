@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import coil.load
 import com.neko.music.R
+import com.neko.music.data.api.MusicApi
 import com.neko.music.service.MusicPlayerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,11 +43,20 @@ class FuckChinaOSFloatService : Service() {
     private var cachedIsPlaying: Boolean? = null
     private var cachedCoverPath: String? = null
     
+    // 歌词相关
+    private var currentLyrics: List<com.neko.music.desktoplyric.LrcLine> = emptyList()
+    private var currentMusicId: Int = -1
+    
     // 拖动相关变量
     private var initialX = 0
     private var initialY = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
+    
+    // 位置保存相关的SharedPreferences
+    private val positionPrefs by lazy {
+        getSharedPreferences("float_window_position", Context.MODE_PRIVATE)
+    }
 
     companion object {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_FLOAT"
@@ -83,10 +93,10 @@ class FuckChinaOSFloatService : Service() {
 
     private fun createFloatView() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        
+
         val layoutInflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         floatView = layoutInflater.inflate(R.layout.float_window_layout, null)
-        
+
         // 设置点击事件
         val btnPlayPause = floatView?.findViewById<ImageButton>(R.id.float_play_pause)
         val btnPrevious = floatView?.findViewById<ImageButton>(R.id.float_previous)
@@ -94,7 +104,15 @@ class FuckChinaOSFloatService : Service() {
         val layoutFloat = floatView?.findViewById<android.widget.FrameLayout>(R.id.float_layout)
         val infoLayout = floatView?.findViewById<LinearLayout>(R.id.float_info_layout)
         val playAnimation = floatView?.findViewById<PlayAnimationView>(R.id.float_play_animation)
-        
+        val tvTitle = floatView?.findViewById<TextView>(R.id.float_title)
+        val tvArtist = floatView?.findViewById<TextView>(R.id.float_artist)
+        val tvLyric = floatView?.findViewById<TextView>(R.id.float_lyric)
+
+        // 初始化 Marquee 效果，避免每次更新文本时重新设置导致频闪
+        tvTitle?.isSelected = true
+        tvArtist?.isSelected = true
+        tvLyric?.isSelected = true
+
         btnPlayPause?.setOnClickListener {
             val playerManager = MusicPlayerManager.getInstance(this)
             if (playerManager.isPlaying.value) {
@@ -103,11 +121,11 @@ class FuckChinaOSFloatService : Service() {
                 playerManager.togglePlayPause()
             }
         }
-        
+
         btnPrevious?.setOnClickListener {
             MusicPlayerManager.getInstance(this).previous()
         }
-        
+
         btnNext?.setOnClickListener {
             MusicPlayerManager.getInstance(this).next()
         }
@@ -147,11 +165,12 @@ class FuckChinaOSFloatService : Service() {
                             return true
                         }
                         com.neko.music.util.DynamicIslandRenderer.TouchResult.DRAG_END -> {
-                            // 拖动结束，更新最终位置
+                            // 拖动结束，更新最终位置并保存
                             val (x, y) = com.neko.music.util.DynamicIslandRenderer.getPosition()
                             layoutParams?.x = x
                             layoutParams?.y = y
                             windowManager?.updateViewLayout(floatView, layoutParams)
+                            savePosition(x, y)
                             return true
                         }
                         com.neko.music.util.DynamicIslandRenderer.TouchResult.CLICK -> {
@@ -176,11 +195,16 @@ class FuckChinaOSFloatService : Service() {
         if (isViewAdded || floatView == null) return
         
         try {
-            // 使用JNI获取默认配置
-            val defaultPosition = try {
-                com.neko.music.util.DynamicIslandRenderer.getDefaultPosition()
-            } catch (e: Exception) {
-                Pair(0, 80) // 默认值
+            // 加载保存的位置，如果没有则使用JNI获取默认配置
+            val savedPosition = loadPosition()
+            val defaultPosition = if (savedPosition.first == -1) {
+                try {
+                    com.neko.music.util.DynamicIslandRenderer.getDefaultPosition()
+                } catch (e: Exception) {
+                    Pair(0, 80) // 默认值
+                }
+            } else {
+                savedPosition
             }
             
             layoutParams = WindowManager.LayoutParams(
@@ -214,12 +238,13 @@ class FuckChinaOSFloatService : Service() {
             floatView?.findViewById<ImageButton>(R.id.float_play_pause)?.visibility = View.VISIBLE
             floatView?.findViewById<ImageButton>(R.id.float_next)?.visibility = View.VISIBLE
             floatView?.findViewById<LinearLayout>(R.id.float_controls_layout)?.visibility = View.VISIBLE
+            floatView?.findViewById<TextView>(R.id.float_lyric)?.visibility = View.VISIBLE
             
             windowManager?.addView(floatView, layoutParams)
             isViewAdded = true
             
             updateFloatView()
-            android.util.Log.d("FuckChinaOSFloatService", "Float view added successfully")
+            android.util.Log.d("FuckChinaOSFloatService", "Float view added successfully at x=${defaultPosition.first}, y=${defaultPosition.second}")
         } catch (e: Exception) {
             android.util.Log.e("FuckChinaOSFloatService", "Error showing float view", e)
         }
@@ -238,6 +263,8 @@ class FuckChinaOSFloatService : Service() {
         if (!isViewAdded || floatView == null || windowManager == null) return
         
         try {
+            // 保存当前位置
+            savePosition(layoutParams?.x ?: 0, layoutParams?.y ?: 80)
             windowManager?.removeView(floatView)
             isViewAdded = false
         } catch (e: Exception) {
@@ -245,11 +272,26 @@ class FuckChinaOSFloatService : Service() {
         }
     }
 
+    private fun savePosition(x: Int, y: Int) {
+        positionPrefs.edit()
+            .putInt("float_x_position", x)
+            .putInt("float_y_position", y)
+            .apply()
+        android.util.Log.d("FuckChinaOSFloatService", "Saved position: x=$x, y=$y")
+    }
+
+    private fun loadPosition(): Pair<Int, Int> {
+        val x = positionPrefs.getInt("float_x_position", -1)
+        val y = positionPrefs.getInt("float_y_position", 80)
+        return Pair(x, y)
+    }
+
     private fun updateFloatView() {
         val playerManager = MusicPlayerManager.getInstance(this)
         
         val tvTitle = floatView?.findViewById<TextView>(R.id.float_title)
         val tvArtist = floatView?.findViewById<TextView>(R.id.float_artist)
+        val tvLyric = floatView?.findViewById<TextView>(R.id.float_lyric)
         val btnPlayPause = floatView?.findViewById<ImageButton>(R.id.float_play_pause)
         val coverView = floatView?.findViewById<android.widget.ImageView>(R.id.float_cover)
         val playAnimation = floatView?.findViewById<PlayAnimationView>(R.id.float_play_animation)
@@ -259,11 +301,13 @@ class FuckChinaOSFloatService : Service() {
         val currentArtist = playerManager.currentMusicArtist.value ?: "暂无播放"
         val currentIsPlaying = playerManager.isPlaying.value
         val currentCoverPath = playerManager.currentMusicCover.value
+        val currentProgress = playerManager.currentPosition.value
+        val currentTime = currentProgress / 1000f
+        val musicId = playerManager.currentMusicId.value ?: -1
         
         // 只在数据变化时更新标题
         if (cachedTitle != currentTitle) {
             tvTitle?.text = currentTitle
-            tvTitle?.isSelected = true // 启用 Marquee 效果
             cachedTitle = currentTitle
         }
         
@@ -313,6 +357,69 @@ class FuckChinaOSFloatService : Service() {
             }
             cachedCoverPath = currentCoverPath
         }
+        
+        // 如果音乐ID变化，重新加载歌词
+        if (musicId != currentMusicId) {
+            currentMusicId = musicId
+            serviceScope.launch {
+                loadLyrics(musicId)
+            }
+        }
+        
+        // 更新歌词显示
+        if (currentLyrics.isNotEmpty()) {
+            val currentLine = currentLyrics.lastOrNull { it.time <= currentTime }
+            if (currentLine != null) {
+                val currentIndex = currentLyrics.indexOf(currentLine)
+                tvLyric?.text = currentLine.text
+
+                // 同步到LyricScrollManager
+                com.neko.music.util.LyricScrollManager.setCurrentLyricIndex(currentIndex, "float_window")
+            } else {
+                tvLyric?.text = ""
+            }
+        } else {
+            tvLyric?.text = ""
+        }
+    }
+    
+    private suspend fun loadLyrics(musicId: Int) {
+        if (musicId <= 0) {
+            currentLyrics = emptyList()
+            return
+        }
+        
+        try {
+            val musicApi = MusicApi(this)
+            val playerManager = MusicPlayerManager.getInstance(this)
+            
+            // 构建一个简单的Music对象
+            val currentMusic = com.neko.music.data.model.Music(
+                id = musicId,
+                title = playerManager.currentMusicTitle.value ?: "",
+                artist = playerManager.currentMusicArtist.value ?: "",
+                album = "",
+                duration = 0,
+                filePath = playerManager.currentMusicUrl.value,
+                coverFilePath = playerManager.currentMusicCover.value
+            )
+            
+            // 获取歌词
+            val result = musicApi.getMusicLyrics(currentMusic)
+            result.fold(
+                onSuccess = { lyricsText ->
+                    currentLyrics = parseLrcLyrics(lyricsText)
+                    android.util.Log.d("FuckChinaOSFloatService", "歌词加载成功，共 ${currentLyrics.size} 行")
+                },
+                onFailure = { error ->
+                    android.util.Log.e("FuckChinaOSFloatService", "Failed to load lyrics", error)
+                    currentLyrics = emptyList()
+                }
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("FuckChinaOSFloatService", "Error loading lyrics", e)
+            currentLyrics = emptyList()
+        }
     }
 
     override fun onDestroy() {
@@ -330,4 +437,55 @@ class FuckChinaOSFloatService : Service() {
         
         instance = null
     }
+}
+
+// 辅助函数：解析LRC歌词
+fun parseLrcLyrics(lrcText: String): List<com.neko.music.desktoplyric.LrcLine> {
+    val lines = lrcText.lines()
+    val result = mutableListOf<com.neko.music.desktoplyric.LrcLine>()
+    var i = 0
+    val timeRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]")
+    
+    while (i < lines.size) {
+        val line = lines[i]
+        // 解析时间戳 [mm:ss.xx]
+        val match = timeRegex.find(line)
+        
+        if (match != null) {
+            val minutes = match.groupValues[1].toInt()
+            val seconds = match.groupValues[2].toInt()
+            val centiseconds = match.groupValues[3].toInt()
+            val time = minutes * 60 + seconds + centiseconds / 100f
+            
+            // 提取歌词文本
+            var text = line.substring(match.range.last + 1).trim()
+            
+            // 检查是否有翻译（下一行可能包含翻译）
+            var translation: String? = null
+            var hasTranslation = false
+            if (i + 1 < lines.size) {
+                val nextLine = lines[i + 1].trim()
+                // 翻译行通常以 { } 包裹，且不包含时间戳
+                if (nextLine.startsWith("{") && nextLine.endsWith("}") && !timeRegex.containsMatchIn(nextLine)) {
+                    hasTranslation = true
+                    // 提取花括号内的内容
+                    var content = nextLine.substring(1, nextLine.length - 1)
+                    // 去掉转义字符和引号
+                    content = content.replace("\\", "").replace("\"", "").replace("'", "")
+                    translation = content.trim()
+                }
+            }
+            
+            result.add(com.neko.music.desktoplyric.LrcLine(time, text, translation))
+            
+            // 如果有翻译行，跳过它
+            if (hasTranslation) {
+                i++
+            }
+        }
+        
+        i++
+    }
+    
+    return result
 }
