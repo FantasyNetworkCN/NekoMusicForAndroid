@@ -12,3 +12,6 @@ local.properties
 #c++ JNI
 app/.cxx
 app/.cxx/*
+
+# OpenXR SDK (third-party dependency)
+app/src/main/cpp/openxr_sdk/
