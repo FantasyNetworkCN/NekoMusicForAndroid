@@ -2,6 +2,7 @@
 #include <string>
 #include <cstring>
 #include <cstddef>
+#include <vector>
 #include <android/log.h>
 #include <sys/system_properties.h>
 #include <dlfcn.h>
@@ -12,6 +13,9 @@
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define PROP_VALUE_MAX 92
+
+// 确保 8 字节对齐以匹配 OpenXR 规范
+#pragma pack(push, 8)
 
 // OpenXR基础类型定义
 typedef int32_t XrResult;
@@ -44,13 +48,22 @@ typedef int64_t XrFormat;
 // 特殊值
 #define XR_NULL_HANDLE 0
 
-// API版本
-#define XR_CURRENT_API_VERSION_MAJOR 1
-#define XR_CURRENT_API_VERSION_MINOR 1
-#define XR_CURRENT_API_VERSION_PATCH 0
-#define XR_CURRENT_API_VERSION ((XR_CURRENT_API_VERSION_MAJOR) | (XR_CURRENT_API_VERSION_MINOR << 16))
+// API版本 - 使用XR_MAKE_VERSION宏正确定义
+// OpenXR版本格式: (major << 48) | (minor << 32) | patch
+// 注意：必须使用ULL后缀确保64位运算，避免32位整数溢出
+#define XR_MAKE_VERSION(major, minor, patch) \
+    ((uint64_t)(major) << 48ULL) | ((uint64_t)(minor) << 32ULL) | (uint64_t)(patch)
+
+// 支持的OpenXR API版本
+#define XR_API_VERSION_1_0 XR_MAKE_VERSION(1, 0, 0)
+#define XR_API_VERSION_1_1 XR_MAKE_VERSION(1, 1, 0)
+
+// 当前使用的API版本（从1.1开始尝试，失败则回退到1.0）
+#define XR_CURRENT_API_VERSION XR_API_VERSION_1_1
 
 // 扩展
+#define XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME "XR_KHR_vulkan_enable2"
+#define XR_KHR_VULKAN_ENABLE_EXTENSION_NAME "XR_KHR_vulkan_enable"
 #define XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME "XR_KHR_opengl_es_enable"
 #define XR_KHR_LOADER_INIT_EXTENSION_NAME "XR_KHR_loader_init"
 #define XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME "XR_KHR_android_create_instance"
@@ -59,6 +72,7 @@ typedef int64_t XrFormat;
 #define XR_TYPE_UNKNOWN 0
 #define XR_TYPE_API_LAYER_PROPERTIES 1
 #define XR_TYPE_EXTENSION_PROPERTIES 2
+#define XR_MAX_EXTENSION_NAME_SIZE 128
 #define XR_TYPE_INSTANCE_CREATE_INFO 3
 #define XR_TYPE_SYSTEM_GET_INFO 4
 #define XR_TYPE_SYSTEM_PROPERTIES 5
@@ -105,6 +119,13 @@ typedef int64_t XrFormat;
 #define XR_SESSION_STATE_EXITING 8
 
 // 基础结构体
+typedef struct XrExtensionProperties {
+    XrStructureType type;
+    void* next;
+    char extensionName[XR_MAX_EXTENSION_NAME_SIZE];
+    uint32_t extensionVersion;
+} XrExtensionProperties;
+
 typedef struct XrPosef {
     float orientation[4];
     float position[3];
@@ -239,7 +260,7 @@ typedef uint64_t XrInstanceCreateFlags;
 typedef struct {
     char applicationName[256];
     uint32_t applicationVersion;
-    uint32_t engineName;
+    char engineName[256];
     uint32_t engineVersion;
     uint32_t apiVersion;
 } XrApplicationInfo;
@@ -254,6 +275,17 @@ typedef struct {
     uint32_t enabledApiLayerCount;
     const char* const* enabledApiLayerNames;
 } XrInstanceCreateInfo;
+
+// Android特定的实例创建信息
+typedef struct {
+    XrStructureType type;
+    const void* next;
+    void* applicationVM;
+    void* applicationActivity;
+} XrInstanceCreateInfoAndroidKHR;
+
+// 结构体类型定义
+#define XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR 1000010000
 
 typedef struct {
     XrStructureType type;
@@ -281,8 +313,8 @@ typedef struct {
 typedef struct {
     XrStructureType type;
     void* next;
-    void* application_vm;
-    void* application_context;
+    void* applicationVM;
+    void* applicationContext;
 } XrLoaderInitInfoAndroidKHR;
 
 // OpenXR函数指针
@@ -445,7 +477,7 @@ VRHUDState::RunningMode detectDeviceAndSelectMode() {
     
     // 默认检测为VR设备
     VRHUDState::isVRDevice = true;
-    VRHUDState::deviceModel = "Unknown VR Device";
+    VRHUDState::deviceModel = "未知VR设备";
     
     // 获取设备信息（通过Android系统属性）
     char deviceModel[PROP_VALUE_MAX] = {0};
@@ -457,7 +489,9 @@ VRHUDState::RunningMode detectDeviceAndSelectMode() {
         std::string deviceStr = deviceModel;
         if (deviceStr.find("Pico") != std::string::npos || 
             deviceStr.find("Quest") != std::string::npos ||
-            deviceStr.find("XR") != std::string::npos) {
+            deviceStr.find("XR") != std::string::npos ||
+            deviceStr.find("A9210") != std::string::npos ||
+            deviceStr.find("sparrow") != std::string::npos) {
             VRHUDState::isVRDevice = true;
             LOGI("识别为VR设备，将尝试使用OpenXR模式");
         } else {
@@ -648,14 +682,14 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
             memset(&loaderInitInfo, 0, sizeof(loaderInitInfo));
             loaderInitInfo.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
             loaderInitInfo.next = nullptr;
-            loaderInitInfo.application_vm = VRHUDState::javaVM;
-            loaderInitInfo.application_context = VRHUDState::androidContext;
+            loaderInitInfo.applicationVM = VRHUDState::javaVM;
+            loaderInitInfo.applicationContext = VRHUDState::androidContext;
 
             LOGI("通过函数指针调用 xrInitializeLoaderKHR...");
             LOGI("  结构体大小：%zu 字节", sizeof(loaderInitInfo));
             LOGI("  type: %d", loaderInitInfo.type);
-            LOGI("  application_vm: %p", loaderInitInfo.application_vm);
-            LOGI("  application_context: %p", loaderInitInfo.application_context);
+            LOGI("  applicationVM: %p", loaderInitInfo.applicationVM);
+            LOGI("  applicationContext: %p", loaderInitInfo.applicationContext);
 
             XrResult result = initializeLoader(reinterpret_cast<XrLoaderInitInfoBaseKHR*>(&loaderInitInfo));
 
@@ -696,24 +730,220 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
 
     // 创建XrInstance
     LOGI("Creating XrInstance...");
-    XrInstanceCreateInfo instanceCreateInfo;
-    memset(&instanceCreateInfo, 0, sizeof(instanceCreateInfo));
+    LOGI("sizeof(XrApplicationInfo) = %zu", sizeof(XrApplicationInfo));
+    LOGI("sizeof(XrInstanceCreateInfo) = %zu", sizeof(XrInstanceCreateInfo));
+
+    // 检查结构体对齐
+    LOGI("=== XrInstanceCreateInfo 结构体布局 ===");
+    XrInstanceCreateInfo checkInstance = {};
+    LOGI("  type offset: %zu", (size_t)&checkInstance.type - (size_t)&checkInstance);
+    LOGI("  next offset: %zu", (size_t)&checkInstance.next - (size_t)&checkInstance);
+    LOGI("  applicationInfo offset: %zu", (size_t)&checkInstance.applicationInfo - (size_t)&checkInstance);
+    LOGI("  flags offset: %zu", (size_t)&checkInstance.flags - (size_t)&checkInstance);
+    LOGI("  enabledExtensionCount offset: %zu", (size_t)&checkInstance.enabledExtensionCount - (size_t)&checkInstance);
+    LOGI("  enabledExtensionNames offset: %zu", (size_t)&checkInstance.enabledExtensionNames - (size_t)&checkInstance);
+    LOGI("  enabledApiLayerCount offset: %zu", (size_t)&checkInstance.enabledApiLayerCount - (size_t)&checkInstance);
+    LOGI("  enabledApiLayerNames offset: %zu", (size_t)&checkInstance.enabledApiLayerNames - (size_t)&checkInstance);
+
+    LOGI("=== XrApplicationInfo 结构体布局 ===");
+    LOGI("  applicationName offset: %zu", (size_t)&checkInstance.applicationInfo.applicationName - (size_t)&checkInstance.applicationInfo);
+    LOGI("  applicationVersion offset: %zu", (size_t)&checkInstance.applicationInfo.applicationVersion - (size_t)&checkInstance.applicationInfo);
+    LOGI("  engineName offset: %zu", (size_t)&checkInstance.applicationInfo.engineName - (size_t)&checkInstance.applicationInfo);
+    LOGI("  engineVersion offset: %zu", (size_t)&checkInstance.applicationInfo.engineVersion - (size_t)&checkInstance.applicationInfo);
+    LOGI("  apiVersion offset: %zu", (size_t)&checkInstance.applicationInfo.apiVersion - (size_t)&checkInstance.applicationInfo);
+
+    LOGI("=== XrInstanceCreateInfoAndroidKHR 结构体布局 ===");
+    XrInstanceCreateInfoAndroidKHR checkAndroid = {};
+    LOGI("  type offset: %zu", (size_t)&checkAndroid.type - (size_t)&checkAndroid);
+    LOGI("  next offset: %zu", (size_t)&checkAndroid.next - (size_t)&checkAndroid);
+    LOGI("  applicationVM offset: %zu", (size_t)&checkAndroid.applicationVM - (size_t)&checkAndroid);
+    LOGI("  applicationActivity offset: %zu", (size_t)&checkAndroid.applicationActivity - (size_t)&checkAndroid);
+    LOGI("  sizeof: %zu", sizeof(XrInstanceCreateInfoAndroidKHR));
+
+    // 首先尝试不使用任何扩展创建 XrInstance，测试是否可以成功
+    LOGI("=== 测试1: 不使用任何扩展创建 XrInstance ===");
+    XrApplicationInfo testAppInfo = {};
+    strncpy(testAppInfo.applicationName, "NekoMusic VR HUD Test", 256);
+    testAppInfo.applicationVersion = 1;
+    strncpy(testAppInfo.engineName, "", 256);
+    testAppInfo.engineVersion = 0;
+    testAppInfo.apiVersion = XR_API_VERSION_1_1;
+
+    XrInstanceCreateInfo testCreateInfo = {};
+    testCreateInfo.type = XR_TYPE_INSTANCE_CREATE_INFO;
+    testCreateInfo.next = nullptr;  // 不包含 Android 特定信息
+    testCreateInfo.applicationInfo = testAppInfo;
+    testCreateInfo.flags = 0;
+    testCreateInfo.enabledExtensionCount = 0;
+    testCreateInfo.enabledExtensionNames = nullptr;
+    testCreateInfo.enabledApiLayerCount = 0;
+    testCreateInfo.enabledApiLayerNames = nullptr;
+
+    LOGI("  Testing XrInstance without extensions or Android info...");
+    LOGI("  instanceCreateInfo.next: %p", testCreateInfo.next);
+    LOGI("  instanceCreateInfo.flags: %lu", (unsigned long)testCreateInfo.flags);
+
+    XrInstance testInstance;
+    XrResult testResult = VRHUDState::xrCreateInstance(&testCreateInfo, &testInstance);
+    if (testResult == XR_SUCCESS) {
+        LOGI("=== 成功！不使用扩展创建了 XrInstance ===");
+        VRHUDState::xrDestroyInstance(testInstance);
+    } else {
+        LOGI("测试1失败: %d", testResult);
+    }
+
+    // 参考 WiVRn：先查询可用扩展，然后只启用支持的扩展
+    std::vector<const char*> extensions;
+
+    // 查询可用扩展数量
+    uint32_t extensionCount = 0;
+    XrResult enumResult = VRHUDState::xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr);
+    if (enumResult != XR_SUCCESS) {
+        LOGE("Failed to enumerate extension properties: %d", enumResult);
+    } else {
+        LOGI("Available extension count: %u", extensionCount);
+
+        // 查询扩展名称
+        std::vector<XrExtensionProperties> extensionProperties(extensionCount);
+        for (auto& ext : extensionProperties) {
+            ext.type = XR_TYPE_EXTENSION_PROPERTIES;
+            ext.next = nullptr;
+        }
+
+        enumResult = VRHUDState::xrEnumerateInstanceExtensionProperties(
+            nullptr, extensionCount, &extensionCount, extensionProperties.data());
+
+        if (enumResult == XR_SUCCESS) {
+            LOGI("Available extensions:");
+            for (const auto& ext : extensionProperties) {
+                LOGI("  - %s (version %u)", ext.extensionName, ext.extensionVersion);
+            }
+
+            // 构建需要的扩展列表
+            std::vector<const char*> requestedExtensions;
+
+            // 优先使用 Vulkan（参考 WiVRn）
+            requestedExtensions.push_back(XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME);
+            requestedExtensions.push_back(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME);
+
+            // Android 创建实例扩展（必需）
+            requestedExtensions.push_back(XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME);
+
+            // OpenGL ES 备选
+            requestedExtensions.push_back(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME);
+
+            // 检查每个请求的扩展是否可用
+            for (const char* requested : requestedExtensions) {
+                for (const auto& available : extensionProperties) {
+                    if (strcmp(available.extensionName, requested) == 0) {
+                        // 检查是否已经有图形 API 扩展（Vulkan 或 OpenGL ES）
+                        bool hasGraphicsApi = false;
+                        for (const char* enabled : extensions) {
+                            if (strcmp(enabled, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) == 0 ||
+                                strcmp(enabled, XR_KHR_VULKAN_ENABLE_EXTENSION_NAME) == 0 ||
+                                strcmp(enabled, XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME) == 0) {
+                                hasGraphicsApi = true;
+                                break;
+                            }
+                        }
+
+                        // 如果是图形 API 扩展且已经有了一个，跳过
+                        if ((strcmp(requested, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) == 0 ||
+                             strcmp(requested, XR_KHR_VULKAN_ENABLE_EXTENSION_NAME) == 0 ||
+                             strcmp(requested, XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME) == 0) && hasGraphicsApi) {
+                            LOGI("  Skipping %s (already have graphics API extension)", requested);
+                            break;
+                        }
+
+                        extensions.push_back(requested);
+                        LOGI("  Enabled extension: %s", requested);
+                        break;
+                    }
+                }
+            }
+
+            // 确保至少有一个图形 API 扩展
+            bool hasGraphicsApi = false;
+            for (const char* enabled : extensions) {
+                if (strcmp(enabled, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) == 0 ||
+                    strcmp(enabled, XR_KHR_VULKAN_ENABLE_EXTENSION_NAME) == 0 ||
+                    strcmp(enabled, XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME) == 0) {
+                    hasGraphicsApi = true;
+                    break;
+                }
+            }
+
+            if (!hasGraphicsApi) {
+                LOGE("ERROR: No graphics API extension (Vulkan or OpenGL ES) available!");
+            }
+        } else {
+            LOGE("Failed to get extension properties: %d", enumResult);
+        }
+    }
+
+    // 如果没有可用扩展，至少尝试使用 OpenGL ES
+    if (extensions.empty()) {
+        LOGW("No extensions found, trying OpenGL ES extension...");
+        extensions.push_back(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME);
+        extensions.push_back(XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME);
+    }
+
+    // 使用C++初始化语法确保所有字段都被正确初始化
+    XrApplicationInfo applicationInfo = {};
+    strncpy(applicationInfo.applicationName, "NekoMusic VR HUD", 256);
+    applicationInfo.applicationVersion = 1;
+    strncpy(applicationInfo.engineName, "", 256);
+    applicationInfo.engineVersion = 0;
+    // 注意：apiVersion 会在循环中设置
+
+    // Android特定的实例创建信息
+    XrInstanceCreateInfoAndroidKHR instanceCreateInfoAndroid = {};
+    instanceCreateInfoAndroid.type = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
+    instanceCreateInfoAndroid.next = nullptr;
+    instanceCreateInfoAndroid.applicationVM = VRHUDState::javaVM;
+    instanceCreateInfoAndroid.applicationActivity = VRHUDState::androidContext;
+    
+    XrInstanceCreateInfo instanceCreateInfo = {};
     instanceCreateInfo.type = XR_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.next = nullptr;
+    instanceCreateInfo.next = &instanceCreateInfoAndroid; // 链接Android特定信息
+    instanceCreateInfo.applicationInfo = applicationInfo;
     instanceCreateInfo.flags = 0;
-    instanceCreateInfo.applicationInfo.applicationVersion = 1;
-    instanceCreateInfo.applicationInfo.apiVersion = (uint32_t)XR_CURRENT_API_VERSION;
-    LOGI("XR_CURRENT_API_VERSION macro value: %u", (uint32_t)XR_CURRENT_API_VERSION);
-    LOGI("instanceCreateInfo.applicationInfo.apiVersion value: %u", instanceCreateInfo.applicationInfo.apiVersion);
-    strncpy(instanceCreateInfo.applicationInfo.applicationName, "NekoMusic VR HUD", 256);
-    instanceCreateInfo.applicationInfo.engineName = 0;
-    instanceCreateInfo.applicationInfo.engineVersion = 0;
-    instanceCreateInfo.enabledExtensionCount = 0;
-    instanceCreateInfo.enabledExtensionNames = nullptr;
+    instanceCreateInfo.enabledExtensionCount = (uint32_t)extensions.size();
+    instanceCreateInfo.enabledExtensionNames = extensions.data();
     instanceCreateInfo.enabledApiLayerCount = 0;
     instanceCreateInfo.enabledApiLayerNames = nullptr;
     
-    XrResult result = VRHUDState::xrCreateInstance(&instanceCreateInfo, &VRHUDState::instance);
+    LOGI("Attempting to create XrInstance with WiVRn-style configuration...");
+    LOGI("  sizeof(XrInstanceCreateInfo): %zu", sizeof(XrInstanceCreateInfo));
+    LOGI("  instanceCreateInfo.type: %u", (unsigned int)instanceCreateInfo.type);
+    LOGI("  instanceCreateInfo.next: %p", instanceCreateInfo.next);
+    LOGI("  instanceCreateInfo.flags: %lu", (unsigned long)instanceCreateInfo.flags);
+    LOGI("  instanceCreateInfo.enabledExtensionCount: %u", instanceCreateInfo.enabledExtensionCount);
+    LOGI("  instanceCreateInfo.enabledApiLayerCount: %u", instanceCreateInfo.enabledApiLayerCount);
+    LOGI("  applicationInfo.applicationName: %s", applicationInfo.applicationName);
+    LOGI("  JavaVM: %p", VRHUDState::javaVM);
+    LOGI("  Android Context: %p", VRHUDState::androidContext);
+    LOGI("  instanceCreateInfoAndroid.type: %u", (unsigned int)instanceCreateInfoAndroid.type);
+    LOGI("  instanceCreateInfoAndroid.applicationVM: %p", instanceCreateInfoAndroid.applicationVM);
+    LOGI("  instanceCreateInfoAndroid.applicationActivity: %p", instanceCreateInfoAndroid.applicationActivity);
+    
+    // 尝试从API版本1.1开始，失败则回退到1.0
+    XrResult result = XR_ERROR_RUNTIME_FAILURE;
+    const uint64_t apiVersions[] = {XR_API_VERSION_1_1, XR_API_VERSION_1_0};
+    const char* apiVersionNames[] = {"1.1", "1.0"};
+    
+    for (int i = 0; i < 2; i++) {
+        instanceCreateInfo.applicationInfo.apiVersion = apiVersions[i];
+        LOGI("Attempting API version %s (0x%llx)", apiVersionNames[i], (unsigned long long)apiVersions[i]);
+        
+        result = VRHUDState::xrCreateInstance(&instanceCreateInfo, &VRHUDState::instance);
+        if (result == XR_SUCCESS) {
+            LOGI("XrInstance created successfully with API version %s", apiVersionNames[i]);
+            break;
+        } else {
+            LOGI("Failed to create XrInstance with API version %s: %d", apiVersionNames[i], result);
+        }
+    }
     if (result != XR_SUCCESS) {
         LOGE("Failed to create XrInstance: %d", result);
         // 如果创建实例失败，使用简化模式
@@ -1098,3 +1328,6 @@ Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass cla
             break;
     }
 }
+
+// 恢复默认对齐
+#pragma pack(pop)
