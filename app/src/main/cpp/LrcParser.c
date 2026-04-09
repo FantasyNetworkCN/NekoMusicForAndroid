@@ -4,23 +4,6 @@
 #include <stdio.h>
 #include <regex.h>
 
-/*
-TODO: 歌词时间戳校验有误，需修复
-@wuwenjun
-完成后请移除此TODO
-用户上传lrc文件示例：
-
-[00:00.389] ざこざこざこざこ くだらない存在 あわれだね
-{"杂鱼杂鱼杂鱼杂鱼 无聊的存在 真可怜呢"} <== 用户携带中文翻译
-
-或者：
-[00:00.389] ざこざこざこざこ くだらない存在 あわれだね  <== 无翻译纯携带时间戳歌词
-
-需要严格校验，歌词中包含非法json内容非翻译或者时间戳异常例如
-[00:00.389][00:00.389]
-一行出现多个时间戳直接拒绝上传
-*/
-
 // 检查LRC文件内容是否包含有效的时间戳
 JNIEXPORT jboolean JNICALL
 Java_com_neko_music_util_LrcParser_nativeIsValidLrcContent(JNIEnv *env, jclass type, jstring content) {
@@ -34,21 +17,152 @@ Java_com_neko_music_util_LrcParser_nativeIsValidLrcContent(JNIEnv *env, jclass t
     }
 
     // LRC 时间戳格式：[mm:ss.xx]（强制两位毫秒）
-    // mm: 分钟（00-59）
-    // ss: 秒（00-59）
-    // xx: 毫秒（00-99，必须两位）
-    regex_t regex;
-    int ret = regcomp(&regex, "\\[[0-5][0-9]:[0-5][0-9]\\.[0-9][0-9]\\]", REG_EXTENDED);
+    regex_t timestampRegex;
+    int ret = regcomp(&timestampRegex, "\\[[0-5][0-9]:[0-5][0-9]\\.[0-9][0-9]\\]", REG_EXTENDED);
     if (ret != 0) {
         (*env)->ReleaseStringUTFChars(env, content, contentStr);
         return JNI_FALSE;
     }
 
-    ret = regexec(&regex, contentStr, 0, NULL, 0);
-    regfree(&regex);
+    // 逐行检查
+    const char *ptr = contentStr;
+    int lineNum = 1;
+    int hasValidLine = 0;
+    char lineBuffer[2048];
+    int lineBufferIndex = 0;
+
+    while (*ptr != '\0') {
+        if (*ptr == '\n' || *ptr == '\r') {
+            // 结束当前行
+            if (lineBufferIndex > 0) {
+                lineBuffer[lineBufferIndex] = '\0';
+
+                // 跳过空行
+                int isEmpty = 1;
+                for (int i = 0; i < lineBufferIndex; i++) {
+                    if (lineBuffer[i] != ' ' && lineBuffer[i] != '\t') {
+                        isEmpty = 0;
+                        break;
+                    }
+                }
+
+                if (!isEmpty) {
+                    // 统计该行的时间戳数量
+                    int timestampCount = 0;
+                    regmatch_t match;
+                    const char *linePtr = lineBuffer;
+                    
+                    while (regexec(&timestampRegex, linePtr, 1, &match, 0) == 0) {
+                        timestampCount++;
+                        linePtr += match.rm_eo;
+                        
+                        // 如果一行有多个时间戳，拒绝
+                        if (timestampCount > 1) {
+                            regfree(&timestampRegex);
+                            (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                            return JNI_FALSE;
+                        }
+                    }
+
+                    // 如果有有效的时间戳行
+                    if (timestampCount == 1) {
+                        hasValidLine = 1;
+
+                        // 检查翻译层格式（{"..."}）
+                        const char *braceStart = strstr(lineBuffer, "{\"");
+                        if (braceStart != NULL) {
+                            // 找到开始，检查是否有结束的"}
+                            const char *braceEnd = strstr(braceStart + 2, "\"}");
+                            if (braceEnd == NULL) {
+                                // 翻译层格式不完整
+                                regfree(&timestampRegex);
+                                (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                                return JNI_FALSE;
+                            }
+
+                            // 检查翻译层之后是否还有内容（不允许）
+                            if (braceEnd[2] != '\0' && braceEnd[2] != ' ' && braceEnd[2] != '\t' && braceEnd[2] != '\r' && braceEnd[2] != '\n') {
+                                // 翻译层之后有非空白字符
+                                regfree(&timestampRegex);
+                                (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                                return JNI_FALSE;
+                            }
+                        }
+                    }
+                }
+
+                lineBufferIndex = 0;
+            }
+
+            // 跳过换行符
+            if (*ptr == '\r' && *(ptr + 1) == '\n') {
+                ptr++;
+            }
+            ptr++;
+            lineNum++;
+        } else {
+            if (lineBufferIndex < 2047) {
+                lineBuffer[lineBufferIndex++] = *ptr;
+            }
+            ptr++;
+        }
+    }
+
+    // 检查最后一行
+    if (lineBufferIndex > 0) {
+        lineBuffer[lineBufferIndex] = '\0';
+
+        int isEmpty = 1;
+        for (int i = 0; i < lineBufferIndex; i++) {
+            if (lineBuffer[i] != ' ' && lineBuffer[i] != '\t') {
+                isEmpty = 0;
+                break;
+            }
+        }
+
+        if (!isEmpty) {
+            int timestampCount = 0;
+            regmatch_t match;
+            const char *linePtr = lineBuffer;
+            
+            while (regexec(&timestampRegex, linePtr, 1, &match, 0) == 0) {
+                timestampCount++;
+                linePtr += match.rm_eo;
+                
+                if (timestampCount > 1) {
+                    regfree(&timestampRegex);
+                    (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                    return JNI_FALSE;
+                }
+            }
+
+            if (timestampCount == 1) {
+                hasValidLine = 1;
+
+                const char *braceStart = strstr(lineBuffer, "{\"");
+                if (braceStart != NULL) {
+                    const char *braceEnd = strstr(braceStart + 2, "\"}");
+                    if (braceEnd == NULL) {
+                        regfree(&timestampRegex);
+                        (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                        return JNI_FALSE;
+                    }
+
+                    if (braceEnd[2] != '\0' && braceEnd[2] != ' ' && braceEnd[2] != '\t') {
+                        regfree(&timestampRegex);
+                        (*env)->ReleaseStringUTFChars(env, content, contentStr);
+                        return JNI_FALSE;
+                    }
+                }
+            }
+        }
+    }
+
+    regfree(&timestampRegex);
     (*env)->ReleaseStringUTFChars(env, content, contentStr);
 
-    return (ret == 0) ? JNI_TRUE : JNI_FALSE;
+    // 必须至少有一个有效的歌词行
+    return hasValidLine ? JNI_TRUE : JNI_FALSE;
 }
 
 // 解析LRC文件内容，返回前几行作为预览
