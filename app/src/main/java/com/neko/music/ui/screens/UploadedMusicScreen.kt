@@ -1000,7 +1000,7 @@ fun UploadMusicDialog(
             onDismissRequest = { showFullLyricsDialog = false },
             title = {
                 Text(
-                    text = "完整歌词",
+                    text = stringResource(id = R.string.full_lyrics),
                     fontWeight = FontWeight.Bold
                 )
             },

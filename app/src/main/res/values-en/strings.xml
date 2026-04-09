@@ -488,6 +488,7 @@
     <string name="file_read_failed">Failed to read file</string>
     <string name="upload_music_dialog_title">Upload music</string>
     <string name="preview">Preview</string>
+    <string name="full_lyrics">Full Lyrics</string>
     <string name="parsing_metadata">Parsing music information...</string>
     <string name="please_select_language">Please select</string>
     <string name="language_chinese">Chinese</string>
