@@ -14,9 +14,6 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define PROP_VALUE_MAX 92
 
-// 确保 8 字节对齐以匹配 OpenXR 规范
-#pragma pack(push, 8)
-
 // OpenXR基础类型定义
 typedef int32_t XrResult;
 typedef uint64_t XrFlags64;
@@ -1328,6 +1325,3 @@ Java_com_neko_music_util_VRHUDRenderer_nativeRenderFrame(JNIEnv* env, jclass cla
             break;
     }
 }
-
-// 恢复默认对齐
-#pragma pack(pop)
