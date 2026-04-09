@@ -71,7 +71,7 @@ if(OPENXR_LOADER)
     )
     
     # 链接OpenXR库（运行时动态加载）
-    target_link_libraries(VRHUDRenderer dl)
+    target_link_libraries(VRHUDRenderer PRIVATE dl)
     target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=1)
 else()
     message(WARNING "OpenXR loader not found - 3D spatial HUD will use fallback")
@@ -170,7 +170,7 @@ target_link_options(VRHUDRenderer PRIVATE
 
 # 如果找到OVR库，则链接它
 if(OVR_LIB)
-    target_link_libraries(VRHUDRenderer ${OVR_LIB})
+    target_link_libraries(VRHUDRenderer PRIVATE ${OVR_LIB})
     message(STATUS "Found OVR library: ${OVR_LIB}")
     target_compile_definitions(VRHUDRenderer PRIVATE OVR_SDK_AVAILABLE=1)
 else()
