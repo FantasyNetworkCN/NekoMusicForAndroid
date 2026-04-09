@@ -195,6 +195,7 @@ target_link_libraries(
         android
         EGL
         GLESv3
+        openxr_loader
 )
 
 # 为VRHUDRenderer设置链接器选项

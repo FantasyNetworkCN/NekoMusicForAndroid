@@ -507,19 +507,19 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
         return JNI_TRUE;
     }
     
-    LOGI("===== Starting VR HUD Initialization =====");
-    LOGI("Display size: %dx%d", displayWidth, displayHeight);
+    LOGI("===== 开始VR HUD初始化 =====");
+    LOGI("屏幕分辨率: %dx%d", displayWidth, displayHeight);
     
     // 加载OpenXR库
     if (!loadOpenXRLibrary()) {
-        LOGE("Initialization failed: Cannot load OpenXR library");
+        LOGE("初始化失败：无法加载 OpenXR 库");
         return JNI_FALSE;
     }
     
     // 在Pico设备上，必须在调用任何OpenXR函数之前先调用xrInitializeLoaderKHR
     // 直接从loader获取函数指针，而不是通过xrGetInstanceProcAddr
     if (VRHUDState::openxrLoader && VRHUDState::javaVM && VRHUDState::androidContext) {
-        LOGI("Initializing OpenXR loader with Android context...");
+        LOGI("正在使用 Android 上下文初始化 OpenXR 加载器...");
         LOGI("JavaVM: %p, Context: %p", VRHUDState::javaVM, VRHUDState::androidContext);
 
         // 获取当前线程的JNIEnv
