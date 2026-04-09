@@ -50,7 +50,7 @@
             android:theme="@style/Theme.Neko云音乐"
             android:launchMode="singleTask"
             android:alwaysRetainTaskState="true"
-            android:screenOrientation="landscape"
+            android:screenOrientation="unspecified"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|navigation"
             android:hardwareAccelerated="true"
             android:resizeableActivity="true"

@@ -119,6 +119,13 @@ class MainActivity : ComponentActivity() {
         // 检测是否为VR设备
         val isVRDevice = com.neko.music.util.DeviceDetector.isVRDevice()
         Log.d("MainActivity", "Device type: ${if (isVRDevice) "VR Headset" else "Normal Phone"}")
+        
+        // 根据设备类型设置屏幕方向
+        requestedOrientation = if (isVRDevice) {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else {
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
 
         // VR设备检测
         if (isVRDevice) {
