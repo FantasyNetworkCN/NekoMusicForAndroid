@@ -688,7 +688,7 @@ Java_com_neko_music_util_VRHUDRenderer_nativeInitialize(JNIEnv* env, jclass claz
             LOGI("  applicationVM: %p", loaderInitInfo.applicationVM);
             LOGI("  applicationContext: %p", loaderInitInfo.applicationContext);
 
-            XrResult result = initializeLoader(reinterpret_cast<XrLoaderInitInfoBaseKHR*>(&loaderInitInfo));
+            XrResult result = initializeLoader(reinterpret_cast<const XrLoaderInitInfoBaseHeaderKHR*>(&loaderInitInfo));
 
             LOGI("xrInitializeLoaderKHR 返回：%d", result);
 
