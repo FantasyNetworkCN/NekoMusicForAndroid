@@ -1,67 +1,42 @@
 package com.neko.music.desktoplyric
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
+import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.WindowManager
-import android.widget.FrameLayout
 import android.widget.TextView
-import com.neko.music.accessibility.VRLyricAccessibilityService
-import com.neko.music.util.DeviceDetector
-import com.neko.music.util.VRHUDRenderer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import com.neko.music.R
 
 /**
  * VR HUD歌词管理器
- * 专门为VR设备优化的歌词显示方案
+ * 支持双模式：
+ * - VR模式：使用OpenXR在3D空间中显示
+ * - 非VR模式：使用Android WindowManager Overlay
  * 
- * 支持三种实现方式（按优先级排序）：
- * 1. AccessibilityService（真正的全局HUD）- 需要用户手动启用
- * 2. SurfaceControl全局HUD - 需要系统权限，部分设备支持
- * 3. 应用内HUD（WindowManager）- 始终可用
+ * 实现方式：
+ * - VR设备：自动使用OpenXR 3D空间渲染
+ * - 非VR设备：使用Android Overlay API
  * 
- * 工作原理：
- * - 启动时自动检测可用的HUD方案
- * - 优先使用最全局的方案
- * - 不支持时自动回退到次优方案
- * 
- * VR设备特性：
- * - AccessibilityService可以穿透VR合成器限制
- * - TYPE_ACCESSIBILITY_OVERLAY不响应触摸，避免干扰VR交互
- * - FLAG_HARDWARE_ACCELERATED提升渲染性能
- * - 在VR游戏场景中保持显示（AccessibilityService方案）
+ * 特性：
+ * - VR环境中真正的3D空间定位
+ * - 非VR环境中悬浮窗显示
+ * - 支持自定义位置和大小
  */
 class VRHUDLyricManager private constructor(private val context: Context) {
 
-    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
-
-    private var hudView: FrameLayout? = null
-    private var lyricTextView: TextView? = null
-    private var translationTextView: TextView? = null
-    private var layoutParams: WindowManager.LayoutParams? = null
+    private var windowManager: WindowManager? = null
+    private var lyricView: android.view.View? = null
     private var isViewAdded = false
 
-    private var updateJob: Job? = null
     private var currentLyric = ""
     private var currentTranslation = ""
 
-    // HUD实现方式
-    private enum class HUDMode {
-        ACCESSIBILITY_SERVICE,  // 无障碍服务（真正的全局HUD）
-        GLOBAL_NATIVE,          // 全局HUD（SurfaceControl，需要系统权限）
-        APP_INTERNAL            // 应用内HUD（WindowManager）
-    }
-
-    private var hudMode: HUDMode = HUDMode.APP_INTERNAL
+    // VR HUD渲染器
+    private var vrHUDRenderer: com.neko.music.util.VRHUDRenderer? = null
+    private var useVRMode = false
 
     companion object {
         @Volatile
@@ -81,149 +56,121 @@ class VRHUDLyricManager private constructor(private val context: Context) {
     }
 
     init {
-        // 检测可用的HUD方案
-        detectAvailableHUDMode()
-        // 创建HUD视图
-        createHUDView()
+        initializeHUD()
     }
 
     /**
-     * 检测可用的HUD方案
+     * 初始化HUD
      */
-    private fun detectAvailableHUDMode() {
-        // 1. 检查AccessibilityService是否可用（最优先）
-        if (VRLyricAccessibilityService.isServiceEnabled(context)) {
-            hudMode = HUDMode.ACCESSIBILITY_SERVICE
-            android.util.Log.d("VRHUDLyricManager", "Using AccessibilityService mode (true global HUD)")
-            return
-        }
-
-        // 2. 检查SurfaceControl是否可用
-        try {
-            val globalHUDSupported = VRHUDRenderer.isGlobalHUDSupported()
-            if (globalHUDSupported) {
-                hudMode = HUDMode.GLOBAL_NATIVE
-                android.util.Log.d("VRHUDLyricManager", "Using global HUD mode (SurfaceControl)")
-                // 初始化全局HUD渲染器
-                val displayMetrics = context.resources.displayMetrics
-                VRHUDRenderer.initialize(context, displayMetrics.widthPixels, displayMetrics.heightPixels)
-                return
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("VRHUDLyricManager", "Failed to check SurfaceControl support", e)
-        }
-
-        // 3. 回退到应用内HUD
-        hudMode = HUDMode.APP_INTERNAL
-        android.util.Log.d("VRHUDLyricManager", "Using app-internal HUD mode (WindowManager)")
-    }
-
-    /**
-     * 检查AccessibilityService是否可用
-     */
-    fun isAccessibilityServiceAvailable(): Boolean {
-        return VRLyricAccessibilityService.isServiceEnabled(context)
-    }
-
-    /**
-     * 打开无障碍服务设置
-     */
-    fun openAccessibilitySettings() {
-        val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        context.startActivity(intent)
-    }
-
-    /**
-     * 创建HUD视图（仅应用内模式使用）
-     */
-    private fun createHUDView() {
-        hudView = FrameLayout(context).apply {
-            // 半透明黑色背景，增强歌词可读性
-            setBackgroundColor(Color.parseColor("#60000000"))
-            setPadding(40, 24, 40, 24)
-        }
-
-        // 歌词文本
-        lyricTextView = TextView(context).apply {
-            textSize = 32f
-            setTypeface(Typeface.DEFAULT_BOLD)
-            setTextColor(Color.WHITE)
-            // 强烈的文字阴影，确保在VR环境中清晰可见
-            setShadowLayer(12f, 0f, 0f, Color.BLACK)
-            gravity = Gravity.CENTER
-            maxWidth = 800
-        }
-
-        // 翻译文本
-        translationTextView = TextView(context).apply {
-            textSize = 22f
-            setTypeface(Typeface.DEFAULT)
-            setTextColor(Color.parseColor("#DDDDDD"))
-            setShadowLayer(8f, 0f, 0f, Color.BLACK)
-            gravity = Gravity.CENTER
-            setPadding(0, 12, 0, 0)
-            maxWidth = 800
-        }
-
-        hudView?.addView(lyricTextView)
-        hudView?.addView(translationTextView)
-
-        // 创建布局参数
-        layoutParams = WindowManager.LayoutParams().apply {
-            width = WindowManager.LayoutParams.WRAP_CONTENT
-            height = WindowManager.LayoutParams.WRAP_CONTENT
-
-            // VR设备使用TYPE_APPLICATION_OVERLAY，不需要用户授权
-            type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    private fun initializeHUD() {
+        // 检测设备类型
+        useVRMode = com.neko.music.util.DeviceDetector.isVRDevice()
+        
+        if (useVRMode) {
+            // VR设备：尝试使用OpenXR
+            android.util.Log.d("VRHUDLyricManager", "Initializing VR HUD with OpenXR")
+            vrHUDRenderer = com.neko.music.util.VRHUDRenderer
+            
+            val displayMetrics = context.resources.displayMetrics
+            val success = vrHUDRenderer?.initialize(context, displayMetrics.widthPixels, displayMetrics.heightPixels) ?: false
+            
+            if (success) {
+                // 检查是否真的支持3D空间HUD（OpenXR初始化成功）
+                val spatialSupported = vrHUDRenderer?.isSpatialHUDSupported() ?: false
+                if (spatialSupported) {
+                    // 设置默认位置（用户前方2米）
+                    vrHUDRenderer?.setInFront(2.0f, 0.0f)
+                    android.util.Log.d("VRHUDLyricManager", "VR HUD initialized successfully with OpenXR")
+                } else {
+                    android.util.Log.d("VRHUDLyricManager", "VR device but 3D spatial HUD not supported, falling back to Overlay")
+                    useVRMode = false
+                    initializeOverlayHUD()
+                }
             } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
+                android.util.Log.e("VRHUDLyricManager", "Failed to initialize VR HUD, falling back to Overlay")
+                useVRMode = false
+                initializeOverlayHUD()
             }
-
-            // VR设备专用flag设置
-            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or          // 不获取焦点
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or          // 不响应触摸，避免干扰VR交互
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or        // 布局在整个屏幕
-                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or     // 硬件加速，提升性能
-                    WindowManager.LayoutParams.FLAG_FULLSCREEN or               // 全屏模式
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS           // 不受布局限制
-
-            format = android.graphics.PixelFormat.TRANSLUCENT
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 240 // 距离顶部的距离（VR环境中需要更大的距离）
+        } else {
+            // 非VR设备：使用Overlay
+            android.util.Log.d("VRHUDLyricManager", "Initializing Overlay HUD")
+            initializeOverlayHUD()
         }
+    }
+
+    /**
+     * 初始化Overlay HUD（非VR模式或VR模式回退）
+     */
+    private fun initializeOverlayHUD() {
+        windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        
+        val layoutInflater = LayoutInflater.from(context)
+        lyricView = layoutInflater.inflate(R.layout.desktop_lyric_layout, null)
+        
+        // 配置View
+        lyricView?.alpha = 0.95f
+        lyricView?.scaleX = 1.2f
+        lyricView?.scaleY = 1.2f
+        
+        android.util.Log.d("VRHUDLyricManager", "Overlay HUD initialized successfully")
+    }
+
+    /**
+     * 检查3D空间HUD是否可用
+     */
+    fun is3DSpatialHUDAvailable(): Boolean {
+        // VR设备应该都支持Overlay
+        return com.neko.music.util.DeviceDetector.isVRDevice()
     }
 
     /**
      * 显示HUD
      */
     fun show() {
-        when (hudMode) {
-            HUDMode.ACCESSIBILITY_SERVICE -> {
-                // 使用AccessibilityService
-                VRLyricAccessibilityService.showHUD()
-                android.util.Log.d("VRHUDLyricManager", "AccessibilityService HUD shown")
-            }
-            HUDMode.GLOBAL_NATIVE -> {
-                // 使用SurfaceControl全局HUD
-                VRHUDRenderer.setVisible(true)
-                android.util.Log.d("VRHUDLyricManager", "Global HUD shown (SurfaceControl)")
-            }
-            HUDMode.APP_INTERNAL -> {
-                // 使用应用内HUD
-                if (isViewAdded || hudView == null) return
+        if (useVRMode) {
+            // VR模式：使用OpenXR
+            vrHUDRenderer?.setVisible(true)
+            android.util.Log.d("VRHUDLyricManager", "VR HUD shown with OpenXR")
+            return
+        }
 
-                try {
-                    windowManager.addView(hudView, layoutParams)
-                    isViewAdded = true
-                    startUpdateJob()
-                    android.util.Log.d("VRHUDLyricManager", "App-internal HUD view added successfully")
-                } catch (e: Exception) {
-                    android.util.Log.e("VRHUDLyricManager", "Error showing app-internal HUD view", e)
-                }
-            }
+        // Overlay模式
+        if (isViewAdded) {
+            android.util.Log.d("VRHUDLyricManager", "Overlay HUD already shown")
+            return
+        }
+
+        if (lyricView == null || windowManager == null) {
+            android.util.Log.e("VRHUDLyricManager", "Cannot show Overlay HUD - view or windowManager is null")
+            return
+        }
+
+        try {
+            val layoutParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT
+            )
+
+            layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            layoutParams.y = 200 // 距离顶部200像素
+
+            windowManager?.addView(lyricView, layoutParams)
+            isViewAdded = true
+
+            updateLyric(currentLyric, currentTranslation)
+            android.util.Log.d("VRHUDLyricManager", "Overlay HUD shown successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("VRHUDLyricManager", "Error showing Overlay HUD", e)
         }
     }
 
@@ -231,29 +178,24 @@ class VRHUDLyricManager private constructor(private val context: Context) {
      * 隐藏HUD
      */
     fun hide() {
-        when (hudMode) {
-            HUDMode.ACCESSIBILITY_SERVICE -> {
-                // 隐藏AccessibilityService HUD
-                VRLyricAccessibilityService.hideHUD()
-                android.util.Log.d("VRHUDLyricManager", "AccessibilityService HUD hidden")
-            }
-            HUDMode.GLOBAL_NATIVE -> {
-                // 隐藏SurfaceControl全局HUD
-                VRHUDRenderer.setVisible(false)
-                android.util.Log.d("VRHUDLyricManager", "Global HUD hidden")
-            }
-            HUDMode.APP_INTERNAL -> {
-                // 隐藏应用内HUD
-                if (!isViewAdded || hudView == null) return
+        if (useVRMode) {
+            // VR模式：使用OpenXR
+            vrHUDRenderer?.setVisible(false)
+            android.util.Log.d("VRHUDLyricManager", "VR HUD hidden with OpenXR")
+            return
+        }
 
-                try {
-                    updateJob?.cancel()
-                    windowManager.removeView(hudView)
-                    isViewAdded = false
-                } catch (e: Exception) {
-                    android.util.Log.e("VRHUDLyricManager", "Error hiding app-internal HUD view", e)
-                }
-            }
+        // Overlay模式
+        if (!isViewAdded) return
+
+        if (lyricView == null || windowManager == null) return
+
+        try {
+            windowManager?.removeView(lyricView)
+            isViewAdded = false
+            android.util.Log.d("VRHUDLyricManager", "Overlay HUD hidden")
+        } catch (e: Exception) {
+            android.util.Log.e("VRHUDLyricManager", "Error hiding Overlay HUD", e)
         }
     }
 
@@ -264,98 +206,78 @@ class VRHUDLyricManager private constructor(private val context: Context) {
         currentLyric = lyric
         currentTranslation = translation
 
-        when (hudMode) {
-            HUDMode.ACCESSIBILITY_SERVICE -> {
-                // 使用AccessibilityService
-                VRLyricAccessibilityService.updateLyric(lyric, translation)
-            }
-            HUDMode.GLOBAL_NATIVE -> {
-                // 使用SurfaceControl全局HUD
-                VRHUDRenderer.updateLyric(lyric, translation)
-            }
-            HUDMode.APP_INTERNAL -> {
-                // 使用应用内HUD
-                lyricTextView?.text = if (lyric.isEmpty()) "暂无歌词" else lyric
-                translationTextView?.text = translation
-                translationTextView?.visibility = if (translation.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
-            }
+        if (useVRMode) {
+            // VR模式：更新OpenXR HUD
+            vrHUDRenderer?.updateLyric(lyric, translation)
+            android.util.Log.d("VRHUDLyricManager", "Updated VR lyric: $lyric")
+            return
         }
-    }
 
-    /**
-     * 启动更新任务
-     * VR环境需要更高的更新频率以保证流畅性
-     */
-    private fun startUpdateJob() {
-        updateJob = scope.launch {
-            while (isActive) {
-                delay(50) // VR环境：50ms更新频率（20fps），保证流畅性
-            }
-        }
+        // Overlay模式
+        if (!isViewAdded || lyricView == null) return
+
+        val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
+        val tvTranslation = lyricView?.findViewById<TextView>(R.id.desktop_lyric_translation)
+
+        tvLyric?.text = if (lyric.isEmpty()) "暂无歌词" else lyric
+        tvTranslation?.text = translation
     }
 
     /**
      * 设置HUD位置
      */
-    fun setPosition(y: Int) {
-        when (hudMode) {
-            HUDMode.ACCESSIBILITY_SERVICE -> {
-                // AccessibilityService位置
-                VRLyricAccessibilityService.getInstance()?.setPosition(y)
-            }
-            HUDMode.GLOBAL_NATIVE -> {
-                // SurfaceControl全局HUD位置（0-1归一化坐标）
-                val displayMetrics = context.resources.displayMetrics
-                val normalizedY = y.toFloat() / displayMetrics.heightPixels
-                VRHUDRenderer.setPosition(0.5f, normalizedY)
-            }
-            HUDMode.APP_INTERNAL -> {
-                // 应用内HUD位置
-                layoutParams?.y = y
-                if (isViewAdded) {
-                    windowManager.updateViewLayout(hudView, layoutParams)
-                }
-            }
+    fun setPosition(x: Float, y: Float, z: Float) {
+        if (useVRMode) {
+            // VR模式：设置3D空间位置
+            vrHUDRenderer?.setPosition(x, y, z)
+            android.util.Log.d("VRHUDLyricManager", "Set VR position: ($x, $y, $z) meters")
+        } else {
+            // Overlay模式：不支持真正的3D定位
+            android.util.Log.d("VRHUDLyricManager", "Overlay doesn't support 3D positioning")
         }
     }
 
     /**
-     * 设置歌词大小
+     * 设置HUD在用户前方
      */
-    fun setLyricSize(size: Float) {
-        if (hudMode == HUDMode.APP_INTERNAL) {
-            lyricTextView?.textSize = size
-            translationTextView?.textSize = size * 0.65f
+    fun setInFront(distance: Float = 2.0f, yOffset: Float = 0.0f) {
+        if (useVRMode) {
+            // VR模式：设置3D空间位置
+            vrHUDRenderer?.setInFront(distance, yOffset)
+            android.util.Log.d("VRHUDLyricManager", "Set VR in front: distance=$distance, yOffset=$yOffset")
+        } else {
+            // Overlay模式：可以调整垂直位置
+            android.util.Log.d("VRHUDLyricManager", "Overlay Y position adjustment not implemented")
         }
     }
 
     /**
-     * 设置歌词颜色
+     * 设置HUD旋转
      */
-    fun setLyricColor(color: Int) {
-        if (hudMode == HUDMode.APP_INTERNAL) {
-            lyricTextView?.setTextColor(color)
+    fun setRotation(w: Float, x: Float, y: Float, z: Float) {
+        if (useVRMode) {
+            // VR模式：设置3D旋转
+            vrHUDRenderer?.setRotation(w, x, y, z)
+            android.util.Log.d("VRHUDLyricManager", "Set VR rotation: ($w, $x, $y, $z)")
+        } else {
+            // Overlay模式：不支持旋转
+            android.util.Log.d("VRHUDLyricManager", "Overlay doesn't support rotation")
         }
     }
 
     /**
-     * 设置背景透明度
+     * 设置HUD尺寸
      */
-    fun setBackgroundAlpha(alpha: Int) {
-        if (hudMode == HUDMode.APP_INTERNAL) {
-            val bgColor = Color.parseColor("#60000000")
-            val newBgColor = Color.argb(alpha, Color.red(bgColor), Color.green(bgColor), Color.blue(bgColor))
-            hudView?.setBackgroundColor(newBgColor)
-        }
-    }
-
-    /**
-     * 设置阴影强度
-     */
-    fun setShadowRadius(radius: Float) {
-        if (hudMode == HUDMode.APP_INTERNAL) {
-            lyricTextView?.setShadowLayer(radius, 0f, 0f, Color.BLACK)
-            translationTextView?.setShadowLayer(radius * 0.7f, 0f, 0f, Color.BLACK)
+    fun setSize(width: Float, height: Float) {
+        if (useVRMode) {
+            // VR模式：设置3D尺寸
+            vrHUDRenderer?.setSize(width, height)
+            android.util.Log.d("VRHUDLyricManager", "Set VR size: ${width}m x ${height}m")
+        } else {
+            // Overlay模式：通过scale改变尺寸
+            lyricView?.scaleX = width
+            lyricView?.scaleY = height
+            android.util.Log.d("VRHUDLyricManager", "Set Overlay scale: ${width}x${height}")
         }
     }
 
@@ -363,10 +285,10 @@ class VRHUDLyricManager private constructor(private val context: Context) {
      * 获取当前HUD模式
      */
     fun getHUDMode(): String {
-        return when (hudMode) {
-            HUDMode.ACCESSIBILITY_SERVICE -> "AccessibilityService (True Global HUD)"
-            HUDMode.GLOBAL_NATIVE -> "Global HUD (SurfaceControl)"
-            HUDMode.APP_INTERNAL -> "App-internal HUD (WindowManager)"
+        return if (useVRMode) {
+            "OpenXR 3D Spatial HUD"
+        } else {
+            "Android Overlay"
         }
     }
 
@@ -374,7 +296,7 @@ class VRHUDLyricManager private constructor(private val context: Context) {
      * 检查是否支持全局HUD
      */
     fun isGlobalHUDSupported(): Boolean {
-        return hudMode == HUDMode.ACCESSIBILITY_SERVICE || hudMode == HUDMode.GLOBAL_NATIVE
+        return is3DSpatialHUDAvailable()
     }
 
     /**
@@ -382,8 +304,10 @@ class VRHUDLyricManager private constructor(private val context: Context) {
      */
     fun cleanup() {
         hide()
-        if (hudMode == HUDMode.GLOBAL_NATIVE) {
-            VRHUDRenderer.cleanup()
+        if (useVRMode) {
+            vrHUDRenderer?.cleanup()
         }
+        lyricView = null
+        windowManager = null
     }
 }
