@@ -119,6 +119,36 @@ class MusicPlayerService : Service() {
                 "ACTION_NEXT" -> {
                     playerManager.next()
                 }
+                "ACTION_TOGGLE_LYRIC" -> {
+                    // 切换桌面歌词显示状态
+                    val lyricPrefs = getSharedPreferences("desktop_lyric", Context.MODE_PRIVATE)
+                    val isEnabled = lyricPrefs.getBoolean("desktop_lyric_enabled", false)
+                    val newState = !isEnabled
+                    
+                    // 如果要开启但没有悬浮窗权限，先请求权限
+                    if (newState && !android.provider.Settings.canDrawOverlays(this)) {
+                        // 需要权限，但通知栏无法直接请求权限，所以先不开启
+                        android.util.Log.d("MusicPlayerService", "桌面歌词需要悬浮窗权限")
+                    } else {
+                        // 直接切换状态
+                        lyricPrefs.edit().putBoolean("desktop_lyric_enabled", newState).apply()
+                        
+                        // 控制桌面歌词服务
+                        val lyricServiceIntent = Intent(this, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                        if (newState) {
+                            lyricServiceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                            startService(lyricServiceIntent)
+                        } else {
+                            lyricServiceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_HIDE
+                            startService(lyricServiceIntent)
+                        }
+                        
+                        android.util.Log.d("MusicPlayerService", "桌面歌词已${if (newState) "开启" else "关闭"}")
+                    }
+                    
+                    // 更新通知以反映当前状态
+                    updateMusicNotification()
+                }
             }
         }
         return START_STICKY
@@ -214,6 +244,17 @@ class MusicPlayerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // 创建桌面歌词切换按钮的 PendingIntent
+        val lyricIntent = Intent(this, MusicPlayerService::class.java).apply {
+            action = "ACTION_TOGGLE_LYRIC"
+        }
+        val lyricPendingIntent = PendingIntent.getService(
+            this,
+            4,
+            lyricIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         // 获取 MediaSession Token
         val mediaSessionToken = playerManager.getMediaSessionToken()
 
@@ -229,7 +270,7 @@ class MusicPlayerService : Service() {
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSessionToken)
-                    .setShowActionsInCompactView(0, 1, 2) // 在紧凑视图显示所有按钮
+                    .setShowActionsInCompactView(0, 1, 2, 3) // 在紧凑视图显示所有4个按钮
                     .setShowCancelButton(false)
             )
             // 添加播放控制按钮
@@ -247,6 +288,11 @@ class MusicPlayerService : Service() {
                 android.R.drawable.ic_media_next,
                 "下一首",
                 nextPendingIntent
+            )
+            .addAction(
+                R.drawable.ic_widget_previous,
+                "词",
+                lyricPendingIntent
             )
             .build()
     }
