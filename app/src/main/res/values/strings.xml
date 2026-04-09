@@ -14,6 +14,8 @@
     <string name="focus_lock_subtitle">开启后不会被其他应用打断播放，可同时播放</string>
     <string name="fuck_china_os">灵动岛</string>
     <string name="fuck_china_os_subtitle">在顶部状态栏中央显示播放控制。操你妈国产系统</string>
+    <string name="desktop_lyric">桌面歌词</string>
+    <string name="desktop_lyric_subtitle">在屏幕上方显示当前播放歌词</string>
     <string name="language">语言</string>
     <string name="language_subtitle">选择应用显示语言</string>
     <string name="language_follow_system">跟随系统</string>

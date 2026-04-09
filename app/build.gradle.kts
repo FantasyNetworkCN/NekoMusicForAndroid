@@ -36,6 +36,8 @@ android {
         
         // 启用增量编译
         buildConfigField("boolean", "ENABLE_DEBUG", "false")
+        // 配置API基础URL
+        buildConfigField("String", "BASE_URL", "\"https://music.cnmsb.xin\"")
     }
 
     signingConfigs {

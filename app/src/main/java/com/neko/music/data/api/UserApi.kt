@@ -28,9 +28,9 @@ class UserApi(private val token: String? = null) {
             })
         }
         install(io.ktor.client.plugins.HttpTimeout) {
-            requestTimeoutMillis = 15_000
-            connectTimeoutMillis = 15_000
-            socketTimeoutMillis = 15_000
+            requestTimeoutMillis = 600_000  // 10分钟
+            connectTimeoutMillis = 600_000  // 10分钟
+            socketTimeoutMillis = 600_000  // 10分钟
         }
     }
 
@@ -227,6 +227,7 @@ class UserApi(private val token: String? = null) {
 
     /**
      * 上传音乐
+     * 根据 123.md API 文档实现
      */
     suspend fun uploadMusic(
         audioFile: ByteArray,
@@ -236,13 +237,15 @@ class UserApi(private val token: String? = null) {
         album: String,
         language: String,
         tags: String,
+        duration: Int,  // 音乐时长，单位秒（必填）
+        uploadUserId: Int = 0,  // 上传用户ID（通常传0）
         lyricsFile: ByteArray? = null,
         coverImage: ByteArray? = null
     ): UploadMusicResponse {
         return try {
-            Log.d("UserApi", "开始上传音乐: $title - $artist")
+            Log.d("UserApi", "开始上传音乐: $title - $artist, 时长: $duration 秒")
             
-            val response = client.post("$baseUrl/api/music/upload") {
+            val response = client.post("$baseUrl/api/user/upload") {
                 headers {
                     token?.let { append("Authorization", "Bearer $it") }
                 }
@@ -250,22 +253,22 @@ class UserApi(private val token: String? = null) {
                     MultiPartFormDataContent(
                         formData {
                             // 音乐文件
-                            append("audio", audioFile, Headers.build {
+                            append("musicFile", audioFile, Headers.build {
                                 append(HttpHeaders.ContentDisposition, "filename=$audioFileName")
                                 append(HttpHeaders.ContentType, "audio/mpeg")
                             })
                             
                             // 歌词文件（可选）
                             if (lyricsFile != null) {
-                                append("lyrics", lyricsFile, Headers.build {
+                                append("lyricsFile", lyricsFile, Headers.build {
                                     append(HttpHeaders.ContentDisposition, "filename=lyrics.lrc")
-                                    append(HttpHeaders.ContentType, "text/plain")
+                                    append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
                                 })
                             }
                             
                             // 封面图片（可选）
                             if (coverImage != null) {
-                                append("cover", coverImage, Headers.build {
+                                append("coverFile", coverImage, Headers.build {
                                     append(HttpHeaders.ContentDisposition, "filename=cover.jpg")
                                     append(HttpHeaders.ContentType, "image/jpeg")
                                 })
@@ -277,6 +280,8 @@ class UserApi(private val token: String? = null) {
                             append("album", album)
                             append("language", language)
                             append("tags", tags)
+                            append("duration", duration.toString())
+                            append("uploadUserId", uploadUserId.toString())
                         }
                     )
                 )
@@ -298,7 +303,11 @@ class UserApi(private val token: String? = null) {
                 val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
                 val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
                 val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-                val musicId = jsonResponse["musicId"]?.toString()?.toIntOrNull()
+                
+                // 根据 123.md 文档，响应格式为：
+                // {"success": true, "message": "上传成功，等待审核", "data": {"id": 1, "status": "pending", "createdAt": "2026-02-12T16:30:00"}}
+                val data = jsonResponse["data"] as? JsonObject
+                val musicId = data?.get("id")?.toString()?.toIntOrNull()
 
                 UploadMusicResponse(success = success, message = message, musicId = musicId)
             } catch (jsonException: Exception) {

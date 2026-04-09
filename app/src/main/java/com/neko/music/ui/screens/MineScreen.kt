@@ -525,14 +525,6 @@ fun MoreSettings(
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
-        Text(
-            text = stringResource(id = R.string.settings_title),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
         MenuItem(stringResource(id = R.string.settings_title), R.drawable.setting, RoseRed, onClick = onNavigateToSettings)
         MenuItem(stringResource(id = R.string.about_us), R.drawable.about, StarYellow, onClick = onAboutClick)
         

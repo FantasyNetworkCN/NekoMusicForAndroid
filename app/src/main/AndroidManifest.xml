@@ -55,6 +55,11 @@
             android:name=".floatwindow.FuckChinaOSFloatService"
             android:exported="false" />
 
+        <!-- 桌面歌词服务 -->
+        <service
+            android:name=".desktoplyric.DesktopLyricService"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

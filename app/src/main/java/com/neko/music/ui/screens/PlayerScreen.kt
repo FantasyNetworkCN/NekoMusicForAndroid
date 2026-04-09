@@ -136,8 +136,8 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             continue
         }
         
-        // 匹配时间标签 [00:00.000] 或 [00:00.60] 或 [0:05.123]
-        val timePattern = Regex("""\[(\d{1,2}):(\d{1,2})\.(\d{2,3})\]""")
+        // 匹配时间标签 [mm:ss.xx]（强制两位毫秒）
+        val timePattern = Regex("""\[(\d{1,2}):(\d{1,2})\.(\d{2})\]""")
         val match = timePattern.find(line)
         
         if (match != null) {
@@ -145,13 +145,8 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             val seconds = match.groupValues[2].toInt()
             val milliseconds = match.groupValues[3].toInt()
             
-            // 根据毫秒位数计算时间
-            val time = minutes * 60 + seconds + 
-                if (milliseconds.toString().length == 2) {
-                    milliseconds / 100f
-                } else {
-                    milliseconds / 1000f
-                }
+            // 计算时间（毫秒只有两位，所以直接除以 100）
+            val time = minutes * 60 + seconds + milliseconds / 100f
             
             // 提取歌词文本（移除时间标签）
             val text = line.replace(timePattern, "").trim()
@@ -915,14 +910,39 @@ fun CoverImage(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = music.title,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        val scrollState = rememberScrollState()
+                        val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
+                        
+                        LaunchedEffect(shouldScroll, music.title) {
+                            if (shouldScroll) {
+                                while (true) {
+                                    delay(3000)
+                                    scrollState.animateScrollTo(scrollState.maxValue, animationSpec = tween(5000))
+                                    delay(3000)
+                                    scrollState.animateScrollTo(0, animationSpec = tween(5000))
+                                }
+                            }
+                        }
+                        
+                        Text(
+                            text = music.title,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(scrollState, enabled = false)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -1046,14 +1066,39 @@ fun LyricSongInfoBar(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = music.title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
+                        // 歌名 - 自动滚动
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            val scrollState = rememberScrollState()
+                            val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
+                            
+                            LaunchedEffect(shouldScroll, music.title) {
+                                if (shouldScroll) {
+                                    while (true) {
+                                        delay(3000)
+                                        scrollState.animateScrollTo(scrollState.maxValue, animationSpec = tween(5000))
+                                        delay(3000)
+                                        scrollState.animateScrollTo(0, animationSpec = tween(5000))
+                                    }
+                                }
+                            }
+                            
+                            Text(
+                                text = music.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(scrollState, enabled = false)
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(2.dp))
 
