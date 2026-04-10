@@ -309,17 +309,7 @@ class MainActivity : ComponentActivity() {
             try {
                 // 初始化OpenXR HUD
                 val displayMetrics = resources.displayMetrics
-                var width = displayMetrics.widthPixels
-                var height = displayMetrics.heightPixels
-                
-                // 检查尺寸是否有效（PICO设备启动瞬间可能返回0或100）
-                if (width <= 100 || height <= 100) {
-                    Log.w("MainActivity", "Invalid display metrics for VR setup: ${width}x${height}, using default values")
-                    width = 1920
-                    height = 1080
-                }
-                
-                val success = com.neko.music.util.VRHUDRenderer.initialize(this@MainActivity, width, height)
+                val success = com.neko.music.util.VRHUDRenderer.initialize(this@MainActivity, displayMetrics.widthPixels, displayMetrics.heightPixels)
 
                 if (!success) {
                     Log.e("MainActivity", "Failed to initialize VR HUD renderer")
@@ -391,26 +381,24 @@ class MainActivity : ComponentActivity() {
         
         // VR模式下恢复GLSurfaceView
         if (isVRMode) {
+            glSurfaceView?.onResume()
+            
+            // 清理VR渲染器
             try {
-                glSurfaceView?.onResume()
-                
-                // 清理VR渲染器
-                try {
-                    vrGLRenderer?.cleanup()
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
-                }
-                vrGLRenderer = null
-                
-                // 清理VRHUDRenderer
-                try {
-                    com.neko.music.util.VRHUDRenderer.cleanup()
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
-                }
+                vrGLRenderer?.cleanup()
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error during VR cleanup", e)
+                Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
             }
+            vrGLRenderer = null
+            
+            // 清理VRHUDRenderer
+            try {
+                com.neko.music.util.VRHUDRenderer.cleanup()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error during VR cleanup", e)
         }
         
         // 重新初始化正常模式
