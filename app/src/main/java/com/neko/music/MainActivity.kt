@@ -363,25 +363,19 @@ class MainActivity : ComponentActivity() {
     private fun fallbackToNormalMode(reason: String) {
         Log.d("MainActivity", "Falling back to normal mode: $reason")
         
-        // 检查并启动灵动岛（如果开关已开启且现在有权限）
-        val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
-        val isFuckChinaOSEnabled = floatPrefs.getBoolean("fuck_china_os_enabled", false)
+        // 重置VR模式状态
+        isVRMode = false
+        vrInitializationCompleted = false
         
-        if (isFuckChinaOSEnabled) {
-            // 检查悬浮窗权限
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (Settings.canDrawOverlays(this)) {
-                    val intent = Intent(this, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
-                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
-                    startService(intent)
-                    Log.d("MainActivity", "灵动岛已开启，启动灵动岛服务")
-                }
+        // 清理VR资源
+        try {
+            // 安全地暂停GLSurfaceView
+            try {
+                glSurfaceView?.onPause()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error pausing GLSurfaceView during fallback", e)
             }
-        }
-        
-        // VR模式下恢复GLSurfaceView
-        if (isVRMode) {
-            glSurfaceView?.onResume()
+            glSurfaceView = null
             
             // 清理VR渲染器
             try {
