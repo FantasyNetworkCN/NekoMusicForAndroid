@@ -23,6 +23,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -120,6 +123,43 @@ fun SettingsScreen(
             android.provider.Settings.canDrawOverlays(context)
         } else {
             true
+        }
+    }
+
+    // 记录用户是否尝试开启灵动岛但被权限阻止
+    var pendingFuckChinaOSEnable by remember { mutableStateOf(false) }
+
+    // 监听应用生命周期，在恢复时重新检查权限并自动启动灵动岛
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // 重新检查权限状态
+                val newPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    android.provider.Settings.canDrawOverlays(context)
+                } else {
+                    true
+                }
+                
+                hasOverlayPermission = newPermission
+                
+                // 如果用户之前尝试开启灵动岛但被权限阻止，现在有了权限，自动开启
+                if (pendingFuckChinaOSEnable && newPermission && !isFuckChinaOSEnabled) {
+                    isFuckChinaOSEnabled = true
+                    floatPrefs.edit().putBoolean("fuck_china_os_enabled", true).apply()
+                    val intent = Intent(context, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
+                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
+                    context.startService(intent)
+                    pendingFuckChinaOSEnable = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        
+        try {
+            kotlinx.coroutines.delay(Long.MAX_VALUE)
+        } finally {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -343,6 +383,7 @@ fun SettingsScreen(
                                     android.net.Uri.parse("package:${context.packageName}")
                                 )
                                 context.startActivity(intent)
+                                pendingFuckChinaOSEnable = true
                             } else {
                                 // 有权限或关闭时，直接执行
                                 isFuckChinaOSEnabled = enabled

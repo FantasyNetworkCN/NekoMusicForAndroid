@@ -2,18 +2,29 @@ package com.neko.music.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
-import androidx.compose.foundation.Image
-import android.os.Build
 import android.widget.Toast
-import androidx.compose.material3.ExperimentalMaterial3Api
-import com.google.accompanist.permissions.rememberPermissionState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,41 +36,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width as composeWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.isSystemInDarkTheme
-import com.neko.music.service.MusicPlayerManager
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -67,45 +73,42 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import com.neko.music.service.PlayMode
-import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.model.Music
+import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.PlayMode
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
-import androidx.compose.animation.core.Spring
-import androidx.compose.ui.res.stringResource
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 // 格式化时间显示（毫秒转 mm:ss）
 fun formatTime(milliseconds: Long): String {
@@ -127,70 +130,61 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
     val lines = lrcText.lines()
     android.util.Log.d("parseLrcLyrics", "歌词行数: ${lines.size}")
     val result = mutableListOf<LrcLine>()
-    
+
     var i = 0
+    val timeRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]")
+
     while (i < lines.size) {
         val line = lines[i].trim()
-        
+
         // 跳过空行
         if (line.isEmpty()) {
             i++
             continue
         }
-        
-        // 匹配时间标签 [mm:ss.xx]（强制两位毫秒）
-        val timePattern = Regex("""\[(\d{1,2}):(\d{1,2})\.(\d{2})\]""")
-        val match = timePattern.find(line)
-        
+
+        // 解析时间戳 [mm:ss.xx]
+        val match = timeRegex.find(line)
+
         if (match != null) {
             val minutes = match.groupValues[1].toInt()
             val seconds = match.groupValues[2].toInt()
-            val milliseconds = match.groupValues[3].toInt()
-            
-            // 计算时间（毫秒只有两位，所以直接除以 100）
-            val time = minutes * 60 + seconds + milliseconds / 100f
-            
-            // 提取歌词文本（移除时间标签）
-            val text = line.replace(timePattern, "").trim()
-            
-            // 查找下一行是否有翻译
-            var translation = ""
+            val centiseconds = match.groupValues[3].toInt()
+            val time = minutes * 60 + seconds + centiseconds / 100f
+
+            // 提取歌词文本
+            val text = line.substring(match.range.last + 1).trim()
+
+            // 检查是否有翻译（下一行可能包含翻译）
+            var translation: String? = null
+            var hasTranslation = false
             if (i + 1 < lines.size) {
                 val nextLine = lines[i + 1].trim()
-                android.util.Log.d("parseLrcLyrics", "检查翻译行: $nextLine")
-                // 检查是否是JSON格式的翻译行
-                // 修复：正确匹配JSON格式的翻译
-                if (nextLine.startsWith("{") && nextLine.endsWith("}")) {
-                    // 移除开头和结尾的花括号
-                    var jsonContent = nextLine.substring(1, nextLine.length - 1)
-                    android.util.Log.d("parseLrcLyrics", "移除花括号后: $jsonContent")
-                    
-                    // 移除首尾的引号（包括转义的引号）
-                    // 处理转义的引号 {"content"} -> \"content\" -> content
-                    if (jsonContent.startsWith("\"") && jsonContent.endsWith("\"")) {
-                        jsonContent = jsonContent.substring(1, jsonContent.length - 1)
-                    } else if (jsonContent.startsWith("'") && jsonContent.endsWith("'")) {
-                        jsonContent = jsonContent.substring(1, jsonContent.length - 1)
-                    }
-                    
-                    android.util.Log.d("parseLrcLyrics", "移除外层引号后: $jsonContent")
-                    
-                    // 移除可能的转义引号
-                    translation = jsonContent.replace("\\\"", "")
-                    android.util.Log.d("parseLrcLyrics", "移除转义引号后: $translation")
-                    i++ // 跳过翻译行
+                // 翻译行通常以 { } 包裹，且不包含时间戳
+                if (nextLine.startsWith("{") && nextLine.endsWith("}") && !timeRegex.containsMatchIn(nextLine)) {
+                    hasTranslation = true
+                    // 提取花括号内的内容
+                    var content = nextLine.substring(1, nextLine.length - 1)
+                    // 去掉转义字符和引号
+                    content = content.replace("\\", "").replace("\"", "").replace("'", "")
+                    translation = content.trim()
                 }
             }
-            
+
             if (text.isNotEmpty()) {
-                result.add(LrcLine(time, text, translation))
-                android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=$translation")
+                result.add(LrcLine(time, text, translation ?: ""))
+                android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=${translation ?: ""}")
+            }
+
+            // 如果有翻译行，跳过它
+            if (hasTranslation) {
+                i++
             }
         }
-        
+
         i++
     }
-    
+
     android.util.Log.d("parseLrcLyrics", "解析完成，共 ${result.size} 行歌词")
     return result
 }
@@ -398,6 +392,43 @@ fun PlayerScreen(
         }
     }
 
+    // 记录用户是否尝试开启桌面歌词但被权限阻止
+    var pendingDesktopLyricEnable by remember { mutableStateOf(false) }
+
+    // 监听应用生命周期，在恢复时重新检查权限并自动启动桌面歌词
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // 重新检查权限状态
+                val newPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    android.provider.Settings.canDrawOverlays(context)
+                } else {
+                    true
+                }
+                
+                hasOverlayPermission = newPermission
+                
+                // 如果用户之前尝试开启桌面歌词但被权限阻止，现在有了权限，自动开启
+                if (pendingDesktopLyricEnable && newPermission && !isDesktopLyricEnabled) {
+                    isDesktopLyricEnabled = true
+                    desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
+                    val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                    context.startService(serviceIntent)
+                    pendingDesktopLyricEnable = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        
+        try {
+            kotlinx.coroutines.delay(Long.MAX_VALUE)
+        } finally {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // 桌面歌词切换逻辑
     val toggleDesktopLyric = {
         if (isDesktopLyricEnabled) {
@@ -424,6 +455,7 @@ fun PlayerScreen(
                 // 普通设备需要检查悬浮窗权限
                 if (!hasOverlayPermission) {
                     showOverlayPermissionDialog = true
+                    pendingDesktopLyricEnable = true
                 } else {
                     isDesktopLyricEnabled = true
                     desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
@@ -529,6 +561,23 @@ fun PlayerScreen(
                     Box(
                         modifier = Modifier.fillMaxSize()
                     ) {
+                        // 监听歌词列表滚动并同步到LyricScrollManager
+                        androidx.compose.runtime.LaunchedEffect(Unit) {
+                            com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                        }
+                        
+                        // 监听外部滚动状态变化并同步回播放页面
+                        val externalScrollIndex by com.neko.music.util.LyricScrollManager.currentLyricIndex.collectAsState()
+                        androidx.compose.runtime.LaunchedEffect(externalScrollIndex) {
+                            if (externalScrollIndex >= 0 && externalScrollIndex < lyrics.size) {
+                                try {
+                                    lyricsListState.animateScrollToItem(externalScrollIndex, 0)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("PlayerScreen", "Failed to sync scroll from external", e)
+                                }
+                            }
+                        }
+                        
                         LyricsView(
                             lyrics = lyrics,
                             currentProgressSeconds = currentProgressSeconds,

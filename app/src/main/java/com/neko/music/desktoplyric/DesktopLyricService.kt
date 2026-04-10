@@ -36,16 +36,16 @@ class DesktopLyricService : Service() {
     private var windowManager: WindowManager? = null
     private var lyricView: View? = null
     private var isViewAdded = false
-
+    
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var updateJob: Job? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-
+    
     // 歌词数据
     private var currentLyrics: List<LrcLine> = emptyList()
     private var currentProgress: Long = 0L
     private var currentMusicId: Int = -1
-
+    
     // 使用JNI渲染器
     private var useJNIRenderer = true
 
@@ -61,12 +61,17 @@ class DesktopLyricService : Service() {
     private var viewInitialY = 0
     private var touchSlop = 0f
 
+    // 位置保存相关的SharedPreferences
+    private val positionPrefs by lazy {
+        getSharedPreferences("desktop_lyric_position", Context.MODE_PRIVATE)
+    }
+
     companion object {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_DESKTOP_LYRIC"
         const val ACTION_HIDE = "com.neko.music.action.HIDE_DESKTOP_LYRIC"
         const val ACTION_UPDATE = "com.neko.music.action.UPDATE_DESKTOP_LYRIC"
         private var instance: DesktopLyricService? = null
-
+        
         fun getInstance(): DesktopLyricService? {
             return instance
         }
@@ -84,7 +89,7 @@ class DesktopLyricService : Service() {
 
         // 在onCreate中初始化touchSlop，此时Context已经准备好
         touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()
-
+        
         // 初始化JNI渲染器
         if (useJNIRenderer) {
             try {
@@ -153,6 +158,10 @@ class DesktopLyricService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
+                        // 拖动结束，保存位置
+                        if (isDragging) {
+                            savePosition()
+                        }
                         return true
                     }
                 }
@@ -172,36 +181,39 @@ class DesktopLyricService : Service() {
             android.util.Log.d("DesktopLyricService", "VR HUD shown successfully")
         } else {
             // 普通手机：使用原有的桌面歌词视图
-            if (lyricView == null) return
+            if ( lyricView == null) return
 
-            try {
-                layoutParams = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                    } else {
-                        @Suppress("DEPRECATION")
-                        WindowManager.LayoutParams.TYPE_PHONE
-                    },
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                    PixelFormat.TRANSLUCENT
-                )
+        try {
+            layoutParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT
+            )
 
-                layoutParams?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                layoutParams?.y = 100 // 距离顶部100像素
+            layoutParams?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
 
-                lyricView?.alpha = 1f
-                lyricView?.scaleX = 1f
-                lyricView?.scaleY = 1f
+            // 加载保存的位置
+            val savedPosition = loadPosition()
+            layoutParams?.y = savedPosition
 
-                windowManager?.addView(lyricView, layoutParams)
-                isViewAdded = true
+            lyricView?.alpha = 1f
+            lyricView?.scaleX = 1f
+            lyricView?.scaleY = 1f
 
-                updateLyricView()
-                android.util.Log.d("DesktopLyricService", "Lyric view added successfully")
+            windowManager?.addView(lyricView, layoutParams)
+            isViewAdded = true
+
+            updateLyricView()
+            android.util.Log.d("DesktopLyricService", "Lyric view added successfully at y=$savedPosition")
             } catch (e: Exception) {
                 android.util.Log.e("DesktopLyricService", "Error showing lyric view", e)
             }
@@ -229,12 +241,23 @@ class DesktopLyricService : Service() {
             if (lyricView == null || windowManager == null) return
 
             try {
-                windowManager?.removeView(lyricView)
-                isViewAdded = false
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                // 保存当前位置
+            savePosition()
+            windowManager?.removeView(lyricView)
+            isViewAdded = false
+        } catch (e: Exception) {
+            e.printStackTrace()}
         }
+    }
+
+    private fun savePosition() {
+        val y = layoutParams?.y ?: 100
+        positionPrefs.edit().putInt("lyric_y_position", y).apply()
+        android.util.Log.d("DesktopLyricService", "Saved position: y=$y")
+    }
+
+    private fun loadPosition(): Int {
+        return positionPrefs.getInt("lyric_y_position", 100) // 默认距离顶部100像素
     }
 
     private fun updateLyricView() {
@@ -280,8 +303,7 @@ class DesktopLyricService : Service() {
                 val jsonData = DesktopLyricRenderer.getCurrentLyric(currentTime)
                 val json = JSONObject(jsonData)
                 val hasLyric = json.optBoolean("hasLyric", false)
-
-                if (hasLyric) {
+if (hasLyric) {
                     lyricText = json.optString("text", "暂无歌词")
                     translationText = json.optString("translation", "")
                 } else {
@@ -318,12 +340,45 @@ class DesktopLyricService : Service() {
                 val json = JSONObject(jsonData)
                 val hasLyric = json.optBoolean("hasLyric", false)
 
-                if (hasLyric) {
-                    tvLyric?.text = json.optString("text", "暂无歌词")
-                    tvTranslation?.text = json.optString("translation", "")
+                val newText = if (hasLyric) json.optString("text", "暂无歌词") else "暂无歌词"
+                val newTranslation = if (hasLyric) json.optString("translation", "") else ""
+
+                // 如果歌词内容变化，添加滚动动画效果
+                val currentText = tvLyric?.text
+                if (currentText != newText) {
+                    // 保存当前文本（用于动画）
+                    val previousText = currentText.toString()
+                    val previousTranslation = tvTranslation?.text?.toString() ?: ""
+
+                    // 临时显示上一句歌词，准备滚动动画
+                    tvLyric?.text = previousText
+                    tvTranslation?.text = previousTranslation
+
+                    // 第一步：当前歌词向下滚动并淡出
+                    lyricView?.animate()
+                        ?.translationY(20f)
+                        ?.alpha(0.3f)
+                        ?.setDuration(150)
+                        ?.withEndAction {
+                            // 更新文本
+                            tvLyric?.text = newText
+                            tvTranslation?.text = newTranslation
+
+                            // 重置位置到上方
+                            lyricView?.translationY = -20f
+                            lyricView?.alpha = 0.3f
+
+                            // 第二步：新歌词从上方滚动进来并淡入
+                            lyricView?.animate()
+                                ?.translationY(0f)
+                                ?.alpha(1f)
+                                ?.setDuration(150)
+                                ?.start()
+                        }
+                        ?.start()
                 } else {
-                    tvLyric?.text = "暂无歌词"
-                    tvTranslation?.text = ""
+                    tvLyric?.text = newText
+                    tvTranslation?.text = newTranslation
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
@@ -421,11 +476,12 @@ class DesktopLyricService : Service() {
     private fun parseLrcLyrics(lrcText: String): List<LrcLine> {
         val lines = lrcText.lines()
         val result = mutableListOf<LrcLine>()
-        
-        for (i in lines.indices) {
+        var i = 0
+        val timeRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]")
+
+        while (i < lines.size) {
             val line = lines[i]
             // 解析时间戳 [mm:ss.xx]
-            val timeRegex = Regex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]")
             val match = timeRegex.find(line)
             
             if (match != null) {
@@ -439,26 +495,29 @@ class DesktopLyricService : Service() {
                 
                 // 检查是否有翻译（下一行可能包含翻译）
                 var translation: String? = null
+                var hasTranslation = false
                 if (i + 1 < lines.size) {
                     val nextLine = lines[i + 1].trim()
-                    // 翻译行通常以 { } 包裹，并且包含 JSON 数据
-                    if (nextLine.startsWith("{") && nextLine.endsWith("}") && nextLine.contains("\"translation\"")) {
-                        try {
-                            val jsonContent = nextLine.substring(1, nextLine.length - 1)
-                            // 解析 JSON 提取翻译内容
-                            val jsonObject = org.json.JSONObject(jsonContent)
-                            if (jsonObject.has("translation")) {
-                                translation = jsonObject.getString("translation")
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("DesktopLyricService", "解析翻译失败: ${e.message}")
-                            translation = null
-                        }
+                    // 翻译行通常以 { } 包裹，且不包含时间戳
+                    if (nextLine.startsWith("{") && nextLine.endsWith("}") && !timeRegex.containsMatchIn(nextLine)) {
+                        hasTranslation = true
+                        // 提取花括号内的内容
+                        var content = nextLine.substring(1, nextLine.length - 1)
+                        // 去掉转义字符和引号
+                        content = content.replace("\\", "").replace("\"", "").replace("'", "")
+                        translation = content.trim()
                     }
                 }
                 
                 result.add(LrcLine(time, text, translation))
+
+                // 如果有翻译行，跳过它
+                if (hasTranslation) {
+                    i++
+                }
             }
+
+            i++
         }
         
         return result

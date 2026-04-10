@@ -20,7 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -498,7 +499,7 @@ fun ChangePasswordDialog(
                     trailingIcon = {
                         IconButton(onClick = { showOldPassword = !showOldPassword }) {
                             Icon(
-                                imageVector = if (showOldPassword) Icons.Default.Close else Icons.Default.Check,
+                                imageVector = if (showOldPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = if (showOldPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
                                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
                             )
@@ -522,7 +523,7 @@ fun ChangePasswordDialog(
                     trailingIcon = {
                         IconButton(onClick = { showNewPassword = !showNewPassword }) {
                             Icon(
-                                imageVector = if (showNewPassword) Icons.Default.Close else Icons.Default.Check,
+                                imageVector = if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = if (showNewPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
                                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
                             )
@@ -546,7 +547,7 @@ fun ChangePasswordDialog(
                     trailingIcon = {
                         IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
                             Icon(
-                                imageVector = if (showConfirmPassword) Icons.Default.Close else Icons.Default.Check,
+                                imageVector = if (showConfirmPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = if (showConfirmPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
                                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
                             )

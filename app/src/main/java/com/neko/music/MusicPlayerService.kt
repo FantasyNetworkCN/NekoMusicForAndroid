@@ -90,12 +90,14 @@ class MusicPlayerService : Service() {
         // 监听播放位置变化，实时更新进度条
         kotlinx.coroutines.GlobalScope.launch {
             playerManager.currentPosition.collect {
+                // 更新通知栏
+                updateMusicNotification()
                 // 发送广播更新桌面组件
                 val updateIntent = Intent(this@MusicPlayerService, com.neko.music.widget.MusicWidgetProvider::class.java).apply {
                     action = com.neko.music.widget.MusicWidgetProvider.ACTION_UPDATE_WIDGET
                 }
                 sendBroadcast(updateIntent)
-                
+
                 // 更新悬浮窗
                 val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
                 if (floatPrefs.getBoolean("fuck_china_os_enabled", false)) {

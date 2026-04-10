@@ -400,7 +400,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                 }
                 PlayMode.SINGLE_LOOP -> {
-                    // 单曲循环：用户手动点击下一首时，也播放下一首歌曲
+                    // 单曲循环：用户手动点击下一首时，可以切换到下一首歌曲
                     // 只有在播放结束时才自动循环当前歌曲
                     android.util.Log.d("MusicPlayerManager", "SINGLE_LOOP mode, getting next music")
                     val nextMusic = playlistManager.getNextMusic(currentId)
@@ -743,8 +743,8 @@ class MusicPlayerManager private constructor(context: Context) {
             .addCustomAction(
                 PlaybackStateCompat.CustomAction.Builder(
                     "ACTION_TOGGLE_LYRIC",
-                    if (isDesktopLyricEnabled) "关闭歌词" else "歌词",
-                    if (isDesktopLyricEnabled) com.neko.music.R.drawable.ic_widget_lyric else com.neko.music.R.drawable.ic_widget_lyric
+                    "词",
+                    if (isDesktopLyricEnabled) com.neko.music.R.drawable.ic_widget_lyric else com.neko.music.R.drawable.ic_widget_lyric_disabled
                 ).build()
             )
             .setState(

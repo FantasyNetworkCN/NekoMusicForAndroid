@@ -64,6 +64,22 @@
             android:singleLine="true"
             android:clickable="false"
             android:focusable="false" />
+        
+        <!-- 歌词显示 -->
+        <TextView
+            android:id="@+id/float_lyric"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:maxWidth="150dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:layout_marginTop="2dp"
+            android:clickable="false"
+            android:focusable="false"
+            android:alpha="0.9" />
     </LinearLayout>
 
     <!-- 播放动画 -->
