@@ -309,7 +309,17 @@ class MainActivity : ComponentActivity() {
             try {
                 // 初始化OpenXR HUD
                 val displayMetrics = resources.displayMetrics
-                val success = com.neko.music.util.VRHUDRenderer.initialize(this@MainActivity, displayMetrics.widthPixels, displayMetrics.heightPixels)
+                var width = displayMetrics.widthPixels
+                var height = displayMetrics.heightPixels
+                
+                // 检查尺寸是否有效（PICO设备启动瞬间可能返回0或100）
+                if (width <= 100 || height <= 100) {
+                    Log.w("MainActivity", "Invalid display metrics for VR setup: ${width}x${height}, using default values")
+                    width = 1920
+                    height = 1080
+                }
+                
+                val success = com.neko.music.util.VRHUDRenderer.initialize(this@MainActivity, width, height)
 
                 if (!success) {
                     Log.e("MainActivity", "Failed to initialize VR HUD renderer")
