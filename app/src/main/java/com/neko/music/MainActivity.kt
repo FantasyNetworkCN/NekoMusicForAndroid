@@ -24,7 +24,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
 import android.widget.LinearLayout
-import android.opengl.GLSurfaceView
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
     private var isVRMode by mutableStateOf(false)
     private var glSurfaceView: android.opengl.GLSurfaceView? = null
     private var vrGLRenderer: VRGLRenderer? = null
+    private var vrInitializationCompleted = false  // VR初始化是否完成
     private val vrHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // 安装权限请求结果回调
@@ -136,26 +137,14 @@ class MainActivity : ComponentActivity() {
             val useVRMode = vrModePrefs.getBoolean("use_vr_mode", true) // 默认启用VR模式
             
             if (useVRMode) {
-                // 尝试预检查OpenXR是否可用
-                val displayMetrics = resources.displayMetrics
-                val testRenderer = com.neko.music.util.VRHUDRenderer
-                val preCheckSuccess = testRenderer.initialize(this, displayMetrics.widthPixels, displayMetrics.heightPixels)
-                
-                // 清理预检查
-                if (preCheckSuccess) {
-                    testRenderer.cleanup()
-                }
-                
-                if (preCheckSuccess && testRenderer.isSpatialHUDSupported()) {
-                    Log.d("MainActivity", "VR mode available, starting VR mode in MainActivity")
-                    // 直接在MainActivity中启动VR模式
-                    isVRMode = true
-                    setupVRMode()
-                    return
-                } else {
-                    Log.d("MainActivity", "VR mode not available, using normal mode")
-                    // VR模式不可用，使用普通模式
-                }
+                Log.d("MainActivity", "VR mode enabled, attempting VR initialization")
+                // 直接在MainActivity中启动VR模式（不使用预检查）
+                isVRMode = true
+                setupVRMode()
+                return
+            } else {
+                Log.d("MainActivity", "VR mode disabled, using normal mode")
+                // VR模式被禁用，使用普通模式
             }
         }
 
@@ -270,7 +259,8 @@ class MainActivity : ComponentActivity() {
         }
         
         vrGLRenderer = VRGLRenderer()
-        glSurfaceView?.setEGLContextClientVersion(2)
+        
+        // 设置GLSurfaceView的渲染器
         glSurfaceView?.setRenderer(vrGLRenderer)
         
         setContentView(layout)
@@ -323,6 +313,22 @@ class MainActivity : ComponentActivity() {
 
                 if (!success) {
                     Log.e("MainActivity", "Failed to initialize VR HUD renderer")
+                    // 初始化失败，重置VR模式状态并回退到正常模式
+                    vrHandler.post {
+                        vrInitializationCompleted = true
+                        fallbackToNormalMode("VR HUD initialization failed")
+                    }
+                    return@Thread
+                }
+
+                // 检查是否真正支持空间HUD（而不是简化模式）
+                if (!com.neko.music.util.VRHUDRenderer.isSpatialHUDSupported()) {
+                    Log.w("MainActivity", "VR HUD initialized but spatial HUD not supported, falling back to normal mode")
+                    // 虽然初始化成功，但只支持简化模式，回退到正常模式
+                    vrHandler.post {
+                        vrInitializationCompleted = true
+                        fallbackToNormalMode("Spatial HUD not supported")
+                    }
                     return@Thread
                 }
 
@@ -335,14 +341,27 @@ class MainActivity : ComponentActivity() {
                 com.neko.music.util.VRHUDRenderer.setVisible(true)
                 
                 Log.d("MainActivity", "VR mode setup complete")
+                
+                // 标记VR初始化完成
+                vrHandler.post {
+                    vrInitializationCompleted = true
+                }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error during VR HUD initialization", e)
+                // 发生异常，回退到正常模式
+                vrHandler.post {
+                    vrInitializationCompleted = true
+                    fallbackToNormalMode("VR HUD initialization exception: ${e.message}")
+                }
             }
         }.start()
     }
 
-    override fun onResume() {
-        super.onResume()
+    /**
+     * 回退到正常模式
+     */
+    private fun fallbackToNormalMode(reason: String) {
+        Log.d("MainActivity", "Falling back to normal mode: $reason")
         
         // 检查并启动灵动岛（如果开关已开启且现在有权限）
         val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
@@ -364,19 +383,127 @@ class MainActivity : ComponentActivity() {
         if (isVRMode) {
             glSurfaceView?.onResume()
             
-            // 重新设置VR显示模式
-            window.decorView.systemUiVisibility = (
-                android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                )
+            // 清理VR渲染器
+            try {
+                vrGLRenderer?.cleanup()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
+            }
+            vrGLRenderer = null
             
-            // 恢复时重新启用HUD
-            vrHandler.postDelayed({
-                com.neko.music.util.VRHUDRenderer.setVisible(true)
-            }, 500)
+            // 清理VRHUDRenderer
+            try {
+                com.neko.music.util.VRHUDRenderer.cleanup()
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error during VR cleanup", e)
+        }
+        
+        // 重新初始化正常模式
+        reinitializeNormalMode()
+    }
+
+    /**
+     * 重新初始化正常模式
+     */
+    private fun reinitializeNormalMode() {
+        Log.d("MainActivity", "Reinitializing normal mode")
+        
+        // 将耗时操作移到后台线程
+        Thread {
+            try {
+                // 应用语言设置
+                applyLanguage()
+
+                // 检查是否是首次启动
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val isFirstLaunch = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
+
+                val shouldShowSplash = if (isFirstLaunch) {
+                    // 首次启动，显示开屏
+                    prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
+                    true
+                } else {
+                    false
+                }
+
+                // 请求安装权限
+                requestInstallPermission()
+
+                // 启动音乐播放服务（前台服务，保持后台运行）
+                MusicPlayerService.startService(this@MainActivity)
+
+                // 检查所有开关状态并启动相应的服务
+                checkAndStartServices()
+
+                // 在主线程设置 Compose UI
+                vrHandler.post {
+                    try {
+                        showSplash = shouldShowSplash
+                        
+                        // 设置Compose UI
+                        setContent {
+                            Neko云音乐Theme {
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = Color.Transparent
+                                ) {
+                                    if (showSplash) {
+                                        SplashScreen(onAnimationComplete = {
+                                            showSplash = false
+                                        })
+                                    } else {
+                                        MainScreen()
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Log.d("MainActivity", "Normal mode reinitialized successfully")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Error setting content in reinitializeNormalMode", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error in reinitializeNormalMode", e)
+                // 如果后台线程出错，在主线程恢复
+                vrHandler.post {
+                    finish()
+                }
+            }
+        }.start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        
+        // VR模式下恢复GLSurfaceView（只有在VR初始化完成后）
+        if (isVRMode && vrInitializationCompleted && glSurfaceView != null && vrGLRenderer != null) {
+            try {
+                glSurfaceView?.onResume()
+                
+                // 重新设置VR显示模式
+                window.decorView.systemUiVisibility = (
+                    android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    )
+                
+                // 恢复时重新启用HUD
+                vrHandler.postDelayed({
+                    try {
+                        com.neko.music.util.VRHUDRenderer.setVisible(true)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Error setting HUD visible in onResume", e)
+                    }
+                }, 500)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error in VR mode onResume", e)
+            }
         }
     }
 
