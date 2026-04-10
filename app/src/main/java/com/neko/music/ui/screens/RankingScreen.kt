@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
@@ -37,7 +40,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.*
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun RankingScreen(
     onBackClick: () -> Unit = {},
@@ -182,66 +185,82 @@ fun RankingScreen(
                     EmptyState()
                 }
                 else -> {
-                    LazyColumn(
-                        state = listState,
+                    val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
+                    
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = if (isDarkMode) {
-                                        listOf(
-                                            DeepBlue.copy(alpha = 0.3f),
-                                            DeepBlue.copy(alpha = 0.2f),
-                                            DeepBlue.copy(alpha = 0.1f)
-                                        )
-                                    } else {
-                                        listOf(
-                                            SakuraPink.copy(alpha = 0.12f),
-                                            SkyBlue.copy(alpha = 0.08f),
-                                            Lilac.copy(alpha = 0.05f)
-                                        )
-                                    }
-                                )
-                            ),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 12.dp,
-                            bottom = 160.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .pullRefresh(pullRefreshState)
                     ) {
-                        itemsIndexed(
-                            items = musicList,
-                            key = { _, music -> music.id }
-                        ) { index, music ->
-                            RankingItem(
-                                music = music,
-                                rank = index + 1,
-                                onClick = {
-                                    Log.d("RankingScreen", "点击歌曲: ${music.title}")
-                                    scope.launch {
-                                        try {
-                                            // 播放当前点击的歌曲
-                                            val url = musicApi.getMusicFileUrl(music)
-                                            val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${music.id}"
-                                            playerManager.playMusic(
-                                                url,
-                                                music.id,
-                                                music.title,
-                                                music.artist,
-                                                music.coverFilePath ?: "",
-                                                fullCoverUrl
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = if (isDarkMode) {
+                                            listOf(
+                                                DeepBlue.copy(alpha = 0.3f),
+                                                DeepBlue.copy(alpha = 0.2f),
+                                                DeepBlue.copy(alpha = 0.1f)
                                             )
-                                            // 跳转到播放页面，传递音乐信息
-                                            onNavigateToPlayer(music)
-                                        } catch (e: Exception) {
-                                            Log.e("RankingScreen", "播放失败", e)
+                                        } else {
+                                            listOf(
+                                                SakuraPink.copy(alpha = 0.12f),
+                                                SkyBlue.copy(alpha = 0.08f),
+                                                Lilac.copy(alpha = 0.05f)
+                                            )
+                                        }
+                                    )
+                                ),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 12.dp,
+                                bottom = 160.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            itemsIndexed(
+                                items = musicList,
+                                key = { _, music -> music.id }
+                            ) { index, music ->
+                                RankingItem(
+                                    music = music,
+                                    rank = index + 1,
+                                    onClick = {
+                                        Log.d("RankingScreen", "点击歌曲: ${music.title}")
+                                        scope.launch {
+                                            try {
+                                                // 播放当前点击的歌曲
+                                                val url = musicApi.getMusicFileUrl(music)
+                                                val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                                                playerManager.playMusic(
+                                                    url,
+                                                    music.id,
+                                                    music.title,
+                                                    music.artist,
+                                                    music.coverFilePath ?: "",
+                                                    fullCoverUrl
+                                                )
+                                                // 跳转到播放页面，传递音乐信息
+                                                onNavigateToPlayer(music)
+                                            } catch (e: Exception) {
+                                                Log.e("RankingScreen", "播放失败", e)
+                                            }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
+                        
+                        PullRefreshIndicator(
+                            refreshing = refreshing,
+                            state = pullRefreshState,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                            backgroundColor = if (isDarkMode) Color(0xFF2A2A3E) else Color.White,
+                            contentColor = if (isDarkMode) Color.White else RoseRed
+                        )
                     }
                 }
             }
