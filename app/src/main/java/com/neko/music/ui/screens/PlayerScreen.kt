@@ -73,6 +73,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -389,6 +392,43 @@ fun PlayerScreen(
         }
     }
 
+    // 记录用户是否尝试开启桌面歌词但被权限阻止
+    var pendingDesktopLyricEnable by remember { mutableStateOf(false) }
+
+    // 监听应用生命周期，在恢复时重新检查权限并自动启动桌面歌词
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // 重新检查权限状态
+                val newPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    android.provider.Settings.canDrawOverlays(context)
+                } else {
+                    true
+                }
+                
+                hasOverlayPermission = newPermission
+                
+                // 如果用户之前尝试开启桌面歌词但被权限阻止，现在有了权限，自动开启
+                if (pendingDesktopLyricEnable && newPermission && !isDesktopLyricEnabled) {
+                    isDesktopLyricEnabled = true
+                    desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
+                    val serviceIntent = Intent(context, com.neko.music.desktoplyric.DesktopLyricService::class.java)
+                    serviceIntent.action = com.neko.music.desktoplyric.DesktopLyricService.ACTION_SHOW
+                    context.startService(serviceIntent)
+                    pendingDesktopLyricEnable = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        
+        try {
+            kotlinx.coroutines.delay(Long.MAX_VALUE)
+        } finally {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // 桌面歌词切换逻辑
     val toggleDesktopLyric = {
         if (isDesktopLyricEnabled) {
@@ -415,6 +455,7 @@ fun PlayerScreen(
                 // 普通设备需要检查悬浮窗权限
                 if (!hasOverlayPermission) {
                     showOverlayPermissionDialog = true
+                    pendingDesktopLyricEnable = true
                 } else {
                     isDesktopLyricEnabled = true
                     desktopLyricPrefs.edit().putBoolean("desktop_lyric_enabled", true).apply()
