@@ -381,24 +381,26 @@ class MainActivity : ComponentActivity() {
         
         // VR模式下恢复GLSurfaceView
         if (isVRMode) {
-            glSurfaceView?.onResume()
-            
-            // 清理VR渲染器
             try {
-                vrGLRenderer?.cleanup()
+                glSurfaceView?.onResume()
+                
+                // 清理VR渲染器
+                try {
+                    vrGLRenderer?.cleanup()
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
+                }
+                vrGLRenderer = null
+                
+                // 清理VRHUDRenderer
+                try {
+                    com.neko.music.util.VRHUDRenderer.cleanup()
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
+                }
             } catch (e: Exception) {
-                Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
+                Log.e("MainActivity", "Error during VR cleanup", e)
             }
-            vrGLRenderer = null
-            
-            // 清理VRHUDRenderer
-            try {
-                com.neko.music.util.VRHUDRenderer.cleanup()
-            } catch (e: Exception) {
-                Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error during VR cleanup", e)
         }
         
         // 重新初始化正常模式
