@@ -58,8 +58,47 @@ find_library(OPENXR_LOADER
     DOC "OpenXR loader library"
 )
 
-# 添加OpenXR包含目录
-if(OPENXR_LOADER)
+# 尝试从源代码构建OpenXR loader（以确保xrInitializeLoaderKHR被正确导出）
+set(OPENXR_BUILD_FROM_SOURCE TRUE)
+
+if(OPENXR_BUILD_FROM_SOURCE)
+    message(STATUS "Building OpenXR loader from source to ensure proper exports")
+
+    # 设置OpenXR构建选项
+    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_API_LAYERS OFF CACHE BOOL "" FORCE)
+    set(BUILD_CONFORMANCE_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_LOADER_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_LOADER_WITH_EXCEPTION_HANDLING OFF CACHE BOOL "" FORCE)
+    set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE)
+    set(XR_USE_PLATFORM_ANDROID ON CACHE BOOL "" FORCE)
+    set(XR_USE_GRAPHICS_API_OPENGL_ES ON CACHE BOOL "" FORCE)
+    set(BUILD_WITH_SYSTEM_JSONCPP OFF CACHE BOOL "" FORCE)
+    set(OPENXR_USE_BUILT_IN_JSONCPP ON CACHE BOOL "" FORCE)
+    set(BUILD_LOADER_WITH_PYTHON OFF CACHE BOOL "" FORCE)
+
+    # 定义JSON_USE_EXCEPTIONS以避免编译错误
+    add_definitions(-DJSON_USE_EXCEPTIONS=0)
+
+    # 将OpenXR SDK作为子目录添加
+    add_subdirectory(${CMAKE_SOURCE_DIR}/openxr_sdk ${CMAKE_BINARY_DIR}/openxr_sdk EXCLUDE_FROM_ALL)
+
+    # 强制导出xrInitializeLoaderKHR函数
+    target_compile_definitions(openxr_loader PRIVATE XRAPI_DLL_EXPORT)
+
+    # 复制构建的OpenXR loader到输出目录
+    add_custom_command(TARGET VRHUDRenderer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:openxr_loader>
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libopenxr_loader.so
+        COMMENT "Copying built OpenXR loader to output directory"
+    )
+
+    target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=1)
+    target_include_directories(VRHUDRenderer PRIVATE
+        ${CMAKE_SOURCE_DIR}/openxr_sdk/include
+    )
+elseif(OPENXR_LOADER)
     message(STATUS "Found OpenXR loader: ${OPENXR_LOADER}")
     
     # 将OpenXR库文件复制到构建输出目录
@@ -70,8 +109,6 @@ if(OPENXR_LOADER)
         COMMENT "Copying OpenXR loader to output directory"
     )
     
-    # 链接OpenXR库（运行时动态加载）
-    target_link_libraries(VRHUDRenderer PRIVATE dl)
     target_compile_definitions(VRHUDRenderer PRIVATE OPENXR_AVAILABLE=1)
 else()
     message(WARNING "OpenXR loader not found - 3D spatial HUD will use fallback")
@@ -158,6 +195,7 @@ target_link_libraries(
         android
         EGL
         GLESv3
+        openxr_loader
 )
 
 # 为VRHUDRenderer设置链接器选项
