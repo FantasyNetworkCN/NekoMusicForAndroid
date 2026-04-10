@@ -400,10 +400,46 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                 }
                 PlayMode.SINGLE_LOOP -> {
-                    // 单曲循环：重新播放当前歌曲
-                    android.util.Log.d("MusicPlayerManager", "SINGLE_LOOP mode, replaying current song")
-                    player.seekTo(0)
-                    player.play()
+                    // 单曲循环：用户手动点击下一首时，可以切换到下一首歌曲
+                    // 只有在播放结束时才自动循环当前歌曲
+                    android.util.Log.d("MusicPlayerManager", "SINGLE_LOOP mode, getting next music")
+                    val nextMusic = playlistManager.getNextMusic(currentId)
+                    android.util.Log.d("MusicPlayerManager", "nextMusic: $nextMusic")
+                    if (nextMusic != null) {
+                        val fullCoverUrl = if (!nextMusic.coverFilePath.isNullOrEmpty()) {
+                            if (nextMusic.coverFilePath.startsWith("http")) {
+                                android.util.Log.d("MusicPlayerManager", "使用完整URL作为封面: ${nextMusic.coverFilePath}")
+                                nextMusic.coverFilePath
+                            } else {
+                                android.util.Log.d("MusicPlayerManager", "拼接URL作为封面: https://music.cnmsb.xin${nextMusic.coverFilePath}")
+                                "https://music.cnmsb.xin${nextMusic.coverFilePath}"
+                            }
+                        } else {
+                            android.util.Log.d("MusicPlayerManager", "使用默认API作为封面: https://music.cnmsb.xin/api/music/cover/${nextMusic.id}")
+                            "https://music.cnmsb.xin/api/music/cover/${nextMusic.id}"
+                        }
+                        android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
+                        // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
+                        val musicApi = com.neko.music.data.api.MusicApi(context)
+                        val musicUrl = musicApi.getMusicFileUrl(nextMusic)
+                        playMusic(musicUrl, nextMusic.id, nextMusic.title, nextMusic.artist, nextMusic.coverFilePath ?: "", fullCoverUrl)
+                    } else {
+                        // 没有下一首，回到第一首
+                        android.util.Log.d("MusicPlayerManager", "No next music found, getting first music")
+                        val firstMusic = playlistManager.getFirstMusic()
+                        android.util.Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
+                        if (firstMusic != null) {
+                            val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
+                                "https://music.cnmsb.xin${firstMusic.coverFilePath}"
+                            } else {
+                                "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                            }
+                            // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
+                            val musicApi = com.neko.music.data.api.MusicApi(context)
+                            val musicUrl = musicApi.getMusicFileUrl(firstMusic)
+                            playMusic(musicUrl, firstMusic.id, firstMusic.title, firstMusic.artist, firstMusic.coverFilePath ?: "", fullCoverUrl)
+                        }
+                    }
                 }
                 PlayMode.SHUFFLE -> {
                     // 随机播放：随机选择一首不同的歌曲
@@ -432,14 +468,6 @@ class MusicPlayerManager private constructor(context: Context) {
     fun previous() {
         val currentId = _currentMusicId.value ?: return
         android.util.Log.d("MusicPlayerManager", "previous() called, currentId: $currentId, playHistory size: ${playHistory.size}")
-
-        // 单曲循环模式：重新播放当前歌曲
-        if (_playMode.value == PlayMode.SINGLE_LOOP) {
-            android.util.Log.d("MusicPlayerManager", "SINGLE_LOOP mode, replaying current song")
-            player.seekTo(0)
-            player.play()
-            return
-        }
 
         // 使用 runBlocking 同步执行 suspend 函数
         kotlinx.coroutines.runBlocking {
