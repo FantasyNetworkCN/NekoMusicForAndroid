@@ -407,49 +407,6 @@ if (hasLyric) {
 
             if (currentLine != null) {
                 return Pair(currentLine.text, currentLine.translation ?: "")
-                val newText = currentLine.text
-                val newTranslation = currentLine.translation ?: ""
-
-                // 如果歌词内容变化，添加滚动动画效果
-                val currentText = tvLyric?.text
-                if (currentText != newText) {
-                    // 保存当前文本（用于动画）
-                    val previousText = currentText.toString()
-                    val previousTranslation = tvTranslation?.text?.toString() ?: ""
-
-                    // 临时显示上一句歌词，准备滚动动画
-                    tvLyric?.text = previousText
-                    tvTranslation?.text = previousTranslation
-
-                    // 第一步：当前歌词向下滚动并淡出
-                    lyricView?.animate()
-                        ?.translationY(20f)
-                        ?.alpha(0.3f)
-                        ?.setDuration(150)
-                        ?.withEndAction {
-                            // 更新文本
-                            tvLyric?.text = newText
-                            tvTranslation?.text = newTranslation
-
-                            // 重置位置到上方
-                            lyricView?.translationY = -20f
-                            lyricView?.alpha = 0.3f
-
-                            // 第二步：新歌词从上方滚动进来并淡入
-                            lyricView?.animate()
-                                ?.translationY(0f)
-                                ?.alpha(1f)
-                                ?.setDuration(150)
-                                ?.start()
-                        }
-                        ?.start()
-                } else {
-                    tvLyric?.text = newText
-                    tvTranslation?.text = newTranslation
-                }
-            } else {
-                tvLyric?.text = "暂无歌词"
-                tvTranslation?.text = ""
             }
         }
         return Pair("暂无歌词", "")

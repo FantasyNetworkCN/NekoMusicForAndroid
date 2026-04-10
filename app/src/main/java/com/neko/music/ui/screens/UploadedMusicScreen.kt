@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,9 +69,35 @@ fun UploadedMusicScreen(
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
+    
+    // 下拉刷新状态
+    var isRefreshing by remember { mutableStateOf(false) }
 
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
+
+    // 刷新数据的函数
+    val refreshData = suspend {
+        if (token != null) {
+            isRefreshing = true
+            try {
+                val userApi = com.neko.music.data.api.UserApi(token)
+                val response = userApi.getUploadedMusic()
+                if (response.success) {
+                    musicList = response.musicList
+                    showError = false
+                } else {
+                    showError = true
+                    errorMessage = response.message
+                }
+            } catch (e: Exception) {
+                showError = true
+                errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
 
     LaunchedEffect(token) {
         if (token != null) {
@@ -153,6 +181,23 @@ fun UploadedMusicScreen(
                         onRetry = {
                             showError = false
                             isLoading = true
+                            scope.launch {
+                                try {
+                                    val userApi = com.neko.music.data.api.UserApi(token)
+                                    val response = userApi.getUploadedMusic()
+                                    if (response.success) {
+                                        musicList = response.musicList
+                                    } else {
+                                        showError = true
+                                        errorMessage = response.message
+                                    }
+                                } catch (e: Exception) {
+                                    showError = true
+                                    errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         }
                     )
                 }
@@ -160,10 +205,20 @@ fun UploadedMusicScreen(
                     EmptyView()
                 }
                 else -> {
-                    MusicList(
-                        musicList = musicList,
-                        onMusicClick = onMusicClick
-                    )
+                    // 下拉刷新状态
+                    val pullRefreshState = rememberPullToRefreshState()
+
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { scope.launch { refreshData() } },
+                        state = pullRefreshState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        MusicList(
+                            musicList = musicList,
+                            onMusicClick = onMusicClick
+                        )
+                    }
                 }
             }
         }
@@ -908,9 +963,6 @@ fun UploadMusicDialog(
                             // 模拟进度更新 - 准备上传阶段
                             uploadProgress = 30f
                             
-                            // 将语言名称转换为语言代码
-                            val languageCode = languageOptions.find { it.first == language }?.second ?: ""
-                            
                             // 模拟进度更新 - 上传中阶段
                             val uploadJob = launch {
                                 while (isUploading && uploadProgress < 95f) {
@@ -928,7 +980,7 @@ fun UploadMusicDialog(
                                     title = title,
                                     artist = artist,
                                     album = album,
-                                    language = languageCode,
+                                    language = language,  // 直接使用用户选择的中文名称
                                     tags = tags,
                                     duration = durationSeconds,  // 直接使用解析出的秒数
                                     uploadUserId = userId,  // 使用真实的用户 ID
