@@ -34,7 +34,7 @@ class NekoMusicApplication : Application(), ImageLoaderFactory {
         val config = resources.configuration
         val locale = when (language) {
             "zh" -> Locale.SIMPLIFIED_CHINESE
-            "nya" -> Locale.SIMPLIFIED_CHINESE
+            "nya" -> Locale.ROOT
             "en" -> Locale.ENGLISH
             else -> Locale.getDefault() // 跟随系统
         }
