@@ -130,63 +130,47 @@ class FuckChinaOSFloatService : Service() {
             MusicPlayerManager.getInstance(this).next()
         }
 
-        // 使用JNI实现拖动功能
-        // 使用 DynamicIslandRenderer 进行高性能触摸处理
-        try {
-            com.neko.music.util.DynamicIslandRenderer.initialize()
-        } catch (e: Exception) {
-            android.util.Log.e("FuckChinaOSFloatService", "Failed to initialize JNI renderer", e)
-        }
-
+        // 使用普通的触摸处理逻辑
         layoutFloat?.setOnTouchListener(object : View.OnTouchListener {
+            private var startX = 0f
+            private var startY = 0f
+            private var isDragging = false
+            private var touchSlop = android.view.ViewConfiguration.get(this@FuckChinaOSFloatService).scaledTouchSlop
+
             override fun onTouch(view: View, event: MotionEvent): Boolean {
-                try {
-                    val action = when (event.action) {
-                        MotionEvent.ACTION_DOWN -> com.neko.music.util.DynamicIslandRenderer.ACTION_DOWN
-                        MotionEvent.ACTION_UP -> com.neko.music.util.DynamicIslandRenderer.ACTION_UP
-                        MotionEvent.ACTION_MOVE -> com.neko.music.util.DynamicIslandRenderer.ACTION_MOVE
-                        MotionEvent.ACTION_CANCEL -> com.neko.music.util.DynamicIslandRenderer.ACTION_CANCEL
-                        else -> return false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        isDragging = false
+                        return true
                     }
-                    
-                    val result = com.neko.music.util.DynamicIslandRenderer.handleTouchEvent(
-                        action, 
-                        event.rawX, 
-                        event.rawY
-                    )
-                    
-                    when (result) {
-                        com.neko.music.util.DynamicIslandRenderer.TouchResult.DRAGGING -> {
-                            // 更新窗口位置
-                            val (x, y) = com.neko.music.util.DynamicIslandRenderer.getPosition()
-                            layoutParams?.x = x
-                            layoutParams?.y = y
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!isDragging) {
+                            val dx = Math.abs(event.rawX - startX)
+                            val dy = Math.abs(event.rawY - startY)
+                            if (dx > touchSlop || dy > touchSlop) {
+                                isDragging = true
+                            }
+                        }
+                        
+                        if (isDragging && layoutParams != null) {
+                            layoutParams?.x = (event.rawX - view.width / 2).toInt()
+                            layoutParams?.y = (event.rawY - view.height / 2).toInt()
                             windowManager?.updateViewLayout(floatView, layoutParams)
                             return true
                         }
-                        com.neko.music.util.DynamicIslandRenderer.TouchResult.DRAG_END -> {
-                            // 拖动结束，更新最终位置并保存
-                            val (x, y) = com.neko.music.util.DynamicIslandRenderer.getPosition()
-                            layoutParams?.x = x
-                            layoutParams?.y = y
-                            windowManager?.updateViewLayout(floatView, layoutParams)
-                            savePosition(x, y)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (isDragging && layoutParams != null) {
+                            savePosition(layoutParams?.x ?: 0, layoutParams?.y ?: 0)
+                            isDragging = false
                             return true
                         }
-                        com.neko.music.util.DynamicIslandRenderer.TouchResult.CLICK -> {
-                            // 点击事件，返回false让子视图处理
-                            return false
-                        }
-                        com.neko.music.util.DynamicIslandRenderer.TouchResult.NOT_HANDLED -> {
-                            // 未处理，返回false让子视图处理
-                            return false
-                        }
+                        return !isDragging // 如果不是拖动，返回false让子视图处理点击
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("FuckChinaOSFloatService", "JNI touch handling error", e)
-                    // JNI失败，使用备用逻辑
-                    return false
                 }
+                return false
             }
         })
     }
@@ -195,14 +179,10 @@ class FuckChinaOSFloatService : Service() {
         if (isViewAdded || floatView == null) return
         
         try {
-            // 加载保存的位置，如果没有则使用JNI获取默认配置
+            // 加载保存的位置
             val savedPosition = loadPosition()
-            val defaultPosition = if (savedPosition.first == -1) {
-                try {
-                    com.neko.music.util.DynamicIslandRenderer.getDefaultPosition()
-                } catch (e: Exception) {
-                    Pair(0, 80) // 默认值
-                }
+            val (defaultX, defaultY) = if (savedPosition.first == -1) {
+                Pair(0, 80) // 默认值
             } else {
                 savedPosition
             }
@@ -223,8 +203,8 @@ class FuckChinaOSFloatService : Service() {
             )
             
             layoutParams?.gravity = Gravity.TOP or Gravity.START
-            layoutParams?.x = defaultPosition.first
-            layoutParams?.y = defaultPosition.second
+            layoutParams?.x = defaultX
+            layoutParams?.y = defaultY
             
             // 直接显示
             floatView?.alpha = 1f
@@ -244,7 +224,7 @@ class FuckChinaOSFloatService : Service() {
             isViewAdded = true
             
             updateFloatView()
-            android.util.Log.d("FuckChinaOSFloatService", "Float view added successfully at x=${defaultPosition.first}, y=${defaultPosition.second}")
+            android.util.Log.d("FuckChinaOSFloatService", "Float view added successfully at x=$defaultX, y=$defaultY")
         } catch (e: Exception) {
             android.util.Log.e("FuckChinaOSFloatService", "Error showing float view", e)
         }
@@ -427,13 +407,6 @@ class FuckChinaOSFloatService : Service() {
         hideFloatView()
         updateJob?.cancel()
         serviceScope.cancel()
-        
-        // 清理JNI资源
-        try {
-            com.neko.music.util.DynamicIslandRenderer.cleanup()
-        } catch (e: Exception) {
-            android.util.Log.e("FuckChinaOSFloatService", "Failed to cleanup JNI renderer", e)
-        }
         
         instance = null
     }
