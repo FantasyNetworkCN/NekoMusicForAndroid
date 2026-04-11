@@ -566,22 +566,22 @@ fun MoreSettings(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // IPv6支持徽章
-        Row(
-            modifier = Modifier
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .shadow(
-                    elevation = 2.dp,
-                    spotColor = RoseRed.copy(alpha = 0.15f),
-                    ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+//        // IPv6支持徽章
+//        Row(
+//            modifier = Modifier
+//                .background(
+//                    color = MaterialTheme.colorScheme.surface,
+//                    shape = RoundedCornerShape(12.dp)
+//                )
+//                .padding(horizontal = 16.dp, vertical = 8.dp)
+//                .shadow(
+//                    elevation = 2.dp,
+//                    spotColor = RoseRed.copy(alpha = 0.15f),
+//                    ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+//                ),
+//            verticalAlignment = Alignment.CenterVertically,
+//            horizontalArrangement = Arrangement.spacedBy(6.dp)
+//        ) {
 //            // IPv6图标
 //            Box(
 //                modifier = Modifier
@@ -611,22 +611,22 @@ fun MoreSettings(
 //                color = MaterialTheme.colorScheme.onSurface,
 //                fontWeight = FontWeight.Medium
 //            )
-
-            // 状态指示器
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                RoseRed,
-                                SakuraPink
-                            )
-                        )
-                    )
-            )
-        }
+//
+//            // 状态指示器
+//            Box(
+//                modifier = Modifier
+//                    .size(8.dp)
+//                    .clip(CircleShape)
+//                    .background(
+//                        brush = Brush.linearGradient(
+//                            colors = listOf(
+//                                RoseRed,
+//                                SakuraPink
+//                            )
+//                        )
+//                    )
+//            )
+//        }
         
         Spacer(modifier = Modifier.height(16.dp))
         
