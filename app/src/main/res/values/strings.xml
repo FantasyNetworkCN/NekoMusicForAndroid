@@ -21,9 +21,9 @@
     <string name="language">语言喵</string>
     <string name="language_subtitle">主人想让我说什么话喵？</string>
     <string name="language_follow_system">听系统的喵</string>
-    <string name="language_zh">简体中文喵</string>
+    <string name="language_zh">简体中文</string>
     <string name="language_nya">喵语中文喵</string>
-    <string name="language_en">English Nya~</string>
+    <string name="language_en">English</string>
 
     <string name="version">版本喵</string>
     <string name="update_available">发现进化机会喵！</string>
@@ -468,4 +468,5 @@
     <string name="share_playlist_text">我在Neko云音乐发现了宝藏本本 %s - https://music.cnmsb.xin/playlist/%d，里面超好听喵！快来听听看喵~</string>
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
+    <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>
 </resources>
