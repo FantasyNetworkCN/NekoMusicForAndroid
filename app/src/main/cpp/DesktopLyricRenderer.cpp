@@ -63,15 +63,18 @@ public:
         for (size_t i = 0; i < lines.size(); i++) {
             const std::string& currentLine = lines[i];
             
-            // 解析时间戳 [mm:ss.xx]
-            std::regex timeRegex("\\[(\\d{2}):(\\d{2})\\.(\\d{2})\\]");
+            // 解析时间戳 [mm:ss.xxx]（支持1-5位毫秒）
+            std::regex timeRegex("\\[(\\d{2}):(\\d{2})\\.(\\d{1,5})\\]");
             std::smatch match;
             
             if (std::regex_search(currentLine, match, timeRegex)) {
                 int minutes = std::stoi(match[1].str());
                 int seconds = std::stoi(match[2].str());
-                int centiseconds = std::stoi(match[3].str());
-                float time = minutes * 60.0f + seconds + centiseconds / 100.0f;
+                std::string millisecondsStr = match[3].str();
+                
+                // 根据毫秒位数计算时间
+                float milliseconds = std::stof(millisecondsStr);
+                float time = minutes * 60.0f + seconds + milliseconds / 1000.0f;
                 
                 // 提取歌词文本
                 std::string text = currentLine.substr(match.position() + match.length());
