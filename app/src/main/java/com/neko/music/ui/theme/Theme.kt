@@ -11,6 +11,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+
+
+//TODO: 设置页面添加自定义主题，思路是允许用户自定义上传主题包zip
+//zip内包含非编译代码实现app内的背景图标，颜色，外观全自由设计调整。
+//并且请你预留一个模板和文档
+
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     secondary = SecondaryDark,

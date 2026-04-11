@@ -504,6 +504,7 @@
     <string name="unsupported_audio_format">不支持的音频格式，仅支持 WAV、FLAC、MP3 格式</string>
     <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
     <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
+    <string name="not_required_for_instrumental">纯音乐不需要歌词文件</string>
     <string name="desktop_lyric">桌面歌词</string>
     
     <!-- VR歌词无障碍服务 -->

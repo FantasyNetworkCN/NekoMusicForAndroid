@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -30,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -526,6 +530,9 @@ fun UploadMusicDialog(
         stringResource(id = R.string.language_instrumental) to "instrumental"
     )
     
+    // 预加载字符串资源，用于在onClick中使用
+    val instrumentalText = stringResource(id = R.string.language_instrumental)
+    
     // 音乐信息
     var title by remember { mutableStateOf("") }
     var artist by remember { mutableStateOf("") }
@@ -550,6 +557,13 @@ fun UploadMusicDialog(
     var languageExpanded by remember { mutableStateOf(false) }
     var showFullLyricsDialog by remember { mutableStateOf(false) }
     var fullLyricsContent by remember { mutableStateOf("") }
+    
+    // 上传流程控制
+    var showMissingInfoDialog by remember { mutableStateOf(false) }
+    var showPreviewDialog by remember { mutableStateOf(false) }
+    var showPreviewPlayDialog by remember { mutableStateOf(false) }
+    var missingLyrics by remember { mutableStateOf(false) }
+    var missingCover by remember { mutableStateOf(false) }
     
     // 文件选择器
     val audioFileLauncher = rememberLauncherForActivityResult(
@@ -600,38 +614,23 @@ fun UploadMusicDialog(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let {
-            val fileName = getFileName(context, it)
-            
-            // 使用JNI检查文件扩展名是否为lrc
-            if (fileName != null && !LrcParser.isLrcFile(fileName)) {
-                android.widget.Toast.makeText(
-                    context,
-                    unsupportedLyricsFormat,
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                return@let
-            }
-            
-            // 使用JNI验证 LRC 文件内容是否包含时间戳
+            // 直接读取文件，不做任何校验
             scope.launch {
                 try {
                     val content = context.contentResolver.openInputStream(uri)?.bufferedReader(StandardCharsets.UTF_8).use { it?.readText() }
-                    if (content == null || !LrcParser.isValidLrcContent(content)) {
+                    if (content == null) {
                         android.widget.Toast.makeText(
                             context,
-                            invalidLyricsTimestamp,
+                            lyricsFileReadFailed,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         return@launch
                     }
                     
-                    // 使用JNI解析歌词预览
-                    val preview = LrcParser.parseLrcPreview(content)
-                    
-                    // 验证通过，设置歌词文件和预览内容
+                    // 直接保存歌词文件和内容
                     lyricsFile = uri
-                    lyricsPreview = preview
-                    fullLyricsContent = content  // 保存完整歌词内容
+                    lyricsPreview = content.take(200)  // 显示前200个字符作为预览
+                    fullLyricsContent = content
                 } catch (e: Exception) {
                     android.widget.Toast.makeText(
                         context,
@@ -733,7 +732,7 @@ fun UploadMusicDialog(
                 OutlinedButton(
                     onClick = { lyricsFileLauncher.launch("*/*") },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isUploading
+                    enabled = !isUploading && language != stringResource(id = R.string.language_instrumental)
                 ) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
@@ -742,15 +741,34 @@ fun UploadMusicDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (lyricsFile != null) stringResource(id = R.string.lyrics_file_selected) 
-                            else "${stringResource(id = R.string.select_lyrics_file)} ${stringResource(id = R.string.optional_field)}",
+                        text = when {
+                            language == stringResource(id = R.string.language_instrumental) -> 
+                                "${stringResource(id = R.string.select_lyrics_file)} (纯音乐不需要歌词文件)"
+                            lyricsFile != null -> stringResource(id = R.string.lyrics_file_selected)
+                            else -> "${stringResource(id = R.string.select_lyrics_file)} ${stringResource(id = R.string.optional_field)}"
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
                 
                 // 歌词预览
-                if (lyricsFile != null) {
+                if (language == stringResource(id = R.string.language_instrumental)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "纯音乐不需要歌词文件",
+                            modifier = Modifier.padding(12.dp),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                } else if (lyricsFile != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -895,6 +913,13 @@ fun UploadMusicDialog(
                                 onClick = {
                                     language = displayName
                                     languageExpanded = false
+                                    
+                                    // 如果选择的是纯音乐，清空歌词文件
+                                    if (value == "instrumental") {
+                                        lyricsFile = null
+                                        lyricsPreview = ""
+                                        fullLyricsContent = ""
+                                    }
                                 }
                             )
                         }
@@ -934,90 +959,16 @@ fun UploadMusicDialog(
                         return@Button
                     }
                     
-                    isUploading = true
-                    uploadProgress = 0f
+                    // 检查是否缺失歌词或封面
+                    missingLyrics = (lyricsFile == null && language != instrumentalText)
+                    missingCover = (coverImage == null && coverBitmap == null)
                     
-                    scope.launch {
-                        try {
-                            // 模拟进度更新 - 读取文件阶段
-                            launch {
-                                while (isUploading && uploadProgress < 30f) {
-                                    kotlinx.coroutines.delay(50)
-                                    uploadProgress = (uploadProgress + 2f).coerceAtMost(30f)
-                                }
-                            }
-                            
-                            // 读取文件
-                            val audioBytes = context.contentResolver.openInputStream(audioFile!!)?.use { it.readBytes() }
-                            val lyricsBytes = lyricsFile?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
-                            val coverBytes = if (coverBitmap != null) {
-                                // 将Bitmap转换为ByteArray
-                                val stream = java.io.ByteArrayOutputStream()
-                                coverBitmap!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
-                                stream.toByteArray()
-                            } else {
-                                // 使用用户手动选择的封面
-                                coverImage?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
-                            }
-                            
-                            // 模拟进度更新 - 准备上传阶段
-                            uploadProgress = 30f
-                            
-                            // 模拟进度更新 - 上传中阶段
-                            val uploadJob = launch {
-                                while (isUploading && uploadProgress < 95f) {
-                                    kotlinx.coroutines.delay(100)
-                                    uploadProgress = (uploadProgress + 5f).coerceAtMost(95f)
-                                }
-                            }
-                            
-                            if (audioBytes != null) {
-                                val userApi = com.neko.music.data.api.UserApi(token)
-                                
-                                val response = userApi.uploadMusic(
-                                    audioFile = audioBytes,
-                                    audioFileName = audioFileName,
-                                    title = title,
-                                    artist = artist,
-                                    album = album,
-                                    language = language,  // 直接使用用户选择的中文名称
-                                    tags = tags,
-                                    duration = durationSeconds,  // 直接使用解析出的秒数
-                                    uploadUserId = userId,  // 使用真实的用户 ID
-                                    lyricsFile = lyricsBytes,
-                                    coverImage = coverBytes
-                                )
-                                
-                                // API调用完成后，等待模拟进度完成到95%，然后设置为100%
-                                uploadJob.join()
-                                uploadProgress = 100f
-                                
-                                if (response.success) {
-                                    onUploadSuccess()
-                                } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        response.message,
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    fileReadFailed,
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(
-                                context,
-                                "$uploadFailed ${e.message}",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        } finally {
-                            isUploading = false
-                            uploadProgress = 0f
-                        }
+                    if (missingLyrics || missingCover) {
+                        // 显示缺失信息确认对话框
+                        showMissingInfoDialog = true
+                    } else {
+                        // 直接显示预览对话框
+                        showPreviewDialog = true
                     }
                 },
                 enabled = !isUploading && !isParsing,
@@ -1084,6 +1035,341 @@ fun UploadMusicDialog(
                     )
                 ) {
                     Text(stringResource(id = android.R.string.ok))
+                }
+            }
+        )
+    }
+    
+    // 缺失信息确认对话框
+    if (showMissingInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showMissingInfoDialog = false },
+            title = {
+                Text(
+                    text = "提示",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "您上传的音乐缺少以下信息：",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (missingLyrics) {
+                        Text(
+                            text = "• 歌词文件",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (missingCover) {
+                        Text(
+                            text = "• 封面图片",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "是否继续上传？",
+                        fontSize = 14.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showMissingInfoDialog = false
+                        showPreviewDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RoseRed
+                    )
+                ) {
+                    Text("继续上传")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMissingInfoDialog = false }) {
+                    Text(stringResource(id = android.R.string.cancel))
+                }
+            }
+        )
+    }
+    
+    // 试听对话框
+    if (showPreviewPlayDialog && audioFile != null) {
+        val currentAudioFile = audioFile!!
+        val currentLyricsText = if (language != stringResource(id = R.string.language_instrumental) && fullLyricsContent.isNotEmpty()) {
+            fullLyricsContent
+        } else {
+            null
+        }
+        PreviewPlayDialog(
+            onDismiss = { showPreviewPlayDialog = false },
+            audioUri = currentAudioFile,
+            lyricsText = currentLyricsText,
+            context = context
+        )
+    }
+    
+    // 预览确认对话框
+    if (showPreviewDialog) {
+        AlertDialog(
+            onDismissRequest = { showPreviewDialog = false },
+            title = {
+                Text(
+                    text = "确认上传",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // 音乐信息预览
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "音乐信息",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "标题: $title",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "艺术家: $artist",
+                                fontSize = 14.sp
+                            )
+                            if (album.isNotBlank()) {
+                                Text(
+                                    text = "专辑: $album",
+                                    fontSize = 14.sp
+                                )
+                            }
+                            Text(
+                                text = "语言: $language",
+                                fontSize = 14.sp
+                            )
+                            if (duration.isNotBlank()) {
+                                Text(
+                                    text = "时长: $duration",
+                                    fontSize = 14.sp
+                                )
+                            }
+                            if (tags.isNotBlank()) {
+                                Text(
+                                    text = "标签: $tags",
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // 文件状态预览
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "文件状态",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "音频文件: 已选择",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (language != stringResource(id = R.string.language_instrumental)) {
+                                if (lyricsFile != null) {
+                                    Text(
+                                        text = "歌词文件: 已选择",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Text(
+                                        text = "歌词文件: 未选择",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "歌词文件: 纯音乐不需要",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (coverImage != null || coverBitmap != null) {
+                                Text(
+                                    text = "封面图片: 已选择",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Text(
+                                    text = "封面图片: 未选择",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "确认上传后将进入审核流程",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // 试听按钮
+                    Button(
+                        onClick = {
+                            showPreviewDialog = false
+                            showPreviewPlayDialog = true
+                        },
+                        enabled = audioFile != null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary
+                        )
+                    ) {
+                        Text("试听")
+                    }
+                    
+                    // 确认上传按钮
+                    Button(
+                        onClick = {
+                            showPreviewDialog = false
+                            isUploading = true
+                            uploadProgress = 0f
+                            
+                            scope.launch {
+                                try {
+                                    // 模拟进度更新 - 读取文件阶段
+                                    launch {
+                                        while (isUploading && uploadProgress < 30f) {
+                                            kotlinx.coroutines.delay(50)
+                                            uploadProgress = (uploadProgress + 2f).coerceAtMost(30f)
+                                        }
+                                    }
+                                    
+                                    // 读取文件
+                                    val audioBytes = context.contentResolver.openInputStream(audioFile!!)?.use { it.readBytes() }
+                                    val lyricsBytes = lyricsFile?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
+                                    val coverBytes = if (coverBitmap != null) {
+                                        // 将Bitmap转换为ByteArray
+                                        val stream = java.io.ByteArrayOutputStream()
+                                        coverBitmap!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
+                                        stream.toByteArray()
+                                    } else {
+                                        // 使用用户手动选择的封面
+                                        coverImage?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
+                                    }
+                                    
+                                    // 模拟进度更新 - 准备上传阶段
+                                    uploadProgress = 30f
+                                    
+                                    // 模拟进度更新 - 上传中阶段
+                                    val uploadJob = launch {
+                                        while (isUploading && uploadProgress < 95f) {
+                                            kotlinx.coroutines.delay(100)
+                                            uploadProgress = (uploadProgress + 5f).coerceAtMost(95f)
+                                        }
+                                    }
+                                    
+                                    if (audioBytes != null) {
+                                        val userApi = com.neko.music.data.api.UserApi(token)
+                                        
+                                        val response = userApi.uploadMusic(
+                                            audioFile = audioBytes,
+                                            audioFileName = audioFileName,
+                                            title = title,
+                                            artist = artist,
+                                            album = album,
+                                            language = language,
+                                            tags = tags,
+                                            duration = durationSeconds,
+                                            uploadUserId = userId,
+                                            lyricsFile = lyricsBytes,
+                                            coverImage = coverBytes
+                                        )
+                                        
+                                        // API调用完成后，等待模拟进度完成到95%，然后设置为100%
+                                        uploadJob.join()
+                                        uploadProgress = 100f
+                                        
+                                        if (response.success) {
+                                            onUploadSuccess()
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                response.message,
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    } else {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            fileReadFailed,
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "$uploadFailed ${e.message}",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } finally {
+                                    isUploading = false
+                                    uploadProgress = 0f
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = RoseRed
+                        )
+                    ) {
+                        Text("确认上传")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPreviewDialog = false }) {
+                    Text(stringResource(id = android.R.string.cancel))
                 }
             }
         )
@@ -1171,4 +1457,240 @@ private fun formatDurationFromMs(ms: Long): String {
     val minutes = seconds / 60
     val secs = seconds % 60
     return String.format("%d:%02d", minutes, secs)
+}
+
+// 试听对话框
+@Composable
+private fun PreviewPlayDialog(
+    onDismiss: () -> Unit,
+    audioUri: android.net.Uri,
+    lyricsText: String?,
+    context: android.content.Context
+) {
+    val scope = rememberCoroutineScope()
+    
+    // 创建ExoPlayer
+    val exoPlayer = remember {
+        com.google.android.exoplayer2.ExoPlayer.Builder(context).build().apply {
+            val mediaItem = com.google.android.exoplayer2.MediaItem.fromUri(audioUri)
+            setMediaItem(mediaItem)
+            prepare()
+        }
+    }
+    
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentPosition by remember { mutableStateOf(0L) }
+    var duration by remember { mutableStateOf(0L) }
+    var lyrics by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
+    val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    
+    // 监听播放状态
+    LaunchedEffect(exoPlayer) {
+        exoPlayer.addListener(object : com.google.android.exoplayer2.Player.Listener {
+            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                isPlaying = isPlayingNow
+            }
+            
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    com.google.android.exoplayer2.Player.STATE_READY -> {
+                        duration = exoPlayer.duration
+                    }
+                    com.google.android.exoplayer2.Player.STATE_ENDED -> {
+                        isPlaying = false
+                    }
+                }
+            }
+        })
+    }
+    
+    // 更新当前位置
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            kotlinx.coroutines.delay(100)
+            currentPosition = exoPlayer.currentPosition
+        }
+    }
+    
+    // 解析歌词
+    LaunchedEffect(lyricsText) {
+        if (lyricsText != null) {
+            lyrics = parseLrcLyrics(lyricsText)
+        }
+    }
+    
+    // 自动滚动到当前歌词
+    val currentLrcIndex = remember(currentPosition) {
+        val currentTimeSeconds = currentPosition / 1000f
+        lyrics.indexOfLast { it.time <= currentTimeSeconds }
+    }
+    
+    LaunchedEffect(currentLrcIndex) {
+        if (currentLrcIndex >= 0) {
+            kotlinx.coroutines.delay(300) // 延迟滚动，避免跳动
+            lyricsListState.animateScrollToItem(currentLrcIndex)
+        }
+    }
+    
+    // 清理播放器
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "试听",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                // 播放控制
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(currentPosition),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = formatTime(duration),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                // 进度条
+                Slider(
+                    value = currentPosition.toFloat(),
+                    onValueChange = { newValue ->
+                        exoPlayer.seekTo(newValue.toLong())
+                        currentPosition = newValue.toLong()
+                    },
+                    valueRange = 0f..(duration.toFloat().coerceAtLeast(1f)),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 播放/暂停按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (exoPlayer.isPlaying) {
+                                exoPlayer.pause()
+                            } else {
+                                exoPlayer.play()
+                            }
+                        },
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "暂停" else "播放",
+                            modifier = Modifier.fillMaxSize(),
+                            tint = RoseRed
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 歌词显示
+                if (lyrics.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            state = lyricsListState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            itemsIndexed(lyrics) { index, lrcLine ->
+                                val isActive = index == currentLrcIndex
+                                val currentTimeSeconds = currentPosition / 1000f
+                                val isNext = index == currentLrcIndex + 1
+                                val scale = if (isActive) 1.1f else 1.0f
+                                val alpha = when {
+                                    isActive -> 1.0f
+                                    isNext -> 0.7f
+                                    else -> 0.5f
+                                }
+                                
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            horizontal = 16.dp,
+                                            vertical = 8.dp
+                                        )
+                                        .graphicsLayer {
+                                            scaleX = scale
+                                            scaleY = scale
+                                        },
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = lrcLine.text,
+                                        fontSize = if (isActive) 16.sp else 14.sp,
+                                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isActive) RoseRed else MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    if (lrcLine.translation.isNotEmpty()) {
+                                        Text(
+                                            text = lrcLine.translation,
+                                            fontSize = if (isActive) 14.sp else 12.sp,
+                                            color = if (isActive) RoseRed.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (lyricsText == null) "无歌词文件" else "歌词解析失败",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    exoPlayer.stop()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RoseRed
+                )
+            ) {
+                Text("关闭")
+            }
+        }
+    )
 }
