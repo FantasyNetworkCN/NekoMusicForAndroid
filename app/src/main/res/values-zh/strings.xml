@@ -19,6 +19,7 @@
     <string name="language_subtitle">选择应用显示语言</string>
     <string name="language_follow_system">跟随系统</string>
     <string name="language_zh">简体中文</string>
+    <string name="language_nya">喵语中文</string>
     <string name="language_en">English</string>
     
     <!-- 版本信息 -->

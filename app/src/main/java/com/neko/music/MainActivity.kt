@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
         
         val locale = when (language) {
             "zh" -> java.util.Locale.SIMPLIFIED_CHINESE
+            "nya" -> java.util.Locale.SIMPLIFIED_CHINESE
             "en" -> java.util.Locale.ENGLISH
             else -> java.util.Locale.getDefault() // 跟随系统
         }

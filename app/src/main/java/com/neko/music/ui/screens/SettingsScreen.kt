@@ -868,6 +868,7 @@ fun LanguageSelectionDialog(
     val languages = listOf(
         "system" to stringResource(id = R.string.language_follow_system),
         "zh" to stringResource(id = R.string.language_zh),
+        "nya" to stringResource(id = R.string.language_nya),
         "en" to stringResource(id = R.string.language_en)
     )
     
@@ -931,6 +932,7 @@ fun getLanguageDisplayName(context: Context, language: String): String {
     return when (language) {
         "system" -> context.getString(R.string.language_follow_system)
         "zh" -> context.getString(R.string.language_zh)
+        "nya" -> context.getString(R.string.language_nya)
         "en" -> context.getString(R.string.language_en)
         else -> context.getString(R.string.language_follow_system)
     }
