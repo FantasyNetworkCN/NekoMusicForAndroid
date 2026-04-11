@@ -43,9 +43,6 @@ class NekoMusicApplication : Application(), ImageLoaderFactory {
         
         // 更新resources的configuration
         resources.updateConfiguration(config, resources.displayMetrics)
-        
-        // 创建新的Configuration Context
-        createConfigurationContext(config)
     }
     
     /**

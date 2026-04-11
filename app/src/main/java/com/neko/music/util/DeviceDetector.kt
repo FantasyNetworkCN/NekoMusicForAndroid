@@ -6,8 +6,7 @@ import android.os.Build
  * 设备类型枚举
  */
 enum class DeviceType {
-    NORMAL_PHONE,  // 普通手机
-    VR_HEADSET     // VR头显（Quest、Pico等）
+    NORMAL_PHONE  // 普通手机
 }
 
 /**
@@ -23,75 +22,8 @@ object DeviceDetector {
     fun getDeviceType(): DeviceType {
         cachedDeviceType?.let { return it }
 
-        val type = detectDeviceType()
-        cachedDeviceType = type
-        return type
-    }
-
-    /**
-     * 检测设备类型
-     */
-    private fun detectDeviceType(): DeviceType {
-        val manufacturer = Build.MANUFACTURER.lowercase()
-        val model = Build.MODEL.lowercase()
-        val product = Build.PRODUCT.lowercase()
-        val device = Build.DEVICE.lowercase()
-
-        // 检查是否为VR设备
-        val isVRDevice = checkVRDevice(manufacturer, model, product, device)
-
-        return if (isVRDevice) {
-            DeviceType.VR_HEADSET
-        } else {
-            DeviceType.NORMAL_PHONE
-        }
-    }
-
-    /**
-     * 检查是否为VR设备
-     */
-    private fun checkVRDevice(
-        manufacturer: String,
-        model: String,
-        product: String,
-        device: String
-    ): Boolean {
-        // Meta/Oculus Quest系列
-        if (manufacturer.contains("meta") ||
-            manufacturer.contains("oculus") ||
-            product.contains("quest") ||
-            model.contains("quest") ||
-            device.contains("quest")) {
-            return true
-        }
-
-        // PICO系列
-        if (manufacturer.contains("pico") ||
-            product.contains("pico") ||
-            model.contains("pico")) {
-            return true
-        }
-
-        // 其他已知VR设备
-        val vrKeywords = listOf(
-            "htc_vive", "vive", "htc", // HTC Vive
-            "hololens", // Microsoft HoloLens
-            "magic_leap", // Magic Leap
-            "daydream", // Google Daydream
-            "cardboard", // Google Cardboard
-            "vr_headset", "vr_head", "vr_device", // 通用VR标识
-            "sparrow" // PICO 4或其他VR设备代号
-        )
-
-        val combinedInfo = "$manufacturer $model $product $device".lowercase()
-        return vrKeywords.any { combinedInfo.contains(it) }
-    }
-
-    /**
-     * 是否为VR设备
-     */
-    fun isVRDevice(): Boolean {
-        return getDeviceType() == DeviceType.VR_HEADSET
+        cachedDeviceType = DeviceType.NORMAL_PHONE
+        return DeviceType.NORMAL_PHONE
     }
 
     /**
