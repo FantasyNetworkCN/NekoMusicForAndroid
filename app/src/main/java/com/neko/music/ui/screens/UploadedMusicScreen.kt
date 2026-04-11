@@ -1046,35 +1046,35 @@ fun UploadMusicDialog(
             onDismissRequest = { showMissingInfoDialog = false },
             title = {
                 Text(
-                    text = "提示",
+                    text = stringResource(id = R.string.dialog_tip),
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Column {
                     Text(
-                        text = "您上传的音乐缺少以下信息：",
+                        text = stringResource(id = R.string.dialog_upload_missing_info),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     if (missingLyrics) {
                         Text(
-                            text = "• 歌词文件",
+                            text = stringResource(id = R.string.dialog_upload_missing_lyrics),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
                     if (missingCover) {
                         Text(
-                            text = "• 封面图片",
+                            text = stringResource(id = R.string.dialog_upload_missing_cover),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.error
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "是否继续上传？",
+                        text = stringResource(id = R.string.dialog_upload_confirm),
                         fontSize = 14.sp
                     )
                 }
@@ -1089,7 +1089,7 @@ fun UploadMusicDialog(
                         containerColor = RoseRed
                     )
                 ) {
-                    Text("继续上传")
+                    Text(stringResource(id = R.string.dialog_upload_continue))
                 }
             },
             dismissButton = {
@@ -1543,7 +1543,7 @@ private fun PreviewPlayDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "试听",
+                text = stringResource(id = R.string.btn_preview),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -1601,7 +1601,7 @@ private fun PreviewPlayDialog(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "暂停" else "播放",
+                            contentDescription = if (isPlaying) stringResource(id = R.string.btn_pause) else stringResource(id = R.string.btn_play),
                             modifier = Modifier.fillMaxSize(),
                             tint = RoseRed
                         )
@@ -1672,7 +1672,7 @@ private fun PreviewPlayDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (lyricsText == null) "无歌词文件" else "歌词解析失败",
+                            text = if (lyricsText == null) stringResource(id = R.string.status_no_lyrics_file) else stringResource(id = R.string.status_lyrics_parse_failed),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1689,7 +1689,7 @@ private fun PreviewPlayDialog(
                     containerColor = RoseRed
                 )
             ) {
-                Text("关闭")
+                Text(stringResource(id = R.string.dialog_close))
             }
         }
     )

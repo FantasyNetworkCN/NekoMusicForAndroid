@@ -8,7 +8,7 @@ import android.content.Context
  */
 object KaqiuLanguageUtil {
     
-    private const val PREFS_NAME = "kaqiu_settings"
+    private const val PREFS_NAME = "app_settings"
     private const val KEY_KAQIU_MODE_ENABLED = "kaqiu_mode_enabled"
     
     /**

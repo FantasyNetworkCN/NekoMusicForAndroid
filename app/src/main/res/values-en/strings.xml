@@ -531,4 +531,61 @@
     <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
     <string name="not_required_for_instrumental">Lyrics not required for instrumental music</string>
     <string name="desktop_lyric">Desktop lyric</string>
+    
+    <!-- Default Values -->
+    <string name="app_name_display">Neko Music</string>
+    <string name="default_no_play">Not Playing</string>
+    <string name="default_unknown_song">Unknown Song</string>
+    <string name="default_unknown_artist">Unknown Artist</string>
+    <string name="default_no_lyrics">No lyrics available</string>
+    <string name="default_no_description">No description</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_logout_title">Logout</string>
+    <string name="dialog_logout_message">Are you sure you want to logout?</string>
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_tip">Tip</string>
+    <string name="dialog_upload_missing_info">Your uploaded music is missing the following information:</string>
+    <string name="dialog_upload_missing_lyrics">• Lyrics file</string>
+    <string name="dialog_upload_missing_cover">• Cover image</string>
+    <string name="dialog_upload_confirm">Do you want to continue uploading?</string>
+    <string name="dialog_upload_continue">Continue Upload</string>
+    <string name="dialog_close">Close</string>
+    
+    <!-- Playlist -->
+    <string name="playlist_title">Playlist</string>
+    <string name="playlist_clear">Clear</string>
+    <string name="playlist_now_playing">Now Playing</string>
+    
+    <!-- Buttons and Actions -->
+    <string name="btn_previous">Previous</string>
+    <string name="btn_next">Next</string>
+    <string name="btn_play">Play</string>
+    <string name="btn_pause">Pause</string>
+    <string name="btn_favorite">Favorite</string>
+    <string name="btn_unfavorite">Unfavorite</string>
+    <string name="btn_back">Back</string>
+    <string name="btn_share">Share</string>
+    <string name="btn_remove">Remove</string>
+    <string name="btn_lyrics">Lyrics</string>
+    <string name="btn_preview">Preview</string>
+    
+    <!-- Content Descriptions -->
+    <string name="content_description_creator_avatar">Creator Avatar</string>
+    <string name="content_description_playlist_cover">Playlist Cover</string>
+    
+    <!-- Status Text -->
+    <string name="status_instrumental_no_lyrics">Lyrics not required for instrumental music</string>
+    <string name="status_no_lyrics_file">No lyrics file</string>
+    <string name="status_lyrics_parse_failed">Lyrics parse failed</string>
+    
+    <!-- Time Units -->
+    <string name="unit_hours">hours</string>
+    <string name="unit_minutes">minutes</string>
+    <string name="unit_seconds">seconds</string>
+    <string name="unit_songs">songs</string>
+    
+    <!-- Lyrics Display -->
+    <string name="lyrics_no_text">No lyrics available</string>
 </resources>

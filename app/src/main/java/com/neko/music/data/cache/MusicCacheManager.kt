@@ -356,7 +356,7 @@ private fun ensureCacheDirs() {
         if (musicDir.exists()) {
             musicDir.listFiles()?.forEach { file ->
                 val musicId = file.nameWithoutExtension.replace("music_", "")
-                val title = prefs.getString("music_${musicId}_title", "未知歌曲") ?: "未知歌曲"
+                val title = prefs.getString("music_${musicId}_title", "Unknown Song") ?: "Unknown Song"
                 items.add(Pair(musicId, title))
             }
         }

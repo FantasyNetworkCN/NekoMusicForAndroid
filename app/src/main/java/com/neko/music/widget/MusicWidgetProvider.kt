@@ -81,8 +81,8 @@ class MusicWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.music_widget)
 
         // 更新歌曲信息
-        views.setTextViewText(R.id.widget_song_title, playerManager.currentMusicTitle.value ?: "Neko云音乐")
-        views.setTextViewText(R.id.widget_artist_name, playerManager.currentMusicArtist.value ?: "暂无播放")
+        views.setTextViewText(R.id.widget_song_title, playerManager.currentMusicTitle.value ?: context.getString(R.string.app_name_display))
+        views.setTextViewText(R.id.widget_artist_name, playerManager.currentMusicArtist.value ?: context.getString(R.string.default_no_play))
 
         // 更新播放/暂停按钮图标
         val playPauseIcon = if (playerManager.isPlaying.value) {

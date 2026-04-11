@@ -98,8 +98,7 @@ fun SettingsScreen(
     var showLanguageDialog by remember { mutableStateOf(false) }
     
     // 卡丘语模式设置
-    val kaqiuPrefs = remember { context.getSharedPreferences("kaqiu_settings", Context.MODE_PRIVATE) }
-    var isKaqiuModeEnabled by remember { mutableStateOf(kaqiuPrefs.getBoolean("kaqiu_mode_enabled", false)) }
+    var isKaqiuModeEnabled by remember { mutableStateOf(languagePrefs.getBoolean("kaqiu_mode_enabled", false)) }
     
     // 悬浮窗权限检查
     var hasOverlayPermission by remember {
@@ -379,7 +378,7 @@ fun SettingsScreen(
                         checked = isKaqiuModeEnabled,
                         onCheckedChange = { enabled ->
                             isKaqiuModeEnabled = enabled
-                            kaqiuPrefs.edit().putBoolean("kaqiu_mode_enabled", enabled).apply()
+                            languagePrefs.edit().putBoolean("kaqiu_mode_enabled", enabled).apply()
                         }
                     )
                 }

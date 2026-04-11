@@ -321,7 +321,7 @@ fun MainScreen() {
             val currentMusicTitle = playerManager.currentMusicTitle.value
 
             // 如果没有音乐信息，才恢复上次播放
-            if (currentMusicId == null || currentMusicTitle == null || currentMusicTitle == "未知歌曲") {
+            if (currentMusicId == null || currentMusicTitle == null || currentMusicTitle == context.getString(R.string.default_unknown_song)) {
                 playerManager.restoreLastPlayed(context)
                 // 等待音乐恢复播放后再检查收藏状态
                 kotlinx.coroutines.delay(1000) // 等待1秒确保音乐信息已加载
@@ -987,7 +987,7 @@ fun MainScreen() {
 
                                     isPlaying = isPlaying,
 
-                                    songTitle = currentMusicTitle ?: "暂无播放",
+                                    songTitle = currentMusicTitle ?: context.getString(R.string.default_no_play),
 
                                     artist = currentMusicArtist ?: "",
 
@@ -1009,13 +1009,13 @@ fun MainScreen() {
 
                                         val encodedTitle = java.net.URLEncoder.encode(
 
-                                            currentMusicTitle ?: "未知歌曲", "UTF-8"
+                                            currentMusicTitle ?: context.getString(R.string.default_unknown_song), "UTF-8"
 
                                         )
 
                                         val encodedArtist = java.net.URLEncoder.encode(
 
-                                            currentMusicArtist ?: "未知歌手", "UTF-8"
+                                            currentMusicArtist ?: context.getString(R.string.default_unknown_artist), "UTF-8"
 
                                         )
 
@@ -1225,8 +1225,14 @@ fun MainScreen() {
             if (showLogoutDialog) {
                 androidx.compose.material3.AlertDialog(
                     onDismissRequest = { showLogoutDialog = false },
-                    title = { Text("退出登录") },
-                    text = { Text("确定要退出登录吗？") },
+                    title = { 
+                        val title = context.getString(R.string.dialog_logout_title)
+                        Text(title)
+                    },
+                    text = { 
+                        val message = context.getString(R.string.dialog_logout_message)
+                        Text(message)
+                    },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
                             onClick = {
@@ -1240,14 +1246,16 @@ fun MainScreen() {
                                 showLogoutDialog = false
                             }
                         ) {
-                            Text("确定")
+                            val confirmText = context.getString(R.string.dialog_confirm)
+                            Text(confirmText)
                         }
                     },
                     dismissButton = {
                         androidx.compose.material3.TextButton(
                             onClick = { showLogoutDialog = false }
                         ) {
-                            Text("取消")
+                            val cancelText = context.getString(R.string.dialog_cancel)
+                            Text(cancelText)
                         }
                     }
                 )

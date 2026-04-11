@@ -448,17 +448,17 @@ fun parseLrcLyrics(lrcText: String): List<com.neko.music.desktoplyric.LrcLine> {
     
     while (i < lines.size) {
         val line = lines[i]
-        // 解析时间戳 [mm:ss.xxxxx]
+        // 解析时间戳 [mm:ss.xxx]（支持1-5位毫秒）
         val match = timeRegex.find(line)
         
         if (match != null) {
             val minutes = match.groupValues[1].toInt()
             val seconds = match.groupValues[2].toInt()
             val millisecondsStr = match.groupValues[3]
-            val milliseconds = millisecondsStr.toInt()
-            // 根据毫秒位数计算小数部分
-            val divisor = Math.pow(10.0, millisecondsStr.length.toDouble()).toInt()
-            val time = minutes * 60 + seconds + milliseconds.toFloat() / divisor
+
+            // 根据毫秒位数计算时间
+            val milliseconds = millisecondsStr.toFloat()
+            val time = minutes * 60 + seconds + milliseconds / 1000f
             
             // 提取歌词文本
             var text = line.substring(match.range.last + 1).trim()

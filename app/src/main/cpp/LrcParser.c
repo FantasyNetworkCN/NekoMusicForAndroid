@@ -16,7 +16,7 @@ Java_com_neko_music_util_LrcParser_nativeIsValidLrcContent(JNIEnv *env, jclass t
         return JNI_FALSE;
     }
 
-    // LRC 时间戳格式：[mm:ss.xxxxx]（支持1-5位毫秒）
+    // LRC 时间戳格式：[mm:ss.xxx]（支持1-5位毫秒）
     regex_t timestampRegex;
     int ret = regcomp(&timestampRegex, "\\[[0-5][0-9]:[0-5][0-9]\\.[0-9]{1,5}\\]", REG_EXTENDED);
     if (ret != 0) {

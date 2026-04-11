@@ -87,7 +87,7 @@ fun PlaylistBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "播放列表",
+                        text = context.getString(R.string.playlist_title),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
@@ -108,7 +108,7 @@ fun PlaylistBottomSheet(
                             }
                         ) {
                             Text(
-                                text = "清空",
+                                text = context.getString(R.string.playlist_clear),
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
@@ -120,7 +120,7 @@ fun PlaylistBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "关闭",
+                                contentDescription = context.getString(R.string.dialog_close),
                                 tint = Color.Gray,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -137,7 +137,7 @@ fun PlaylistBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "播放列表为空",
+                            text = context.getString(R.string.playlist_empty),
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
@@ -171,6 +171,7 @@ fun PlaylistItem(
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,7 +200,7 @@ fun PlaylistItem(
             android.util.Log.d("PlaylistBottomSheet", "音乐: ${music.title}, coverFilePath: ${music.coverFilePath}, 最终URL: $coverUrl")
             AsyncImage(
                 model = coverUrl,
-                contentDescription = "封面",
+                contentDescription = context.getString(R.string.content_description_cover),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
             )
@@ -232,7 +233,7 @@ fun PlaylistItem(
         if (isPlaying) {
             Icon(
                 painter = androidx.compose.ui.res.painterResource(R.drawable.pause),
-                contentDescription = "正在播放",
+                contentDescription = context.getString(R.string.playlist_now_playing),
                 tint = RoseRed,
                 modifier = Modifier.size(20.dp)
             )

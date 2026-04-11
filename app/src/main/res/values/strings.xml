@@ -534,4 +534,61 @@
     <string name="cover_image_not_selected_status">封面图片: 未选择</string>
     <string name="upload_review_notice">确认上传后将进入审核流程</string>
     <string name="preview_audio">试听</string>
+    
+    <!-- 默认值 -->
+    <string name="app_name_display">Neko云音乐</string>
+    <string name="default_no_play">暂无播放</string>
+    <string name="default_unknown_song">未知歌曲</string>
+    <string name="default_unknown_artist">未知歌手</string>
+    <string name="default_no_lyrics">暂无歌词</string>
+    <string name="default_no_description">暂无描述</string>
+    
+    <!-- 对话框 -->
+    <string name="dialog_logout_title">退出登录</string>
+    <string name="dialog_logout_message">确定要退出登录吗？</string>
+    <string name="dialog_confirm">确定</string>
+    <string name="dialog_cancel">取消</string>
+    <string name="dialog_tip">提示</string>
+    <string name="dialog_upload_missing_info">您上传的音乐缺少以下信息：</string>
+    <string name="dialog_upload_missing_lyrics">• 歌词文件</string>
+    <string name="dialog_upload_missing_cover">• 封面图片</string>
+    <string name="dialog_upload_confirm">是否继续上传？</string>
+    <string name="dialog_upload_continue">继续上传</string>
+    <string name="dialog_close">关闭</string>
+    
+    <!-- 播放列表 -->
+    <string name="playlist_title">播放列表</string>
+    <string name="playlist_clear">清空</string>
+    <string name="playlist_now_playing">正在播放</string>
+    
+    <!-- 按钮和操作 -->
+    <string name="btn_previous">上一首</string>
+    <string name="btn_next">下一首</string>
+    <string name="btn_play">播放</string>
+    <string name="btn_pause">暂停</string>
+    <string name="btn_favorite">收藏</string>
+    <string name="btn_unfavorite">取消收藏</string>
+    <string name="btn_back">返回</string>
+    <string name="btn_share">分享</string>
+    <string name="btn_remove">移除</string>
+    <string name="btn_lyrics">词</string>
+    <string name="btn_preview">试听</string>
+    
+    <!-- 内容描述 -->
+    <string name="content_description_creator_avatar">创建者头像</string>
+    <string name="content_description_playlist_cover">歌单封面</string>
+    
+    <!-- 状态文本 -->
+    <string name="status_instrumental_no_lyrics">纯音乐不需要歌词文件</string>
+    <string name="status_no_lyrics_file">无歌词文件</string>
+    <string name="status_lyrics_parse_failed">歌词解析失败</string>
+    
+    <!-- 时间单位 -->
+    <string name="unit_hours">小时</string>
+    <string name="unit_minutes">分钟</string>
+    <string name="unit_seconds">秒</string>
+    <string name="unit_songs">首</string>
+    
+    <!-- 歌词显示 -->
+    <string name="lyrics_no_text">暂无歌词</string>
 </resources>
