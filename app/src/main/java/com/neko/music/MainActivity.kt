@@ -363,37 +363,34 @@ class MainActivity : ComponentActivity() {
     private fun fallbackToNormalMode(reason: String) {
         Log.d("MainActivity", "Falling back to normal mode: $reason")
         
-        // 立即重置状态，防止多次调用
-        val wasVRMode = isVRMode
-        isVRMode = false
-        vrInitializationCompleted = false
+        // 检查并启动灵动岛（如果开关已开启且现在有权限）
+        val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
+        val isFuckChinaOSEnabled = floatPrefs.getBoolean("fuck_china_os_enabled", false)
         
-        // 如果不是VR模式，直接初始化正常模式
-        if (!wasVRMode) {
-            reinitializeNormalMode()
-            return
+        if (isFuckChinaOSEnabled) {
+            // 检查悬浮窗权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.canDrawOverlays(this)) {
+                    val intent = Intent(this, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
+                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
+                    startService(intent)
+                    Log.d("MainActivity", "灵动岛已开启，启动灵动岛服务")
+                }
+            }
         }
         
-        // 在后台线程清理VR资源，避免主线程阻塞
-        Thread {
+        // VR模式下恢复GLSurfaceView
+        if (isVRMode) {
             try {
-                Log.d("MainActivity", "Cleaning up VR resources in background thread")
-                
-                // 安全地暂停GLSurfaceView
-                val glViewToPause = glSurfaceView
-                try {
-                    glViewToPause?.onPause()
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "Error pausing GLSurfaceView during fallback", e)
-                }
+                glSurfaceView?.onResume()
                 
                 // 清理VR渲染器
-                val rendererToCleanup = vrGLRenderer
                 try {
-                    rendererToCleanup?.cleanup()
+                    vrGLRenderer?.cleanup()
                 } catch (e: Exception) {
                     Log.w("MainActivity", "Error cleaning up VRGLRenderer during fallback", e)
                 }
+                vrGLRenderer = null
                 
                 // 清理VRHUDRenderer
                 try {
@@ -401,19 +398,13 @@ class MainActivity : ComponentActivity() {
                 } catch (e: Exception) {
                     Log.w("MainActivity", "Error cleaning up VRHUDRenderer during fallback", e)
                 }
-                
-                Log.d("MainActivity", "VR resource cleanup completed")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error during VR cleanup", e)
-            } finally {
-                // 在主线程重置引用并重新初始化正常模式
-                vrHandler.post {
-                    glSurfaceView = null
-                    vrGLRenderer = null
-                    reinitializeNormalMode()
-                }
             }
-        }.start()
+        }
+        
+        // 重新初始化正常模式
+        reinitializeNormalMode()
     }
 
     /**
@@ -422,57 +413,69 @@ class MainActivity : ComponentActivity() {
     private fun reinitializeNormalMode() {
         Log.d("MainActivity", "Reinitializing normal mode")
         
-        // 直接在主线程执行所有初始化
-        try {
-            // 应用语言设置
-            applyLanguage()
+        // 将耗时操作移到后台线程
+        Thread {
+            try {
+                // 应用语言设置
+                applyLanguage()
 
-            // 检查是否是首次启动
-            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val isFirstLaunch = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
+                // 检查是否是首次启动
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val isFirstLaunch = prefs.getBoolean(KEY_FIRST_LAUNCH, true)
 
-            val shouldShowSplash = if (isFirstLaunch) {
-                // 首次启动，显示开屏
-                prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
-                true
-            } else {
-                false
-            }
-            
-            showSplash = shouldShowSplash
-            
-            // 请求安装权限
-            requestInstallPermission()
+                val shouldShowSplash = if (isFirstLaunch) {
+                    // 首次启动，显示开屏
+                    prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
+                    true
+                } else {
+                    false
+                }
 
-            // 启动音乐播放服务（前台服务，保持后台运行）
-            MusicPlayerService.startService(this@MainActivity)
+                // 请求安装权限
+                requestInstallPermission()
 
-            // 检查所有开关状态并启动相应的服务
-            checkAndStartServices()
+                // 启动音乐播放服务（前台服务，保持后台运行）
+                MusicPlayerService.startService(this@MainActivity)
 
-            // 设置Compose UI
-            setContent {
-                Neko云音乐Theme {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color.Transparent
-                    ) {
-                        if (showSplash) {
-                            SplashScreen(onAnimationComplete = {
-                                showSplash = false
-                            })
-                        } else {
-                            MainScreen()
+                // 检查所有开关状态并启动相应的服务
+                checkAndStartServices()
+
+                // 在主线程设置 Compose UI
+                vrHandler.post {
+                    try {
+                        showSplash = shouldShowSplash
+                        
+                        // 设置Compose UI
+                        setContent {
+                            Neko云音乐Theme {
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = Color.Transparent
+                                ) {
+                                    if (showSplash) {
+                                        SplashScreen(onAnimationComplete = {
+                                            showSplash = false
+                                        })
+                                    } else {
+                                        MainScreen()
+                                    }
+                                }
+                            }
                         }
+                        
+                        Log.d("MainActivity", "Normal mode reinitialized successfully")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Error setting content in reinitializeNormalMode", e)
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error in reinitializeNormalMode", e)
+                // 如果后台线程出错，在主线程恢复
+                vrHandler.post {
+                    finish()
+                }
             }
-            
-            Log.d("MainActivity", "Normal mode reinitialized successfully")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error in reinitializeNormalMode", e)
-            finish()
-        }
+        }.start()
     }
 
     override fun onResume() {

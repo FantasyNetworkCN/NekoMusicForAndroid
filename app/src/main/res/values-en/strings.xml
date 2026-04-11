@@ -510,5 +510,6 @@
     <string name="unsupported_audio_format">Unsupported audio formats: Only WAV, FLAC, and MP3 formats are supported.</string>
     <string name="unsupported_lyrics_format">Lyrics files only support LRC format.</string>
     <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
+    <string name="not_required_for_instrumental">Lyrics not required for instrumental music</string>
     <string name="desktop_lyric">Desktop lyric</string>
 </resources>

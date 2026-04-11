@@ -71,8 +71,19 @@ class VRHUDLyricManager private constructor(private val context: Context) {
             android.util.Log.d("VRHUDLyricManager", "Initializing VR HUD with OpenXR")
             vrHUDRenderer = com.neko.music.util.VRHUDRenderer
             
+            // 获取displayMetrics并检查有效性（避免PICO启动瞬间的0或异常值）
             val displayMetrics = context.resources.displayMetrics
-            val success = vrHUDRenderer?.initialize(context, displayMetrics.widthPixels, displayMetrics.heightPixels) ?: false
+            var width = displayMetrics.widthPixels
+            var height = displayMetrics.heightPixels
+            
+            // 检查尺寸是否有效（PICO设备启动瞬间可能返回0或100）
+            if (width <= 100 || height <= 100) {
+                android.util.Log.w("VRHUDLyricManager", "Invalid display metrics: ${width}x${height}, using default values")
+                width = 1920
+                height = 1080
+            }
+            
+            val success = vrHUDRenderer?.initialize(context, width, height) ?: false
             
             if (success) {
                 // 检查是否真的支持3D空间HUD（OpenXR初始化成功）
