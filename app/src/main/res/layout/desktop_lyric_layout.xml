@@ -10,7 +10,7 @@
         android:id="@+id/desktop_lyric_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="暂无歌词"
+        android:text="@string/no_lyrics"
         android:textSize="18sp"
         android:textColor="@android:color/white"
         android:textStyle="bold"
