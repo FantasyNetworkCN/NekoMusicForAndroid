@@ -582,36 +582,36 @@ fun MoreSettings(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // IPv6图标
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                RoseRed.copy(alpha = 0.8f),
-                                SakuraPink.copy(alpha = 0.8f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "6",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-            
-            Text(
-                text = "IPv6支持",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
-            )
-            
+//            // IPv6图标
+//            Box(
+//                modifier = Modifier
+//                    .size(16.dp)
+//                    .clip(RoundedCornerShape(4.dp))
+//                    .background(
+//                        brush = Brush.linearGradient(
+//                            colors = listOf(
+//                                RoseRed.copy(alpha = 0.8f),
+//                                SakuraPink.copy(alpha = 0.8f)
+//                            )
+//                        )
+//                    ),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Text(
+//                    text = "6",
+//                    fontSize = 10.sp,
+//                    fontWeight = FontWeight.Bold,
+//                    color = Color.White
+//                )
+//            }
+//
+//            Text(
+//                text = "IPv6支持",
+//                fontSize = 12.sp,
+//                color = MaterialTheme.colorScheme.onSurface,
+//                fontWeight = FontWeight.Medium
+//            )
+
             // 状态指示器
             Box(
                 modifier = Modifier
