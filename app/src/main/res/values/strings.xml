@@ -1,516 +1,470 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Neko云音乐</string>
-    <string name="widget_description">Neko云音乐桌面播放器</string>
-    
-    <!-- 设置页面 -->
-    <string name="settings">设置</string>
-    <string name="general">通用</string>
-    <string name="cache_enabled">是否缓存</string>
-    <string name="cache_enabled_subtitle">开启后可缓存音乐以便离线播放</string>
-    <string name="cache_management">缓存管理</string>
-    <string name="cached_songs" formatted="false">已缓存 %1$d 首歌曲 (%2$s)</string>
-    <string name="focus_lock">焦点锁定</string>
-    <string name="focus_lock_subtitle">开启后不会被其他应用打断播放，可同时播放</string>
-    <string name="fuck_china_os">灵动岛</string>
-    <string name="fuck_china_os_subtitle">在顶部状态栏中央显示播放控制。操你妈国产系统</string>
-    <string name="desktop_lyric">桌面歌词</string>
-    <string name="desktop_lyric_subtitle">在屏幕上方显示当前播放歌词</string>
-    
-    <!-- VR歌词无障碍服务 -->
-    <string name="vr_lyric_accessibility_service_description">VR歌词HUD - 在VR环境中全局显示播放歌词</string>
-    <string name="vr_lyric_accessibility_service_summary">为VR设备优化的歌词显示服务，可在所有应用中显示歌词</string>
-    <string name="language">语言</string>
-    <string name="language_subtitle">选择应用显示语言</string>
-    <string name="language_follow_system">跟随系统</string>
-    <string name="language_zh">简体中文</string>
-    <string name="language_en">English</string>
-    
-    <!-- 版本信息 -->
-    <string name="version">版本</string>
-    <string name="update_available">发现新版本</string>
-    <string name="update_version">新版本：%s</string>
-    <string name="update_code">版本号：%d</string>
-    <string name="update_now">立即更新</string>
-    <string name="update_later">稍后</string>
-    <string name="downloading_update">正在下载更新</string>
-    <string name="update_success">下载完成</string>
-    <string name="update_installing">正在安装更新…</string>
-    <string name="update_failed">更新失败</string>
-    
-    <!-- 我的页面 -->
-    <string name="mine">我的</string>
-    <string name="not_logged_in">未登录</string>
-    <string name="upload">上传</string>
-    <string name="my_music">我的音乐</string>
-    <string name="my_favorites">我的收藏</string>
-    <string name="recent_play">最近播放</string>
-    <string name="settings_title">设置</string>
-    <string name="about_us">关于我们</string>
-    <string name="logout">退出登录</string>
-    <string name="login">登录</string>
-    <string name="please_login_first">请先登录</string>
-    <string name="login_after_view">登录后可以查看和管理您的收藏</string>
-    <string name="no_favorites">暂无收藏</string>
-    <string name="no_search_results">未找到相关歌曲</string>
-    <string name="my_playlists">我的歌单</string>
-    <string name="my_uploads">我的上传</string>
-    <string name="no_uploaded_music">还没有上传的音乐</string>
-    <string name="uploaded_music_pending">上传的音乐审核通过后会显示在这里</string>
-    <string name="latest_songs">最新上传的歌曲</string>
-    <string name="get_favorites_failed">获取收藏列表失败</string>
-    <string name="login_failed">登录失败: %s</string>
-    <string name="login_now">立即登录</string>
-    <string name="favorite_success">收藏成功</string>
-    <string name="unfavorite_success">取消收藏成功</string>
-    <string name="avatar_upload_success">头像上传成功</string>
-    <string name="add_favorite">收藏</string>
-    <string name="remove_favorite">取消收藏</string>
-    
-    <!-- 页脚 -->
-    <string name="footer_icp">蜀ICP备2025177767号-1 如有侵权请联系support@cnmsb.xin</string>
-    <string name="footer_copyright">© 2025-2026 Fantasy Network「梦幻网络」 保留所有权利.</string>
-    <string name="api_docs">API文档</string>
-    <string name="github_repo">GitHub仓库</string>
-    
-    <!-- 播放器 -->
-    <string name="play">播放</string>
-    <string name="pause">暂停</string>
-    <string name="previous">上一首</string>
-    <string name="next">下一首</string>
-    <string name="favorite">收藏</string>
-    <string name="unfavorite">取消收藏</string>
-    
-    <!-- 其他 -->
-    <string name="back">返回</string>
-    <string name="confirm">确定</string>
-    <string name="cancel">取消</string>
-    <string name="loading">加载中…</string>
-    <string name="error">错误</string>
-    <string name="success">成功</string>
+    <string name="widget_description">Neko云音乐桌面播放器喵</string>
 
-    <!-- 登录相关 -->
-    <string name="app_title">Neko 云音乐</string>
-    <string name="welcome_back">欢迎回来</string>
-    <string name="create_new_account">创建新账号</string>
-    <string name="please_enter_email_and_password">请输入邮箱和密码</string>
-    <string name="no_account_yet">还没有账号？</string>
-    <string name="register_now">立即注册</string>
-    <string name="already_have_account">已有账号？</string>
-    <string name="register_failed">注册失败: %s</string>
-    <string name="send_verification_code">获取验证码</string>
-    <string name="retry_after_seconds">%d秒后重试</string>
-    <string name="send_verification_code_failed">发送验证码失败: %s</string>
-    <string name="please_fill_all_fields">请填写所有字段</string>
-    <string name="username_length_error">用户名长度必须在3-20个字符之间</string>
-    <string name="password_length_error">密码长度必须在6-30个字符之间</string>
-    <string name="password_mismatch">两次输入的密码不一致</string>
-    <string name="email_format_error">邮箱格式不正确</string>
-    <string name="please_enter_email_first">请先输入邮箱</string>
-    <string name="email">邮箱</string>
-    <string name="password">密码</string>
-    <string name="username">用户名</string>
-    <string name="confirm_password">确认密码</string>
-    <string name="verification_code">验证码</string>
-    <string name="register">注册</string>
-    <string name="drag_scale_avatar">拖动和缩放图片以选择头像区域</string>
-    <string name="complete">完成</string>
-    <string name="more">更多</string>
-    <string name="downloading_update_progress">正在下载更新</string>
-    <string name="downloading_update_failed">下载失败，请稍后重试</string>
-    <string name="downloading_update_failed_msg">下载失败：%s</string>
-    <string name="new_version_found">发现新版本</string>
-    <string name="new_version">新版本：%s</string>
-    <string name="version_code_display">版本号：%d</string>
-    <string name="later">稍后</string>
-    <string name="download_complete">下载完成</string>
-    <string name="update_failed_msg">❌ 更新失败</string>>
+    <string name="settings">设置喵</string>
+    <string name="general">通用喵</string>
+    <string name="cache_enabled">要缓存吗喵？</string>
+    <string name="cache_enabled_subtitle">开启后可以把音乐藏进肉垫，离线也能听喵</string>
+    <string name="cache_management">缓存仓库喵</string>
+    <string name="cached_songs" formatted="false">已抓到 %1$d 首歌曲 (%2$s) 喵</string>
+    <string name="focus_lock">焦点锁定喵</string>
+    <string name="focus_lock_subtitle">开启后人家就不会被其他坏应用打断了，可以一起叫喵</string>
+    <string name="fuck_china_os">灵动喵</string>
+    <string name="fuck_china_os_subtitle">在顶部状态栏给主人看播放进度。吐槽：国产系统真讨厌喵</string>
+    <string name="desktop_lyric">桌面歌词喵</string>
+    <string name="desktop_lyric_subtitle">在屏幕上方飘过歌词喵</string>
 
-    <!-- 账号信息 -->
-    <string name="account_info">账号信息</string>
-    <string name="avatar">头像</string>
-    <string name="user_avatar">用户头像</string>
-    <string name="default_avatar">默认头像</string>
-    <string name="change_avatar">更换头像</string>
-    <string name="change_avatar_confirm">是否要从相册选择新头像？</string>
-    <string name="click_avatar_to_change">点击头像可以更换头像</string>
-    <string name="modify_password">修改密码</string>
-    <string name="old_password">原密码</string>
-    <string name="new_password">新密码</string>
-    <string name="confirm_new_password">确认新密码</string>
-    <string name="please_enter_old_password">请输入原密码</string>
-    <string name="please_enter_new_password">请输入新密码</string>
-    <string name="please_confirm_new_password">请确认新密码</string>
-    <string name="new_password_length_error">新密码长度不能少于6位</string>
-    <string name="modifying">修改中...</string>
-    <string name="show_password">显示密码</string>
-    <string name="hide_password">隐藏密码</string>
-    <string name="operation_success">操作成功</string>
-    <string name="avatar_update_success">头像更新成功</string>
-    <string name="crop_avatar">裁剪头像</string>
-    <string name="password_update_success">密码修改成功</string>
-    <string name="password_update_failed">密码修改失败: %s</string>
+    <string name="vr_lyric_accessibility_service_description">VR歌词HUD - 在虚拟世界里也能看到歌词喵</string>
+    <string name="vr_lyric_accessibility_service_summary">为VR设备定制的歌词服务，主人去哪儿歌词就跟到哪儿喵</string>
+    <string name="language">语言喵</string>
+    <string name="language_subtitle">主人想让我说什么话喵？</string>
+    <string name="language_follow_system">听系统的喵</string>
+    <string name="language_zh">简体中文喵</string>
+    <string name="language_en">English Nya~</string>
 
-    <!-- 播放器 -->
-    <string name="click_cover_show_lyrics">点击封面查看歌词</string>
-    <string name="no_lyrics">暂无歌词</string>
-    <string name="list_loop">列表循环</string>
-    <string name="single_loop">单曲循环</string>
-    <string name="shuffle_play">随机播放</string>
-    <string name="share">分享</string>
-    <string name="copy_link">复制链接</string>
-    <string name="link_copied">链接已复制</string>
-    <string name="copy_failed">复制失败</string>
-    <string name="download">下载</string>
-    <string name="download_success">下载成功</string>
-    <string name="download_failed">下载失败: %s</string>
-    <string name="share_to_twitter">分享到Twitter</string>
-    <string name="share_failed">分享失败</string>
-    <string name="playback_speed">倍速</string>
-    <string name="playback_speed_x">倍速: %dx</string>
-    <string name="sleep_timer">定时关闭</string>
-    <string name="sleep_timer_cancelled">定时关闭已取消</string>
-    <string name="sleep_timer_hours">%d小时后关闭</string>
-    <string name="sleep_timer_minutes">%d分钟后关闭</string>
-    <string name="add_to_playlist">添加到歌单</string>
-    <string name="added_to_playlist">已添加到%s</string>
-    <string name="create_playlist">创建歌单</string>
-    <string name="playlist_name">歌单名称</string>
-    <string name="create_success">创建成功</string>
-    <string name="please_login_first_short">请先登录</string>
-    <string name="add_failed">添加失败: %s</string>
-    <string name="unknown_song">未知歌曲</string>
-    <string name="unknown_artist">未知歌手</string>
-    <string name="no_current_play">暂无播放</string>
-    <string name="please_login_to_favorite">请先登录</string>
-    <string name="play_all_count">播放全部 (%d)</string>
+    <string name="version">版本喵</string>
+    <string name="update_available">发现进化机会喵！</string>
+    <string name="update_version">新版本：%s 喵</string>
+    <string name="update_code">版本号：%d 喵</string>
+    <string name="update_now">立即进化喵！</string>
+    <string name="update_later">等下再说喵</string>
+    <string name="downloading_update">正在努力搬运更新包喵...</string>
+    <string name="update_success">搬运完成喵！</string>
+    <string name="update_installing">正在努力组装新器官喵...</string>
+    <string name="update_failed">进化失败了呜呜喵...</string>
 
-    <!-- 搜索 -->
-    <string name="search">搜索</string>
-    <string name="search_music">搜索音乐</string>
-    <string name="search_music_artist_album">搜索音乐、歌手、专辑...</string>
-    <string name="single">单曲</string>
-    <string name="playlist">歌单</string>
-    <string name="artist">歌手</string>
-    <string name="search_failed">搜索失败</string>
-    <string name="no_search_music">未找到相关音乐</string>
-    <string name="no_search_playlist">未找到相关歌单</string>
-    <string name="no_search_artist">未找到相关歌手</string>
-    <string name="no_search_history_yet">还没有搜索历史欸</string>
-    <string name="search_history">搜索历史</string>
-    <string name="clear_history">清除历史</string>
+    <string name="mine">我的喵</string>
+    <string name="not_logged_in">还没认领猫娘喵</string>
+    <string name="upload">上交音乐喵</string>
+    <string name="my_music">我的音乐仓库喵</string>
+    <string name="my_favorites">我的心动收藏喵</string>
+    <string name="recent_play">最近蹭听过喵</string>
+    <string name="settings_title">设置喵</string>
+    <string name="about_us">关于猫娘们喵</string>
+    <string name="logout">解除认领喵</string>
+    <string name="login">认领猫娘喵</string>
+    <string name="please_login_first">主人快先登录呀喵</string>
+    <string name="login_after_view">登录后才能看到主人藏的小秘密喵</string>
+    <string name="no_favorites">空荡荡的，还没心动过喵</string>
+    <string name="no_search_results">喵呜？没找到这首歌喵</string>
+    <string name="my_playlists">我的歌单喵</string>
+    <string name="my_uploads">我上交的音乐喵</string>
+    <string name="no_uploaded_music">还没给猫娘投喂过音乐喵</string>
+    <string name="uploaded_music_pending">等猫娘审核完就放出来给主人听喵</string>
+    <string name="latest_songs">新出炉的歌喵</string>
+    <string name="get_favorites_failed">心动列表拿不到了喵...</string>
+    <string name="login_failed">登录失败了喵: %s</string>
+    <string name="login_now">现在就登录喵</string>
+    <string name="favorite_success">收藏成功喵！</string>
+    <string name="unfavorite_success">扔掉收藏了喵</string>
+    <string name="avatar_upload_success">新脸蛋上传成功喵！</string>
+    <string name="add_favorite">收藏喵</string>
+    <string name="remove_favorite">取消收藏喵</string>
+
+    <string name="footer_icp">蜀ICP备2025177767号-1 如果被咬了请联系support@cnmsb.xin喵</string>
+    <string name="footer_copyright">© 2025-2026 Fantasy Network「梦幻网络」 都是我们的喵.</string>
+    <string name="api_docs">猫娘协议文档喵</string>
+    <string name="github_repo">GitHub猫窝喵</string>
+
+    <string name="play">开始喵！</string>
+    <string name="pause">停一下喵</string>
+    <string name="previous">前一只喵</string>
+    <string name="next">下一只喵</string>
+    <string name="favorite">心动喵</string>
+    <string name="unfavorite">不心动了喵</string>
+
+    <string name="back">退后喵</string>
+    <string name="confirm">就是这样喵！</string>
+    <string name="cancel">算啦喵</string>
+    <string name="loading">正在喵命加载中...</string>
+    <string name="error">出错了喵！</string>
+    <string name="success">成功了喵！</string>
+
+    <string name="app_title">Neko 云音乐喵</string>
+    <string name="welcome_back">主人欢迎回来喵！</string>
+    <string name="create_new_account">抓一只新猫娘喵</string>
+    <string name="please_enter_email_and_password">快把邮箱和暗号交出来喵</string>
+    <string name="no_account_yet">还没有账号吗喵？</string>
+    <string name="register_now">现在就去办证喵</string>
+    <string name="already_have_account">已经是主人了喵？</string>
+    <string name="register_failed">办证失败了喵: %s</string>
+    <string name="send_verification_code">召唤验证码喵</string>
+    <string name="retry_after_seconds">%d秒后才能再召唤喵</string>
+    <string name="send_verification_code_failed">验证码迷路了喵: %s</string>
+    <string name="please_fill_all_fields">要把空格子都填满喵</string>
+    <string name="username_length_error">名字要3-20个字才行喵</string>
+    <string name="password_length_error">暗号要6-30位才够安全喵</string>
+    <string name="password_mismatch">两次暗号对不上喵！</string>
+    <string name="email_format_error">邮箱地址不对劲喵</string>
+    <string name="please_enter_email_first">先告诉人家邮箱喵</string>
+    <string name="email">邮箱喵</string>
+    <string name="password">暗号喵</string>
+    <string name="username">名字喵</string>
+    <string name="confirm_password">再确认一遍暗号喵</string>
+    <string name="verification_code">验证码喵</string>
+    <string name="register">办证喵</string>
+    <string name="drag_scale_avatar">揉搓一下图片选择头像位置喵</string>
+    <string name="complete">搞定喵！</string>
+    <string name="more">还有更多喵</string>
+    <string name="downloading_update_progress">正在下载更新喵</string>
+    <string name="downloading_update_failed">下载坏掉了，等会再试喵</string>
+    <string name="downloading_update_failed_msg">下载失败喵：%s</string>
+    <string name="new_version_found">发现新猫娘版本喵</string>
+    <string name="new_version">新版： %s 喵</string>
+    <string name="version_code_display">版本号： %d 喵</string>
+    <string name="later">下次一定喵</string>
+    <string name="download_complete">下载好啦喵</string>
+    <string name="update_failed_msg">❌ 更新失败了喵</string>
+
+    <string name="account_info">猫窝资料喵</string>
+    <string name="avatar">脸蛋喵</string>
+    <string name="user_avatar">主人的脸喵</string>
+    <string name="default_avatar">路人脸喵</string>
+    <string name="change_avatar">换张脸喵</string>
+    <string name="change_avatar_confirm">要从相册里挑张新脸吗喵？</string>
+    <string name="click_avatar_to_change">戳一下脸蛋可以换掉它喵</string>
+    <string name="modify_password">改个暗号喵</string>
+    <string name="old_password">旧暗号喵</string>
+    <string name="new_password">新暗号喵</string>
+    <string name="confirm_new_password">确认新暗号喵</string>
+    <string name="please_enter_old_password">快输入旧暗号喵</string>
+    <string name="please_enter_new_password">快输入新暗号喵</string>
+    <string name="please_confirm_new_password">再确认一次新暗号喵</string>
+    <string name="new_password_length_error">新暗号太短了，会被抓走的喵</string>
+    <string name="modifying">正在悄悄修改喵...</string>
+    <string name="show_password">看清暗号喵</string>
+    <string name="hide_password">藏好暗号喵</string>
+    <string name="operation_success">搞定啦喵！</string>
+    <string name="avatar_update_success">新脸蛋真漂亮喵！</string>
+    <string name="crop_avatar">修剪脸蛋喵</string>
+    <string name="password_update_success">暗号修改好啦喵！</string>
+    <string name="password_update_failed">暗号没改掉喵: %s</string>
+
+    <string name="click_cover_show_lyrics">戳戳封面看歌词喵</string>
+    <string name="no_lyrics">还没人写歌词喵</string>
+    <string name="list_loop">列表转圈圈喵</string>
+    <string name="single_loop">死循环这一首喵</string>
+    <string name="shuffle_play">随便乱放喵</string>
+    <string name="share">分给别人喵</string>
+    <string name="copy_link">复制小纸条喵</string>
+    <string name="link_copied">纸条抄好啦喵</string>
+    <string name="copy_failed">没抄到纸条喵</string>
+    <string name="download">抓回本地喵</string>
+    <string name="download_success">抓到啦喵！</string>
+    <string name="download_failed">手滑没抓到喵: %s</string>
+    <string name="share_to_twitter">发到小蓝鸟那喵</string>
+    <string name="share_failed">没发出去喵</string>
+    <string name="playback_speed">加速/减速喵</string>
+    <string name="playback_speed_x">当前速度: %dx 喵</string>
+    <string name="sleep_timer">猫娘陪睡定时喵</string>
+    <string name="sleep_timer_cancelled">猫娘不睡了喵</string>
+    <string name="sleep_timer_hours">%d小时后准时睡觉喵</string>
+    <string name="sleep_timer_minutes">%d分钟后准时睡觉喵</string>
+    <string name="add_to_playlist">塞进小本本喵</string>
+    <string name="added_to_playlist">已经塞进 %s 啦喵</string>
+    <string name="create_playlist">写个新本本喵</string>
+    <string name="playlist_name">本本叫什么喵？</string>
+    <string name="create_success">写好啦喵！</string>
+    <string name="please_login_first_short">先登录嘛喵</string>
+    <string name="add_failed">塞不进去喵: %s</string>
+    <string name="unknown_song">不知道名字的歌喵</string>
+    <string name="unknown_artist">没留下姓名的歌手喵</string>
+    <string name="no_current_play">现在安安静静的喵</string>
+    <string name="please_login_to_favorite">登录后才能心动喵</string>
+    <string name="play_all_count">全都要听 (%d) 喵</string>
+
+    <string name="search">搜搜看喵</string>
+    <string name="search_music">找找音乐喵</string>
+    <string name="search_music_artist_album">搜音乐、歌手、专辑什么的喵...</string>
+    <string name="single">单只喵</string>
+    <string name="playlist">本本喵</string>
+    <string name="artist">艺人喵</string>
+    <string name="search_failed">搜不到了喵</string>
+    <string name="no_search_music">没这种音乐喵</string>
+    <string name="no_search_playlist">没这种歌单喵</string>
+    <string name="no_search_artist">没这种艺人喵</string>
+    <string name="no_search_history_yet">还没有搜过东西喵</string>
+    <string name="search_history">搜过什么喵</string>
+    <string name="clear_history">失忆术喵！</string>
     <string name="no_description_nya">暂时没有描述Nya！</string>
-    <string name="songs_count">%d 首音乐</string>
-    <string name="author_prefix">作者：%s</string>
-    <string name="no_search_playlist_found">未找到歌单</string>
-    <string name="no_search_artist_found">未找到歌手</string>
+    <string name="songs_count">%d 首音乐喵</string>
+    <string name="author_prefix">创作者：%s 喵</string>
+    <string name="no_search_playlist_found">歌单藏起来了喵</string>
+    <string name="no_search_artist_found">艺人跑掉了喵</string>
 
-    <!-- 上传音乐 -->
-    <string name="loading_data">加载中...</string>
-    <string name="get_data_failed">获取数据失败: %s</string>
-    <string name="album_cover">专辑封面</string>
-    <string name="music_note">音乐</string>
-    <string name="empty">空</string>
+    <string name="loading_data">正在搬东西喵...</string>
+    <string name="get_data_failed">东西拿不动了喵: %s</string>
+    <string name="album_cover">专辑封面喵</string>
+    <string name="music_note">音符喵</string>
+    <string name="empty">空空的喵</string>
 
-    <!-- 歌单详情 -->
-    <string name="playlist_cover">歌单封面</string>
+    <string name="playlist_cover">歌单封面喵</string>
     <string name="no_description_click_to_edit">暂无描述，点击此处修改Nya！</string>
-    <string name="creator">创建者</string>
-    <string name="creator_id">创建者ID</string>
-    <string name="creator_avatar">创建者头像</string>
-    <string name="creator_with_name">创建者: %s</string>
-    <string name="no_songs">暂无歌曲</string>
-    <string name="edit_playlist_description">编辑歌单描述</string>
-    <string name="enter_playlist_description">请输入歌单描述</string>
-    <string name="description_updated">描述已更新</string>
-    <string name="description_update_failed">更新失败: %s</string>
-    <string name="removed_from_playlist">已从歌单中移除</string>
-    <string name="remove_failed">移除失败: %s</string>
-    <string name="load_playlist_failed">加载失败: %s</string>
-    <string name="add_favorite_success">收藏成功</string>
-    <string name="remove_favorite_success">取消收藏成功</string>
-    <string name="operation_failed">操作失败: %s</string>
+    <string name="creator">铲屎官喵</string>
+    <string name="creator_id">铲屎官ID喵</string>
+    <string name="creator_avatar">铲屎官长相喵</string>
+    <string name="creator_with_name">铲屎官: %s 喵</string>
+    <string name="no_songs">本本里还没写歌喵</string>
+    <string name="edit_playlist_description">改改本本介绍喵</string>
+    <string name="enter_playlist_description">写点介绍嘛喵</string>
+    <string name="description_updated">介绍写好了喵</string>
+    <string name="description_update_failed">没写成喵: %s</string>
+    <string name="removed_from_playlist">从本本里踢出去了喵</string>
+    <string name="remove_failed">踢不动喵: %s</string>
+    <string name="load_playlist_failed">本本打不开了喵: %s</string>
+    <string name="add_favorite_success">心动成功喵！</string>
+    <string name="remove_favorite_success">不心动了喵</string>
+    <string name="operation_failed">搞砸了喵: %s</string>
 
-    <!-- 首页 -->
-    <string name="explore_music_world">探索音乐世界</string>
-    <string name="discover_music_you_like">发现你喜欢的音乐</string>
-    <string name="recommended_playlists">推荐歌单</string>
-    <string name="network_error_msg">网络错误</string>
-    <string name="play_all">播放全部</string>
-    <string name="go_discover">去发现喜欢的音乐吧</string>
-    <string name="try_other_keywords">试试其他关键词</string>
-    <string name="search_box_clicked">搜索框被点击</string>
-    <string name="loading_recommended">开始加载推荐歌单...</string>
-    <string name="loading_ranking">开始加载热门音乐...</string>
-    <string name="loading_latest">开始加载最新音乐...</string>
-    <string name="recommended_loaded">推荐歌单加载成功: %d个</string>
-    <string name="recommended_failed">推荐歌单加载失败: %s</string>
-    <string name="ranking_loaded">热门音乐加载成功: %d首</string>
-    <string name="ranking_failed">热门音乐加载失败: %s</string>
-    <string name="latest_loaded">最新音乐加载成功: %d首</string>
-    <string name="latest_failed">最新音乐加载失败: %s</string>
-    <string name="check_update_failed">检查更新失败</string>
-    <string name="download_update_failed">下载更新失败</string>
-    <string name="download_update_retry">下载失败，请稍后重试</string>
-    <string name="download_update_failed_msg">下载失败：%s</string>
-    <string name="check_update_failed_msg">检查更新失败: %s</string>
-    <string name="recommended_playlists_exception">推荐歌单异常: %s</string>
-    <string name="installing_update">正在安装更新...</string>
-    <string name="update_dialog">发现新版本</string>
-    <string name="version_code">版本号：%d</string>
+    <string name="explore_music_world">去音乐世界冒险喵！</string>
+    <string name="discover_music_you_like">发现主人喜欢的旋律喵</string>
+    <string name="recommended_playlists">猫娘推荐的本本喵</string>
+    <string name="network_error_msg">断网了喵，猫粮没了喵</string>
+    <string name="play_all">全部播一遍喵</string>
+    <string name="go_discover">快去发现好听的喵</string>
+    <string name="try_other_keywords">换个词搜搜喵</string>
+    <string name="search_box_clicked">搜搜框被主人的肉垫按到了喵</string>
+    <string name="loading_recommended">正在挑最好的本本喵...</string>
+    <string name="loading_ranking">看看什么歌最火喵...</string>
+    <string name="loading_latest">闻到了新歌的味道喵...</string>
+    <string name="recommended_loaded">挑好 %d 个本本啦喵</string>
+    <string name="recommended_failed">没挑到本本喵: %s</string>
+    <string name="ranking_loaded">热门歌曲抓到 %d 首啦喵</string>
+    <string name="ranking_failed">热门歌曲跑了喵: %s</string>
+    <string name="latest_loaded">新鲜歌曲抓到 %d 首啦喵</string>
+    <string name="latest_failed">新鲜歌曲没抓到喵: %s</string>
+    <string name="check_update_failed">看不了有没有新进化喵</string>
+    <string name="download_update_failed">下载不了进化包喵</string>
+    <string name="download_update_retry">失败了，再试一次喵</string>
+    <string name="download_update_failed_msg">失败原因喵：%s</string>
+    <string name="check_update_failed_msg">检查失败喵: %s</string>
+    <string name="recommended_playlists_exception">推荐出了点小意外喵: %s</string>
+    <string name="installing_update">正在努力进化中...</string>
+    <string name="update_dialog">主人快看，有新进化喵！</string>
+    <string name="version_code">版本代号：%d 喵</string>
 
-    <!-- 歌单 -->
-    <string name="no_description">没有描述</string>
+    <string name="no_description">这个猫娘很懒，什么都没写喵</string>
 
-    <!-- 通知权限 -->
-    <string name="notification_permission_title">需要通知权限</string>
-    <string name="notification_permission_message">为了在定时关闭时提醒您，\n需要通知权限</string>
-    <string name="authorize">授权</string>
+    <string name="notification_permission_title">需要伸爪子的权限喵</string>
+    <string name="notification_permission_message">为了能提醒主人睡觉，\n猫娘需要通知权限喵！</string>
+    <string name="authorize">准了喵！</string>
 
-    <!-- 悬浮窗权限 -->
-    <string name="desktop_lyric_permission_message">为了显示桌面歌词，\n需要悬浮窗权限</string>
+    <string name="desktop_lyric_permission_message">为了在桌面上跳舞，\n猫娘需要悬浮窗权限喵！</string>
 
-    <!-- 播放器 -->
-    <string name="now_playing">正在播放</string>
-    <string name="cover">封面</string>
-    <string name="create_new">新建</string>
-    <string name="custom">自定义</string>
-    <string name="close">关闭</string>
-    <string name="custom_sleep_timer">自定义定时关闭</string>
-    <string name="hours">小时</string>
-    <string name="minutes">分钟</string>
-    <string name="decrease">减少</string>
-    <string name="increase">增加</string>
+    <string name="now_playing">正在哼唱喵</string>
+    <string name="cover">封面喵</string>
+    <string name="create_new">新建喵</string>
+    <string name="custom">主人说了算喵</string>
+    <string name="close">关掉喵</string>
+    <string name="custom_sleep_timer">自定义睡觉时间喵</string>
+    <string name="hours">小时喵</string>
+    <string name="minutes">分钟喵</string>
+    <string name="decrease">少一点喵</string>
+    <string name="increase">多一点喵</string>
 
-    <!-- 关于页面 -->
-    <string name="unknown_version">未知版本</string>
-    <string name="unknown">未知</string>
-    <string name="app_info">应用信息</string>
-    <string name="app_name_label">应用名称</string>
-    <string name="version_number">版本号</string>
-    <string name="version_code_label">版本代码</string>
-    <string name="package_name">包名</string>
-    <string name="organization_info">组织信息</string>
-    <string name="organization_name">组织名称</string>
-    <string name="contact_info">联系方式</string>
-    <string name="tech_stack">技术栈</string>
-    <string name="programming_language">编程语言</string>
-    <string name="ui_framework">UI框架</string>
-    <string name="network_request">网络请求</string>
-    <string name="audio_playback">音频播放</string>
-    <string name="local_database">本地数据库</string>
-    <string name="image_loading">图片加载</string>
-    <string name="copyright_info">版权信息</string>
-    <string name="icp_license">蜀ICP备2025177767号-1</string>
-    <string name="copyright_contact">如有侵权请联系 support@cnmsb.xin</string>
+    <string name="unknown_version">不知道自己是哪个版本的喵</string>
+    <string name="unknown">迷路了喵</string>
+    <string name="app_info">猫娘信息喵</string>
+    <string name="app_name_label">应用名字喵</string>
+    <string name="version_number">版本号喵</string>
+    <string name="version_code_label">进化代码喵</string>
+    <string name="package_name">包裹名喵</string>
+    <string name="organization_info">组织资料喵</string>
+    <string name="organization_name">组织名字喵</string>
+    <string name="contact_info">怎么找我们喵</string>
+    <string name="tech_stack">猫娘身体构造喵</string>
+    <string name="programming_language">猫语喵</string>
+    <string name="ui_framework">外皮框架喵</string>
+    <string name="network_request">讨饭方式喵</string>
+    <string name="audio_playback">唱歌引擎喵</string>
+    <string name="local_database">小账本喵</string>
+    <string name="image_loading">看图工具喵</string>
+    <string name="copyright_info">版权领地喵</string>
+    <string name="icp_license">蜀ICP备2025177767号-1喵</string>
+    <string name="copyright_contact">被咬了找这： support@cnmsb.xin 喵</string>
     <string name="copyright_text">© 2025-2026 Fantasy Network「梦幻网络」</string>
-    <string name="all_rights_reserved">保留所有权利</string>
+    <string name="all_rights_reserved">地盘都是我们的喵</string>
 
-    <!-- 歌手详情 -->
-    <string name="artist_detail">歌手详情</string>
-    <string name="no_music_found">未找到音乐</string>
-    <string name="songs_count_suffix">%d 首歌曲</string>
+    <string name="artist_detail">歌手私密资料喵</string>
+    <string name="no_music_found">这只歌手没歌喵</string>
+    <string name="songs_count_suffix">%d 首曲子喵</string>
 
-    <!-- 缓存管理 -->
-    <string name="no_cache">暂无缓存</string>
-    <string name="cache_hint">播放音乐后会自动缓存</string>
-    <string name="cache_statistics">缓存统计</string>
-    <string name="cached_songs_count">已缓存 %d 首歌曲</string>
-    <string name="cache_size">占用空间：%s</string>
-    <string name="preparing_playlist">正在准备播放列表...</string>
-    <string name="cache_list">缓存列表</string>
-    <string name="clear_all_cache">清空全部</string>
-    <string name="delete_cache">删除缓存</string>
-    <string name="confirm_clear_all_cache">确定要清空所有缓存吗？</string>
-    <string name="clear_all_cache_info">这将删除 %d 首歌曲的缓存</string>
-    <string name="free_space">释放空间：%s</string>
-    <string name="confirm_delete_cache">确定要删除这首歌的缓存吗？</string>
-    <string name="clear">清空</string>
-    <string name="delete">删除</string>
-    <string name="id_label">ID: %s</string>
+    <string name="no_cache">肚子里空荡荡的喵</string>
+    <string name="cache_hint">听过一遍猫娘就会记在心里喵</string>
+    <string name="cache_statistics">记忆统计喵</string>
+    <string name="cached_songs_count">记住了 %d 首曲子喵</string>
+    <string name="cache_size">占了这么大地方：%s 喵</string>
+    <string name="preparing_playlist">正在整理本本喵...</string>
+    <string name="cache_list">记忆列表喵</string>
+    <string name="clear_all_cache">全部忘掉喵！</string>
+    <string name="delete_cache">删掉这段记忆喵</string>
+    <string name="confirm_clear_all_cache">真的要让猫娘失忆吗喵？</string>
+    <string name="clear_all_cache_info">这会忘掉 %d 首歌喵</string>
+    <string name="free_space">能腾出这么多地儿：%s 喵</string>
+    <string name="confirm_delete_cache">这首歌不想要了吗喵？</string>
+    <string name="clear">忘掉喵</string>
+    <string name="delete">扔掉喵</string>
+    <string name="id_label">身份证: %s 喵</string>
 
-    <!-- 发现页面 -->
-    <string name="discover">发现</string>
-    <string name="hot_ranking">热门榜单</string>
-    <string name="ranking_number">榜单 %d</string>
+    <string name="discover">到处逛逛喵</string>
+    <string name="hot_ranking">火热榜单喵</string>
+    <string name="ranking_number">第 %d 名榜单喵</string>
 
-    <!-- 排行榜 -->
-    <string name="hot_music">热门音乐</string>
-    <string name="loading_hot_music">正在加载热门音乐...</string>
-    <string name="no_hot_music">暂无热门音乐</string>
+    <string name="hot_music">最火的曲子喵</string>
+    <string name="loading_hot_music">正在看谁最火喵...</string>
+    <string name="no_hot_music">大家最近都好安静喵</string>
 
-    <!-- 播放列表 -->
-    <string name="playback_list">播放列表</string>
-    <string name="playlist_empty">播放列表为空</string>
+    <string name="playback_list">待会儿播喵</string>
+    <string name="playlist_empty">后面没歌了，快加点喵！</string>
 
-    <!-- 最近播放 -->
-    <string name="no_play_history">欸？暂时没有播放记录欸</string>
-    <string name="no_related_songs">没有找到相关歌曲喵</string>
-    <string name="search_songs">搜索歌曲</string>
+    <string name="no_play_history">欸？主人最近没听过歌喵？</string>
+    <string name="no_related_songs">没找到相关的喵~</string>
+    <string name="search_songs">搜搜曲子喵</string>
 
-    <!-- 我的歌单 -->
-    <string name="no_playlists_yet">还没有歌单</string>
-    <string name="create_new_playlist">创建新歌单</string>
-    <string name="edit_playlist">编辑歌单</string>
-    <string name="create_playlist_dialog">创建歌单</string>
-    <string name="loading_failed">加载失败: %s</string>
-    <string name="delete_failed_msg">删除失败: %s</string>
-    <string name="my_favorites_label">我喜欢的音乐</string>
-    <string name="loading_data_failed">加载失败: %s</string>
-    <string name="refresh_failed">刷新失败: %s</string>
+    <string name="no_playlists_yet">还没有本本，去写一个喵</string>
+    <string name="create_new_playlist">写个新本本喵</string>
+    <string name="edit_playlist">涂改本本喵</string>
+    <string name="create_playlist_dialog">创建新本本喵</string>
+    <string name="loading_failed">搬不动了喵: %s</string>
+    <string name="delete_failed_msg">删不掉喵: %s</string>
+    <string name="my_favorites_label">主人最喜欢的喵</string>
+    <string name="loading_data_failed">数据丢了喵: %s</string>
+    <string name="refresh_failed">洗不动了喵: %s</string>
 
-    <!-- 歌单详情 -->
-    <string name="songs_count_label">%d 首歌曲</string>
-    <string name="edit_description">编辑歌单描述</string>
-    <string name="enter_description">请输入歌单描述</string>
-    <string name="description_updated_success">描述已更新</string>
-    <string name="description_update_failed_msg">更新失败: %s</string>
-    <string name="remove_from_playlist_success">已从歌单中移除</string>
-    <string name="remove_from_playlist_failed">移除失败: %s</string>
-    <string name="load_failed_msg">加载失败: %s</string>
-    <string name="add_to_favorites_success">收藏成功</string>
-    <string name="remove_from_favorites_success">取消收藏成功</string>
-    <string name="operation_failed_msg">操作失败: %s</string>
-    <string name="share_song">分享</string>
-    <string name="favorite_song">收藏</string>
-    <string name="unfavorite_song">取消收藏</string>
-    <string name="creator_info">创建者: %s</string>
-    <string name="creator_id_info">创建者ID: %d</string>
+    <string name="songs_count_label">%d 首曲子喵</string>
+    <string name="edit_description">修改介绍喵</string>
+    <string name="enter_description">想写什么喵？</string>
+    <string name="description_updated_success">介绍改好啦喵</string>
+    <string name="description_update_failed_msg">没改掉喵: %s</string>
+    <string name="remove_from_playlist_success">从本本里踢出去了喵</string>
+    <string name="remove_from_playlist_failed">踢不动喵: %s</string>
+    <string name="load_failed_msg">加载失败喵: %s</string>
+    <string name="add_to_favorites_success">收藏好啦喵</string>
+    <string name="remove_from_favorites_success">从心里拿掉了喵</string>
+    <string name="operation_failed_msg">失败了喵: %s</string>
+    <string name="share_song">分享歌曲喵</string>
+    <string name="favorite_song">心动一下喵</string>
+    <string name="unfavorite_song">不喜欢了喵</string>
+    <string name="creator_info">创建者: %s 喵</string>
+    <string name="creator_id_info">创建者ID: %d 喵</string>
 
-    <!-- 底部导航 -->
-    <string name="nav_home">首页</string>
-    <string name="nav_mine">我的</string>
-    <string name="nav_my_playlists">我的歌单</string>
+    <string name="nav_home">猫窝首页喵</string>
+    <string name="nav_mine">猫娘我的喵</string>
+    <string name="nav_my_playlists">我的本本喵</string>
 
-    <!-- 播放器 -->
-    <string name="player_no_music">暂无播放</string>
-    <string name="player_click_to_play">点击播放音乐</string>
-    <string name="content_description_cover">封面</string>
-    <string name="content_description_pause">暂停</string>
-    <string name="content_description_play">播放</string>
-    <string name="content_description_playlist">播放列表</string>
+    <string name="player_no_music">没歌播喵</string>
+    <string name="player_click_to_play">戳一下我就唱歌喵</string>
+    <string name="content_description_cover">这是封面喵</string>
+    <string name="content_description_pause">停一停喵</string>
+    <string name="content_description_play">唱起来喵</string>
+    <string name="content_description_playlist">待播列表喵</string>
 
-    <!-- 首页 -->
-    <string name="hot_music_desc">播放次数最高的歌曲</string>
-    <string name="songs_count_short">%d首</string>
-    <string name="songs_count_format">%d首</string>
-    <string name="play_count">%d次</string>
+    <string name="hot_music_desc">被蹂躏次数最高的歌喵</string>
+    <string name="songs_count_short">%d首喵</string>
+    <string name="songs_count_format">%d首喵</string>
+    <string name="play_count">%d次播放喵</string>
 
-    <!-- 上传音乐 -->
-    <string name="upload_music">上传音乐</string>
-    <string name="uploading">上传中...</string>
-    <string name="upload_success">上传成功</string>
-    <string name="upload_failed">上传失败: %s</string>
-    <string name="select_audio_file">选择音频文件</string>
-    <string name="select_lyrics_file">选择歌词文件</string>
-    <string name="select_cover_image">选择封面图片</string>
-    <string name="audio_file_selected">已选择: %s</string>
-    <string name="lyrics_file_selected">已选择歌词</string>
-    <string name="cover_image_selected">已选择封面</string>
-    <string name="cover_image_auto_extracted">封面已自动提取</string>
-    <string name="music_title">标题</string>
-    <string name="music_artist">艺术家</string>
-    <string name="music_album">专辑</string>
-    <string name="music_language">语言</string>
-    <string name="music_tags">标签（用逗号分隔）</string>
-    <string name="music_duration">时长</string>
-    <string name="required_field">* 必填</string>
-    <string name="optional_field">（可选）</string>
-    <string name="please_fill_required_fields">请填写必填字段</string>
-    <string name="please_select_audio_file">请选择音频文件</string>
-    <string name="file_read_failed">读取文件失败</string>
-    <string name="upload_music_dialog_title">上传音乐</string>
-    <string name="preview">预览</string>
-    <string name="full_lyrics">完整歌词</string>
-    <string name="parsing_metadata">正在解析音乐信息...</string>
-    <string name="please_select_language">请选择</string>
-    <string name="language_chinese">中文</string>
-    <string name="language_cantonese">粤语</string>
-    <string name="language_shanghainese">上海话</string>
-    <string name="language_english">英语</string>
-    <string name="language_japanese">日语</string>
-    <string name="language_korean">韩语</string>
-    <string name="language_french">法语</string>
-    <string name="language_german">德语</string>
-    <string name="language_russian">俄语</string>
-    <string name="language_instrumental">纯音乐</string>
-    <string name="duration_auto_parsing">自动解析中...</string>
-    <string name="unsupported_audio_format">不支持的音频格式，仅支持 WAV、FLAC、MP3 格式</string>
-    <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
-    <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
-    <string name="lyrics_file_read_failed">读取歌词文件失败</string>
-    
-    <!-- 启动页 -->
-    <string name="splash_slogan">听见你的世界</string>
-    
-    <!-- 认证错误 -->
-    <string name="auth_expired">登录状态失效，请重新登录</string>
-    
-    <!-- 下载 -->
-    <string name="downloading_progress" formatted="false">正在下载: %s - %s</string>
-    <string name="download_started">下载已开始</string>
-    <string name="download_manager_unavailable">下载管理器不可用</string>
-    <string name="download_started_with_lyrics">下载已开始，包含歌词</string>
-    
-    <!-- 热门音乐 -->
-    <string name="total_hot_music">共 %d 首热门音乐</string>
-    
-    <!-- 分享 -->
-    <string name="share_to_qq">分享到QQ</string>
-    <string name="playlist_link">歌单链接</string>
-    
-    <!-- 定时关闭 -->
-    <string name="sleep_timer_hours_minutes" formatted="false">%d小时%d分钟后关闭</string>
-    <string name="sleep_timer_seconds">%d秒后关闭</string>
-    
-    <!-- 音乐链接 -->
-    <string name="music_link">音乐链接</string>
-    
-    <!-- 通知频道 -->
-    <string name="music_playback">音乐播放</string>
-    <string name="music_playback_notification">音乐播放通知</string>
-    
-    <!-- 上传 -->
-    <string name="uploading_progress">上传中 %d%%</string>
+    <string name="upload_music">投喂音乐喵</string>
+    <string name="uploading">正在吞下去喵...</string>
+    <string name="upload_success">吞掉啦喵！</string>
+    <string name="upload_failed">没吃下去喵: %s</string>
+    <string name="select_audio_file">选个音频文件喵</string>
+    <string name="select_lyrics_file">选个歌词文件喵</string>
+    <string name="select_cover_image">选个漂亮封面喵</string>
+    <string name="audio_file_selected">选好啦: %s 喵</string>
+    <string name="lyrics_file_selected">歌词准备好啦喵</string>
+    <string name="cover_image_selected">封面准备好啦喵</string>
+    <string name="cover_image_auto_extracted">猫娘自动把封面找出来啦喵</string>
+    <string name="music_title">歌名喵</string>
+    <string name="music_artist">唱歌的人喵</string>
+    <string name="music_album">专辑名喵</string>
+    <string name="music_language">方言喵</string>
+    <string name="music_tags">标签喵（用逗号隔开喵）</string>
+    <string name="music_duration">长度喵</string>
+    <string name="required_field">* 必须要填的喵</string>
+    <string name="optional_field">（不填也行喵）</string>
+    <string name="please_fill_required_fields">必填的还没写喵</string>
+    <string name="please_select_audio_file">还没给人家文件喵</string>
+    <string name="file_read_failed">读不懂文件喵</string>
+    <string name="upload_music_dialog_title">投喂音乐喵</string>
+    <string name="preview">先瞧瞧喵</string>
+    <string name="full_lyrics">全部歌词喵</string>
+    <string name="parsing_metadata">正在解析曲子信息喵...</string>
+    <string name="please_select_language">选一个喵</string>
+    <string name="language_chinese">中文喵</string>
+    <string name="language_cantonese">粤语喵</string>
+    <string name="language_shanghainese">上海话喵</string>
+    <string name="language_english">英语喵</string>
+    <string name="language_japanese">日语喵</string>
+    <string name="language_korean">韩语喵</string>
+    <string name="language_french">法语喵</string>
+    <string name="language_german">德语喵</string>
+    <string name="language_russian">俄语喵</string>
+    <string name="language_instrumental">纯音乐喵</string>
+    <string name="duration_auto_parsing">自动算时间喵...</string>
+    <string name="unsupported_audio_format">不吃这种文件，猫娘只吃 WAV、FLAC、MP3 喵</string>
+    <string name="unsupported_lyrics_format">歌词只要 LRC 格式喵</string>
+    <string name="invalid_lyrics_timestamp">歌词时间戳不对喵（得是 [mm:ss.xx] 喵）</string>
+    <string name="lyrics_file_read_failed">读不懂歌词文件喵</string>
 
-    <!-- 最新音乐 -->
-    <string name="latest_music">最新音乐</string>
-    <string name="latest_music_title">最新音乐</string>
-    <string name="click_latest_music_info">点击最新音乐，共%d首</string>
-    <string name="loading_latest_music">正在加载最新音乐...</string>
-    <string name="load_failed">加载失败</string>
-    <string name="network_error">网络连接似乎出现了问题</string>
-    <string name="retry">重试</string>
-    <string name="no_latest_music">暂无最新音乐</string>
-    <string name="minutes_ago">%d分钟前</string>
-    <string name="hours_ago">%d小时前</string>
-    <string name="days_ago">%d天前</string>
+    <string name="splash_slogan">喵~ 听见你的世界喵</string>
 
-    <!-- 歌单详情 -->
+    <string name="auth_expired">认领失效了，主人快重新登录喵</string>
 
-    <!-- 播放器 -->
-    <string name="playback_speed_format">播放速度: %.1fx</string>
-    <string name="added_to_playlist_format">已添加到%s</string>
-    <string name="add_to_playlist_failed">添加失败: %s</string>
-    <string name="create_playlist_failed">创建失败: %s</string>
-    <string name="play_failed">播放失败: %s</string>
-    <string name="play_all_failed">播放全部失败</string>
-    <string name="download_failed_format">下载失败: %s</string>
-    <string name="loading_failed_format">加载失败: %s</string>
-    <string name="refresh_failed_format">刷新失败: %s</string>
-    <string name="delete_failed_format">删除失败: %s</string>
-    <string name="operation_failed_generic">操作失败</string>
+    <string name="downloading_progress" formatted="false">正在抓取: %s - %s 喵</string>
+    <string name="download_started">开始抓啦喵</string>
+    <string name="download_manager_unavailable">抓取器坏掉了喵</string>
+    <string name="download_started_with_lyrics">开始抓啦，连歌词一起喵</string>
 
-    <!-- 时间格式 -->
-    <string name="just_now">刚刚</string>
-    <string name="minutes_ago_format">%d分钟前</string>
-    <string name="hours_ago_format">%d小时前</string>
-    <string name="days_ago_format">%d天前</string>
-    <string name="minutes_unit">分钟</string>
+    <string name="total_hot_music">一共 %d 首火热曲子喵</string>
 
-    <!-- 分享 -->
-    <string name="share_music_text">[%s-%s] Neko云音乐 https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
-    <string name="share_playlist">分享歌单</string>
-    <string name="removed_from_playlist_success">已从歌单中移除</string>
+    <string name="share_to_qq">分到企鹅家喵</string>
+    <string name="playlist_link">本本的小纸条喵</string>
+
+    <string name="sleep_timer_hours_minutes" formatted="false">%d小时%d分钟后关掉喵</string>
+    <string name="sleep_timer_seconds">%d秒后关掉喵</string>
+
+    <string name="music_link">曲子纸条喵</string>
+
+    <string name="music_playback">正在唱歌喵</string>
+    <string name="music_playback_notification">唱歌给主人听喵</string>
+
+    <string name="uploading_progress">吞了 %d%% 喵</string>
+
+    <string name="latest_music">新抓来的曲子喵</string>
+    <string name="latest_music_title">新鲜曲子喵</string>
+    <string name="click_latest_music_info">看新曲子，一共%d首喵</string>
+    <string name="loading_latest_music">正在看新曲子喵...</string>
+    <string name="load_failed">搬不动喵</string>
+    <string name="network_error">网线被猫咬断了喵？</string>
+    <string name="retry">再试试喵</string>
+    <string name="no_latest_music">还没新曲子喵</string>
+    <string name="minutes_ago">%d分钟前喵</string>
+    <string name="hours_ago">%d小时前喵</string>
+    <string name="days_ago">%d天前喵</string>
+
+    <string name="playback_speed_format">唱歌速度: %.1fx 喵</string>
+    <string name="added_to_playlist_format">塞进 %s 啦喵</string>
+    <string name="add_to_playlist_failed">塞不进去喵: %s</string>
+    <string name="create_playlist_failed">写新本本失败了喵: %s</string>
+    <string name="play_failed">唱不出来喵: %s</string>
+    <string name="play_all_failed">没法全都唱喵</string>
+    <string name="download_failed_format">没抓到喵: %s</string>
+    <string name="loading_failed_format">没搬动喵: %s</string>
+    <string name="refresh_failed_format">洗不动喵: %s</string>
+    <string name="delete_failed_format">扔不掉喵: %s</string>
+    <string name="operation_failed_generic">喵？失败了</string>
+
+    <string name="just_now">刚才喵</string>
+    <string name="minutes_ago_format">%d分钟前喵</string>
+    <string name="hours_ago_format">%d小时前喵</string>
+    <string name="days_ago_format">%d天前喵</string>
+    <string name="minutes_unit">分钟喵</string>
+
+    <string name="share_music_text">[%s-%s] Neko云音乐喵 https://music.cnmsb.xin/detail/%d</string>
+    <string name="share_playlist_text">我在Neko云音乐发现了宝藏本本 %s - https://music.cnmsb.xin/playlist/%d，里面超好听喵！快来听听看喵~</string>
+    <string name="share_playlist">分一本本喵</string>
+    <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
 </resources>
