@@ -64,7 +64,7 @@ fun LoginScreen(
 
     val scope = rememberCoroutineScope()
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
-    val userApi = com.neko.music.data.api.UserApi()
+    val userApi = com.neko.music.data.api.UserApi(context = context)
 
     // Preload string resources for non-Composable contexts
     val pleaseEnterEmailAndPassword = stringResource(id = R.string.please_enter_email_and_password)

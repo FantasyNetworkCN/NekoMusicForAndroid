@@ -100,10 +100,48 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     private val baseUrl = "https://music.cnmsb.xin/api/user/playlist"
 
+    // ACW 挑战求解器
+    private val acwChallengeSolver = com.neko.music.data.manager.ACWChallengeSolver(context)
+
+    // 全局 Cookie 缓存
+    private val app = context.applicationContext as com.neko.music.NekoMusicApplication
+
+    /**
+     * 获取 Cookie（优先使用缓存）
+     */
+    private suspend fun getCookie(): String? {
+        // 先尝试使用缓存的 Cookie
+        val cachedCookie = app.getCachedCookie()
+        if (cachedCookie != null) {
+            return cachedCookie
+        }
+
+        // 缓存失效，重新获取
+        try {
+            val newCookie = acwChallengeSolver.getCookie()
+            if (newCookie != null) {
+                app.setCachedCookie(newCookie)
+            }
+            return newCookie
+        } catch (e: Exception) {
+            Log.e("PlaylistApi", "获取 ACW Cookie 失败", e)
+            return null
+        }
+    }
+
     suspend fun searchPlaylists(): PlaylistListResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("https://music.cnmsb.xin/api/playlists/search") {
                 contentType(ContentType.Application.Json)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
                 setBody("""{"query":"歌单"}""")
             }
             val responseText = response.body<String>()
@@ -124,9 +162,16 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun getMyPlaylists(): PlaylistListResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.get("https://music.cnmsb.xin/api/user/playlists") {
                 headers {
                     append("Authorization", token ?: "")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
             }
             val responseText = response.body<String>()
@@ -140,10 +185,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun createPlaylist(name: String): PlaylistResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             client.post("$baseUrl/create") {
                 headers {
                     append("Authorization", token ?: "")
                     append("Content-Type", "application/json")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(CreatePlaylistRequest(name, null))
             }.body()
@@ -155,10 +207,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun updatePlaylist(playlistId: Int, name: String, description: String? = null): PlaylistResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             client.post("$baseUrl/update") {
                 headers {
                     append("Authorization", token ?: "")
                     append("Content-Type", "application/json")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(UpdatePlaylistRequest(playlistId, name, description))
             }.body()
@@ -170,10 +229,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun deletePlaylist(playlistId: Int): PlaylistResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             client.post("$baseUrl/delete") {
                 headers {
                     append("Authorization", token ?: "")
                     append("Content-Type", "application/json")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(DeletePlaylistRequest(playlistId))
             }.body()
@@ -185,7 +251,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun getPlaylistMusic(playlistId: Int): PlaylistMusicListResponse {
         return try {
-            client.get("$baseUrl/music/$playlistId").body()
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
+            client.get("$baseUrl/music/$playlistId") {
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
+            }.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             PlaylistMusicListResponse(false, "网络错误: ${e.message}", playlistId, 0, null)
@@ -194,7 +270,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun getPlaylistDetail(playlistId: Int): PlaylistResponse {
         return try {
-            val response = client.get("https://music.cnmsb.xin/api/playlist/$playlistId")
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
+            val response = client.get("https://music.cnmsb.xin/api/playlist/$playlistId") {
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
+            }
             Log.d("PlaylistApi", "获取歌单详情响应: ${response.body<String>()}")
             response.body()
         } catch (e: Exception) {
@@ -205,10 +291,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun addMusicToPlaylist(playlistId: Int, musicId: Int): PlaylistResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("$baseUrl/music/add") {
                 headers {
                     token?.let { append("Authorization", it) }
                     append("Content-Type", "application/json")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(
                     """
@@ -232,10 +325,17 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun removeMusicFromPlaylist(playlistId: Int, musicId: Int): PlaylistResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("https://music.cnmsb.xin/api/user/playlist/music/remove") {
                 headers {
                     token?.let { append("Authorization", it) }
                     append("Content-Type", "application/json")
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(
                     """

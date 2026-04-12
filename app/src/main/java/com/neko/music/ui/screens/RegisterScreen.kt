@@ -71,7 +71,8 @@ fun RegisterScreen(
     }
 
     val scope = rememberCoroutineScope()
-    val userApi = com.neko.music.data.api.UserApi()
+    val context = LocalContext.current
+    val userApi = com.neko.music.data.api.UserApi(context = context)
 
     // Preload string resources for non-Composable contexts
     val pleaseFillAllFields = stringResource(id = R.string.please_fill_all_fields)

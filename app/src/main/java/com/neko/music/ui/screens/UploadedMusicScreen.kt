@@ -85,7 +85,7 @@ fun UploadedMusicScreen(
         if (token != null) {
             isRefreshing = true
             try {
-                val userApi = com.neko.music.data.api.UserApi(token)
+                val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                 val response = userApi.getUploadedMusic()
                 if (response.success) {
                     musicList = response.musicList
@@ -109,7 +109,7 @@ fun UploadedMusicScreen(
             // 调用API获取上传音乐列表
             scope.launch {
                 try {
-                    val userApi = com.neko.music.data.api.UserApi(token)
+                    val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                     val response = userApi.getUploadedMusic()
                     if (response.success) {
                         musicList = response.musicList
@@ -187,7 +187,7 @@ fun UploadedMusicScreen(
                             isLoading = true
                             scope.launch {
                                 try {
-                                    val userApi = com.neko.music.data.api.UserApi(token)
+                                    val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                                     val response = userApi.getUploadedMusic()
                                     if (response.success) {
                                         musicList = response.musicList
@@ -238,7 +238,7 @@ fun UploadedMusicScreen(
                 isLoading = true
                 scope.launch {
                     try {
-                        val userApi = com.neko.music.data.api.UserApi(token)
+                        val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                         val response = userApi.getUploadedMusic()
                         if (response.success) {
                             musicList = response.musicList
@@ -1309,9 +1309,9 @@ fun UploadMusicDialog(
                                             uploadProgress = (uploadProgress + 5f).coerceAtMost(95f)
                                         }
                                     }
-                                    
+
                                     if (audioBytes != null) {
-                                        val userApi = com.neko.music.data.api.UserApi(token)
+                                        val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                                         
                                         val response = userApi.uploadMusic(
                                             audioFile = audioBytes,

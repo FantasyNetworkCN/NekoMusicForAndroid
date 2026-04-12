@@ -17,7 +17,10 @@ import android.util.Log
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
 
-class UserApi(private val token: String? = null) {
+class UserApi(
+    private val token: String? = null,
+    private val context: android.content.Context
+) {
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
@@ -36,15 +39,68 @@ class UserApi(private val token: String? = null) {
 
     private val baseUrl = "https://music.cnmsb.xin"
 
+    // ACW 挑战求解器
+    private val acwChallengeSolver = com.neko.music.data.manager.ACWChallengeSolver(context)
+
+    // 全局 Cookie 缓存
+    private val app = context.applicationContext as com.neko.music.NekoMusicApplication
+
+    /**
+     * 获取 Cookie（优先使用缓存）
+     */
+    private suspend fun getCookie(): String? {
+        // 先尝试使用缓存的 Cookie
+        val cachedCookie = app.getCachedCookie()
+        if (cachedCookie != null) {
+            return cachedCookie
+        }
+
+        // 缓存失效，重新获取
+        try {
+            val newCookie = acwChallengeSolver.getCookie()
+            if (newCookie != null) {
+                app.setCachedCookie(newCookie)
+            }
+            return newCookie
+        } catch (e: Exception) {
+            android.util.Log.e("UserApi", "获取 ACW Cookie 失败", e)
+            return null
+        }
+    }
+
     /**
      * 用户登录
      */
     suspend fun login(username: String, password: String): LoginResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("$baseUrl/api/user/login") {
                 contentType(ContentType.Application.Json)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
                 setBody(LoginRequest(username = username, password = password))
             }
+
+            // 检查响应状态和内容类型
+            if (!response.status.isSuccess()) {
+                val errorText = response.bodyAsText()
+                Log.e("UserApi", "登录失败: HTTP ${response.status}, 响应: $errorText")
+                return LoginResponse(success = false, message = "服务器错误: ${response.status}", data = null)
+            }
+
+            val contentType = response.headers["Content-Type"]
+            if (contentType?.contains("application/json") != true) {
+                val responseText = response.bodyAsText()
+                Log.e("UserApi", "登录失败: 服务器返回非JSON内容, Content-Type: $contentType, 响应: $responseText")
+                return LoginResponse(success = false, message = "服务器返回错误格式", data = null)
+            }
+
             response.body()
         } catch (e: Exception) {
             Log.e("UserApi", "登录失败", e)
@@ -185,10 +241,17 @@ class UserApi(private val token: String? = null) {
      */
     suspend fun getUploadedMusic(): UploadedMusicResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.get("$baseUrl/api/user/uploaded-music") {
                 token?.let {
                     headers {
                         append(HttpHeaders.Authorization, "Bearer $it")
+                        // 添加 Cookie 头
+                        if (cookie != null) {
+                            append("Cookie", cookie)
+                        }
                     }
                 }
             }
@@ -244,10 +307,17 @@ class UserApi(private val token: String? = null) {
     ): UploadMusicResponse {
         return try {
             Log.d("UserApi", "开始上传音乐: $title - $artist, 时长: $duration 秒")
-            
+
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("$baseUrl/api/user/upload") {
                 headers {
                     token?.let { append("Authorization", "Bearer $it") }
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
                 }
                 setBody(
                     MultiPartFormDataContent(

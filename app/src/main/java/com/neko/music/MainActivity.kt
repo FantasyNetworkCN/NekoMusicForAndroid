@@ -777,7 +777,7 @@ fun MainScreen() {
                                     "MainActivity",
                                     "Token: ${if (token != null) "已获取 (${token.length} 字符)" else "null"}"
                                 )
-                                val userApi = com.neko.music.data.api.UserApi(token)
+                                val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                                 Log.d("MainActivity", "UserApi 实例已创建")
                                 val response = userApi.updateAvatar(imageData)
                                 Log.d(
@@ -801,8 +801,9 @@ fun MainScreen() {
                     onPasswordUpdate = { oldPassword, newPassword ->
                         try {
                             val userApi = com.neko.music.data.api.UserApi(
-                                com.neko.music.data.manager.TokenManager(context)
-                                    .getToken()
+                                token = com.neko.music.data.manager.TokenManager(context)
+                                    .getToken(),
+                                context = context
                             )
                             val response =
                                 userApi.updatePassword(oldPassword, newPassword)

@@ -25,13 +25,51 @@ class FavoriteApi(private val context: android.content.Context) {
 
     private val baseUrl = "https://music.cnmsb.xin"
 
+    // ACW 挑战求解器
+    private val acwChallengeSolver = com.neko.music.data.manager.ACWChallengeSolver(context)
+
+    // 全局 Cookie 缓存
+    private val app = context.applicationContext as com.neko.music.NekoMusicApplication
+
+    /**
+     * 获取 Cookie（优先使用缓存）
+     */
+    private suspend fun getCookie(): String? {
+        // 先尝试使用缓存的 Cookie
+        val cachedCookie = app.getCachedCookie()
+        if (cachedCookie != null) {
+            return cachedCookie
+        }
+
+        // 缓存失效，重新获取
+        try {
+            val newCookie = acwChallengeSolver.getCookie()
+            if (newCookie != null) {
+                app.setCachedCookie(newCookie)
+            }
+            return newCookie
+        } catch (e: Exception) {
+            Log.e("FavoriteApi", "获取 ACW Cookie 失败", e)
+            return null
+        }
+    }
+
     /**
      * 获取收藏列表
      */
     suspend fun getFavorites(token: String): FavoriteListResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.get("$baseUrl/api/user/favorites") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
             }
             response.body()
         } catch (e: Exception) {
@@ -46,8 +84,17 @@ class FavoriteApi(private val context: android.content.Context) {
      */
     suspend fun addFavorite(token: String, musicId: Int): FavoriteResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("$baseUrl/api/user/favorites") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
                 contentType(ContentType.Application.Json)
                 setBody(AddFavoriteRequest(musicId = musicId))
             }
@@ -64,8 +111,17 @@ class FavoriteApi(private val context: android.content.Context) {
      */
     suspend fun removeFavorite(token: String, musicId: Int): FavoriteResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.delete("$baseUrl/api/user/favorites/$musicId") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
             }
             response.body()
         } catch (e: Exception) {
@@ -80,8 +136,17 @@ class FavoriteApi(private val context: android.content.Context) {
      */
     suspend fun getFavoritePlaylists(token: String): FavoritePlaylistListResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.get("$baseUrl/api/user/favorite-playlists") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
             }
             response.body()
         } catch (e: Exception) {
@@ -96,8 +161,17 @@ class FavoriteApi(private val context: android.content.Context) {
      */
     suspend fun addFavoritePlaylist(token: String, playlistId: Int): FavoriteResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.post("$baseUrl/api/user/favorite-playlists") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
                 contentType(ContentType.Application.Json)
                 setBody(AddFavoritePlaylistRequest(playlistId = playlistId))
             }
@@ -114,8 +188,17 @@ class FavoriteApi(private val context: android.content.Context) {
      */
     suspend fun removeFavoritePlaylist(token: String, playlistId: Int): FavoriteResponse {
         return try {
+            // 获取 ACW Cookie
+            val cookie = getCookie()
+
             val response = client.delete("$baseUrl/api/user/favorite-playlists/$playlistId") {
                 header("Authorization", token)
+                headers {
+                    // 添加 Cookie 头
+                    if (cookie != null) {
+                        append("Cookie", cookie)
+                    }
+                }
             }
             response.body()
         } catch (e: Exception) {

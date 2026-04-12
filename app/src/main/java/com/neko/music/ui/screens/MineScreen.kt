@@ -289,11 +289,11 @@ fun MineHeader(
 fun MineStats(onUploadClick: () -> Unit = {}, token: String? = null) {
     var uploadCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
-    
+
     LaunchedEffect(token) {
         if (token != null) {
             try {
-                val userApi = com.neko.music.data.api.UserApi(token)
+                val userApi = com.neko.music.data.api.UserApi(token = token, context = context)
                 val response = userApi.getUploadedMusic()
                 if (response.success) {
                     uploadCount = response.total
