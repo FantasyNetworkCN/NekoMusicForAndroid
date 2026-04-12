@@ -327,8 +327,8 @@
     <string name="playlist_empty">播放列表为空</string>
 
     <!-- 最近播放 -->
-    <string name="no_play_history">欸？暂时没有播放记录欸</string>
-    <string name="no_related_songs">没有找到相关歌曲喵</string>
+    <string name="no_play_history">没有找到播放记录</string>
+    <string name="no_related_songs">没有找到相关歌曲</string>
     <string name="search_songs">搜索歌曲</string>
 
     <!-- 我的歌单 -->
@@ -446,7 +446,7 @@
 
     <!-- 分享 -->
     <string name="share_music_text">[%s-%s] Neko云音乐 https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
+    <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d</string>
     <string name="share_playlist">分享歌单</string>
     <string name="removed_from_playlist_success">已从歌单中移除</string>
     <string name="email">邮箱</string>
