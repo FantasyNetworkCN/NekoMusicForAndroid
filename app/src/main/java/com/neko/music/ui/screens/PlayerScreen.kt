@@ -546,6 +546,8 @@ fun PlayerScreen(
                             if (externalScrollIndex >= 0 && externalScrollIndex < lyrics.size) {
                                 try {
                                     lyricsListState.animateScrollToItem(externalScrollIndex, 0)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    // 协程被取消或滚动被中断，不打印错误日志
                                 } catch (e: Exception) {
                                     android.util.Log.e("PlayerScreen", "Failed to sync scroll from external", e)
                                 }
@@ -1461,6 +1463,8 @@ fun LyricsView(
                         // 简单地滚动到当前歌词
                         listState.animateScrollToItem(currentIndex, 0)
                         android.util.Log.d("LyricsView", "Scroll to index=$currentIndex")
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // 协程被取消或滚动被中断，不打印错误日志
                     } catch (e: Exception) {
                         android.util.Log.e("LyricsView", "Scroll error: ${e.message}", e)
                     }
