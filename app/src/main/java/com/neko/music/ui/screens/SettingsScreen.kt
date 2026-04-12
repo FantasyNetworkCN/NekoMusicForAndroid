@@ -97,9 +97,6 @@ fun SettingsScreen(
     var currentLanguage by remember { mutableStateOf(languagePrefs.getString("language", "nya") ?: "nya") }
     var showLanguageDialog by remember { mutableStateOf(false) }
     
-    // 卡丘语模式设置
-    var isKaqiuModeEnabled by remember { mutableStateOf(languagePrefs.getBoolean("kaqiu_mode_enabled", false)) }
-    
     // 悬浮窗权限检查
     var hasOverlayPermission by remember {
         mutableStateOf(
@@ -347,17 +344,6 @@ fun SettingsScreen(
                         title = kaqiuStringResource(resourceId = R.string.language),
                         subtitle = getLanguageDisplayName(context, currentLanguage),
                         onClick = { showLanguageDialog = true }
-                    )
-                    
-                    SettingSwitchItem(
-                        icon = Icons.Default.Info,
-                        title = kaqiuStringResource(resourceId = R.string.kaqiu_mode),
-                        subtitle = kaqiuStringResource(resourceId = R.string.kaqiu_mode_subtitle),
-                        checked = isKaqiuModeEnabled,
-                        onCheckedChange = { enabled ->
-                            isKaqiuModeEnabled = enabled
-                            languagePrefs.edit().putBoolean("kaqiu_mode_enabled", enabled).apply()
-                        }
                     )
                 }
 
