@@ -549,14 +549,28 @@ class MusicPlayerManager private constructor(context: Context) {
             }
 
             override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
-                Log.e("MusicPlayerManager", "播放错误: ${error.message}, 重试次数: $retryCount", error)
+                val currentTitle = _currentMusicTitle.value ?: "Unknown"
+                val errorMessage = error.message ?: "Unknown error"
+                
+                // 检查错误类型
+                if (error.errorCode == com.google.android.exoplayer2.PlaybackException.ERROR_CODE_IO_UNSPECIFIED) {
+                    // 检查是否是 UnrecognizedInputFormatException
+                    if (error.cause is com.google.android.exoplayer2.source.UnrecognizedInputFormatException) {
+                        Log.e("MusicPlayerManager", "音频格式不支持: $currentTitle, URL: ${_currentMusicUrl.value}")
+                        // 格式不支持，直接切换到下一首，不要重试
+                        next()
+                        return
+                    }
+                }
+                
+                Log.e("MusicPlayerManager", "播放错误: $errorMessage, 歌曲: $currentTitle, 重试次数: $retryCount", error)
+                
                 // 增加重试计数器
                 retryCount++
 
                 // 尝试重新播放当前歌曲
                 val currentUrl = _currentMusicUrl.value
                 val currentId = _currentMusicId.value
-                val currentTitle = _currentMusicTitle.value
                 val currentArtist = _currentMusicArtist.value
                 val currentCover = _currentMusicCover.value
 
