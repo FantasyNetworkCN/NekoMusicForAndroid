@@ -42,6 +42,7 @@ class FuckChinaOSFloatService : Service() {
     private var cachedArtist: String? = null
     private var cachedIsPlaying: Boolean? = null
     private var cachedCoverPath: String? = null
+    private var cachedLyricIndex: Int = -1
     
     // 歌词相关
     private var currentLyrics: List<com.neko.music.desktoplyric.LrcLine> = emptyList()
@@ -353,13 +354,18 @@ class FuckChinaOSFloatService : Service() {
                 val currentIndex = currentLyrics.indexOf(currentLine)
                 tvLyric?.text = currentLine.text
 
-                // 同步到LyricScrollManager
-                com.neko.music.util.LyricScrollManager.setCurrentLyricIndex(currentIndex, "float_window")
+                // 只有当歌词索引真正变化时才同步到LyricScrollManager
+                if (currentIndex != cachedLyricIndex) {
+                    cachedLyricIndex = currentIndex
+                    com.neko.music.util.LyricScrollManager.setCurrentLyricIndex(currentIndex, "float_window")
+                }
             } else {
                 tvLyric?.text = ""
+                cachedLyricIndex = -1
             }
         } else {
             tvLyric?.text = ""
+            cachedLyricIndex = -1
         }
     }
     

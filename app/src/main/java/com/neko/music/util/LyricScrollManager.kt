@@ -35,6 +35,11 @@ object LyricScrollManager {
     fun setCurrentLyricIndex(index: Int, source: String = "other") {
         if (index < 0) return
         
+        // 只有当 index 真正变化时才执行更新
+        if (_currentLyricIndex.value == index) {
+            return
+        }
+        
         android.util.Log.d("LyricScrollManager", "setCurrentLyricIndex: index=$index, source=$source")
         
         _currentLyricIndex.value = index
