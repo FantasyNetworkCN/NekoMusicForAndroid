@@ -899,13 +899,18 @@ fun UploadMusicDialog(
                                 contentDescription = null
                             )
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isUploading) {
-                                languageExpanded = !languageExpanded
-                            },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         enabled = !isUploading
+                    )
+                    
+                    // 在 OutlinedTextField 上方覆盖一个透明可点击层
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable(enabled = !isUploading) {
+                                languageExpanded = !languageExpanded
+                            }
                     )
                     
                     DropdownMenu(
