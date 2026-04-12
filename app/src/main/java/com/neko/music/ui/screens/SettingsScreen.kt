@@ -436,6 +436,7 @@ fun SettingsScreen(
                     currentLanguage = currentLanguage,
                     onDismiss = { showLanguageDialog = false },
                     onLanguageSelected = { languageCode ->
+                        showLanguageDialog = false
                         currentLanguage = languageCode
                         languagePrefs.edit().putString("language", languageCode).apply()
                         // 重新创建Activity以应用语言更改，保持在当前页面
