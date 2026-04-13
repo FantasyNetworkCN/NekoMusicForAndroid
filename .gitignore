@@ -8,7 +8,6 @@ app/build
 app/release
 
 local.properties
-
 #c++ JNI
 app/.cxx
 app/.cxx/*

@@ -1,3 +1,0 @@
-[submodule "app/src/main/cpp/openxr_sdk"]
-	path = app/src/main/cpp/openxr_sdk
-	url = https://github.com/KhronosGroup/OpenXR-SDK-Source.git
