@@ -21,8 +21,8 @@ android {
         applicationId = "com.neko.music"
         minSdk = 23
         targetSdk = 36
-        versionCode = 42
-        versionName = "20260403"
+        versionCode = 43
+        versionName = "20260413"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -228,10 +228,6 @@ dependencies {
 
     implementation(libs.accompanist.permissions)
 
-    // Oculus SDK for VR support
-    // 注意：Oculus SDK需要从Oculus开发者网站手动下载
-    // 暂时使用占位符实现，实际功能需要添加本地OVR SDK库
-    // implementation(fileTree("libs") { include("*.jar", "*.aar") })
 
     testImplementation(libs.junit)
 
