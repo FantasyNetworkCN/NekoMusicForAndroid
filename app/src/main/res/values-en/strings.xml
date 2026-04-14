@@ -462,8 +462,8 @@
     <string name="minutes_unit">minutes</string>
 
     <!-- Share -->
-    <string name="share_music_text">[%s-%s] Neko Music https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">I found a treasure playlist on Neko Music %s - https://music.cnmsb.xin/playlist/%d, it is amazing! Come and listen meow~</string>
+    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko Music https://music.cnmsb.xin/detail/%3$d</string>
+    <string name="share_playlist_text" formatted="false">I found a treasure playlist on Neko Music %1$s - https://music.cnmsb.xin/playlist/%2$d, it is amazing! Come and listen meow~</string>
     <string name="share_playlist">Share Playlist</string>
     <string name="removed_from_playlist_success">Removed from playlist</string>
     <string name="upload_music">Upload music</string>

@@ -300,7 +300,7 @@ class FuckChinaOSFloatService : Service() {
         // 只在数据变化时更新播放状态
         if (cachedIsPlaying != currentIsPlaying) {
             btnPlayPause?.setImageResource(
-                if (currentIsPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+                if (currentIsPlaying) R.drawable.pause else R.drawable.play
             )
 
             // 更新播放动画

@@ -459,8 +459,8 @@
     <string name="minutes_unit">分钟</string>
 
     <!-- 分享 -->
-    <string name="share_music_text">[%s-%s] Neko云音乐 https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">我在Neko云音乐发现了宝藏歌单 %s - https://music.cnmsb.xin/playlist/%d，里面超好听！大家快来听喵~</string>
+    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko云音乐 https://music.cnmsb.xin/detail/%3$d</string>
+    <string name="share_playlist_text" formatted="false">我在Neko云音乐发现了宝藏歌单 %1$s - https://music.cnmsb.xin/playlist/%2$d，里面超好听！大家快来听喵~</string>
     <string name="share_playlist">分享歌单</string>
     <string name="removed_from_playlist_success">已从歌单中移除</string>
     <string name="email">邮箱</string>

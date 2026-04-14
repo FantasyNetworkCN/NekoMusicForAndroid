@@ -477,8 +477,8 @@
     <string name="days_ago_format">%d天前喵</string>
     <string name="minutes_unit">分钟喵</string>
 
-    <string name="share_music_text">[%s-%s] Neko云音乐喵 https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">我在Neko云音乐发现了宝藏本本 %s - https://music.cnmsb.xin/playlist/%d，里面超好听喵！快来听听看喵~</string>
+    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko云音乐喵 https://music.cnmsb.xin/detail/%3$d</string>
+    <string name="share_playlist_text" formatted="false">我在Neko云音乐发现了宝藏本本 %1$s - https://music.cnmsb.xin/playlist/%2$d，里面超好听喵！快来听听看喵~</string>
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
     <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>

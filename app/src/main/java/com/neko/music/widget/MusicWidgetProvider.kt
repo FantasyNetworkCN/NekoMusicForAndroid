@@ -86,9 +86,9 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
         // 更新播放/暂停按钮图标
         val playPauseIcon = if (playerManager.isPlaying.value) {
-            R.drawable.ic_widget_pause
+            R.drawable.pause
         } else {
-            R.drawable.ic_widget_play
+            R.drawable.play
         }
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
