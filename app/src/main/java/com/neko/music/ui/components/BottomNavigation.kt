@@ -128,31 +128,12 @@ fun BottomNavigationBar(
                 )
         )
 
-        // 内容层：清晰的文字和装饰
+        // 内容层：清晰的文字
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
         ) {
-            // 背景装饰层
-            Canvas(
-                modifier = Modifier.fillMaxWidth().height(56.dp)
-            ) {
-                val width = size.width
-                val height = size.height
-                val itemWidth = width / items.size
-                val centerX = itemWidth * selectedIndex + itemWidth / 2
-
-                // 绘制底部装饰线
-                drawLine(
-                    color = RoseRed.copy(alpha = 0.2f),
-                    start = Offset(centerX - 30.dp.toPx(), height - 2.dp.toPx()),
-                    end = Offset(centerX + 30.dp.toPx(), height - 2.dp.toPx()),
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-            }
-
             // 导航栏文字
             Row(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -162,7 +143,7 @@ fun BottomNavigationBar(
                     val isSelected = currentRoute == item.route
 
                     val scaleValue by animateFloatAsState(
-                        targetValue = if (isSelected) 1.15f else 1f,
+                        targetValue = if (isSelected) 1.1f else 1f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
