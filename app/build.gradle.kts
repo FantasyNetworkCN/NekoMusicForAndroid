@@ -21,8 +21,8 @@ android {
         applicationId = "com.neko.music"
         minSdk = 23
         targetSdk = 36
-        versionCode = 44
-        versionName = "20260414"
+        versionCode = 45
+        versionName = "20260415"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -204,6 +204,7 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.core)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor)
 
 
 
