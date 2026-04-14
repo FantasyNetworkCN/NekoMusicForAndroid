@@ -97,6 +97,25 @@ object DesktopLyricRenderer {
     }
     
     /**
+     * 获取VR HUD数据（为VR场景优化）
+     * @param currentTime 当前播放时间（秒）
+     * @return JSON格式的歌词数据，包含text、translation、time、currentTime、hasLyric等字段
+     */
+    fun getVRHUDData(currentTime: Float): String {
+        return nativeGetCurrentLyric(currentTime)
+    }
+    
+    /**
+     * 获取VR HUD上下文（为VR场景的滚动效果优化）
+     * @param currentTime 当前播放时间（秒）
+     * @param contextLines 前后各显示的行数
+     * @return JSON数组，包含前后歌词的信息
+     */
+    fun getVRHUDContext(currentTime: Float, contextLines: Int = 3): String {
+        return nativeGetLyricContext(currentTime, contextLines)
+    }
+    
+    /**
      * 清理资源
      */
     fun cleanup() {
