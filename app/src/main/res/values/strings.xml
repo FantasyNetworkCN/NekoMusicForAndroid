@@ -11,8 +11,6 @@
     <string name="cached_songs" formatted="false">已抓到 %1$d 首歌曲 (%2$s) 喵</string>
     <string name="focus_lock">焦点锁定喵</string>
     <string name="focus_lock_subtitle">开启后人家就不会被其他坏应用打断了，可以一起叫喵</string>
-    <string name="fuck_china_os">灵动喵</string>
-    <string name="fuck_china_os_subtitle">在顶部状态栏给主人看播放进度。吐槽：国产系统真讨厌喵</string>
     <string name="desktop_lyric">桌面歌词喵</string>
     <string name="desktop_lyric_subtitle">在屏幕上方飘过歌词喵</string>
 

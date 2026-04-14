@@ -112,15 +112,6 @@ class MusicPlayerService : Service() {
                         action = com.neko.music.widget.MusicWidgetProvider.ACTION_UPDATE_WIDGET
                     }
                     sendBroadcast(updateIntent)
-
-                    // 更新悬浮窗
-                    val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
-                    if (floatPrefs.getBoolean("fuck_china_os_enabled", false)) {
-                        val floatUpdateIntent = Intent(this@MusicPlayerService, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java).apply {
-                            action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_UPDATE
-                        }
-                        startService(floatUpdateIntent)
-                    }
                 }
         }
     }
@@ -350,9 +341,4 @@ class MusicPlayerService : Service() {
         notificationManager.notify(NOTIFICATION_ID, createMusicNotification())
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // 注意：不再释放 MusicPlayerManager，保持播放器始终活跃状态
-        // 释放已被禁用以防止 "Ignoring messages sent after release" 错误
-    }
 }

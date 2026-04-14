@@ -49,11 +49,6 @@
             android:foregroundServiceType="mediaPlayback"
             android:stopWithTask="false" />
 
-        <!-- FuckChinaOS 悬浮窗服务 -->
-        <service
-            android:name=".floatwindow.FuckChinaOSFloatService"
-            android:exported="false" />
-
         <!-- 桌面歌词服务 -->
         <service
             android:name=".desktoplyric.DesktopLyricService"

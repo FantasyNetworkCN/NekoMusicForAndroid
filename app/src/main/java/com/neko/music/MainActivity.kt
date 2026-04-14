@@ -193,24 +193,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        
-        // 检查灵动岛开关
-        val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
-        val isFuckChinaOSEnabled = floatPrefs.getBoolean("fuck_china_os_enabled", false)
-        
-        if (isFuckChinaOSEnabled) {
-            // 检查悬浮窗权限
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (Settings.canDrawOverlays(this)) {
-                    val intent = Intent(this, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
-                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
-                    startService(intent)
-                    Log.d("MainActivity", "灵动岛已开启，启动灵动岛服务")
-                } else {
-                    Log.d("MainActivity", "灵动岛已开启但没有悬浮窗权限")
-                }
-            }
-        }
     }
 
     override fun onResume() {

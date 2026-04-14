@@ -82,10 +82,6 @@ fun SettingsScreen(
     val cachePrefs = remember { context.getSharedPreferences("music_cache", Context.MODE_PRIVATE) }
     var isCacheEnabled by remember { mutableStateOf(cachePrefs.getBoolean("cache_enabled", true)) }
     
-    // FuckChinaOS 悬浮窗设置
-    val floatPrefs = remember { context.getSharedPreferences("float_window", Context.MODE_PRIVATE) }
-    var isFuckChinaOSEnabled by remember { mutableStateOf(floatPrefs.getBoolean("fuck_china_os_enabled", false)) }
-    
     // 焦点锁定设置
     val focusLockPrefs = remember { context.getSharedPreferences("player_prefs", Context.MODE_PRIVATE) }
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
@@ -126,10 +122,7 @@ fun SettingsScreen(
         }
     }
 
-    // 记录用户是否尝试开启灵动岛但被权限阻止
-    var pendingFuckChinaOSEnable by remember { mutableStateOf(false) }
-
-    // 监听应用生命周期，在恢复时重新检查权限并自动启动灵动岛
+    // 监听应用生命周期，在恢复时重新检查权限
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -142,16 +135,6 @@ fun SettingsScreen(
                 }
                 
                 hasOverlayPermission = newPermission
-                
-                // 如果用户之前尝试开启灵动岛但被权限阻止，现在有了权限，自动开启
-                if (pendingFuckChinaOSEnable && newPermission && !isFuckChinaOSEnabled) {
-                    isFuckChinaOSEnabled = true
-                    floatPrefs.edit().putBoolean("fuck_china_os_enabled", true).apply()
-                    val intent = Intent(context, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
-                    intent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
-                    context.startService(intent)
-                    pendingFuckChinaOSEnable = false
-                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -364,42 +347,6 @@ fun SettingsScreen(
                         title = stringResource(id = R.string.language),
                         subtitle = getLanguageDisplayName(context, currentLanguage),
                         onClick = { showLanguageDialog = true }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingSection(title = "FuckChinaOS") {
-                    SettingSwitchItem(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.fuck_china_os),
-                        subtitle = stringResource(id = R.string.fuck_china_os_subtitle),
-                        checked = isFuckChinaOSEnabled,
-                        onCheckedChange = { enabled ->
-                            // 如果开启但没有权限，先请求权限（开关状态不变，等用户授权后手动开启）
-                            if (enabled && !hasOverlayPermission) {
-                                val intent = Intent(
-                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:${context.packageName}")
-                                )
-                                context.startActivity(intent)
-                                pendingFuckChinaOSEnable = true
-                            } else {
-                                // 有权限或关闭时，直接执行
-                                isFuckChinaOSEnabled = enabled
-                                floatPrefs.edit().putBoolean("fuck_china_os_enabled", enabled).apply()
-                                
-                                // 控制悬浮窗服务
-                                val serviceIntent = Intent(context, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java)
-                                if (enabled) {
-                                    serviceIntent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_SHOW
-                                    context.startService(serviceIntent)
-                                } else {
-                                    serviceIntent.action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_HIDE
-                                    context.startService(serviceIntent)
-                                }
-                            }
-                        }
                     )
                 }
 
