@@ -68,6 +68,7 @@ import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.RecentPlayScreen
 import com.neko.music.ui.screens.RegisterScreen
+import com.neko.music.ui.screens.ForgotPasswordScreen
 import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
@@ -291,6 +292,7 @@ fun MainScreen() {
     // 登录和注册页面显示状态
     var showLoginScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
     var showRegisterScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
+    var showForgotPasswordScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
 
     // 登录状态，用于触发界面更新
@@ -1194,6 +1196,10 @@ fun MainScreen() {
                         onRegisterClick = {
                             showLoginScreen = false
                             showRegisterScreen = true
+                        },
+                        onForgotPasswordClick = {
+                            showLoginScreen = false
+                            showForgotPasswordScreen = true
                         }
                     )
                 }
@@ -1221,6 +1227,33 @@ fun MainScreen() {
                         },
                         onLoginClick = {
                             showRegisterScreen = false
+                            showLoginScreen = true
+                        }
+                    )
+                }
+            }
+
+            // 忘记密码页面
+            AnimatedVisibility(
+                visible = showForgotPasswordScreen,
+                enter = slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(durationMillis = 150)
+                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { -it },
+                    animationSpec = tween(durationMillis = 150)
+                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+                modifier = Modifier.zIndex(Float.MAX_VALUE)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ForgotPasswordScreen(
+                        onResetSuccess = {
+                            showForgotPasswordScreen = false
+                            showLoginScreen = true
+                        },
+                        onBackClick = {
+                            showForgotPasswordScreen = false
                             showLoginScreen = true
                         }
                     )

@@ -88,7 +88,43 @@ class UserApi(private val token: String? = null) {
             VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
         }
     }
-    
+
+    /**
+     * 发送重置密码验证码
+     */
+    suspend fun sendResetCode(email: String): VerificationResponse {
+        return try {
+            val response = client.post("$baseUrl/api/user/send-reset-code") {
+                contentType(ContentType.Application.Json)
+                setBody(SendResetCodeRequest(email = email))
+            }
+            response.body()
+        } catch (e: Exception) {
+            Log.e("UserApi", "发送重置密码验证码失败", e)
+            VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
+        }
+    }
+
+    /**
+     * 重置密码
+     */
+    suspend fun resetPassword(email: String, code: String, newPassword: String): ResetPasswordResponse {
+        return try {
+            val response = client.post("$baseUrl/api/user/reset-password") {
+                contentType(ContentType.Application.Json)
+                setBody(ResetPasswordRequest(
+                    email = email,
+                    code = code,
+                    newPassword = newPassword
+                ))
+            }
+            response.body()
+        } catch (e: Exception) {
+            Log.e("UserApi", "重置密码失败", e)
+            ResetPasswordResponse(success = false, message = "网络错误: ${e.message}")
+        }
+    }
+
     /**
      * 修改密码
      */
@@ -427,4 +463,22 @@ data class UploadMusicResponse(
     val success: Boolean,
     val message: String,
     val musicId: Int? = null
+)
+
+@Serializable
+data class SendResetCodeRequest(
+    val email: String
+)
+
+@Serializable
+data class ResetPasswordRequest(
+    val email: String,
+    val code: String,
+    val newPassword: String
+)
+
+@Serializable
+data class ResetPasswordResponse(
+    val success: Boolean,
+    val message: String
 )

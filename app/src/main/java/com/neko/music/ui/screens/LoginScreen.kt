@@ -36,7 +36,8 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onBackClick: () -> Unit,
-    onRegisterClick: () -> Unit = {}
+    onRegisterClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {}
 ) {
 
     val context = LocalContext.current
@@ -223,7 +224,28 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 忘记密码链接
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(animationSpec = tween(durationMillis = 150, delayMillis = 135))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onForgotPasswordClick) {
+                        Text(
+                            text = stringResource(id = R.string.forgot_password) + "?",
+                            color = Color(0xFFE94560),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // 登录按钮
             AnimatedVisibility(

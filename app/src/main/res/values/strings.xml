@@ -100,6 +100,21 @@
     <string name="password_mismatch">两次暗号对不上喵！</string>
     <string name="email_format_error">邮箱地址不对劲喵</string>
     <string name="please_enter_email_first">先告诉人家邮箱喵</string>
+
+    <!-- 忘记密码 -->
+    <string name="forgot_password">忘记密码喵</string>
+    <string name="reset_password">重置密码喵</string>
+    <string name="enter_email_to_reset">请输入您的邮箱，猫娘会发验证码喵</string>
+    <string name="enter_code_to_reset">请输入验证码和新密码喵</string>
+    <string name="send_reset_code">发送验证码喵</string>
+    <string name="reset_password_now">立即重置喵</string>
+    <string name="reset_password_success">密码重置成功啦，用新密码登录喵</string>
+    <string name="reset_password_failed">重置密码失败喵: %s</string>
+    <string name="send_reset_code_failed">发送验证码失败喵: %s</string>
+    <string name="please_enter_email_for_reset">请输入邮箱喵</string>
+    <string name="please_enter_code_for_reset">请输入验证码喵</string>
+    <string name="new_password_length_error_reset">新密码长度要在6-30位才安全喵</string>
+
     <string name="email">邮箱喵</string>
     <string name="password">暗号喵</string>
     <string name="username">名字喵</string>

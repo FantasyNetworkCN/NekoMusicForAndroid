@@ -104,6 +104,20 @@
     <string name="email_format_error">邮箱格式不正确</string>
     <string name="please_enter_email_first">请先输入邮箱</string>
 
+    <!-- 忘记密码 -->
+    <string name="forgot_password">忘记密码</string>
+    <string name="reset_password">重置密码</string>
+    <string name="enter_email_to_reset">请输入您的邮箱，我们将发送验证码</string>
+    <string name="enter_code_to_reset">请输入验证码和新密码</string>
+    <string name="send_reset_code">发送验证码</string>
+    <string name="reset_password_now">立即重置</string>
+    <string name="reset_password_success">密码重置成功，请使用新密码登录</string>
+    <string name="reset_password_failed">重置密码失败: %s</string>
+    <string name="send_reset_code_failed">发送验证码失败: %s</string>
+    <string name="please_enter_email_for_reset">请输入邮箱</string>
+    <string name="please_enter_code_for_reset">请输入验证码</string>
+    <string name="new_password_length_error_reset">新密码长度必须在6-30个字符之间</string>
+
     <!-- 账号信息 -->
     <string name="update_failed_msg">❌ 更新失败</string>
     <string name="account_info">账号信息</string>
