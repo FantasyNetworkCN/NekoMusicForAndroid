@@ -380,48 +380,30 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .statusBarsPadding()
                 ) {
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.96f else 1f,
+                        targetValue = if (isPressed) 0.98f else 1f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
                         )
                     )
 
-                    // 呼吸动画
-                    val infiniteTransition = rememberInfiniteTransition(label = "searchPulse")
-                    val pulseScale by infiniteTransition.animateFloat(
-                        initialValue = 1f,
-                        targetValue = 1.02f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        )
-                    )
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
+                            .height(56.dp)
                             .scale(scale)
                             .shadow(
-                                elevation = 20.dp,
-                                spotColor = RoseRed.copy(alpha = 0.35f),
-                                ambientColor = Color.Gray.copy(alpha = 0.18f)
+                                elevation = 12.dp,
+                                spotColor = RoseRed.copy(alpha = 0.2f),
+                                ambientColor = Color.Gray.copy(alpha = 0.1f)
                             )
-                            .clip(RoundedCornerShape(36.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.99f),
-                                        Color.White.copy(alpha = 0.95f)
-                                    )
-                                )
-                            )
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(Color.White.copy(alpha = 0.98f))
                             .clickable {
                                 isPressed = true
                                 Log.d("HomeScreen", "搜索框被点击")
@@ -429,158 +411,25 @@ fun HomeScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        // 内部渐变边框效果
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(72.dp)
-                                .padding(2.dp)
-                                .clip(RoundedCornerShape(34.dp))
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            SakuraPink.copy(alpha = 0.25f),
-                                            RoseRed.copy(alpha = 0.2f),
-                                            SkyBlue.copy(alpha = 0.25f),
-                                            Lilac.copy(alpha = 0.2f)
-                                        )
-                                    )
-                                )
-                        )
-                        
-                        // 内部白色背景
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(72.dp)
-                                .padding(3.dp)
-                                .clip(RoundedCornerShape(33.dp))
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.98f),
-                                            Color.White.copy(alpha = 0.94f)
-                                        )
-                                    )
-                                )
-                        )
-                        
-                        // 顶部高光
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .padding(top = 4.dp)
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color.White.copy(alpha = 0.8f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                        
-                        // 底部光晕
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(2.dp)
-                                .padding(bottom = 4.dp)
-                                .align(Alignment.BottomCenter)
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            SakuraPink.copy(alpha = 0.3f),
-                                            SkyBlue.copy(alpha = 0.3f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 28.dp),
+                                .padding(horizontal = 20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 图标容器
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .scale(pulseScale)
-                                    .background(
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                RoseRed.copy(alpha = 0.15f),
-                                                SakuraPink.copy(alpha = 0.12f)
-                                            )
-                                        ),
-                                        shape = RoundedCornerShape(20.dp)
-                                    )
-                                    .shadow(
-                                        elevation = 4.dp,
-                                        spotColor = RoseRed.copy(alpha = 0.2f),
-                                        ambientColor = Color.Gray.copy(alpha = 0.1f)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = stringResource(id = R.string.search),
-                                    tint = RoseRed.copy(alpha = 0.95f),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(20.dp))
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(id = R.string.search),
+                                tint = RoseRed,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = stringResource(id = R.string.search_music_artist_album),
-                                fontSize = 18.sp,
-                                color = Color.Gray.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.4.sp
+                                fontSize = 16.sp,
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium
                             )
-                            
-                            // 右侧装饰点
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(
-                                                color = SakuraPink.copy(alpha = 0.6f),
-                                                shape = RoundedCornerShape(3.dp)
-                                            )
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(
-                                                color = SkyBlue.copy(alpha = 0.6f),
-                                                shape = RoundedCornerShape(3.dp)
-                                            )
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(
-                                                color = Lilac.copy(alpha = 0.6f),
-                                                shape = RoundedCornerShape(3.dp)
-                                            )
-                                    )
-                                }
-                            }
                         }
                     }
                 }
