@@ -156,6 +156,8 @@
     <string name="download_success">下载成功</string>
     <string name="download_failed">下载失败: %s</string>
     <string name="share_to_twitter">分享到Twitter</string>
+    <string name="share_to_qq">分享到QQ</string>
+    <string name="qq_not_installed">未安装QQ</string>
     <string name="share_failed">分享失败</string>
     <string name="playback_speed">倍速</string>
     <string name="playback_speed_x">倍速: %dx</string>
@@ -407,7 +409,6 @@
     <string name="total_hot_music">共 %d 首热门音乐</string>
     
     <!-- 分享 -->
-    <string name="share_to_qq">分享到QQ</string>
     <string name="playlist_link">歌单链接</string>
     
     <!-- 定时关闭 -->

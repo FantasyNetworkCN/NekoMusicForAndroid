@@ -161,6 +161,8 @@
     <string name="download_success">Download successful</string>
     <string name="download_failed">Download failed: %s</string>
     <string name="share_to_twitter">Share to Twitter</string>
+    <string name="share_to_qq">Share to QQ</string>
+    <string name="qq_not_installed">QQ is not installed</string>
     <string name="share_failed">Share failed</string>
     <string name="playback_speed">Playback Speed</string>
     <string name="playback_speed_x">Speed: %dx</string>
@@ -410,7 +412,6 @@
     <string name="total_hot_music">Total %d hot songs</string>
     
     <!-- Share -->
-    <string name="share_to_qq">Share to QQ</string>
     <string name="playlist_link">Playlist Link</string>
     
     <!-- Sleep Timer -->
