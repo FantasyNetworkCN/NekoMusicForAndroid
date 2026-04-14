@@ -765,7 +765,7 @@ fun PlaylistDetailScreen(
                                         label = stringResource(id = R.string.share_to_twitter),
                                         color = Color(0xFF1DA1F2),
                                         onClick = {
-                                            val shareText = "我在Neko云音乐发现了宝藏歌单《$playlistName》- https://music.cnmsb.xin/playlist/$playlistId，里面超好听！大家快来听喵~"
+                                            val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
                                             val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
                                             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                                                 data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
@@ -781,8 +781,31 @@ fun PlaylistDetailScreen(
                                         label = stringResource(id = R.string.share_to_qq),
                                         color = Color(0xFF12B7F5),
                                         onClick = {
-                                            android.widget.Toast.makeText(context, "我他妈注册补上傻逼QQ开放平台！", android.widget.Toast.LENGTH_SHORT).show()
-                                            showShareDialog = false
+                                            scope.launch {
+                                                showShareDialog = false
+                                                try {
+                                                    val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+
+                                                    // 使用QQ分享
+                                                    val qqIntent = android.content.Intent().apply {
+                                                        action = android.content.Intent.ACTION_SEND
+                                                        type = "text/plain"
+                                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                        setPackage("com.tencent.mobileqq")
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+
+                                                    // 尝试启动QQ
+                                                    try {
+                                                        context.startActivity(qqIntent)
+                                                    } catch (e: Exception) {
+                                                        // 如果QQ未安装，提示用户
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.qq_not_installed), android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } catch (e: Exception) {
+                                                    android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         }
                                     )
                                 }
