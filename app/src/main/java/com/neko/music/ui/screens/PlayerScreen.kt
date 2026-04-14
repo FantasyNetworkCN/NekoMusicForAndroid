@@ -1798,7 +1798,7 @@ fun ShareDialog(
             ) {
                 Surface(
                     shape = RoundedCornerShape(0.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
@@ -1849,7 +1849,7 @@ fun ShareDialog(
                                 Text(
                                     text = stringResource(id = R.string.add_to_playlist),
                                     fontSize = 14.sp,
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(bottom = 12.dp)
                                 )
@@ -1922,7 +1922,7 @@ fun ShareDialog(
                             Text(
                                 text = stringResource(id = R.string.playback_speed),
                                 fontSize = 14.sp,
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
@@ -1956,7 +1956,7 @@ fun ShareDialog(
                             Text(
                                 text = stringResource(id = R.string.sleep_timer),
                                 fontSize = 14.sp,
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
@@ -2001,7 +2001,7 @@ fun ShareDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(0.5.dp)
-                                .background(Color(0xFFE8E8E8))
+                                .background(MaterialTheme.colorScheme.outlineVariant)
                         )
 
                         // 取消按钮
@@ -2095,7 +2095,7 @@ fun ShareGridItem(
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color.Gray.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
     }
@@ -2139,8 +2139,8 @@ fun SleepTimerChip(
     customLabel: String = "",
     closeLabel: String = ""
 ) {
-    val backgroundColor = if (isSelected) RoseRed else Color(0xFFF5F5F5)
-    val textColor = if (isSelected) Color.White else Color.Gray
+    val backgroundColor = if (isSelected) RoseRed else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
     val label = when {
         minutes == -1 && customMinutes != null -> {
             val hours = customMinutes / 60
@@ -2461,7 +2461,7 @@ fun PlaylistChip(
             Text(
                 text = "${playlist.musicCount}首",
                 fontSize = 8.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
