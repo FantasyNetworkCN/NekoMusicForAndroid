@@ -1,44 +1,73 @@
 package com.neko.music.ui.screens
 
 import android.util.Log
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.draw.alpha
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
@@ -46,10 +75,12 @@ import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
-import com.neko.music.data.model.Music
-import com.neko.music.ui.theme.*
-import kotlinx.coroutines.launch
+import com.neko.music.ui.theme.Lilac
+import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.SkyBlue
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -295,36 +326,47 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
                         .statusBarsPadding()
                 ) {
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.97f else 1f,
+                        targetValue = if (isPressed) 0.96f else 1f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
                         )
                     )
 
+                    // 呼吸动画
+                    val infiniteTransition = rememberInfiniteTransition(label = "searchPulse")
+                    val pulseScale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.02f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(3000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        )
+                    )
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(62.dp)
+                            .height(72.dp)
                             .scale(scale)
                             .shadow(
-                                elevation = 16.dp,
-                                spotColor = RoseRed.copy(alpha = 0.3f),
-                                ambientColor = Color.Gray.copy(alpha = 0.15f)
+                                elevation = 20.dp,
+                                spotColor = RoseRed.copy(alpha = 0.35f),
+                                ambientColor = Color.Gray.copy(alpha = 0.18f)
                             )
+                            .clip(RoundedCornerShape(36.dp))
                             .background(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = 0.98f),
-                                        Color.White.copy(alpha = 0.92f)
+                                        Color.White.copy(alpha = 0.99f),
+                                        Color.White.copy(alpha = 0.95f)
                                     )
-                                ),
-                                shape = RoundedCornerShape(31.dp)
+                                )
                             )
                             .clickable {
                                 isPressed = true
@@ -337,29 +379,68 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(62.dp)
-                                .clip(RoundedCornerShape(31.dp))
+                                .height(72.dp)
+                                .padding(2.dp)
+                                .clip(RoundedCornerShape(34.dp))
                                 .background(
                                     brush = Brush.linearGradient(
                                         colors = listOf(
-                                            SakuraPink.copy(alpha = 0.18f),
-                                            SkyBlue.copy(alpha = 0.18f),
-                                            Lilac.copy(alpha = 0.18f)
+                                            SakuraPink.copy(alpha = 0.25f),
+                                            RoseRed.copy(alpha = 0.2f),
+                                            SkyBlue.copy(alpha = 0.25f),
+                                            Lilac.copy(alpha = 0.2f)
                                         )
                                     )
                                 )
                         )
                         
-                        // 内部高光
+                        // 内部白色背景
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.dp)
+                                .height(72.dp)
+                                .padding(3.dp)
+                                .clip(RoundedCornerShape(33.dp))
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.98f),
+                                            Color.White.copy(alpha = 0.94f)
+                                        )
+                                    )
+                                )
+                        )
+                        
+                        // 顶部高光
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .padding(top = 4.dp)
                                 .background(
                                     brush = Brush.horizontalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            Color.White.copy(alpha = 0.5f),
+                                            Color.White.copy(alpha = 0.8f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                        
+                        // 底部光晕
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .padding(bottom = 4.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            SakuraPink.copy(alpha = 0.3f),
+                                            SkyBlue.copy(alpha = 0.3f),
                                             Color.Transparent
                                         )
                                     )
@@ -369,33 +450,83 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 26.dp),
+                                .padding(horizontal = 28.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // 图标容器
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(40.dp)
+                                    .scale(pulseScale)
                                     .background(
-                                        color = RoseRed.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(16.dp)
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                RoseRed.copy(alpha = 0.15f),
+                                                SakuraPink.copy(alpha = 0.12f)
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(20.dp)
+                                    )
+                                    .shadow(
+                                        elevation = 4.dp,
+                                        spotColor = RoseRed.copy(alpha = 0.2f),
+                                        ambientColor = Color.Gray.copy(alpha = 0.1f)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = stringResource(id = R.string.search),
-                                    tint = RoseRed.copy(alpha = 0.9f),
-                                    modifier = Modifier.size(20.dp)
+                                    tint = RoseRed.copy(alpha = 0.95f),
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(18.dp))
+                            Spacer(modifier = Modifier.width(20.dp))
                             Text(
                                 text = stringResource(id = R.string.search_music_artist_album),
-                                fontSize = 17.sp,
-                                color = Color.Gray.copy(alpha = 0.75f),
+                                fontSize = 18.sp,
+                                color = Color.Gray.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.3.sp
+                                letterSpacing = 0.4.sp
                             )
+                            
+                            // 右侧装饰点
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(
+                                                color = SakuraPink.copy(alpha = 0.6f),
+                                                shape = RoundedCornerShape(3.dp)
+                                            )
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(
+                                                color = SkyBlue.copy(alpha = 0.6f),
+                                                shape = RoundedCornerShape(3.dp)
+                                            )
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(
+                                                color = Lilac.copy(alpha = 0.6f),
+                                                shape = RoundedCornerShape(3.dp)
+                                            )
+                                    )
+                                }
+                            }
                         }
                     }
                 }
