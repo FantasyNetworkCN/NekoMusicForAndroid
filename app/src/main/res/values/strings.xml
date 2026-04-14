@@ -16,8 +16,6 @@
     <string name="desktop_lyric">桌面歌词喵</string>
     <string name="desktop_lyric_subtitle">在屏幕上方飘过歌词喵</string>
 
-    <string name="vr_lyric_accessibility_service_description">VR歌词HUD - 在虚拟世界里也能看到歌词喵</string>
-    <string name="vr_lyric_accessibility_service_summary">为VR设备定制的歌词服务，主人去哪儿歌词就跟到哪儿喵</string>
     <string name="language">语言喵</string>
     <string name="language_subtitle">主人想让我说什么话喵？</string>
     <string name="language_follow_system">听系统的喵</string>

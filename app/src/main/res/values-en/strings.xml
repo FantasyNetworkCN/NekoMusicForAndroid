@@ -16,10 +16,6 @@
     <string name="fuck_china_os_subtitle">Show playback controls in the status bar center. Fuck you Chinese OS</string>
     <string name="desktop_lyric_subtitle">Display the currently playing lyrics at the top of the screen</string>
     
-    <!-- VR Lyrics Accessibility Service -->
-    <string name="vr_lyric_accessibility_service_description">VR Lyrics HUD - Display lyrics globally in VR environment</string>
-    <string name="vr_lyric_accessibility_service_summary">Lyrics display service optimized for VR devices, shows lyrics in all apps</string>
-    
     <string name="language">Language</string>
     <string name="language_subtitle">Select app display language</string>
     <string name="language_follow_system">Follow System</string>

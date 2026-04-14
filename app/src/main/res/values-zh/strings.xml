@@ -521,8 +521,4 @@
     <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
     <string name="not_required_for_instrumental">纯音乐不需要歌词文件</string>
     <string name="desktop_lyric">桌面歌词</string>
-    
-    <!-- VR歌词无障碍服务 -->
-    <string name="vr_lyric_accessibility_service_description">VR歌词HUD - 在VR环境中全局显示播放歌词</string>
-    <string name="vr_lyric_accessibility_service_summary">为VR设备优化的歌词显示服务，可在所有应用中显示歌词</string>
 </resources>
