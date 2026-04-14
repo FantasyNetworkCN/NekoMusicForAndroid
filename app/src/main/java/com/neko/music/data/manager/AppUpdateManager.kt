@@ -1,8 +1,13 @@
 package com.neko.music.data.manager
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.util.Log
+import androidx.core.content.FileProvider
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -16,6 +21,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileOutputStream
+import com.neko.music.util.UrlConfig
 
 /**
  * 版本信息 JSON 数据类
@@ -37,6 +43,15 @@ data class UpdateInfo(
 )
 
 /**
+ * 安装权限请求回调接口
+ */
+interface InstallPermissionCallback {
+    fun onRequestPermission()
+    fun onPermissionGranted()
+    fun onPermissionDenied()
+}
+
+/**
  * 应用更新管理器
  */
 class AppUpdateManager(private val context: Context) {
@@ -50,7 +65,7 @@ class AppUpdateManager(private val context: Context) {
         }
     }
     
-    private val versionCheckUrl = "https://music.cnmsb.xin/version.json"
+    private val versionCheckUrl = UrlConfig.getVersionCheckUrl()
     
     /**
      * 获取当前应用版本信息
@@ -276,10 +291,50 @@ class AppUpdateManager(private val context: Context) {
     
     /**
      * 安装 APK
+     * @param apkFile APK文件
+     * @param callback 安装权限回调（可选）
+     * @return 是否成功开始安装流程
      */
-    fun installApk(apkFile: File) {
+    fun installApk(apkFile: File, callback: InstallPermissionCallback? = null): Boolean {
+        // 检查安装权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.packageManager.canRequestPackageInstalls()) {
+                // 没有安装权限，通过回调请求权限
+                callback?.onRequestPermission()
+                return false
+            }
+        }
+        
+        // 有权限，直接安装
+        return installApkWithPermission(apkFile)
+    }
+    
+    /**
+     * 检查是否有安装权限
+     */
+    fun hasInstallPermission(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return context.packageManager.canRequestPackageInstalls()
+        }
+        return true
+    }
+    
+    /**
+     * 获取安装权限请求Intent
+     */
+    fun getInstallPermissionIntent(): Intent {
+        return Intent(
+            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+            Uri.parse("package:${context.packageName}")
+        )
+    }
+    
+    /**
+     * 使用已授予的权限安装APK
+     */
+    private fun installApkWithPermission(apkFile: File): Boolean {
         try {
-            val uri = androidx.core.content.FileProvider.getUriForFile(
+            val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 apkFile
@@ -294,8 +349,10 @@ class AppUpdateManager(private val context: Context) {
                         android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             context.startActivity(intent)
+            return true
         } catch (e: Exception) {
             Log.e("AppUpdateManager", "安装 APK 失败", e)
+            return false
         }
     }
 }

@@ -45,6 +45,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import androidx.compose.ui.zIndex
 import coil.request.ImageRequest
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -117,7 +118,7 @@ fun MyPlaylistsScreen(
                                     if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                         val firstMusic = musicResponse.musicList[0]
                                         // 使用第一首音乐的ID来获取封面
-                                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                        val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                         playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to coverUrl)
                                         Log.d("MyPlaylistsScreen", "歌单${playlist.id}第一首音乐ID: ${firstMusic.id}, 封面: $coverUrl")
                                     }
@@ -142,7 +143,7 @@ fun MyPlaylistsScreen(
                         
                         // 为"我喜欢的音乐"加载封面（使用第一首收藏音乐的封面）
                         val firstFavorite = favorites[0]
-                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstFavorite.id}"
+                        val coverUrl = UrlConfig.getMusicCoverUrl(firstFavorite.id)
                         playlistFirstMusicCovers = playlistFirstMusicCovers + (0 to coverUrl)
                     }
                 }
@@ -174,7 +175,7 @@ fun MyPlaylistsScreen(
                                     val musicResponse: PlaylistMusicListResponse = playlistApi.getPlaylistMusic(playlist.id)
                                     if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                         val firstMusic = musicResponse.musicList[0]
-                                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                        val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                         playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to coverUrl)
                                     }
                                 } catch (e: Exception) {
@@ -218,7 +219,7 @@ fun MyPlaylistsScreen(
                                     val musicResponse: PlaylistMusicListResponse = playlistApi.getPlaylistMusic(playlist.id)
                                     if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                         val firstMusic = musicResponse.musicList[0]
-                                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                        val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                         playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to coverUrl)
                                     }
                                 } catch (e: Exception) {
@@ -239,7 +240,7 @@ fun MyPlaylistsScreen(
                     // 为"我喜欢的音乐"加载封面（使用第一首收藏音乐的封面）
                     if (favorites.isNotEmpty()) {
                         val firstFavorite = favorites[0]
-                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstFavorite.id}"
+                        val coverUrl = UrlConfig.getMusicCoverUrl(firstFavorite.id)
                         playlistFirstMusicCovers = playlistFirstMusicCovers + (0 to coverUrl)
                     }
                 }
@@ -269,7 +270,7 @@ fun MyPlaylistsScreen(
                                     val musicResponse: PlaylistMusicListResponse = playlistApi.getPlaylistMusic(playlist.id)
                                     if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                         val firstMusic = musicResponse.musicList[0]
-                                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                        val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                         playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to coverUrl)
                                     }
                                 } catch (e: Exception) {
@@ -661,15 +662,15 @@ fun PlaylistItem(
                 // "我的收藏"使用第一首收藏音乐的封面
                 val firstFavorite = favorites.firstOrNull()
                 if (firstFavorite != null) {
-                    "https://music.cnmsb.xin/api/music/cover/${firstFavorite.id}"
+                    UrlConfig.getMusicCoverUrl(firstFavorite.id)
                 } else {
                     // 没有收藏，使用默认头像
-                    "https://music.cnmsb.xin/api/user/avatar/default"
+                    UrlConfig.getDefaultAvatarUrl()
                 }
             }
             !playlist.coverPath.isNullOrEmpty() -> {
                 // 歌单有自己的封面
-                "https://music.cnmsb.xin${playlist.coverPath}"
+                UrlConfig.buildFullUrl("${playlist.coverPath}")
             }
             !firstMusicCover.isNullOrEmpty() -> {
                 // 使用第一首音乐的封面
@@ -677,7 +678,7 @@ fun PlaylistItem(
             }
             else -> {
                 // 没有封面，使用默认头像
-                "https://music.cnmsb.xin/api/user/avatar/default"
+                UrlConfig.getDefaultAvatarUrl()
             }
         }
         Log.d("PlaylistItem", "歌单ID=${playlist.id}, 名称=${playlist.name}, coverPath=${playlist.coverPath}, firstMusicCover=$firstMusicCover, coverUrl=$url")

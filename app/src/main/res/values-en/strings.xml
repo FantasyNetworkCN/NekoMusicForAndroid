@@ -256,6 +256,8 @@
     <string name="check_update_failed_msg">Check update failed: %s</string>
     <string name="recommended_playlists_exception">Recommended playlists exception: %s</string>
     <string name="installing_update">Installing update...</string>
+    <string name="install_permission_denied">Install permission denied</string>
+    <string name="install_failed">Installation failed</string>
     <string name="update_dialog">New Version Available</string>
     <string name="version_code">Version Code: %d</string>
 

@@ -32,6 +32,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
 
 @Composable
@@ -243,7 +244,7 @@ fun MineHeader(
                 if (isLoggedIn && userId != -1) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("https://music.cnmsb.xin/api/user/avatar/$userId?t=$avatarUpdateTime")
+                            .data(UrlConfig.getUserAvatarUrl(userId, avatarUpdateTime))
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(id = R.string.user_avatar),
@@ -253,7 +254,7 @@ fun MineHeader(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("https://music.cnmsb.xin/api/user/avatar/default")
+                            .data(UrlConfig.getDefaultAvatarUrl())
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(id = R.string.default_avatar),

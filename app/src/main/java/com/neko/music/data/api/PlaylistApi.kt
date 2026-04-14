@@ -1,6 +1,7 @@
 package com.neko.music.data.api
 
 import android.util.Log
+import com.neko.music.util.UrlConfig
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -98,11 +99,11 @@ class PlaylistApi(private val token: String?, private val context: android.conte
         }
     }
 
-    private val baseUrl = "https://music.cnmsb.xin/api/user/playlist"
+    private val baseUrl = "${UrlConfig.getBaseUrl()}/api/user/playlist"
 
     suspend fun searchPlaylists(): PlaylistListResponse {
         return try {
-            val response = client.post("https://music.cnmsb.xin/api/playlists/search") {
+            val response = client.post("${UrlConfig.getBaseUrl()}/api/playlists/search") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"query":"歌单"}""")
             }
@@ -124,7 +125,7 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun getMyPlaylists(): PlaylistListResponse {
         return try {
-            val response = client.get("https://music.cnmsb.xin/api/user/playlists") {
+            val response = client.get("${UrlConfig.getBaseUrl()}/api/user/playlists") {
                 headers {
                     append("Authorization", token ?: "")
                 }
@@ -194,7 +195,7 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun getPlaylistDetail(playlistId: Int): PlaylistResponse {
         return try {
-            val response = client.get("https://music.cnmsb.xin/api/playlist/$playlistId")
+            val response = client.get("${UrlConfig.getBaseUrl()}/api/playlist/$playlistId")
             Log.d("PlaylistApi", "获取歌单详情响应: ${response.body<String>()}")
             response.body()
         } catch (e: Exception) {
@@ -232,7 +233,7 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     suspend fun removeMusicFromPlaylist(playlistId: Int, musicId: Int): PlaylistResponse {
         return try {
-            val response = client.post("https://music.cnmsb.xin/api/user/playlist/music/remove") {
+            val response = client.post("${UrlConfig.getBaseUrl()}/api/user/playlist/music/remove") {
                 headers {
                     token?.let { append("Authorization", it) }
                     append("Content-Type", "application/json")

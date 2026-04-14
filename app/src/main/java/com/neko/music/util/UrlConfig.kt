@@ -8,16 +8,18 @@ import com.neko.music.BuildConfig
  */
 object UrlConfig {
     
+    private val baseUrl = BuildConfig.BASE_URL
+    
     /**
      * 获取API基础URL
      */
-    fun getBaseUrl(): String = BuildConfig.BASE_URL
+    fun getBaseUrl(): String = baseUrl
     
     /**
      * 获取音乐封面URL
      * @param musicId 音乐ID
      */
-    fun getMusicCoverUrl(musicId: Int): String = "${BuildConfig.BASE_URL}/api/music/cover/$musicId"
+    fun getMusicCoverUrl(musicId: Int): String = "$baseUrl/api/music/cover/$musicId"
     
     /**
      * 获取音乐文件URL
@@ -37,6 +39,21 @@ object UrlConfig {
             "${BuildConfig.BASE_URL}/api/user/avatar/$userId"
         }
     }
+    
+    /**
+     * 获取API基础URL
+     */
+    fun getApiUrl(path: String): String = "${BuildConfig.BASE_URL}$path"
+    
+    /**
+     * 获取艺术家搜索URL
+     */
+    fun getArtistSearchUrl(): String = "${BuildConfig.BASE_URL}/api/artists/search"
+    
+    /**
+     * 获取播放列表搜索URL
+     */
+    fun getPlaylistSearchUrl(): String = "${BuildConfig.BASE_URL}/api/playlists/search"
     
     /**
      * 获取默认用户头像URL

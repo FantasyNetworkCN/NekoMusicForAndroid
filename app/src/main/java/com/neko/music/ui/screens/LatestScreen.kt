@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
@@ -138,7 +139,7 @@ fun LatestScreen(
                                         // 播放第一首，其他歌曲会在播放时自动添加到播放列表
                                         val firstMusic = musicList[0]
                                         val url = musicApi.getMusicFileUrl(firstMusic)
-                                        val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                        val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                         playerManager.playMusic(
                                             url,
                                             firstMusic.id,
@@ -236,7 +237,7 @@ fun LatestScreen(
                                             try {
                                                 // 播放当前点击的歌曲
                                                 val url = musicApi.getMusicFileUrl(music)
-                                                val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                                                val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
                                                 playerManager.playMusic(
                                                     url,
                                                     music.id,

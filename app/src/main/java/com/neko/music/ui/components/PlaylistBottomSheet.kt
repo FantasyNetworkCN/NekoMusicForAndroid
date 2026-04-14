@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.model.Music
 import com.neko.music.ui.theme.RoseRed
@@ -191,10 +192,10 @@ fun PlaylistItem(
                 if (music.coverFilePath.startsWith("http")) {
                     music.coverFilePath
                 } else {
-                    "https://music.cnmsb.xin${music.coverFilePath}"
+                    UrlConfig.buildFullUrl("${music.coverFilePath}")
                 }
             } else {
-                "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                UrlConfig.getMusicCoverUrl(music.id)
             }
             android.util.Log.d("PlaylistBottomSheet", "音乐: ${music.title}, coverFilePath: ${music.coverFilePath}, 最终URL: $coverUrl")
             AsyncImage(

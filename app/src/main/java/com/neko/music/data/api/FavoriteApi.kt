@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import android.util.Log
 import com.neko.music.data.model.Music
+import com.neko.music.util.UrlConfig
 
 class FavoriteApi(private val context: android.content.Context) {
     private val client = HttpClient(OkHttp) {
@@ -23,7 +24,7 @@ class FavoriteApi(private val context: android.content.Context) {
         }
     }
 
-    private val baseUrl = "https://music.cnmsb.xin"
+    private val baseUrl = UrlConfig.getBaseUrl()
 
     /**
      * 获取收藏列表

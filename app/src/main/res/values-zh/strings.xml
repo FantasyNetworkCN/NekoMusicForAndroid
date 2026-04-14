@@ -251,6 +251,8 @@
     <string name="check_update_failed_msg">检查更新失败: %s</string>
     <string name="recommended_playlists_exception">推荐歌单异常: %s</string>
     <string name="installing_update">正在安装更新...</string>
+    <string name="install_permission_denied">安装权限被拒绝</string>
+    <string name="install_failed">安装失败</string>
     <string name="update_dialog">发现新版本</string>
     <string name="new_version_found">发现新版本</string>
     <string name="new_version">新版本：%s</string>

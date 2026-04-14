@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.RoseRed
@@ -182,9 +183,9 @@ fun RecentPlayItem(
     
     // 构建完整的封面URL
     val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-        "https://music.cnmsb.xin${music.coverFilePath}"
+        UrlConfig.buildFullUrl("${music.coverFilePath}")
     } else {
-        "https://music.cnmsb.xin/api/music/cover/${music.id}"
+        UrlConfig.getMusicCoverUrl(music.id)
     }
     
     Row(

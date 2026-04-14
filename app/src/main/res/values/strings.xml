@@ -204,7 +204,7 @@
     <string name="clear_history">失忆术喵！</string>
     <string name="no_description_nya">暂时没有描述Nya！</string>
     <string name="songs_count">%d 首音乐喵</string>
-    <string name="author_prefix">创作者：%s 喵</string>
+    <string name="author_prefix">创作者：%s</string>
     <string name="no_search_playlist_found">歌单藏起来了喵</string>
     <string name="no_search_artist_found">艺人跑掉了喵</string>
 
@@ -256,6 +256,8 @@
     <string name="check_update_failed_msg">检查失败喵: %s</string>
     <string name="recommended_playlists_exception">推荐出了点小意外喵: %s</string>
     <string name="installing_update">正在努力进化中...</string>
+    <string name="install_permission_denied">主人不让猫娘安装新版本呢喵</string>
+    <string name="install_failed">安装失败喵</string>
     <string name="update_dialog">主人快看，有新进化喵！</string>
     <string name="version_code">版本代号：%d 喵</string>
 

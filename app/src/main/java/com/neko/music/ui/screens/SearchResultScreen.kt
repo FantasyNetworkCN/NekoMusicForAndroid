@@ -782,7 +782,7 @@ suspend fun performPlaylistSearch(
     scope.launch {
         try {
             val client = io.ktor.client.HttpClient()
-            val response = client.post("https://music.cnmsb.xin/api/playlists/search") {
+            val response = client.post("$baseUrl/api/playlists/search") {
                 headers {
                     append("Content-Type", "application/json")
                 }
@@ -822,7 +822,7 @@ suspend fun performPlaylistSearch(
                                 id = id,
                                 name = name,
                                 description = description,
-                                coverPath = "https://music.cnmsb.xin/api/music/cover/$firstMusicId",
+                                coverPath = "$baseUrl/api/music/cover/$firstMusicId",
                                 musicCount = musicCount,
                                 createdAt = "",
                                 updatedAt = "",
@@ -855,7 +855,7 @@ suspend fun performArtistSearch(
     scope.launch {
         try {
             val client = io.ktor.client.HttpClient()
-            val response = client.post("https://music.cnmsb.xin/api/artists/search") {
+            val response = client.post("$baseUrl/api/artists/search") {
                 headers {
                     append("Content-Type", "application/json")
                 }
@@ -902,7 +902,7 @@ suspend fun performArtistSearch(
                         Log.d("SearchScreen", "提取到的封面路径: $extractedCover")
                         
                         if (!extractedCover.isNullOrEmpty() && extractedCover != "/api/music/cover/" && extractedCover != "/api/music/cover") {
-                            coverPath = "https://music.cnmsb.xin$extractedCover"
+                            coverPath = "$baseUrl$extractedCover"
                         }
                     }
                     

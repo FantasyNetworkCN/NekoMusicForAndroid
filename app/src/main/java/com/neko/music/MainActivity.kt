@@ -80,6 +80,7 @@ import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
 import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
+import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko云音乐Theme
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -87,23 +88,9 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val PREFS_NAME = "app_prefs"
     private val KEY_FIRST_LAUNCH = "first_launch"
-    private val REQUEST_CODE_INSTALL_PERMISSION = 1001
 
     // 启动页状态
     private var showSplash by mutableStateOf(false)
-
-    // 安装权限请求结果回调
-    private val installPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (packageManager.canRequestPackageInstalls()) {
-                Log.d("MainActivity", "安装权限已授予")
-            } else {
-                Log.d("MainActivity", "安装权限被拒绝")
-            }
-        }
-    }
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(updateBaseContextLocale(base))
@@ -144,9 +131,6 @@ class MainActivity : ComponentActivity() {
             prefs.edit().putBoolean(KEY_FIRST_LAUNCH, false).apply()
             showSplash = true
         }
-
-        // 请求安装权限
-        requestInstallPermission()
 
         // 启动音乐播放服务（前台服务，保持后台运行）
         MusicPlayerService.startService(this)
@@ -215,20 +199,6 @@ class MainActivity : ComponentActivity() {
         playerManager.checkFavoriteStatus()
     }
 
-    /**
-     * 请求安装权限
-     */
-    private fun requestInstallPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!packageManager.canRequestPackageInstalls()) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:$packageName")
-                )
-                installPermissionLauncher.launch(intent)
-            }
-        }
-    }
 }
 
 @Composable
@@ -689,7 +659,7 @@ fun MainScreen() {
                                             ""
                                         )
                                     )
-                                    val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                    val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                     playerManager.playMusic(
                                         url,
                                         firstMusic.id,
@@ -1131,9 +1101,9 @@ fun MainScreen() {
                                 val musicApi = com.neko.music.data.api.MusicApi(context)
                                 val url = musicApi.getMusicFileUrl(music)
                                 val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-                                    "https://music.cnmsb.xin${music.coverFilePath}"
+                                    UrlConfig.buildFullUrl("${music.coverFilePath}")
                                 } else {
-                                    "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                                    UrlConfig.getMusicCoverUrl(music.id)
                                 }
                                 playerManager.playMusic(
                                     url,

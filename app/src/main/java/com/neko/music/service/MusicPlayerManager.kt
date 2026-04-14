@@ -16,6 +16,8 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.model.Music
+import com.neko.music.ui.screens.baseUrl
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -369,12 +371,12 @@ class MusicPlayerManager private constructor(context: Context) {
                                                             android.util.Log.d("MusicPlayerManager", "使用完整URL作为封面: ${nextMusic.coverFilePath}")
                                                             nextMusic.coverFilePath
                                                         } else {
-                                                            android.util.Log.d("MusicPlayerManager", "拼接URL作为封面: https://music.cnmsb.xin${nextMusic.coverFilePath}")
-                                                            "https://music.cnmsb.xin${nextMusic.coverFilePath}"
+                                                            android.util.Log.d("MusicPlayerManager", "拼接URL作为封面: $baseUrl${nextMusic.coverFilePath}")
+                                                            UrlConfig.buildFullUrl("${nextMusic.coverFilePath}")
                                                         }
                                                     } else {
-                                                        android.util.Log.d("MusicPlayerManager", "使用默认API作为封面: https://music.cnmsb.xin/api/music/cover/${nextMusic.id}")
-                                                        "https://music.cnmsb.xin/api/music/cover/${nextMusic.id}"
+                                                        android.util.Log.d("MusicPlayerManager", "使用默认API作为封面: $baseUrl/api/music/cover/${nextMusic.id}")
+                                                        UrlConfig.getMusicCoverUrl(nextMusic.id)
                                                     }
                                                     android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                                                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -388,9 +390,9 @@ class MusicPlayerManager private constructor(context: Context) {
                         android.util.Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
                         if (firstMusic != null) {
                             val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
-                                "https://music.cnmsb.xin${firstMusic.coverFilePath}"
+                                UrlConfig.buildFullUrl("${firstMusic.coverFilePath}")
                             } else {
-                                "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                UrlConfig.getMusicCoverUrl(firstMusic.id)
                             }
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                             val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -411,12 +413,12 @@ class MusicPlayerManager private constructor(context: Context) {
                                 android.util.Log.d("MusicPlayerManager", "使用完整URL作为封面: ${nextMusic.coverFilePath}")
                                 nextMusic.coverFilePath
                             } else {
-                                android.util.Log.d("MusicPlayerManager", "拼接URL作为封面: https://music.cnmsb.xin${nextMusic.coverFilePath}")
-                                "https://music.cnmsb.xin${nextMusic.coverFilePath}"
+                                android.util.Log.d("MusicPlayerManager", "拼接URL作为封面: $baseUrl${nextMusic.coverFilePath}")
+                                UrlConfig.buildFullUrl("${nextMusic.coverFilePath}")
                             }
                         } else {
-                            android.util.Log.d("MusicPlayerManager", "使用默认API作为封面: https://music.cnmsb.xin/api/music/cover/${nextMusic.id}")
-                            "https://music.cnmsb.xin/api/music/cover/${nextMusic.id}"
+                            android.util.Log.d("MusicPlayerManager", "使用默认API作为封面: $baseUrl/api/music/cover/${nextMusic.id}")
+                            UrlConfig.getMusicCoverUrl(nextMusic.id)
                         }
                         android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -430,9 +432,9 @@ class MusicPlayerManager private constructor(context: Context) {
                         android.util.Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
                         if (firstMusic != null) {
                             val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
-                                "https://music.cnmsb.xin${firstMusic.coverFilePath}"
+                                UrlConfig.buildFullUrl("${firstMusic.coverFilePath}")
                             } else {
-                                "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                UrlConfig.getMusicCoverUrl(firstMusic.id)
                             }
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                             val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -448,9 +450,9 @@ class MusicPlayerManager private constructor(context: Context) {
                     android.util.Log.d("MusicPlayerManager", "randomMusic: $randomMusic")
                     if (randomMusic != null) {
                         val fullCoverUrl = if (!randomMusic.coverFilePath.isNullOrEmpty()) {
-                            "https://music.cnmsb.xin${randomMusic.coverFilePath}"
+                            UrlConfig.buildFullUrl("${randomMusic.coverFilePath}")
                         } else {
-                            "https://music.cnmsb.xin/api/music/cover/${randomMusic.id}"
+                            UrlConfig.getMusicCoverUrl(randomMusic.id)
                         }
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                         val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -484,9 +486,9 @@ class MusicPlayerManager private constructor(context: Context) {
                     android.util.Log.d("MusicPlayerManager", "previousMusic: $previousMusic")
                     if (previousMusic != null) {
                         val fullCoverUrl = if (!previousMusic.coverFilePath.isNullOrEmpty()) {
-                            "https://music.cnmsb.xin${previousMusic.coverFilePath}"
+                            UrlConfig.buildFullUrl("${previousMusic.coverFilePath}")
                         } else {
-                            "https://music.cnmsb.xin/api/music/cover/${previousMusic.id}"
+                            UrlConfig.getMusicCoverUrl(previousMusic.id)
                         }
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                         val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -504,9 +506,9 @@ class MusicPlayerManager private constructor(context: Context) {
 
             if (previousMusic != null) {
                 val fullCoverUrl = if (!previousMusic.coverFilePath.isNullOrEmpty()) {
-                    "https://music.cnmsb.xin${previousMusic.coverFilePath}"
+                    UrlConfig.buildFullUrl("${previousMusic.coverFilePath}")
                 } else {
-                    "https://music.cnmsb.xin/api/music/cover/${previousMusic.id}"
+                    UrlConfig.getMusicCoverUrl(previousMusic.id)
                 }
                 // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                 val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -519,9 +521,9 @@ class MusicPlayerManager private constructor(context: Context) {
                 android.util.Log.d("MusicPlayerManager", "lastMusic: $lastMusic")
                 if (lastMusic != null) {
                     val fullCoverUrl = if (!lastMusic.coverFilePath.isNullOrEmpty()) {
-                        "https://music.cnmsb.xin${lastMusic.coverFilePath}"
+                        UrlConfig.buildFullUrl("${lastMusic.coverFilePath}")
                     } else {
-                        "https://music.cnmsb.xin/api/music/cover/${lastMusic.id}"
+                        UrlConfig.getMusicCoverUrl(lastMusic.id)
                     }
                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                     val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -1042,10 +1044,10 @@ class MusicPlayerManager private constructor(context: Context) {
                                                     if (nextMusic.coverFilePath.startsWith("http")) {
                                                         nextMusic.coverFilePath
                                                     } else {
-                                                        "https://music.cnmsb.xin${nextMusic.coverFilePath}"
+                                                        UrlConfig.buildFullUrl("${nextMusic.coverFilePath}")
                                                     }
                                                 } else {
-                                                    "https://music.cnmsb.xin/api/music/cover/${nextMusic.id}"
+                                                    UrlConfig.getMusicCoverUrl(nextMusic.id)
                                                 }
                     // 缓存下一首音乐信息
                     preloadedNextMusic = nextMusic
@@ -1066,9 +1068,9 @@ class MusicPlayerManager private constructor(context: Context) {
             val musicApi = com.neko.music.data.api.MusicApi(context)
             val url = musicApi.getMusicFileUrl(music)
             val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-                "https://music.cnmsb.xin${music.coverFilePath}"
+                UrlConfig.buildFullUrl("${music.coverFilePath}")
             } else {
-                "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                UrlConfig.getMusicCoverUrl(music.id)
             }
             
             _currentMusicUrl.value = url

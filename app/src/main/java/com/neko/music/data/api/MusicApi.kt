@@ -7,6 +7,7 @@ import com.neko.music.data.model.ErrorResponse
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchRequest
 import com.neko.music.data.model.SearchResponse
+import com.neko.music.util.UrlConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -51,7 +52,7 @@ class MusicApi(private val context: Context) {
         }
     }
     
-    private val baseUrl = "https://music.cnmsb.xin"
+    private val baseUrl = UrlConfig.getBaseUrl()
     private val cacheManager = MusicCacheManager.getInstance(context)
     
     suspend fun searchMusic(query: String): Result<List<Music>> {
@@ -94,14 +95,14 @@ class MusicApi(private val context: Context) {
     
     suspend fun getMusicCoverUrl(music: Music): String {
         // 直接返回网络 URL，不使用本地缓存
-        val url = "$baseUrl/api/music/cover/${music.id}"
+        val url = UrlConfig.buildMusicCoverUrl(music.id, music.coverFilePath)
         Log.d("MusicApi", "使用网络URL: $url")
         return url
     }
     
     suspend fun getMusicFileUrl(music: Music): String {
         // 直接返回网络 URL，不使用本地缓存
-        val url = "$baseUrl/api/music/file/${music.id}"
+        val url = UrlConfig.getMusicFileUrl(music.id)
         Log.d("MusicApi", "使用网络URL: $url")
         return url
     }

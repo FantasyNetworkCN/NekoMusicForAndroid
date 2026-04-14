@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -107,7 +108,7 @@ fun LatestMusicCard(
                 
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(coverUrl ?: "https://music.cnmsb.xin/api/user/avatar/default")
+                        .data(coverUrl ?: UrlConfig.getDefaultAvatarUrl())
                         .crossfade(true)
                         .build(),
                     contentDescription = latestMusicTitle,

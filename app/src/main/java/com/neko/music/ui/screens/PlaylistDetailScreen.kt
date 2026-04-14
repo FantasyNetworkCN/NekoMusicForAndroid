@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
 import coil.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistMusic
@@ -126,14 +127,14 @@ fun PlaylistDetailScreen(
             if (playlistCover.startsWith("http")) {
                 playlistCover
             } else {
-                "https://music.cnmsb.xin$playlistCover"
+                "$baseUrl$playlistCover"
             }
         } else {
             val firstMusic = musicList.firstOrNull()
             if (firstMusic != null) {
-                "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                "$baseUrl${firstMusic.id}"
             } else {
-                "https://music.cnmsb.xin/api/user/avatar/default"
+                "$baseUrl/api/user/avatar/default"
             }
         }
     }
@@ -422,7 +423,7 @@ fun PlaylistDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             AsyncImage(
-                                model = "https://music.cnmsb.xin/api/user/avatar/$displayCreatorUserId",
+                                model = "$baseUrl/api/user/avatar/$displayCreatorUserId",
                                 contentDescription = "创建者头像",
                                 modifier = Modifier
                                     .size(20.dp)
@@ -791,7 +792,7 @@ fun PlaylistDetailScreen(
                                         label = stringResource(id = R.string.copy_link),
                                         color = RoseRed,
                                         onClick = {
-                                            val shareUrl = "https://music.cnmsb.xin/playlist/$playlistId"
+                                            val shareUrl = "$baseUrl/playlist/$playlistId"
                                             val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
                                             val clip = android.content.ClipData.newPlainText(context.getString(R.string.playlist_link), shareText)
                                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -885,7 +886,7 @@ fun PlaylistMusicItem(
     var isPressed by remember { mutableStateOf(false) }
 
     val coverUrl = remember(music.id) {
-        "https://music.cnmsb.xin/api/music/cover/${music.id}"
+        UrlConfig.getMusicCoverUrl(music.id)
     }
 
     Row(

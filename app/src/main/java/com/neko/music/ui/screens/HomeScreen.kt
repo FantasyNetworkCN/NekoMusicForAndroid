@@ -71,16 +71,22 @@ import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
+import com.neko.music.data.manager.InstallPermissionCallback
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
 
 @Composable
 fun HomeScreen(
@@ -176,6 +182,29 @@ fun HomeScreen(
     var showUpdateSuccessDialog by remember { mutableStateOf(false) }
     var showUpdateErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var pendingInstallFile by remember { mutableStateOf<File?>(null) }
+    
+    // 安装权限请求
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // 权限请求完成后，再次检查权限并安装
+        if (pendingInstallFile != null) {
+            if (updateManager.hasInstallPermission()) {
+                // 权限已授予，安装APK
+                val success = updateManager.installApk(pendingInstallFile!!)
+                if (!success) {
+                    errorMessage = context.getString(R.string.install_failed)
+                    showUpdateErrorDialog = true
+                }
+            } else {
+                // 权限被拒绝
+                errorMessage = context.getString(R.string.install_permission_denied)
+                showUpdateErrorDialog = true
+            }
+            pendingInstallFile = null
+        }
+    }
     
     // 启动时检查更新
     LaunchedEffect(Unit) {
@@ -214,8 +243,33 @@ fun HomeScreen(
                 if (apkFile != null) {
                     isDownloading = false
                     showUpdateDialog = false
-                    showUpdateSuccessDialog = true
-                    updateManager.installApk(apkFile)
+                    
+                    // 尝试安装APK，使用回调处理权限请求
+                    val installCallback = object : InstallPermissionCallback {
+                        override fun onRequestPermission() {
+                            // 保存待安装的文件
+                            pendingInstallFile = apkFile
+                            // 启动权限请求
+                            installPermissionLauncher.launch(updateManager.getInstallPermissionIntent())
+                        }
+                        
+                        override fun onPermissionGranted() {
+                            // 权限已授予，安装APK
+                            updateManager.installApk(apkFile)
+                        }
+                        
+                        override fun onPermissionDenied() {
+                            // 权限被拒绝
+                            errorMessage = context.getString(R.string.install_permission_denied)
+                            showUpdateErrorDialog = true
+                        }
+                    }
+                    
+                    val installStarted = updateManager.installApk(apkFile, installCallback)
+                    if (installStarted) {
+                        // 安装已成功启动
+                        showUpdateSuccessDialog = true
+                    }
                 } else {
                     isDownloading = false
                     showUpdateDialog = false
@@ -1485,7 +1539,7 @@ fun UpdateErrorDialog(
                             when {
                                 !playlist.firstMusicCover.isNullOrEmpty() -> playlist.firstMusicCover
                                 !playlist.coverPath.isNullOrEmpty() -> playlist.coverPath
-                                else -> "https://music.cnmsb.xin/api/user/avatar/default"
+                                else -> UrlConfig.getDefaultAvatarUrl()
                             }
                         )
                         .crossfade(true)
@@ -1582,7 +1636,7 @@ fun MusicCard(
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(coverUrl ?: "https://music.cnmsb.xin/api/user/avatar/default")
+                    .data(coverUrl ?: UrlConfig.getDefaultAvatarUrl())
                     .crossfade(true)
                     .build(),
                 contentDescription = music.title,
@@ -1723,7 +1777,7 @@ fun RankingCard(
                 // 封面
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data("https://music.cnmsb.xin/api/music/cover/${music.id}")
+                        .data(UrlConfig.getMusicCoverUrl(music.id))
                         .crossfade(true)
                         .build(),
                     contentDescription = music.title,
@@ -1844,7 +1898,7 @@ fun PlaylistCard(
                         when {
                             !playlist.firstMusicCover.isNullOrEmpty() -> playlist.firstMusicCover
                             !playlist.coverPath.isNullOrEmpty() -> playlist.coverPath
-                            else -> "https://music.cnmsb.xin/api/user/avatar/default"
+                            else -> UrlConfig.getDefaultAvatarUrl()
                         }
                     )
                     .crossfade(true)
@@ -2018,7 +2072,7 @@ fun RankingMusicCard(
                 
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(coverUrl ?: "https://music.cnmsb.xin/api/user/avatar/default")
+                        .data(coverUrl ?: UrlConfig.getDefaultAvatarUrl())
                         .crossfade(true)
                         .build(),
                     contentDescription = hotMusicText,

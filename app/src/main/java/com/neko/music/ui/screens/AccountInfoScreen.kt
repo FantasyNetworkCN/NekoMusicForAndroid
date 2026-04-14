@@ -175,7 +175,7 @@ fun AccountInfoScreen(
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("https://music.cnmsb.xin/api/user/avatar/$userId?t=$avatarUpdateTime")
+                            .data("$baseUrl/api/user/avatar/$userId?t=$avatarUpdateTime")
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(id = R.string.user_avatar),

@@ -11,6 +11,7 @@ import androidx.core.content.getSystemService
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
@@ -51,7 +52,7 @@ class DownloadHelper(private val context: Context) {
 
             Log.d("DownloadHelper", "下载文件名: $fileName, 扩展名: $extension")
 
-            val downloadUri = Uri.parse("https://music.cnmsb.xin/api/music/file/${music.id}")
+            val downloadUri = Uri.parse(UrlConfig.getMusicFileUrl(music.id))
 
             val request = DownloadManager.Request(downloadUri).apply {
                 setAllowedNetworkTypes(
@@ -134,7 +135,7 @@ class DownloadHelper(private val context: Context) {
      */
     private fun getFileExtensionFromUrl(musicId: Int): String {
         return try {
-            val url = java.net.URL("https://music.cnmsb.xin/api/music/file/$musicId")
+            val url = java.net.URL(UrlConfig.getMusicFileUrl(musicId))
             val connection = url.openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 5000
             connection.readTimeout = 5000

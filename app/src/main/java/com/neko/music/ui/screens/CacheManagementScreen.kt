@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.data.cache.MusicCacheManager
+import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.RoseRed
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -112,9 +113,9 @@ fun CacheManagementScreen(
                                                 val firstMusic = musicList.first()
                                                 val musicApi = com.neko.music.data.api.MusicApi(context)
                                                 val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
-                                                    "https://music.cnmsb.xin${firstMusic.coverFilePath}"
+                                                    UrlConfig.buildFullUrl("${firstMusic.coverFilePath}")
                                                 } else {
-                                                    "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                                    UrlConfig.getMusicCoverUrl(firstMusic.id)
                                                 }
                                                 val musicUrl = musicApi.getMusicFileUrl(firstMusic)
                                                 musicPlayerManager.playMusic(

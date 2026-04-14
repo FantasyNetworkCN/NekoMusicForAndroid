@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
 import kotlinx.coroutines.launch
@@ -118,9 +119,9 @@ fun FavoriteScreen(
                 )
             )
             val fullCoverUrl = if (firstFavorite.cover.isNotEmpty()) {
-                "https://music.cnmsb.xin${firstFavorite.cover}"
+                UrlConfig.buildFullUrl("${firstFavorite.cover}")
             } else {
-                "https://music.cnmsb.xin/api/music/cover/${firstFavorite.id}"
+                UrlConfig.getMusicCoverUrl(firstFavorite.id)
             }
             playerManager.playMusic(
                 url,
@@ -317,9 +318,9 @@ fun FavoriteItem(
 ) {
     val coverUrl = remember(music.cover) {
         if (!music.cover.isNullOrEmpty()) {
-            "https://music.cnmsb.xin${music.cover}"
+            UrlConfig.buildFullUrl("${music.cover}")
         } else {
-            "https://music.cnmsb.xin/api/music/cover/${music.id}"
+            UrlConfig.getMusicCoverUrl(music.id)
         }
     }
 

@@ -56,7 +56,7 @@ import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val baseUrl = "https://music.cnmsb.xin"
+const val baseUrl = "https://music.cnmsb.xin"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -97,6 +97,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
@@ -316,9 +317,9 @@ fun PlayerScreen(
                 if (currentMusicId != music.id) {
                     // 获取完整的封面URL
                     val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-                        "https://music.cnmsb.xin${music.coverFilePath}"
+                        UrlConfig.buildFullUrl("${music.coverFilePath}")
                     } else {
-                        "https://music.cnmsb.xin/api/music/cover/${music.id}"
+                        UrlConfig.getMusicCoverUrl(music.id)
                     }
                     Log.d(
                         "PlayerScreen",
@@ -470,7 +471,7 @@ fun PlayerScreen(
                                                     val musicResponse = playlistApi.getPlaylistMusic(playlist.id)
                                                     if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                                         val firstMusic = musicResponse.musicList[0]
-                                                        val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                                        val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                                         playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to coverUrl)
                                                     }
                                                 } catch (e: Exception) {
@@ -831,7 +832,7 @@ fun PlayerScreen(
                                                 val musicResponse = playlistApi.getPlaylistMusic(newPlaylistId)
                                                 if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
                                                     val firstMusic = musicResponse.musicList[0]
-                                                    val coverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                                    val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                                     val newCovers = playlistFirstMusicCovers.toMutableMap()
                                                     newCovers[newPlaylistId] = coverUrl
                                                     playlistFirstMusicCovers = newCovers
@@ -2471,7 +2472,7 @@ fun PlaylistChip(
         ) {
             // 封面
             val coverUrl = if (!playlist.coverPath.isNullOrEmpty()) {
-                "https://music.cnmsb.xin${playlist.coverPath}"
+                UrlConfig.buildFullUrl("${playlist.coverPath}")
             } else {
                 firstMusicCover
             }

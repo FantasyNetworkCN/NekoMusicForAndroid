@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import com.neko.music.R
+import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
@@ -65,7 +66,7 @@ fun ArtistDetailScreen(
             try {
                 isLoading = true
                 val client = io.ktor.client.HttpClient()
-                val response = client.post("https://music.cnmsb.xin/api/artists/search") {
+                val response = client.post("$baseUrl/api/artists/search") {
                     headers {
                         append("Content-Type", "application/json")
                     }
@@ -109,8 +110,8 @@ fun ArtistDetailScreen(
                                     artist = artist,
                                     album = album,
                                     duration = duration,
-                                    filePath = "https://music.cnmsb.xin/api/music/file/$id",
-                                    coverFilePath = "https://music.cnmsb.xin/api/music/cover/$id",
+                                    filePath = "$baseUrl/api/music/file/$id",
+                                    coverFilePath = "$baseUrl/api/music/cover/$id",
                                     uploadUserId = 0,
                                     createdAt = ""
                                 )
@@ -157,8 +158,8 @@ fun ArtistDetailScreen(
                                     artist = artist,
                                     album = album,
                                     duration = duration,
-                                    filePath = "https://music.cnmsb.xin/api/music/file/$id",
-                                    coverFilePath = "https://music.cnmsb.xin/api/music/cover/$id",
+                                    filePath = "$baseUrl/api/music/file/$id",
+                                    coverFilePath = "$baseUrl/api/music/cover/$id",
                                     uploadUserId = 0,
                                     createdAt = ""
                                 )
@@ -321,7 +322,7 @@ fun ArtistDetailScreen(
                                             if (musicList.isNotEmpty()) {
                                                 val firstMusic = musicList[0]
                                                 val url = musicApi.getMusicFileUrl(firstMusic)
-                                                val fullCoverUrl = "https://music.cnmsb.xin/api/music/cover/${firstMusic.id}"
+                                                val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
                                                 Log.d("ArtistDetailScreen", "播放第一首: ${firstMusic.title}, id=${firstMusic.id}, url=$url, cover=$fullCoverUrl")
                                                 playerManager.playMusic(
                                                     url,

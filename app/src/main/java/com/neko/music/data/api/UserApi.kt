@@ -14,6 +14,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
+import com.neko.music.util.UrlConfig
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
 
@@ -34,7 +35,7 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    private val baseUrl = "https://music.cnmsb.xin"
+    private val baseUrl = UrlConfig.getBaseUrl()
 
     /**
      * 用户登录
