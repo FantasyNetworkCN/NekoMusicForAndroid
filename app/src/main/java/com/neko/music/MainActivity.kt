@@ -930,7 +930,12 @@ fun MainScreen() {
                     backStackEntry.arguments?.getString("artist") ?: "", "UTF-8"
                 )
                 val music = Music(id, title, artist, "", 0, "", "", 0, "")
-                Log.d("MainActivity", "播放页面加载: $title")
+
+                // 只在首次加载时记录日志
+                androidx.compose.runtime.LaunchedEffect(title) {
+                    Log.d("MainActivity", "播放页面加载: $title")
+                }
+
                 PlayerScreen(
                     music = music,
                     onBackClick = {

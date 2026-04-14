@@ -271,29 +271,35 @@ fun FavoriteScreen(
                                     color = Color.White
                                 )
                             }
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 150.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
                             ) {
-                                items(filteredFavorites) { favorite ->
-                                    FavoriteItem(
-                                        music = favorite,
-                                        onClick = {
-                                            val music = com.neko.music.data.model.Music(
-                                                id = favorite.id,
-                                                title = favorite.title,
-                                                artist = favorite.artist,
-                                                album = favorite.album,
-                                                duration = favorite.duration,
-                                                filePath = favorite.filename,
-                                                coverFilePath = "",
-                                                uploadUserId = 0,
-                                                createdAt = ""
-                                            )
-                                            onMusicClick(music)
-                                        }
-                                    )
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(filteredFavorites) { favorite ->
+                                        FavoriteItem(
+                                            music = favorite,
+                                            onClick = {
+                                                val music = com.neko.music.data.model.Music(
+                                                    id = favorite.id,
+                                                    title = favorite.title,
+                                                    artist = favorite.artist,
+                                                    album = favorite.album,
+                                                    duration = favorite.duration,
+                                                    filePath = favorite.filename,
+                                                    coverFilePath = "",
+                                                    uploadUserId = 0,
+                                                    createdAt = ""
+                                                )
+                                                onMusicClick(music)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

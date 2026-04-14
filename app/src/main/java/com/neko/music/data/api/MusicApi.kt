@@ -43,10 +43,11 @@ class MusicApi(private val context: Context) {
         install(Logging) {
             logger = object : Logger {
                 override fun log(message: String) {
-                    Log.d("MusicApi", message)
+                    // 禁用HTTP请求日志，避免大量日志输出
+                    // Log.d("MusicApi", message)
                 }
             }
-            level = LogLevel.ALL
+            level = LogLevel.NONE
         }
     }
     
