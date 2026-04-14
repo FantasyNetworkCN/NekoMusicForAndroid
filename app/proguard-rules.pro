@@ -66,8 +66,8 @@
 -keep class kotlin.reflect.jvm.internal.** { *; }
 
 # Coil
--keep class coil.** { *; }
--dontwarn coil.**
+-keep class coil3.** { *; }
+-dontwarn coil3.**
 
 # ExoPlayer
 -keep class com.google.android.exoplayer2.** { *; }
