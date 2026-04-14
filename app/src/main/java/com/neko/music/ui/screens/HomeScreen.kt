@@ -300,7 +300,7 @@ fun HomeScreen(
                 ) {
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.98f else 1f,
+                        targetValue = if (isPressed) 0.97f else 1f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
@@ -310,22 +310,21 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(58.dp)
+                            .height(62.dp)
                             .scale(scale)
                             .shadow(
-                                elevation = 12.dp,
-                                spotColor = RoseRed.copy(alpha = 0.25f),
-                                ambientColor = Color.Gray.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(29.dp)
+                                elevation = 16.dp,
+                                spotColor = RoseRed.copy(alpha = 0.3f),
+                                ambientColor = Color.Gray.copy(alpha = 0.15f)
                             )
                             .background(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = 0.95f),
-                                        Color.White.copy(alpha = 0.88f)
+                                        Color.White.copy(alpha = 0.98f),
+                                        Color.White.copy(alpha = 0.92f)
                                     )
                                 ),
-                                shape = RoundedCornerShape(29.dp)
+                                shape = RoundedCornerShape(31.dp)
                             )
                             .clickable {
                                 isPressed = true
@@ -338,14 +337,30 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(58.dp)
-                                .clip(RoundedCornerShape(29.dp))
+                                .height(62.dp)
+                                .clip(RoundedCornerShape(31.dp))
                                 .background(
                                     brush = Brush.linearGradient(
                                         colors = listOf(
-                                            SakuraPink.copy(alpha = 0.15f),
-                                            SkyBlue.copy(alpha = 0.15f),
-                                            Lilac.copy(alpha = 0.15f)
+                                            SakuraPink.copy(alpha = 0.18f),
+                                            SkyBlue.copy(alpha = 0.18f),
+                                            Lilac.copy(alpha = 0.18f)
+                                        )
+                                    )
+                                )
+                        )
+                        
+                        // 内部高光
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.White.copy(alpha = 0.5f),
+                                            Color.Transparent
                                         )
                                     )
                                 )
@@ -354,32 +369,32 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 24.dp),
+                                .padding(horizontal = 26.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
+                                    .size(32.dp)
                                     .background(
-                                        color = RoseRed.copy(alpha = 0.12f),
-                                        shape = RoundedCornerShape(14.dp)
+                                        color = RoseRed.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(16.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = stringResource(id = R.string.search),
-                                    tint = RoseRed.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(18.dp)
+                                    tint = RoseRed.copy(alpha = 0.9f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(18.dp))
                             Text(
                                 text = stringResource(id = R.string.search_music_artist_album),
-                                fontSize = 16.sp,
-                                color = Color.Gray.copy(alpha = 0.7f),
+                                fontSize = 17.sp,
+                                color = Color.Gray.copy(alpha = 0.75f),
                                 fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.2.sp
+                                letterSpacing = 0.3.sp
                             )
                         }
                     }
@@ -403,16 +418,16 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = stringResource(id = R.string.recommended_playlists),
-                            fontSize = 22.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 0.3.sp
+                            color = RoseRed,
+                            letterSpacing = 0.4.sp
                         )
                         if (playlistsLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = RoseRed.copy(alpha = 0.8f),
-                                strokeWidth = 2.5.dp
+                                modifier = Modifier.size(24.dp),
+                                color = RoseRed.copy(alpha = 0.9f),
+                                strokeWidth = 3.dp
                             )
                         }
                     }
@@ -422,23 +437,51 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(160.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            RoseRed.copy(alpha = 0.1f),
+                                            SakuraPink.copy(alpha = 0.08f)
+                                        )
+                                    )
+                                )
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.align(Alignment.Center),
-                                color = Color.White
+                                color = RoseRed.copy(alpha = 0.8f),
+                                strokeWidth = 3.dp
                             )
                         }
                     } else if (loadError) {
-                        Text(
-                            text = stringResource(id = R.string.network_error_msg),
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(vertical = 40.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            RoseRed.copy(alpha = 0.1f),
+                                            SakuraPink.copy(alpha = 0.08f)
+                                        )
+                                    )
+                                )
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.network_error_msg),
+                                fontSize = 16.sp,
+                                color = RoseRed.copy(alpha = 0.8f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     } else {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
                         ) {
                             // 热门音乐作为第一个
                             if (rankingMusic.isNotEmpty()) {
@@ -469,7 +512,25 @@ fun HomeScreen(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(100.dp))
+                
+                // 底部装饰渐变
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    RoseRed.copy(alpha = 0.4f),
+                                    SakuraPink.copy(alpha = 0.4f),
+                                    SkyBlue.copy(alpha = 0.4f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
             }
         }
     }
@@ -580,7 +641,7 @@ fun WelcomeBanner() {
 
     // 入场动画
     val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.9f,
+        targetValue = if (isVisible) 1f else 0.85f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -590,18 +651,18 @@ fun WelcomeBanner() {
     // 闪烁动画
     val infiniteTransition = rememberInfiniteTransition(label = "sparkle")
     val sparkleScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
+        initialValue = 0.7f,
+        targetValue = 1.3f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween(1800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         )
     )
     val sparkleAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
+        initialValue = 0.3f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
+            animation = tween(1200, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         )
     )
@@ -612,7 +673,7 @@ fun WelcomeBanner() {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(5000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         )
     )
@@ -620,15 +681,15 @@ fun WelcomeBanner() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .height(110.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+            .height(120.dp)
             .scale(scale)
             .shadow(
-                elevation = 8.dp,
-                spotColor = RoseRed.copy(alpha = 0.35f),
-                ambientColor = Color.Gray.copy(alpha = 0.15f)
+                elevation = 12.dp,
+                spotColor = RoseRed.copy(alpha = 0.4f),
+                ambientColor = Color.Gray.copy(alpha = 0.18f)
             )
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(28.dp))
             .clickable {
                 // 暂未实现
             },
@@ -641,19 +702,19 @@ fun WelcomeBanner() {
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            SakuraPink.copy(alpha = 0.5f),
-                            RoseRed.copy(alpha = 0.45f),
-                            SkyBlue.copy(alpha = 0.5f),
-                            Lilac.copy(alpha = 0.45f),
-                            SakuraPink.copy(alpha = 0.5f)
+                            SakuraPink.copy(alpha = 0.6f),
+                            RoseRed.copy(alpha = 0.55f),
+                            SkyBlue.copy(alpha = 0.6f),
+                            Lilac.copy(alpha = 0.55f),
+                            SakuraPink.copy(alpha = 0.6f)
                         ),
                         start = androidx.compose.ui.geometry.Offset(
-                            x = gradientOffset * 800f,
+                            x = gradientOffset * 900f,
                             y = 0f
                         ),
                         end = androidx.compose.ui.geometry.Offset(
-                            x = gradientOffset * 800f + 800f,
-                            y = 400f
+                            x = gradientOffset * 900f + 900f,
+                            y = 450f
                         )
                     )
                 )
@@ -663,12 +724,12 @@ fun WelcomeBanner() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(3.dp)
+                .height(4.dp)
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.White.copy(alpha = 0.7f),
+                            Color.White.copy(alpha = 0.8f),
                             Color.Transparent
                         )
                     )
@@ -679,13 +740,13 @@ fun WelcomeBanner() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(3.dp)
+                .height(4.dp)
                 .align(Alignment.BottomCenter)
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.White.copy(alpha = 0.4f),
+                            Color.White.copy(alpha = 0.5f),
                             Color.Transparent
                         )
                     )
@@ -696,9 +757,9 @@ fun WelcomeBanner() {
         if (showSparkle) {
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(24.dp)
                     .align(Alignment.TopEnd)
-                    .padding(end = 24.dp, top = 16.dp)
+                    .padding(end = 28.dp, top = 18.dp)
                     .scale(sparkleScale)
                     .alpha(sparkleAlpha)
             ) {
@@ -714,11 +775,29 @@ fun WelcomeBanner() {
 
             Box(
                 modifier = Modifier
-                    .size(12.dp)
+                    .size(14.dp)
                     .align(Alignment.BottomStart)
-                    .padding(start = 32.dp, bottom = 20.dp)
-                    .scale(sparkleScale * 0.8f)
-                    .alpha(sparkleAlpha * 0.7f)
+                    .padding(start = 36.dp, bottom = 24.dp)
+                    .scale(sparkleScale * 0.85f)
+                    .alpha(sparkleAlpha * 0.8f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = Color.White,
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                )
+            }
+            
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .align(Alignment.TopStart)
+                    .padding(start = 48.dp, top = 40.dp)
+                    .scale(sparkleScale * 0.7f)
+                    .alpha(sparkleAlpha * 0.6f)
             ) {
                 Box(
                     modifier = Modifier
@@ -734,43 +813,43 @@ fun WelcomeBanner() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 28.dp, vertical = 20.dp),
+                .padding(horizontal = 32.dp, vertical = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     text = stringResource(id = R.string.explore_music_world),
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    letterSpacing = 0.4.sp
+                    letterSpacing = 0.5.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = stringResource(id = R.string.discover_music_you_like),
-                    fontSize = 15.sp,
-                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 16.sp,
+                    color = Color.White.copy(alpha = 0.92f),
                     fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.2.sp
+                    letterSpacing = 0.3.sp
                 )
             }
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .size(62.dp)
+                    .clip(RoundedCornerShape(20.dp))
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.3f),
-                                Color.White.copy(alpha = 0.15f)
+                                Color.White.copy(alpha = 0.35f),
+                                Color.White.copy(alpha = 0.18f)
                             )
                         )
                     )
                     .shadow(
-                        elevation = 4.dp,
-                        spotColor = Color.White.copy(alpha = 0.3f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                        elevation = 6.dp,
+                        spotColor = Color.White.copy(alpha = 0.35f),
+                        ambientColor = Color.Gray.copy(alpha = 0.12f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -778,7 +857,7 @@ fun WelcomeBanner() {
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
@@ -1653,8 +1732,26 @@ fun PlaylistCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.3f)
+                                Color.Black.copy(alpha = 0.35f)
                             )
+                        )
+                    )
+            )
+            
+            // 光泽效果
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.05f)
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(160f, 160f)
                         )
                     )
             )
@@ -1820,8 +1917,26 @@ fun RankingMusicCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.3f)
+                                Color.Black.copy(alpha = 0.35f)
                             )
+                        )
+                    )
+            )
+            
+            // 光泽效果
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.05f)
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(160f, 160f)
                         )
                     )
             )
