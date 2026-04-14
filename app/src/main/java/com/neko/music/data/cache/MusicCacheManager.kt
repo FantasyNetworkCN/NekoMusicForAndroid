@@ -331,9 +331,9 @@ private fun ensureCacheDirs() {
         val size = getCacheSize()
         return when {
             size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KB"
-            size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)} MB"
-            else -> "${size / (1024 * 1024 * 1024)} GB"
+            size < 1024 * 1024 -> "${size / 1024} KiB"
+            size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)} MiB"
+            else -> "${size / (1024 * 1024 * 1024)} GiB"
         }
     }
 
