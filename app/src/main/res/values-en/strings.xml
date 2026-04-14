@@ -12,8 +12,6 @@
     <string name="cached_songs" formatted="false">%1$d songs cached (%2$s)</string>
     <string name="focus_lock">Focus Lock</string>
     <string name="focus_lock_subtitle">Won\'t be interrupted by other apps when enabled, allows simultaneous playback</string>
-    <string name="fuck_china_os">Dynamic Island</string>
-    <string name="fuck_china_os_subtitle">Show playback controls in the status bar center. Fuck you Chinese OS</string>
     <string name="desktop_lyric_subtitle">Display the currently playing lyrics at the top of the screen</string>
     
     <string name="language">Language</string>

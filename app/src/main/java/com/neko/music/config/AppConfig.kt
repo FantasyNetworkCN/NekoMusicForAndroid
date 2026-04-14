@@ -103,7 +103,6 @@ object AppConfig {
         const val KEY_LANGUAGE = "language"
         const val KEY_THEME = "theme"
         const val KEY_DESKTOP_LYRIC = "desktop_lyric_enabled"
-        const val KEY_FLOAT_WINDOW = "fuck_china_os_enabled"
         const val KEY_CACHE = "cache_enabled"
         const val KEY_FOCUS_LOCK = "focus_lock_enabled"
         
