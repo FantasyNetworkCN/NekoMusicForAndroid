@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- VR HUD歌词布局 - 为VR场景优化 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/vr_hud_background"
+    android:padding="24dp"
+    android:alpha="0.95">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- 歌词行 - 当前歌词 -->
+        <TextView
+            android:id="@+id/vr_hud_lyric_current"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/no_lyrics"
+            android:textSize="24sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:shadowColor="#00BFFF"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="8"
+            android:letterSpacing="0.05"
+            android:lineSpacingExtra="4dp"
+            android:gravity="center"/>
+
+        <!-- 翻译行 - 当前歌词的翻译 -->
+        <TextView
+            android:id="@+id/vr_hud_lyric_translation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="16sp"
+            android:textColor="#E0E0E0"
+            android:textStyle="normal"
+            android:layout_marginTop="8dp"
+            android:shadowColor="#00BFFF"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="4"
+            android:letterSpacing="0.03"
+            android:gravity="center"/>
+
+        <!-- 前一句歌词（淡出效果） -->
+        <TextView
+            android:id="@+id/vr_hud_lyric_previous"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="20sp"
+            android:textColor="#80FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:shadowColor="#00BFFF"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="6"
+            android:alpha="0.4"
+            android:gravity="center"/>
+
+        <!-- 后一句歌词（淡入效果） -->
+        <TextView
+            android:id="@+id/vr_hud_lyric_next"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="20sp"
+            android:textColor="#80FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginTop="12dp"
+            android:shadowColor="#00BFFF"
+            android:shadowDx="0"
+            android:shadowDy="0"
+            android:shadowRadius="6"
+            android:alpha="0.4"
+            android:gravity="center"/>
+
+    </LinearLayout>
+
+</FrameLayout>

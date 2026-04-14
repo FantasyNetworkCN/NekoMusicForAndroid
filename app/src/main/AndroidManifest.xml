@@ -59,6 +59,11 @@
             android:name=".desktoplyric.DesktopLyricService"
             android:exported="false" />
 
+        <!-- VR HUD歌词服务 - 为VR场景优化 -->
+        <service
+            android:name=".desktoplyric.VRHUDService"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
