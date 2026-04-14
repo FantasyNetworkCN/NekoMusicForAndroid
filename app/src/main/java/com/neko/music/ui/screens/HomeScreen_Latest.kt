@@ -137,8 +137,26 @@ fun LatestMusicCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.3f)
+                                Color.Black.copy(alpha = 0.35f)
                             )
+                        )
+                    )
+            )
+            
+            // 光泽效果
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.05f)
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(160f, 160f)
                         )
                     )
             )
