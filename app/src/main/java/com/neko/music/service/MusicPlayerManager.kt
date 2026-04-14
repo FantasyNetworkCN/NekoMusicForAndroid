@@ -3,14 +3,15 @@ package com.neko.music.service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.PowerManager
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
-import coil.ImageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.asDrawable
+import androidx.core.graphics.drawable.toBitmap
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
@@ -21,13 +22,11 @@ import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 enum class PlayMode {
     LIST_LOOP,    // 列表循环
@@ -711,7 +710,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 .build()
             val result = imageLoader.execute(request)
             if (result is SuccessResult) {
-                (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                result.image.asDrawable(appContext.resources).toBitmap()
             } else {
                 null
             }

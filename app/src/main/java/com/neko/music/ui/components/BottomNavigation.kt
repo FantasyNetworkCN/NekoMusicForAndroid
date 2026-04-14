@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.ui.theme.*
 import kotlin.math.cos
@@ -104,27 +104,6 @@ fun BottomNavigationBar(
                             )
                         )
                     }
-                )
-        )
-
-        // 顶部高光
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            if (isDarkTheme) {
-                                Color(0xFF2A2A4E).copy(alpha = 0.5f)
-                            } else {
-                                Color.White.copy(alpha = 0.6f)
-                            },
-                            Color.Transparent
-                        )
-                    )
                 )
         )
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.neko.music.R
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -453,7 +454,7 @@ fun CacheItem(
                 contentAlignment = Alignment.Center
             ) {
                 if (cachedCover != null && cachedCover.exists()) {
-                    coil.compose.AsyncImage(
+                    coil3.compose.AsyncImage(
                         model = cachedCover,
                         contentDescription = "封面",
                         modifier = Modifier.fillMaxSize()

@@ -24,6 +24,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
+import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
@@ -412,7 +413,7 @@ fun ArtistMusicItem(
             contentAlignment = Alignment.Center
         ) {
             if (!coverUrl.isNullOrEmpty()) {
-                coil.compose.AsyncImage(
+                coil3.compose.AsyncImage(
                     model = coverUrl,
                     contentDescription = stringResource(id = R.string.cover),
                     modifier = Modifier.size(44.dp),

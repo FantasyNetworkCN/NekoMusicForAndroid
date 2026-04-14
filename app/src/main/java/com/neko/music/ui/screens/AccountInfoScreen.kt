@@ -1,6 +1,5 @@
 package com.neko.music.ui.screens
 
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,14 +14,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +34,6 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -46,18 +42,22 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.core.view.WindowCompat
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.neko.music.ui.theme.*
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.crossfade
+import coil3.size.Size
+import coil3.asDrawable
+import androidx.core.graphics.drawable.toBitmap
 import com.neko.music.R
+import com.neko.music.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -614,43 +614,22 @@ fun AvatarCropDialog(
     // 计算裁剪区域
     val cropSize = minOf(containerSize.width, containerSize.height) * 0.8f
     
-// 加载图片
+    // 加载图片
     val imageBitmap: ImageBitmap? = produceState<ImageBitmap?>(initialValue = null, imageUri) {
-        val loader = coil.ImageLoader.Builder(context)
+        val loader = ImageLoader.Builder(context)
             .diskCache(null)
             .memoryCache(null)
             .build()
         val request = ImageRequest.Builder(context)
             .data(imageUri)
-            .allowHardware(false) // 需要软件渲染以支持裁剪
-            .size(coil.size.Size.ORIGINAL) // 加载原始尺寸
+            .size(Size(2000, 2000)) // 设置一个足够大的尺寸
             .build()
         
         try {
-            val result = loader.execute(request)
-            // 从 drawable 获取图片
-            val drawable = result.drawable
-            if (drawable != null) {
-                val sourceBitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
-                    // 如果是 BitmapDrawable，直接获取 bitmap
-                    var bmp = drawable.bitmap
-                    // 确保是软件位图
-                    if (bmp.config == android.graphics.Bitmap.Config.HARDWARE) {
-                        bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                    }
-                    bmp
-                } else {
-                    // 如果是其他类型的 drawable，绘制到 canvas
-                    val bmp = android.graphics.Bitmap.createBitmap(
-                        drawable.intrinsicWidth,
-                        drawable.intrinsicHeight,
-                        android.graphics.Bitmap.Config.ARGB_8888
-                    )
-                    val canvas = android.graphics.Canvas(bmp)
-                    drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
-                    drawable.draw(canvas)
-                    bmp
-                }
+            val imageResult = loader.execute(request)
+            // 从 ImageResult 获取图片
+            if (imageResult is SuccessResult) {
+                val sourceBitmap = imageResult.image.asDrawable(context.resources).toBitmap()
                 value = sourceBitmap.asImageBitmap()
                 originalBitmapSize = IntSize(sourceBitmap.width, sourceBitmap.height)
             }

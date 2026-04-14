@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.neko.music.R
+import coil3.compose.AsyncImage
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
@@ -346,7 +347,7 @@ fun FavoriteItem(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                coil.compose.AsyncImage(
+                coil3.compose.AsyncImage(
                     model = coverUrl,
                     contentDescription = stringResource(id = R.string.cover),
                     modifier = Modifier.fillMaxSize()

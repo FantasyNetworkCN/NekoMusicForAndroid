@@ -43,7 +43,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.model.Music

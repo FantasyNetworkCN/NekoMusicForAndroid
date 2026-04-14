@@ -3,13 +3,13 @@ package com.neko.music
 import android.app.Application
 import android.content.SharedPreferences
 import android.content.res.Configuration
-import android.os.Build
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import java.io.File
+import coil3.ImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
 import java.util.Locale
 
-class NekoMusicApplication : Application(), ImageLoaderFactory {
+class NekoMusicApplication : Application() {
     
     private lateinit var prefs: SharedPreferences
     
@@ -99,25 +99,21 @@ class NekoMusicApplication : Application(), ImageLoaderFactory {
         }
     }
     
-    override fun newImageLoader(): ImageLoader {
+    fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
-            // 启用内存缓存 - 最多缓存100张图片
-            .memoryCache(
-                coil3.util.MemoryCache.Builder(this)
-                    .maxSizePercent(0.15) // 使用15%的可用内存
+            // 启用内存缓存 - 使用15%的可用内存
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(this, 0.15)
                     .build()
-            )
-            // 启用磁盘缓存 - 最多缓存100MB
-            .diskCache(
-                coil3.util.DiskCache.Builder()
+            }
+            // 启用磁盘缓存 - 最多缓存100 MiB（100 * 1024 * 1024 = 104,857,600 bytes）
+            .diskCache {
+                DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100 * 1024 * 1024) // 100MB
+                    .maxSizeBytes(100 * 1024 * 1024L) // 100 MiB
                     .build()
-            )
-            // 启用硬件加速
-            .allowHardware(true)
-            // 设置网络超时时间 - 连接超时10秒，读取超时30秒
-            .networkObserverEnabled(true)
+            }
             .build()
     }
 }

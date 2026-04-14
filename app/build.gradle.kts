@@ -202,7 +202,7 @@ dependencies {
 
 
     // Coil for image loading
-
+    implementation(libs.coil.core)
     implementation(libs.coil.compose)
 
 
@@ -220,6 +220,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.geometry)
+    implementation(libs.volley)
 
     kapt(libs.androidx.room.compiler)
 

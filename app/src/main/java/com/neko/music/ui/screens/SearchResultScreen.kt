@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.neko.music.R
+import coil3.compose.AsyncImage
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.manager.SearchHistoryManager
 import com.neko.music.data.model.Music
@@ -503,7 +504,7 @@ fun PlaylistItem(
         ) {
             // 封面
             if (!playlist.coverPath.isNullOrEmpty()) {
-                coil.compose.AsyncImage(
+                coil3.compose.AsyncImage(
                     model = playlist.coverPath,
                     contentDescription = playlistCoverText,
                     modifier = Modifier
@@ -624,7 +625,7 @@ fun MusicItem(
             contentAlignment = Alignment.Center
         ) {
             if (!coverUrl.isNullOrEmpty()) {
-                coil.compose.AsyncImage(
+                coil3.compose.AsyncImage(
                     model = coverUrl,
                     contentDescription = coverText,
                     modifier = Modifier.size(44.dp),
