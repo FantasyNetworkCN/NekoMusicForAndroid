@@ -12,7 +12,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.FlowPreview
 
 class MusicPlayerService : Service() {
 
@@ -88,25 +90,38 @@ class MusicPlayerService : Service() {
         }
 
         // 监听播放位置变化，实时更新进度条
+        // 添加防抖机制，避免过于频繁的更新
+        @OptIn(FlowPreview::class)
         kotlinx.coroutines.GlobalScope.launch {
-            playerManager.currentPosition.collect {
-                // 更新通知栏
-                updateMusicNotification()
-                // 发送广播更新桌面组件
-                val updateIntent = Intent(this@MusicPlayerService, com.neko.music.widget.MusicWidgetProvider::class.java).apply {
-                    action = com.neko.music.widget.MusicWidgetProvider.ACTION_UPDATE_WIDGET
+            playerManager.currentPosition
+                .debounce(1000) // 防抖1秒，限制通知栏更新频率
+                .collect {
+                    // 更新通知栏
+                    updateMusicNotification()
                 }
-                sendBroadcast(updateIntent)
+        }
 
-                // 更新悬浮窗
-                val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
-                if (floatPrefs.getBoolean("fuck_china_os_enabled", false)) {
-                    val floatUpdateIntent = Intent(this@MusicPlayerService, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java).apply {
-                        action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_UPDATE
+        // 单独监听播放位置变化用于更新桌面组件和浮动窗口
+        @OptIn(FlowPreview::class)
+        kotlinx.coroutines.GlobalScope.launch {
+            playerManager.currentPosition
+                .debounce(500) // 防抖0.5秒，限制桌面组件和浮动窗更新频率
+                .collect {
+                    // 发送广播更新桌面组件
+                    val updateIntent = Intent(this@MusicPlayerService, com.neko.music.widget.MusicWidgetProvider::class.java).apply {
+                        action = com.neko.music.widget.MusicWidgetProvider.ACTION_UPDATE_WIDGET
                     }
-                    startService(floatUpdateIntent)
+                    sendBroadcast(updateIntent)
+
+                    // 更新悬浮窗
+                    val floatPrefs = getSharedPreferences("float_window", Context.MODE_PRIVATE)
+                    if (floatPrefs.getBoolean("fuck_china_os_enabled", false)) {
+                        val floatUpdateIntent = Intent(this@MusicPlayerService, com.neko.music.floatwindow.FuckChinaOSFloatService::class.java).apply {
+                            action = com.neko.music.floatwindow.FuckChinaOSFloatService.ACTION_UPDATE
+                        }
+                        startService(floatUpdateIntent)
+                    }
                 }
-            }
         }
     }
 
