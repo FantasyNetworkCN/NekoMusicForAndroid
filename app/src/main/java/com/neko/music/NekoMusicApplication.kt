@@ -101,12 +101,23 @@ class NekoMusicApplication : Application(), ImageLoaderFactory {
     
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
-            // 强制禁用所有磁盘缓存
-            .diskCache(null)
-            // 强制禁用所有内存缓存
-            .memoryCache(null)
-            // 禁用所有缓存策略
-            .allowHardware(false)
+            // 启用内存缓存 - 最多缓存100张图片
+            .memoryCache(
+                coil3.util.MemoryCache.Builder(this)
+                    .maxSizePercent(0.15) // 使用15%的可用内存
+                    .build()
+            )
+            // 启用磁盘缓存 - 最多缓存100MB
+            .diskCache(
+                coil3.util.DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(100 * 1024 * 1024) // 100MB
+                    .build()
+            )
+            // 启用硬件加速
+            .allowHardware(true)
+            // 设置网络超时时间 - 连接超时10秒，读取超时30秒
+            .networkObserverEnabled(true)
             .build()
     }
 }

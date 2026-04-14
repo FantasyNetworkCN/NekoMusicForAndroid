@@ -719,15 +719,33 @@ fun PlaylistItem(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (isDarkTheme) {
+                        Color(0xFF353558).copy(alpha = 0.6f)
+                    } else {
+                        Color(0xFFE0E0E0)
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
-            // 始终显示图片（封面或默认头像）
-            androidx.compose.foundation.Image(
-                painter = rememberAsyncImagePainter(coverUrl),
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(coverUrl)
+                    .crossfade(true)
+                    .error(R.drawable.music)
+                    .placeholder(R.drawable.music)
+                    .build(),
                 contentDescription = coverText,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                error = {
+                    Image(
+                        painter = painterResource(R.drawable.music),
+                        contentDescription = coverText,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             )
         }
         
