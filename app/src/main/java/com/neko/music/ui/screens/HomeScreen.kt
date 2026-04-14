@@ -26,17 +26,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.alpha
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.neko.music.R
@@ -187,14 +189,14 @@ fun HomeScreen(
                     isDownloading = false
                     showUpdateDialog = false
                     showUpdateErrorDialog = true
-                    errorMessage = "下载失败，请稍后重试"
+                    errorMessage = context.getString(R.string.downloading_update_failed)
                 }
             } catch (e: Exception) {
                 Log.e("HomeScreen", "下载更新失败", e)
                 isDownloading = false
                 showUpdateDialog = false
                 showUpdateErrorDialog = true
-                errorMessage = "下载失败：${e.message}"
+                errorMessage = context.getString(R.string.downloading_update_failed_msg, e.message ?: "")
             }
         }
     }
@@ -296,43 +298,88 @@ fun HomeScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .statusBarsPadding()
                 ) {
+                    var isPressed by remember { mutableStateOf(false) }
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.98f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(58.dp)
+                            .scale(scale)
                             .shadow(
-                                elevation = 8.dp,
-                                spotColor = Color.Black.copy(alpha = 0.15f),
-                                ambientColor = Color.Gray.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(26.dp)
+                                elevation = 12.dp,
+                                spotColor = RoseRed.copy(alpha = 0.25f),
+                                ambientColor = Color.Gray.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(29.dp)
                             )
                             .background(
-                                color = Color.White.copy(alpha = 0.9f),
-                                shape = RoundedCornerShape(26.dp)
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.95f),
+                                        Color.White.copy(alpha = 0.88f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(29.dp)
                             )
                             .clickable {
+                                isPressed = true
                                 Log.d("HomeScreen", "搜索框被点击")
                                 onSearchClick()
-                            }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
+                        // 内部渐变边框效果
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp)
+                                .clip(RoundedCornerShape(29.dp))
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            SakuraPink.copy(alpha = 0.15f),
+                                            SkyBlue.copy(alpha = 0.15f),
+                                            Lilac.copy(alpha = 0.15f)
+                                        )
+                                    )
+                                )
+                        )
+
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 22.dp),
+                                .padding(horizontal = 24.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(id = R.string.search),
-                                tint = RoseRed.copy(alpha = 0.8f),
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(
+                                        color = RoseRed.copy(alpha = 0.12f),
+                                        shape = RoundedCornerShape(14.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = stringResource(id = R.string.search),
+                                    tint = RoseRed.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                             Spacer(modifier = Modifier.width(16.dp))
                             Text(
                                 text = stringResource(id = R.string.search_music_artist_album),
-                                fontSize = 15.sp,
-                                color = Color.Gray.copy(alpha = 0.65f),
-                                fontWeight = FontWeight.Normal
+                                fontSize = 16.sp,
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.2.sp
                             )
                         }
                     }
@@ -350,21 +397,22 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 12.dp),
+                            .padding(horizontal = 4.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = stringResource(id = R.string.recommended_playlists),
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = RoseRed.copy(alpha = 0.8f)
+                            color = Color.White,
+                            letterSpacing = 0.3.sp
                         )
                         if (playlistsLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 color = RoseRed.copy(alpha = 0.8f),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.5.dp
                             )
                         }
                     }
@@ -522,11 +570,15 @@ fun HeaderSection(
 @Composable
 fun WelcomeBanner() {
     var isVisible by remember { mutableStateOf(false) }
+    var showSparkle by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isVisible = true
+        kotlinx.coroutines.delay(300)
+        showSparkle = true
     }
 
+    // 入场动画
     val scale by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0.9f,
         animationSpec = spring(
@@ -535,90 +587,198 @@ fun WelcomeBanner() {
         )
     )
 
+    // 闪烁动画
+    val infiniteTransition = rememberInfiniteTransition(label = "sparkle")
+    val sparkleScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val sparkleAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // 渐变动画
+    val gradientTransition = rememberInfiniteTransition(label = "gradient")
+    val gradientOffset by gradientTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 12.dp)
-            .height(100.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        SakuraPink.copy(alpha = 0.35f),
-                        SkyBlue.copy(alpha = 0.35f),
-                        Lilac.copy(alpha = 0.35f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
+            .height(110.dp)
             .scale(scale)
             .shadow(
-                elevation = 6.dp,
-                spotColor = RoseRed.copy(alpha = 0.25f),
-                ambientColor = Color.Gray.copy(alpha = 0.12f)
+                elevation = 8.dp,
+                spotColor = RoseRed.copy(alpha = 0.35f),
+                ambientColor = Color.Gray.copy(alpha = 0.15f)
             )
+            .clip(RoundedCornerShape(24.dp))
             .clickable {
                 // 暂未实现
             },
         contentAlignment = Alignment.Center
     ) {
-        // 内部高光
+        // 动态渐变背景
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            SakuraPink.copy(alpha = 0.5f),
+                            RoseRed.copy(alpha = 0.45f),
+                            SkyBlue.copy(alpha = 0.5f),
+                            Lilac.copy(alpha = 0.45f),
+                            SakuraPink.copy(alpha = 0.5f)
+                        ),
+                        start = androidx.compose.ui.geometry.Offset(
+                            x = gradientOffset * 800f,
+                            y = 0f
+                        ),
+                        end = androidx.compose.ui.geometry.Offset(
+                            x = gradientOffset * 800f + 800f,
+                            y = 400f
+                        )
+                    )
+                )
+        )
+
+        // 内部高光效果
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(2.dp)
+                .height(3.dp)
                 .background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.White.copy(alpha = 0.6f),
+                            Color.White.copy(alpha = 0.7f),
                             Color.Transparent
                         )
                     )
                 )
         )
 
+        // 底部光晕效果
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = 0.4f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        // 闪烁装饰元素
+        if (showSparkle) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(end = 24.dp, top = 16.dp)
+                    .scale(sparkleScale)
+                    .alpha(sparkleAlpha)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = Color.White,
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .align(Alignment.BottomStart)
+                    .padding(start = 32.dp, bottom = 20.dp)
+                    .scale(sparkleScale * 0.8f)
+                    .alpha(sparkleAlpha * 0.7f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            color = Color.White,
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                )
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(horizontal = 28.dp, vertical = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     text = stringResource(id = R.string.explore_music_world),
-                    fontSize = 22.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = RoseRed,
-                    letterSpacing = 0.3.sp
+                    color = Color.White,
+                    letterSpacing = 0.4.sp
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = stringResource(id = R.string.discover_music_you_like),
                     fontSize = 15.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.2.sp
                 )
             }
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(18.dp))
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                RoseRed.copy(alpha = 0.2f),
-                                SakuraPink.copy(alpha = 0.2f)
+                                Color.White.copy(alpha = 0.3f),
+                                Color.White.copy(alpha = 0.15f)
                             )
                         )
+                    )
+                    .shadow(
+                        elevation = 4.dp,
+                        spotColor = Color.White.copy(alpha = 0.3f),
+                        ambientColor = Color.Gray.copy(alpha = 0.1f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
-                    tint = RoseRed,
-                    modifier = Modifier.size(28.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
@@ -925,11 +1085,22 @@ fun UpdateSuccessDialog(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "✓",
-                        fontSize = 40.sp,
-                        color = Color(0xFF4CAF50)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = Color(0xFF4CAF50),
+                                shape = RoundedCornerShape(20.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "√",
+                            fontSize = 28.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -999,11 +1170,22 @@ fun UpdateErrorDialog(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "❌",
-                        fontSize = 40.sp,
-                        color = Color(0xFFF44336)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                color = Color(0xFFF44336),
+                                shape = RoundedCornerShape(20.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "×",
+                            fontSize = 32.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -1398,34 +1580,54 @@ fun PlaylistCard(
     playlist: PlaylistInfo,
     onClick: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
+
     Column(
         modifier = Modifier
             .width(160.dp)
+            .scale(scale)
             .clickable(
                 indication = null,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            ) { onClick() },
+            ) {
+                isPressed = true
+                onClick()
+            },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 封面
         Box(
             modifier = Modifier
                 .size(160.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            SakuraPink.copy(alpha = 0.2f),
-                            SkyBlue.copy(alpha = 0.2f)
-                        )
-                    )
-                )
+                .clip(RoundedCornerShape(20.dp))
                 .shadow(
-                    elevation = 4.dp,
-                    spotColor = RoseRed.copy(alpha = 0.15f),
-                    ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    elevation = 8.dp,
+                    spotColor = RoseRed.copy(alpha = 0.25f),
+                    ambientColor = Color.Gray.copy(alpha = 0.12f)
                 )
         ) {
+            // 背景渐变
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                SakuraPink.copy(alpha = 0.3f),
+                                SkyBlue.copy(alpha = 0.25f),
+                                Lilac.copy(alpha = 0.2f)
+                            )
+                        )
+                    )
+            )
+            
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(
@@ -1442,49 +1644,77 @@ fun PlaylistCard(
                 contentScale = ContentScale.Crop
             )
             
+            // 渐变遮罩
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.3f)
+                            )
+                        )
+                    )
+            )
+            
             // 音乐数量标签
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(8.dp)
+                    .padding(10.dp)
                     .background(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(8.dp)
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Black.copy(alpha = 0.6f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        spotColor = Color.Black.copy(alpha = 0.3f),
+                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
                     fontSize = 11.sp,
                     color = Color.White,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.3.sp
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
         // 歌单名称
         Text(
             text = playlist.name,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
             color = Color.White.copy(alpha = 0.95f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp)
+            modifier = Modifier.width(160.dp),
+            letterSpacing = 0.2.sp
         )
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         
         // 歌单描述
         Text(
-            text = playlist.description ?: "暂无描述",
+            text = playlist.description ?: stringResource(id = R.string.no_description),
             fontSize = 12.sp,
-            color = RoseRed.copy(alpha = 0.7f),
+            color = Color.White.copy(alpha = 0.7f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp)
+            modifier = Modifier.width(160.dp),
+            fontWeight = FontWeight.Medium
         )
     }
 }
@@ -1499,13 +1729,24 @@ fun RankingMusicCard(
     val hotMusicDescText = stringResource(id = R.string.hot_music_desc)
     val songsCountShortText = stringResource(id = R.string.songs_count_short, musicList.size)
     
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
+
     Column(
         modifier = Modifier
             .width(160.dp)
+            .scale(scale)
             .clickable(
                 indication = null,
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
             ) {
+                isPressed = true
                 android.util.Log.d("RankingMusicCard", "点击热门音乐，共${musicList.size}首")
                 onClick()
             },
@@ -1515,21 +1756,28 @@ fun RankingMusicCard(
         Box(
             modifier = Modifier
                 .size(160.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            RoseRed.copy(alpha = 0.25f),
-                            SakuraPink.copy(alpha = 0.15f)
-                        )
-                    )
-                )
+                .clip(RoundedCornerShape(20.dp))
                 .shadow(
-                    elevation = 4.dp,
-                    spotColor = RoseRed.copy(alpha = 0.2f),
-                    ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    elevation = 8.dp,
+                    spotColor = RoseRed.copy(alpha = 0.3f),
+                    ambientColor = Color.Gray.copy(alpha = 0.15f)
                 )
         ) {
+            // 背景渐变
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                RoseRed.copy(alpha = 0.35f),
+                                SakuraPink.copy(alpha = 0.25f),
+                                Color(0xFFFF6B9D).copy(alpha = 0.2f)
+                            )
+                        )
+                    )
+            )
+            
             if (musicList.isNotEmpty()) {
                 val topMusic = musicList[0]
                 val context = LocalContext.current
@@ -1554,56 +1802,86 @@ fun RankingMusicCard(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "🔥",
-                        fontSize = 48.sp
+                    Image(
+                        painter = painterResource(id = R.drawable.music),
+                        contentDescription = hotMusicText,
+                        modifier = Modifier.size(56.dp),
+                        alpha = 0.7f
                     )
                 }
             }
+            
+            // 渐变遮罩
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.3f)
+                            )
+                        )
+                    )
+            )
             
             // 音乐数量标签
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(8.dp)
+                    .padding(10.dp)
                     .background(
-                        color = RoseRed.copy(alpha = 0.8f),
-                        shape = RoundedCornerShape(8.dp)
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                RoseRed.copy(alpha = 0.9f),
+                                SakuraPink.copy(alpha = 0.85f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        spotColor = RoseRed.copy(alpha = 0.3f),
+                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = songsCountShortText,
                     fontSize = 11.sp,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.3.sp
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
         // 标题
         Text(
             text = hotMusicText,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = RoseRed.copy(alpha = 0.9f),
+            color = RoseRed.copy(alpha = 0.95f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp)
+            modifier = Modifier.width(160.dp),
+            letterSpacing = 0.2.sp
         )
         
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         
         // 描述
         Text(
             text = hotMusicDescText,
             fontSize = 12.sp,
-            color = RoseRed.copy(alpha = 0.7f),
+            color = RoseRed.copy(alpha = 0.75f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp)
+            modifier = Modifier.width(160.dp),
+            fontWeight = FontWeight.Medium
         )
     }
 }
