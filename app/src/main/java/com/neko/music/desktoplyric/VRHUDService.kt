@@ -29,7 +29,7 @@ import org.json.JSONObject
 
 /**
  * VR HUD歌词服务 - 为VR场景优化的桌面歌词显示
- * 提供更好的视觉效果和性能优化
+ * 提供更好的视觉效果和性能优化，支持头显跟随
  */
 class VRHUDService : Service() {
 
@@ -65,6 +65,20 @@ class VRHUDService : Service() {
     private val positionPrefs by lazy {
         getSharedPreferences("vr_hud_lyric_position", Context.MODE_PRIVATE)
     }
+    
+    // VR头显跟随相关
+    private var enableHeadTracking = true
+    private var headRotationX = 0f
+    private var headRotationY = 0f
+    private var headRotationZ = 0f
+    private var targetX = 0f
+    private var targetY = 0f
+    private var currentX = 0f
+    private var currentY = 0f
+    
+    // 平滑移动参数
+    private val smoothingFactor = 0.1f
+    private var positionUpdateJob: Job? = null
 
     companion object {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_VR_HUD"
@@ -101,6 +115,11 @@ class VRHUDService : Service() {
 
         showLyricView()
         startLyricUpdate()
+        
+        // 启动头显跟随位置更新
+        if (enableHeadTracking) {
+            startHeadTrackingPositionUpdate()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -165,8 +184,15 @@ class VRHUDService : Service() {
         if (lyricView == null) return
 
         try {
+            val screenWidth = resources.displayMetrics.widthPixels
+            val screenHeight = resources.displayMetrics.heightPixels
+            
+            // 初始化位置到屏幕中心
+            currentX = screenWidth * 0.5f
+            currentY = screenHeight * 0.3f // 默认显示在屏幕上部
+            
             layoutParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -180,11 +206,11 @@ class VRHUDService : Service() {
                 PixelFormat.TRANSLUCENT
             )
 
-            layoutParams?.gravity = Gravity.CENTER
+            layoutParams?.gravity = Gravity.TOP or Gravity.LEFT
 
-            // 加载保存的位置
-            val savedPosition = loadPosition()
-            layoutParams?.y = savedPosition
+            // 设置初始位置
+            layoutParams?.x = currentX.toInt() - (lyricView?.width?.div(2) ?: 0)
+            layoutParams?.y = currentY.toInt()
 
             lyricView?.alpha = 1f
             lyricView?.scaleX = 1f
@@ -194,7 +220,7 @@ class VRHUDService : Service() {
             isViewAdded = true
 
             updateLyricView()
-            android.util.Log.d("VRHUDService", "VR HUD view added successfully at y=$savedPosition")
+            android.util.Log.d("VRHUDService", "VR HUD view added successfully with head tracking enabled")
         } catch (e: Exception) {
             android.util.Log.e("VRHUDService", "Error showing VR HUD view", e)
         }
@@ -207,6 +233,47 @@ class VRHUDService : Service() {
                 delay(500) // 每0.5秒更新一次，提供更流畅的VR体验
             }
         }
+    }
+    
+    /**
+     * 启动头显跟踪位置更新
+     */
+    private fun startHeadTrackingPositionUpdate() {
+        positionUpdateJob = serviceScope.launch {
+            while (isActive) {
+                updateHeadTrackingPosition()
+                delay(16) // 60fps更新频率
+            }
+        }
+    }
+    
+    /**
+     * 根据头显方向更新HUD位置
+     */
+    private fun updateHeadTrackingPosition() {
+        // 模拟头显方向变化（在实际VR应用中，这些值应该从VR SDK获取）
+        // 这里使用简单的正弦波模拟头部的自然摆动
+        val time = System.currentTimeMillis() / 1000.0
+        headRotationY = (kotlin.math.sin(time * 0.5) * 10).toFloat() // 左右摆动
+        headRotationX = (kotlin.math.sin(time * 0.3) * 5).toFloat()   // 上下摆动
+        
+        // 根据头显方向计算目标位置
+        // 将角度转换为屏幕像素偏移
+        val screenWidth = resources.displayMetrics.widthPixels
+        val screenHeight = resources.displayMetrics.heightPixels
+        
+        targetX = (screenWidth * 0.5 + (headRotationY / 90.0f) * screenWidth * 0.3).toFloat()
+        targetY = (screenHeight * 0.5 + (headRotationX / 90.0f) * screenHeight * 0.2).toFloat()
+        
+        // 平滑移动到目标位置
+        currentX = currentX + (targetX - currentX) * smoothingFactor
+        currentY = currentY + (targetY - currentY) * smoothingFactor
+        
+        // 更新视图位置
+        layoutParams?.x = currentX.toInt() - (lyricView?.width?.div(2) ?: 0)
+        layoutParams?.y = currentY.toInt() - (lyricView?.height?.div(2) ?: 0)
+        
+        windowManager?.updateViewLayout(lyricView, layoutParams)
     }
 
     private fun hideLyricView() {
@@ -560,6 +627,7 @@ class VRHUDService : Service() {
         super.onDestroy()
         hideLyricView()
         updateJob?.cancel()
+        positionUpdateJob?.cancel()
         serviceScope.cancel()
 
         // 清理JNI渲染器

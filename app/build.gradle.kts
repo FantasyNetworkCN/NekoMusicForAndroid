@@ -162,6 +162,7 @@ android {
 dependencies {
 
     implementation(libs.androidx.core.ktx)
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
@@ -182,6 +183,12 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     implementation(libs.androidx.navigation.compose)
+
+    // 暂时注释掉VR SDK依赖以解决minSdk版本冲突
+    // 未来需要升级minSdk到24或使用兼容的SDK版本
+    // implementation("org.khronos.openxr:openxr_loader_for_android:1.0.26")
+    // implementation("com.google.gvr:base:1.190.0")
+    // implementation("com.google.gvr:panowidget:1.190.0")
 
 
 

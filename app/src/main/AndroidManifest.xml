@@ -42,6 +42,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- VR音乐活动 - 支持头显跟随的HUD歌词 -->
+        <activity
+            android:name=".vr.VRActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Neko云音乐"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|keyboardHidden|keyboard|navigation|uiMode|screenSize|smallestScreenSize"
+            android:resizeableActivity="false" />
         
         <service
             android:name=".MusicPlayerService"

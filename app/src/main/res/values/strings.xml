@@ -464,9 +464,21 @@
     <string name="days_ago_format">%d天前喵</string>
     <string name="minutes_unit">分钟喵</string>
 
-    <string name="share_music_text">[%s-%s] Neko云音乐喵 https://music.cnmsb.xin/detail/%d</string>
-    <string name="share_playlist_text">我在Neko云音乐发现了宝藏本本 %s - https://music.cnmsb.xin/playlist/%d，里面超好听喵！快来听听看喵~</string>
+    <string name="share_music_text" formatted="false">[%s-%s] Neko云音乐喵 https://music.cnmsb.xin/detail/%d</string>
+    <string name="share_playlist_text" formatted="false">我在Neko云音乐发现了宝藏本本 %s - https://music.cnmsb.xin/playlist/%d，里面超好听喵！快来听听看喵~</string>
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
     <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>
+
+    <!-- VR模式相关 -->
+    <string name="vr_mode">VR模式喵</string>
+    <string name="vr_mode_subtitle">戴上头显进入虚拟世界，歌词跟着你的头走喵</string>
+    <string name="gvr_vr_mode_component">com.google.vr.vrcore/com.google.vr.vrcore.common.VrCoreListenerService</string>
+    <string name="vr_enter">进入VR世界喵</string>
+    <string name="vr_exit">退出VR世界喵</string>
+    <string name="vr_hud_enabled">VR HUD歌词已开启喵</string>
+    <string name="vr_hud_disabled">VR HUD歌词已关闭喵</string>
+    <string name="vr_permission_message">为了进入VR世界，猫娘需要VR权限喵</string>
+    <string name="vr_not_supported">这个设备不支持VR喵</string>
+    <string name="vr_hud_follow_head">歌词跟着主人的头动喵</string>
 </resources>

@@ -95,6 +95,10 @@ fun SettingsScreen(
     var currentLanguage by remember { mutableStateOf(languagePrefs.getString("language", "system") ?: "system") }
     var showLanguageDialog by remember { mutableStateOf(false) }
     
+    // VR模式设置
+    val vrPrefs = remember { context.getSharedPreferences("vr_mode", Context.MODE_PRIVATE) }
+    var isVRModeEnabled by remember { mutableStateOf(vrPrefs.getBoolean("vr_mode_enabled", false)) }
+    
     // 悬浮窗权限检查
     var hasOverlayPermission by remember {
         mutableStateOf(
@@ -364,6 +368,27 @@ fun SettingsScreen(
                         title = stringResource(id = R.string.language),
                         subtitle = getLanguageDisplayName(context, currentLanguage),
                         onClick = { showLanguageDialog = true }
+                    )
+                    
+                    SettingSwitchItem(
+                        icon = Icons.Default.Info,
+                        title = stringResource(id = R.string.vr_mode),
+                        subtitle = stringResource(id = R.string.vr_mode_subtitle),
+                        checked = isVRModeEnabled,
+                        onCheckedChange = { enabled ->
+                            isVRModeEnabled = enabled
+                            vrPrefs.edit().putBoolean("vr_mode_enabled", enabled).apply()
+                            
+                            // 控制VR HUD服务
+                            val serviceIntent = Intent(context, com.neko.music.desktoplyric.VRHUDService::class.java)
+                            if (enabled) {
+                                serviceIntent.action = com.neko.music.desktoplyric.VRHUDService.ACTION_SHOW
+                                context.startService(serviceIntent)
+                            } else {
+                                serviceIntent.action = com.neko.music.desktoplyric.VRHUDService.ACTION_HIDE
+                                context.startService(serviceIntent)
+                            }
+                        }
                     )
                 }
 
