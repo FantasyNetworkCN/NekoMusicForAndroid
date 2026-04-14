@@ -234,7 +234,7 @@ class FuckChinaOSFloatService : Service() {
         updateJob = serviceScope.launch {
             while (isActive) {
                 updateFloatView()
-                delay(500) // 每0.5秒更新一次
+                delay(1000) // 每1秒更新一次，减少频繁更新导致的surface断开问题
             }
         }
     }
