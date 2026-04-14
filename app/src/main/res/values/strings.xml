@@ -167,6 +167,8 @@
     <string name="download_success">抓到啦喵！</string>
     <string name="download_failed">手滑没抓到喵: %s</string>
     <string name="share_to_twitter">发到小蓝鸟那喵</string>
+    <string name="share_to_qq">发给企鹅那喵</string>
+    <string name="qq_not_installed">没有企鹅呢喵</string>
     <string name="share_failed">没发出去喵</string>
     <string name="playback_speed">加速/减速喵</string>
     <string name="playback_speed_x">当前速度: %dx 喵</string>
@@ -432,7 +434,6 @@
 
     <string name="total_hot_music">一共 %d 首火热曲子喵</string>
 
-    <string name="share_to_qq">分到企鹅家喵</string>
     <string name="playlist_link">本本的小纸条喵</string>
 
     <string name="sleep_timer_hours_minutes" formatted="false">%d小时%d分钟后关掉喵</string>

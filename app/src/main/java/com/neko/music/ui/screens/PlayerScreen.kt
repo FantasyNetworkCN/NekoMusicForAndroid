@@ -699,6 +699,34 @@ fun PlayerScreen(
                     }
                 }
             },
+            onShareToQQ = {
+                scope.launch {
+                    showShareDialog = false
+                    try {
+                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
+                        val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
+
+                        // 使用QQ分享
+                        val qqIntent = android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                            setPackage("com.tencent.mobileqq")
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+
+                        // 尝试启动QQ
+                        try {
+                            context.startActivity(qqIntent)
+                        } catch (e: Exception) {
+                            // 如果QQ未安装，提示用户
+                            Toast.makeText(context, context.getString(R.string.qq_not_installed), Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, shareFailed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
             onSpeedChange = { speed ->
                 playerManager.setPlaybackSpeed(speed)
                 Toast.makeText(context, context.getString(R.string.playback_speed_format, speed), Toast.LENGTH_SHORT).show()
@@ -1740,6 +1768,7 @@ fun ShareDialog(
     onCopyLink: () -> Unit,
     onDownload: () -> Unit,
     onShareToTwitter: () -> Unit,
+    onShareToQQ: () -> Unit,
     onSpeedChange: (Float) -> Unit = {},
     currentSpeed: Float = 1.0f,
     onSleepTimerChange: (Int) -> Unit = {},
@@ -1817,6 +1846,14 @@ fun ShareDialog(
                                     label = stringResource(id = R.string.share_to_twitter),
                                     color = Color(0xFF1DA1F2),
                                     onClick = onShareToTwitter
+                                )
+                            }
+                            item {
+                                ShareGridItem(
+                                    iconRes = R.drawable.qq,
+                                    label = stringResource(id = R.string.share_to_qq),
+                                    color = Color(0xFF12B7F5),
+                                    onClick = onShareToQQ
                                 )
                             }
                             item {
