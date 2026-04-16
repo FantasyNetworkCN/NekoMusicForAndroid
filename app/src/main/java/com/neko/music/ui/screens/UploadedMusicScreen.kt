@@ -1376,8 +1376,7 @@ fun UploadMusicDialog(
                                             duration = durationSeconds,
                                             uploadUserId = userId,
                                             lyricsFile = lyricsBytes,
-                                            coverImage = coverBytes,
-                                            lang = userLanguage
+                                            coverImage = coverBytes
                                         )
                                         
                                         // API调用完成后，等待模拟进度完成到95%，然后设置为100%
