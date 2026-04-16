@@ -552,7 +552,7 @@ fun UploadMusicDialog(
     val invalidLyricsTimestamp = stringResource(id = R.string.invalid_lyrics_timestamp)
     val lyricsFileReadFailed = stringResource(id = R.string.lyrics_file_read_failed)
     
-    // 语言选项
+    // 语言选项（用户界面显示多语言）
     val languageOptions = listOf(
         stringResource(id = R.string.language_chinese) to "zh",
         stringResource(id = R.string.language_cantonese) to "yue",
@@ -566,6 +566,20 @@ fun UploadMusicDialog(
         stringResource(id = R.string.language_instrumental) to "instrumental"
     )
     
+    // 语言代码到中文名称的映射（传递给服务器时使用）
+    val languageCodeToChinese = mapOf(
+        "zh" to "中文",
+        "yue" to "粤语",
+        "wuu" to "上海语",
+        "en" to "英文",
+        "ja" to "日语",
+        "ko" to "韩语",
+        "fr" to "法语",
+        "de" to "德语",
+        "ru" to "俄语",
+        "instrumental" to "纯音乐"
+    )
+    
     // 预加载字符串资源，用于在onClick中使用
     val instrumentalText = stringResource(id = R.string.language_instrumental)
     
@@ -574,6 +588,7 @@ fun UploadMusicDialog(
     var artist by remember { mutableStateOf("") }
     var album by remember { mutableStateOf("") }
     var language by remember { mutableStateOf(pleaseSelectLanguage) }
+    var languageCode by remember { mutableStateOf("") }  // 语言代码
     var tags by remember { mutableStateOf("") }
     var duration by remember { mutableStateOf("") }
     var durationSeconds by remember { mutableStateOf(0) }  // 添加时长秒数
@@ -768,7 +783,7 @@ fun UploadMusicDialog(
                 OutlinedButton(
                     onClick = { lyricsFileLauncher.launch("*/*") },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isUploading && language != stringResource(id = R.string.language_instrumental)
+                    enabled = !isUploading && languageCode != "instrumental"
                 ) {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
@@ -778,7 +793,7 @@ fun UploadMusicDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = when {
-                            language == stringResource(id = R.string.language_instrumental) -> 
+                            languageCode == "instrumental" -> 
                                 "${stringResource(id = R.string.select_lyrics_file)} (纯音乐不需要歌词文件)"
                             lyricsFile != null -> stringResource(id = R.string.lyrics_file_selected)
                             else -> "${stringResource(id = R.string.select_lyrics_file)} ${stringResource(id = R.string.optional_field)}"
@@ -789,7 +804,7 @@ fun UploadMusicDialog(
                 }
                 
                 // 歌词预览
-                if (language == stringResource(id = R.string.language_instrumental)) {
+                if (languageCode == "instrumental") {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -948,6 +963,7 @@ fun UploadMusicDialog(
                                 text = { Text(displayName) },
                                 onClick = {
                                     language = displayName
+                                    languageCode = value
                                     languageExpanded = false
                                     
                                     // 如果选择的是纯音乐，清空歌词文件
@@ -986,7 +1002,7 @@ fun UploadMusicDialog(
                     }
                     
                     // 验证语言选择
-                    if (language == pleaseSelectLanguage) {
+                    if (languageCode.isEmpty()) {
                         android.widget.Toast.makeText(
                             context,
                             pleaseSelectLanguage,
@@ -996,7 +1012,7 @@ fun UploadMusicDialog(
                     }
                     
                     // 检查是否缺失歌词或封面
-                    missingLyrics = (lyricsFile == null && language != instrumentalText)
+                    missingLyrics = (lyricsFile == null && languageCode != "instrumental")
                     missingCover = (coverImage == null && coverBitmap == null)
                     
                     if (missingLyrics || missingCover) {
@@ -1139,7 +1155,7 @@ fun UploadMusicDialog(
     // 试听对话框
     if (showPreviewPlayDialog && audioFile != null) {
         val currentAudioFile = audioFile!!
-        val currentLyricsText = if (language != stringResource(id = R.string.language_instrumental) && fullLyricsContent.isNotEmpty()) {
+        val currentLyricsText = if (languageCode != "instrumental" && fullLyricsContent.isNotEmpty()) {
             fullLyricsContent
         } else {
             null
@@ -1241,7 +1257,7 @@ fun UploadMusicDialog(
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            if (language != stringResource(id = R.string.language_instrumental)) {
+                            if (languageCode != "instrumental") {
                                 if (lyricsFile != null) {
                                     Text(
                                         text = "歌词文件: 已选择",
@@ -1355,12 +1371,13 @@ fun UploadMusicDialog(
                                             title = title,
                                             artist = artist,
                                             album = album,
-                                            language = language,
+                                            language = languageCodeToChinese[languageCode] ?: languageCode,
                                             tags = tags,
                                             duration = durationSeconds,
                                             uploadUserId = userId,
                                             lyricsFile = lyricsBytes,
-                                            coverImage = coverBytes
+                                            coverImage = coverBytes,
+                                            lang = userLanguage
                                         )
                                         
                                         // API调用完成后，等待模拟进度完成到95%，然后设置为100%
