@@ -58,6 +58,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -205,7 +207,6 @@ fun HomeScreen(
                 errorMessage = context.getString(R.string.install_permission_denied)
                 showUpdateErrorDialog = true
             }
-            pendingInstallFile = null
         }
     }
     
@@ -390,7 +391,9 @@ fun HomeScreen(
                             Log.d("HomeScreen", "搜索框被点击")
                             onSearchClick()
                         },
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundAlpha = 0.35f,
+                    borderAlpha = 0.18f
                 ) {
                     Row(
                         modifier = Modifier
@@ -402,14 +405,14 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = stringResource(id = R.string.search),
-                            tint = Color.White.copy(alpha = 0.5f),
+                            tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = stringResource(id = R.string.search_music_artist_album),
                             fontSize = 15.sp,
-                            color = Color.White.copy(alpha = 0.35f),
+                            color = Color.White.copy(alpha = 0.6f),
                             fontWeight = FontWeight.Normal
                         )
                     }
@@ -421,73 +424,98 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    GlassSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        backgroundAlpha = 0.32f,
+                        borderAlpha = 0.15f,
+                        highlightAlpha = 0.08f
                     ) {
-                        Text(
-                            text = stringResource(id = R.string.recommended_playlists),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = RoseRed,
-                            letterSpacing = 0.4.sp
-                        )
-                        if (playlistsLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = RoseRed.copy(alpha = 0.9f),
-                                strokeWidth = 3.dp
-                            )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(4.dp)
+                                        .height(20.dp)
+                                        .background(
+                                            Color.White.copy(alpha = 0.7f),
+                                            RoundedCornerShape(2.dp)
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = stringResource(id = R.string.recommended_playlists),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.98f),
+                                    letterSpacing = 0.3.sp,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        shadow = Shadow(
+                                            color = Color.Black.copy(alpha = 0.5f),
+                                            offset = Offset(0f, 1f),
+                                            blurRadius = 6f
+                                        )
+                                    )
+                                )
+                            }
+                            if (playlistsLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    strokeWidth = 2.5.dp
+                                )
+                            }
                         }
                     }
                     
                     if (playlistsLoading) {
-                        Box(
+                        GlassSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            RoseRed.copy(alpha = 0.1f),
-                                            SakuraPink.copy(alpha = 0.08f)
-                                        )
-                                    )
-                                )
+                                .height(160.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            backgroundAlpha = 0.28f,
+                            borderAlpha = 0.12f
                         ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.Center),
-                                color = RoseRed.copy(alpha = 0.8f),
-                                strokeWidth = 3.dp
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(36.dp),
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    strokeWidth = 2.5.dp
+                                )
+                            }
                         }
                     } else if (loadError) {
-                        Box(
+                        GlassSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 40.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            RoseRed.copy(alpha = 0.1f),
-                                            SakuraPink.copy(alpha = 0.08f)
-                                        )
-                                    )
-                                )
-                                .padding(20.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(vertical = 40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            backgroundAlpha = 0.28f,
+                            borderAlpha = 0.12f
                         ) {
-                            Text(
-                                text = stringResource(id = R.string.network_error_msg),
-                                fontSize = 16.sp,
-                                color = RoseRed.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Medium
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.network_error_msg),
+                                    fontSize = 16.sp,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     } else {
                         LazyRow(
@@ -1065,109 +1093,6 @@ fun UpdateErrorDialog(
         }
     }
 
-    @Composable
-    fun PlaylistCard(
-        playlist: PlaylistInfo,
-        onClick: () -> Unit
-    ) {
-        var isPressed by remember { mutableStateOf(false) }
-        val scale by animateFloatAsState(
-            targetValue = if (isPressed) 0.95f else 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-
-        Column(
-            modifier = Modifier
-                .width(160.dp)
-                .scale(scale)
-                .clickable {
-                    isPressed = true
-                    onClick()
-                },
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 封面
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                SakuraPink.copy(alpha = 0.3f),
-                                SkyBlue.copy(alpha = 0.3f)
-                            )
-                        )
-                    )
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = RoseRed.copy(alpha = 0.2f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
-                    )
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(
-                            when {
-                                !playlist.firstMusicCover.isNullOrEmpty() -> playlist.firstMusicCover
-                                !playlist.coverPath.isNullOrEmpty() -> playlist.coverPath
-                                else -> UrlConfig.getDefaultAvatarUrl()
-                            }
-                        )
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = playlist.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-
-                // 音乐数量标签
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(8.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
-                        fontSize = 12.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 歌单名称
-            Text(
-                text = playlist.name,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.95f),
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // 歌单描述
-            Text(
-                text = playlist.description ?: "暂无描述",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.65f),
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        }
-    }
 }
 
 @Composable
@@ -1492,12 +1417,12 @@ fun PlaylistCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f)
+                                Color.Black.copy(alpha = 0.55f)
                             )
                         )
                     )
             )
-            
+
             // 光泽效果
             Box(
                 modifier = Modifier
@@ -1515,63 +1440,79 @@ fun PlaylistCard(
                         )
                     )
             )
-            
+
             // 音乐数量标签
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.7f),
-                                Color.Black.copy(alpha = 0.6f)
-                            )
-                        ),
+                        color = Color(0xFF1A1A2E).copy(alpha = 0.85f),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = Color.Black.copy(alpha = 0.3f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    .border(
+                        width = 0.5.dp,
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
                     fontSize = 11.sp,
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.95f),
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.3.sp
+                    letterSpacing = 0.3.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         // 歌单名称
         Text(
             text = playlist.name,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.95f),
+            color = Color.White.copy(alpha = 0.98f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            letterSpacing = 0.2.sp
+            letterSpacing = 0.2.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 5f
+                )
+            )
         )
-        
+
         Spacer(modifier = Modifier.height(5.dp))
-        
+
         // 歌单描述
         Text(
             text = playlist.description ?: stringResource(id = R.string.no_description),
             fontSize = 12.sp,
-            color = Color.White.copy(alpha = 0.7f),
+            color = Color.White.copy(alpha = 0.75f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 4f
+                )
+            )
         )
     }
 }
@@ -1677,12 +1618,12 @@ fun RankingMusicCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f)
+                                Color.Black.copy(alpha = 0.55f)
                             )
                         )
                     )
             )
-            
+
             // 光泽效果
             Box(
                 modifier = Modifier
@@ -1700,63 +1641,79 @@ fun RankingMusicCard(
                         )
                     )
             )
-            
+
             // 音乐数量标签
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                RoseRed.copy(alpha = 0.9f),
-                                SakuraPink.copy(alpha = 0.85f)
-                            )
-                        ),
+                        color = Color(0xFF1A1A2E).copy(alpha = 0.85f),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = RoseRed.copy(alpha = 0.3f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    .border(
+                        width = 0.5.dp,
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = songsCountShortText,
                     fontSize = 11.sp,
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.95f),
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.3.sp
+                    letterSpacing = 0.3.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         // 标题
         Text(
             text = hotMusicText,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = RoseRed.copy(alpha = 0.95f),
+            color = Color.White.copy(alpha = 0.98f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            letterSpacing = 0.2.sp
+            letterSpacing = 0.2.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 5f
+                )
+            )
         )
-        
+
         Spacer(modifier = Modifier.height(5.dp))
-        
+
         // 描述
         Text(
             text = hotMusicDescText,
             fontSize = 12.sp,
-            color = RoseRed.copy(alpha = 0.75f),
+            color = Color.White.copy(alpha = 0.75f),
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 4f
+                )
+            )
         )
     }
 }
