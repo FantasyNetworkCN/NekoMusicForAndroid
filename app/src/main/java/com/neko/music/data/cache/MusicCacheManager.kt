@@ -126,7 +126,7 @@ private fun ensureCacheDirs() {
     /**
      * 缓存音乐文件
      */
-    suspend fun cacheMusicFile(musicId: Int, url: String, title: String = ""): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun cacheMusicFile(musicId: Int, url: String, title: String = "", artist: String = ""): Result<File> = withContext(Dispatchers.IO) {
         if (!isCacheEnabled()) {
             return@withContext Result.failure(Exception("缓存未启用"))
         }
@@ -148,6 +148,7 @@ private fun ensureCacheDirs() {
                 .putLong("music_${musicId}_time", System.currentTimeMillis())
                 .putLong("music_${musicId}_size", file.length())
                 .putString("music_${musicId}_title", title)
+                .putString("music_${musicId}_artist", artist)
                 .putString("music_${musicId}_ext", extension)
                 .putBoolean("music_${musicId}_caching", false)
                 .apply()
@@ -260,6 +261,7 @@ private fun ensureCacheDirs() {
                 .remove("music_${musicId}_time")
                 .remove("music_${musicId}_size")
                 .remove("music_${musicId}_title")
+                .remove("music_${musicId}_artist")
                 .remove("music_${musicId}_ext")
                 .remove("music_${musicId}_caching")
                 .remove("cover_${musicId}_time")
@@ -282,6 +284,16 @@ private fun ensureCacheDirs() {
             .putString("music_${musicId}_title", title)
             .apply()
         Log.d(TAG, "更新音乐标题: $musicId -> $title")
+    }
+
+    /**
+     * 更新已缓存音乐的演唱者
+     */
+    fun updateMusicArtist(musicId: Int, artist: String) {
+        prefs.edit()
+            .putString("music_${musicId}_artist", artist)
+            .apply()
+        Log.d(TAG, "更新音乐演唱者: $musicId -> $artist")
     }
 
     /**
@@ -349,15 +361,16 @@ private fun ensureCacheDirs() {
     }
 
     /**
-     * 获取所有缓存的音乐项（音乐ID和标题）
+     * 获取所有缓存的音乐项（音乐ID、标题和演唱者）
      */
-    fun getAllCachedItems(): List<Pair<String, String>> {
-        val items = mutableListOf<Pair<String, String>>()
+    fun getAllCachedItems(): List<Triple<String, String, String>> {
+        val items = mutableListOf<Triple<String, String, String>>()
         if (musicDir.exists()) {
             musicDir.listFiles()?.forEach { file ->
                 val musicId = file.nameWithoutExtension.replace("music_", "")
                 val title = prefs.getString("music_${musicId}_title", "未知歌曲") ?: "未知歌曲"
-                items.add(Pair(musicId, title))
+                val artist = prefs.getString("music_${musicId}_artist", "未知歌手") ?: "未知歌手"
+                items.add(Triple(musicId, title, artist))
             }
         }
         return items

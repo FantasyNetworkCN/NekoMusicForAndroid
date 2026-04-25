@@ -48,7 +48,7 @@ fun CacheManagementScreen(
     var cachedMusicCount by remember { mutableStateOf(cacheManager.getCachedMusicCount()) }
     var cachedItems by remember { mutableStateOf(cacheManager.getAllCachedItems()) }
     var showClearDialog by remember { mutableStateOf(false) }
-    var showDeleteItemDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showDeleteItemDialog by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     
     // 定期更新缓存数据
@@ -91,7 +91,7 @@ fun CacheManagementScreen(
                                                 val tempMusic = com.neko.music.data.model.Music(
                                                     id = musicId,
                                                     title = item.second,
-                                                    artist = unknownArtist,
+                                                    artist = item.third,
                                                     album = unknownSong,
                                                     duration = 0,
                                                     filePath = null,
@@ -269,6 +269,7 @@ fun CacheManagementScreen(
                             CacheItem(
                                 musicId = item.first,
                                 title = item.second,
+                                artist = item.third,
                                 onDelete = {
                                     showDeleteItemDialog = item
                                 }
@@ -347,7 +348,7 @@ fun CacheManagementScreen(
     }
     
     // 删除单个缓存对话框
-    showDeleteItemDialog?.let { (musicId, title) ->
+    showDeleteItemDialog?.let { (musicId, title, artist) ->
         AlertDialog(
             onDismissRequest = { showDeleteItemDialog = null },
             title = {
@@ -412,6 +413,7 @@ fun CacheManagementScreen(
 fun CacheItem(
     musicId: String,
     title: String,
+    artist: String,
     onDelete: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -481,9 +483,10 @@ fun CacheItem(
                     maxLines = 1
                 )
                 Text(
-                    text = stringResource(id = R.string.id_label, musicId),
+                    text = "$artist · ID: $musicId",
                     fontSize = 13.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    maxLines = 1
                 )
             }
             

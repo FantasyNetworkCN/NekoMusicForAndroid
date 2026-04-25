@@ -954,7 +954,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     if (cacheManager.isCacheEnabled()) {
                         // 检查是否已缓存，如果没有则开始缓存
                         if (cacheManager.getCachedMusicFile(id) == null) {
-                            cacheManager.cacheMusicFile(id, url, title)
+                            cacheManager.cacheMusicFile(id, url, title, artist)
                                 .onSuccess { 
                                     Log.d("MusicPlayerManager", "音乐缓存成功: $title")
                                 }
@@ -962,8 +962,9 @@ class MusicPlayerManager private constructor(context: Context) {
                                     Log.e("MusicPlayerManager", "音乐缓存失败: $title", e)
                                 }
                         } else {
-                            // 更新缓存中的音乐标题
+                            // 更新缓存中的音乐标题和演唱者
                             cacheManager.updateMusicTitle(id, title)
+                            cacheManager.updateMusicArtist(id, artist)
                         }
 
                         // 缓存封面
