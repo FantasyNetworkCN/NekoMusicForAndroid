@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -78,6 +80,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -106,6 +109,9 @@ import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.PlayMode
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.SkyBlue
+import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.theme.SakuraPink
 import kotlinx.coroutines.delay
@@ -445,11 +451,52 @@ fun PlayerScreen(
         Unit
     }
 
+    val coverUrl = if (!currentMusic.coverFilePath.isNullOrEmpty()) {
+        UrlConfig.buildFullUrl(currentMusic.coverFilePath)
+    } else {
+        UrlConfig.getMusicCoverUrl(currentMusic.id)
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        // 二次元渐变背景
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (isDarkTheme) {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF2D1B4E),
+                                Color(0xFF1A1A3E),
+                                Color(0xFF2D1B3E)
+                            ),
+                            center = androidx.compose.ui.geometry.Offset(0.5f, 0.3f),
+                            radius = 1200f
+                        )
+                    } else {
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFFFF0F5),
+                                Color(0xFFF0F8FF),
+                                Color(0xFFFFF5EE)
+                            ),
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(1000f, 1500f)
+                        )
+                    }
+                )
+        )
+
+        // 装饰性浮动光斑
+        if (isDarkTheme) {
+            DecorativeOrbs()
+        } else {
+            DecorativeOrbsLight()
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
         ) {
             TopBar(
@@ -570,54 +617,120 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 歌曲信息和收藏按钮 - 紧贴在进度条上方
-            LyricSongInfoBar(
-                music = currentMusic,
-                isFavorite = isFavorite,
-                onFavoriteClick = {
-                    if (isLoggedIn) {
-                        playerManager.toggleFavorite()
-                    } else {
-                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                showLyrics = showLyrics,
-                isLoggedIn = isLoggedIn,
-                isDesktopLyricEnabled = isDesktopLyricEnabled,
-                onDesktopLyricClick = toggleDesktopLyric
-            )
+            // 底部控制面板（玻璃质感）
+            if (isDarkTheme) {
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    backgroundAlpha = 0.18f,
+                    borderAlpha = 0.2f,
+                    borderColor = SakuraPink
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    ) {
+                        // 歌曲信息和收藏按钮
+                        LyricSongInfoBar(
+                            music = currentMusic,
+                            isFavorite = isFavorite,
+                            onFavoriteClick = {
+                                if (isLoggedIn) {
+                                    playerManager.toggleFavorite()
+                                } else {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            showLyrics = showLyrics,
+                            isLoggedIn = isLoggedIn,
+                            isDesktopLyricEnabled = isDesktopLyricEnabled,
+                            onDesktopLyricClick = toggleDesktopLyric
+                        )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            // 进度条
-            ProgressSlider(
-                progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
-                currentTime = currentTime,
-                totalTime = totalTime,
-                isLoading = isLoading,
-                onProgressChange = { value ->
-                    if (duration > 0) {
-                        playerManager.seekTo((value * duration).toLong())
+                        // 进度条
+                        ProgressSlider(
+                            progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                            currentTime = currentTime,
+                            totalTime = totalTime,
+                            isLoading = isLoading,
+                            onProgressChange = { value ->
+                                if (duration > 0) {
+                                    playerManager.seekTo((value * duration).toLong())
+                                }
+                                Unit
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        PlaybackControls(
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            musicFileUrl = musicFileUrl,
+                            playMode = playMode,
+                            onPlayPauseClick = {
+                                playerManager.togglePlayPause()
+                            },
+                            onPreviousClick = { playerManager.previous() },
+                            onNextClick = { playerManager.next() },
+                            onPlaylistClick = onPlaylistClick,
+                            onPlayModeClick = { playerManager.togglePlayMode() }
+                        )
                     }
-                    Unit
                 }
-            )
+            } else {
+                // 歌曲信息和收藏按钮 - 紧贴在进度条上方
+                LyricSongInfoBar(
+                    music = currentMusic,
+                    isFavorite = isFavorite,
+                    onFavoriteClick = {
+                        if (isLoggedIn) {
+                            playerManager.toggleFavorite()
+                        } else {
+                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    showLyrics = showLyrics,
+                    isLoggedIn = isLoggedIn,
+                    isDesktopLyricEnabled = isDesktopLyricEnabled,
+                    onDesktopLyricClick = toggleDesktopLyric
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            PlaybackControls(
-                isPlaying = isPlaying,
-                isLoading = isLoading,
-                musicFileUrl = musicFileUrl,
-                playMode = playMode,
-                onPlayPauseClick = {
-                    playerManager.togglePlayPause()
-                },
-                onPreviousClick = { playerManager.previous() },
-                onNextClick = { playerManager.next() },
-                onPlaylistClick = onPlaylistClick,
-                onPlayModeClick = { playerManager.togglePlayMode() }
-            )
+                // 进度条
+                ProgressSlider(
+                    progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                    currentTime = currentTime,
+                    totalTime = totalTime,
+                    isLoading = isLoading,
+                    onProgressChange = { value ->
+                        if (duration > 0) {
+                            playerManager.seekTo((value * duration).toLong())
+                        }
+                        Unit
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                PlaybackControls(
+                    isPlaying = isPlaying,
+                    isLoading = isLoading,
+                    musicFileUrl = musicFileUrl,
+                    playMode = playMode,
+                    onPlayPauseClick = {
+                        playerManager.togglePlayPause()
+                    },
+                    onPreviousClick = { playerManager.previous() },
+                    onNextClick = { playerManager.next() },
+                    onPlaylistClick = onPlaylistClick,
+                    onPlayModeClick = { playerManager.togglePlayMode() }
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -1149,28 +1262,76 @@ fun CoverImage(
 
             Box(
                 modifier = Modifier
-                    .size(200.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isDarkTheme) Color.White.copy(alpha = 0.08f)
-                        else RoseRed.copy(alpha = 0.1f)
-                    )
-                    .clickable(onClick = onClick),
+                    .size(250.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (!coverUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = stringResource(id = R.string.cover),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(R.drawable.music),
-                        contentDescription = null,
-                        modifier = Modifier.size(60.dp)
-                    )
+                // 彩虹光晕层
+                Box(
+                    modifier = Modifier
+                        .size(230.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = if (isDarkTheme) {
+                                    listOf(
+                                        SakuraPink.copy(alpha = 0.25f),
+                                        SkyBlue.copy(alpha = 0.15f),
+                                        Color.Transparent
+                                    )
+                                } else {
+                                    listOf(
+                                        SakuraPink.copy(alpha = 0.2f),
+                                        SkyBlue.copy(alpha = 0.1f),
+                                        Color.Transparent
+                                    )
+                                }
+                            ),
+                            CircleShape
+                        )
+                )
+
+                // 封面主体
+                Box(
+                    modifier = Modifier
+                        .size(200.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .shadow(
+                            elevation = 20.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.3f) else Color.Gray,
+                            ambientColor = if (isDarkTheme) SkyBlue.copy(alpha = 0.15f) else Color.Gray
+                        )
+                        .border(
+                            width = 1.5.dp,
+                            brush = Brush.linearGradient(
+                                colors = if (isDarkTheme) {
+                                    listOf(SakuraPink.copy(alpha = 0.6f), SkyBlue.copy(alpha = 0.6f), SakuraPink.copy(alpha = 0.6f))
+                                } else {
+                                    listOf(SakuraPink.copy(alpha = 0.4f), SkyBlue.copy(alpha = 0.4f), SakuraPink.copy(alpha = 0.4f))
+                                }
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .background(
+                            if (isDarkTheme) Color.White.copy(alpha = 0.08f)
+                            else RoseRed.copy(alpha = 0.1f)
+                        )
+                        .clickable(onClick = onClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!coverUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = stringResource(id = R.string.cover),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.music),
+                            contentDescription = null,
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1248,7 +1409,7 @@ fun CoverImage(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
-                            if (isDarkTheme) Color.White else RoseRed
+                            if (isDarkTheme) SakuraPink else RoseRed
                         } else {
                             if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                         },
@@ -1299,7 +1460,7 @@ fun MusicInfo(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
-                            if (isDarkTheme) Color.White else RoseRed
+                            if (isDarkTheme) SakuraPink else RoseRed
                         } else {
                             if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                         },
@@ -1323,15 +1484,15 @@ fun LyricSongInfoBar(
             val titleColor = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
             val artistColor = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
             val favColor = if (isFavorite) {
-                if (isDarkTheme) Color.White else RoseRed
+                if (isDarkTheme) SakuraPink else RoseRed
             } else {
                 if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
             }
             val desktopLyricBg = if (isDesktopLyricEnabled) {
-                if (isDarkTheme) Color.White.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f)
+                if (isDarkTheme) SakuraPink.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f)
             } else Color.Transparent
             val desktopLyricText = if (isDesktopLyricEnabled) {
-                if (isDarkTheme) Color.White else RoseRed
+                if (isDarkTheme) SakuraPink else RoseRed
             } else {
                 if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
             }
@@ -1594,7 +1755,7 @@ fun LyricsView(
                             items(lyrics.size) { index ->
                                 val line = lyrics[index]
                                 val isCurrentLine = index == currentIndex
-                                val currentLineColor = if (isDarkTheme) Color.White else RoseRed
+                                val currentLineColor = if (isDarkTheme) SakuraPink else RoseRed
                                 val otherLineColor = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else Color.Gray
 
                                 Column(
@@ -1609,7 +1770,16 @@ fun LyricsView(
                                         fontSize = if (isCurrentLine) 18.sp else 14.sp,
                                         fontWeight = if (isCurrentLine) FontWeight.Bold else FontWeight.Normal,
                                         color = if (isCurrentLine) currentLineColor else otherLineColor,
-                                        textAlign = TextAlign.Center
+                                        textAlign = TextAlign.Center,
+                                        style = if (isCurrentLine) {
+                                            androidx.compose.ui.text.TextStyle(
+                                                shadow = androidx.compose.ui.graphics.Shadow(
+                                                    color = if (isDarkTheme) SakuraPink.copy(alpha = 0.5f) else currentLineColor.copy(alpha = 0.3f),
+                                                    offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                                    blurRadius = 14f
+                                                )
+                                            )
+                                        } else androidx.compose.ui.text.TextStyle()
                                     )
 
                                     // 翻译歌词（如果存在）
@@ -1620,7 +1790,16 @@ fun LyricsView(
                                             fontWeight = FontWeight.Normal,
                                             color = if (isCurrentLine) currentLineColor.copy(alpha = 0.9f) else otherLineColor.copy(alpha = 0.7f),
                                             textAlign = TextAlign.Center,
-                                            modifier = Modifier.padding(top = 2.dp)
+                                            modifier = Modifier.padding(top = 2.dp),
+                                            style = if (isCurrentLine) {
+                                                androidx.compose.ui.text.TextStyle(
+                                                    shadow = androidx.compose.ui.graphics.Shadow(
+                                                        color = if (isDarkTheme) SkyBlue.copy(alpha = 0.4f) else currentLineColor.copy(alpha = 0.25f),
+                                                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                                        blurRadius = 10f
+                                                    )
+                                                )
+                                            } else androidx.compose.ui.text.TextStyle()
                                         )
                                     }
                                 }
@@ -1658,9 +1837,9 @@ fun ProgressSlider(
                         value = progress,
                         onValueChange = onProgressChange,
                         colors = SliderDefaults.colors(
-                            activeTrackColor = if (isDarkTheme) Color.White else RoseRed,
-                            inactiveTrackColor = if (isDarkTheme) Color.White.copy(alpha = 0.2f) else Color(0xFFE0E0E0),
-                            thumbColor = if (isDarkTheme) Color.White else RoseRed
+                            activeTrackColor = if (isDarkTheme) SakuraPink else RoseRed,
+                            inactiveTrackColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.15f) else Color(0xFFE0E0E0),
+                            thumbColor = if (isDarkTheme) SakuraPink else RoseRed
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1674,12 +1853,12 @@ fun ProgressSlider(
                         Text(
                             text = currentTime,
                             fontSize = 12.sp,
-                            color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else Color.Gray
+                            color = if (isDarkTheme) SkyBlue.copy(alpha = 0.7f) else Color.Gray
                         )
                         Text(
                             text = totalTime,
                             fontSize = 12.sp,
-                            color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else Color.Gray
+                            color = if (isDarkTheme) SkyBlue.copy(alpha = 0.7f) else Color.Gray
                         )
                     }
                 }
@@ -1699,7 +1878,7 @@ fun ProgressSlider(
             onPlayModeClick: () -> Unit
         ) {
             val isDarkTheme = isSystemInDarkTheme()
-            val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
+            val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurface
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1744,13 +1923,27 @@ fun ProgressSlider(
                     }
                 }
 
-                // 中间：播放/暂停按钮
+                // 中间：播放/暂停按钮（二次元渐变色+发光）
+                val playButtonColors = if (isDarkTheme) {
+                    listOf(Color(0xFFFFB7C5), Color(0xFF9B59B6), Color(0xFF3498DB))
+                } else {
+                    listOf(Color(0xFFFFB7C5), Color(0xFFFF8FA3), Color(0xFF87CEEB))
+                }
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(68.dp)
                         .background(
-                            if (isDarkTheme) Color.White else RoseRed,
+                            Brush.linearGradient(
+                                colors = playButtonColors,
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(200f, 200f)
+                            ),
                             CircleShape
+                        )
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = CircleShape,
+                            spotColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.5f) else RoseRed.copy(alpha = 0.3f)
                         )
                         .clickable(
                             enabled = !isLoading && musicFileUrl != null,
@@ -1763,7 +1956,7 @@ fun ProgressSlider(
                     when {
                         isLoading -> {
                             CircularProgressIndicator(
-                                color = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White,
+                                color = Color.White.copy(alpha = 0.9f),
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -1772,7 +1965,7 @@ fun ProgressSlider(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Loading",
-                                tint = if (isDarkTheme) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f),
+                                tint = Color.White.copy(alpha = 0.6f),
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -1783,7 +1976,7 @@ fun ProgressSlider(
                                     id = if (isPlaying) R.drawable.pause else R.drawable.play
                                 ),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = if (isDarkTheme) Color.Black else Color.White,
+                                tint = Color.White,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -2677,5 +2870,127 @@ fun PlaylistChip(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+fun DecorativeOrbs() {
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbs")
+    val orb1Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 20f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(4000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb1"
+    )
+    val orb2Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -15f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb2"
+    )
+    val orb3Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 25f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb3"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 左上粉紫光斑
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .offset(x = (-40f).dp, y = ((60f + orb1Offset)).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(SakuraPink.copy(alpha = 0.15f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
+        )
+        // 右中天蓝光斑
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 30.dp, y = ((120f + orb2Offset)).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(SkyBlue.copy(alpha = 0.12f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
+        )
+        // 左下淡紫光斑
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-50f).dp, y = ((-100f + orb3Offset)).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xFFDDA0DD).copy(alpha = 0.1f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
+        )
+    }
+}
+
+@Composable
+fun DecorativeOrbsLight() {
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbsLight")
+    val orb1Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 15f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb1L"
+    )
+    val orb2Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -12f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb2L"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .offset(x = (-30f).dp, y = ((80f + orb1Offset)).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(SakuraPink.copy(alpha = 0.12f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(160.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 20.dp, y = ((150f + orb2Offset)).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(SkyBlue.copy(alpha = 0.1f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
+        )
     }
 }
