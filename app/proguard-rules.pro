@@ -61,10 +61,6 @@
 -keepattributes Signature
 -dontwarn io.ktor.**
 -keep class io.ktor.** { *; }
--keep class io.netty.** { *; }
--dontwarn io.netty.**
--keep class kotlin.reflect.jvm.internal.** { *; }
-
 # Coil
 -keep class coil3.** { *; }
 -dontwarn coil3.**
@@ -82,13 +78,6 @@
     public *;
 }
 
-# Generic optimization
--optimizationpasses 5
--dontusemixedcaseclassnames
--dontskipnonpubliclibraryclasses
--dontpreverify
--verbose
-
 # Remove logging
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
@@ -102,12 +91,3 @@
     native <methods>;
 }
 
-# Keep serializable classes
--keepclassmembers class * implements java.io.Serializable {
-    static final long serialVersionUID;
-    private static final java.io.ObjectStreamField[] serialPersistentFields;
-    private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
-    java.lang.Object writeReplace();
-    java.lang.Object readResolve();
-}
