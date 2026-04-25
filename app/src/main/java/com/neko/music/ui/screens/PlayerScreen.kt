@@ -642,16 +642,22 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier.padding(vertical = 16.dp)
                     ) {
-                        // 歌曲信息（无按钮）
+                        // 歌曲信息（含收藏和歌词按钮）
                         LyricSongInfoBar(
                             music = currentMusic,
                             isFavorite = isFavorite,
-                            onFavoriteClick = {},
+                            onFavoriteClick = {
+                                if (isLoggedIn) {
+                                    playerManager.toggleFavorite()
+                                } else {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             showLyrics = showLyrics,
                             isLoggedIn = isLoggedIn,
                             isDesktopLyricEnabled = isDesktopLyricEnabled,
-                            onDesktopLyricClick = {},
-                            showActions = false
+                            onDesktopLyricClick = toggleDesktopLyric,
+                            showActions = true
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -668,22 +674,6 @@ fun PlayerScreen(
                                 }
                                 Unit
                             }
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // 收藏和歌词按钮
-                        SongActionButtons(
-                            isFavorite = isFavorite,
-                            onFavoriteClick = {
-                                if (isLoggedIn) {
-                                    playerManager.toggleFavorite()
-                                } else {
-                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            isDesktopLyricEnabled = isDesktopLyricEnabled,
-                            onDesktopLyricClick = toggleDesktopLyric
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -704,16 +694,22 @@ fun PlayerScreen(
                     }
                 }
             } else {
-                // 歌曲信息（无按钮）
+                // 歌曲信息（含收藏和歌词按钮）
                 LyricSongInfoBar(
                     music = currentMusic,
                     isFavorite = isFavorite,
-                    onFavoriteClick = {},
+                    onFavoriteClick = {
+                        if (isLoggedIn) {
+                            playerManager.toggleFavorite()
+                        } else {
+                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     showLyrics = showLyrics,
                     isLoggedIn = isLoggedIn,
                     isDesktopLyricEnabled = isDesktopLyricEnabled,
-                    onDesktopLyricClick = {},
-                    showActions = false
+                    onDesktopLyricClick = toggleDesktopLyric,
+                    showActions = true
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -730,22 +726,6 @@ fun PlayerScreen(
                         }
                         Unit
                     }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 收藏和歌词按钮
-                SongActionButtons(
-                    isFavorite = isFavorite,
-                    onFavoriteClick = {
-                        if (isLoggedIn) {
-                            playerManager.toggleFavorite()
-                        } else {
-                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    isDesktopLyricEnabled = isDesktopLyricEnabled,
-                    onDesktopLyricClick = toggleDesktopLyric
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1536,10 +1516,17 @@ fun LyricSongInfoBar(
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)
             ) {
+                // 歌曲信息区域，限制宽度避免与右侧按钮重叠
+                val textAreaModifier = if (showActions) {
+                    Modifier.fillMaxWidth(0.72f)
+                } else {
+                    Modifier.fillMaxWidth()
+                }
+
                 if (showLyrics) {
-                    // 歌词界面：歌名和歌手在左侧
+                    // 歌词界面：歌名和歌手靠左
                     Column(
-                        modifier = Modifier.align(Alignment.CenterStart)
+                        modifier = Modifier.align(Alignment.CenterStart).then(textAreaModifier)
                     ) {
                         // 歌名 - 可横向滚动
                         Box(
@@ -1567,16 +1554,14 @@ fun LyricSongInfoBar(
                         )
                     }
                 } else {
-                    // 封面界面：歌名和歌手居中
+                    // 封面界面：歌名和歌手靠左（限制宽度）
                     Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.align(Alignment.CenterStart).then(textAreaModifier)
                     ) {
                         // 歌名 - 自动滚动
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
                         ) {
                             val scrollState = rememberScrollState()
                             val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
@@ -1597,9 +1582,8 @@ fun LyricSongInfoBar(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = titleColor,
-                                textAlign = TextAlign.Center,
                                 maxLines = 1,
-                                overflow = TextOverflow.Clip,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(scrollState, enabled = false)
@@ -1612,7 +1596,7 @@ fun LyricSongInfoBar(
                             text = music.artist,
                             fontSize = 12.sp,
                             color = artistColor,
-                            textAlign = TextAlign.Center
+                            maxLines = 1
                         )
                     }
                 }
