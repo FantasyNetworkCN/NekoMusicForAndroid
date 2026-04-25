@@ -61,6 +61,7 @@ import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.model.Playlist
 import com.neko.music.ui.theme.*
+import com.neko.music.ui.components.GlassSurface
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -414,7 +415,7 @@ fun MyPlaylistsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = RoseRed)
+                    CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
                 }
             } else if (allPlaylists.isEmpty()) {
                 // 空状态
@@ -520,7 +521,8 @@ fun MyPlaylistsScreen(
                     
                     // 添加创建按钮项
                     item {
-                        Card(
+                        val isDark = isSystemInDarkTheme()
+                        GlassSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(80.dp)
@@ -533,19 +535,12 @@ fun MyPlaylistsScreen(
                                         Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSystemInDarkTheme()) {
-                                    Color(0xFF252545).copy(alpha = 0.7f)
-                                } else {
-                                    Color.White.copy(alpha = 0.85f)
-                                }
-                            ),
-                            elevation = CardDefaults.cardElevation(
-                                defaultElevation = 4.dp,
-                                hoveredElevation = 6.dp
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                                ) {                            Box(
+                            shape = RoundedCornerShape(16.dp),
+                            backgroundAlpha = if (isDark) 0.28f else 0.08f,
+                            borderAlpha = if (isDark) 0.14f else 0.08f,
+                            highlightAlpha = if (isDark) 0.08f else 0.04f
+                        ) {
+                            Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -556,16 +551,12 @@ fun MyPlaylistsScreen(
                                     Icon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = null,
-                                        tint = RoseRed
+                                        tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
                                     )
                                     Text(
                                         text = stringResource(id = R.string.create_new_playlist),
                                         fontSize = 16.sp,
-                                        color = if (isSystemInDarkTheme()) {
-                                            RoseRed.copy(alpha = 0.9f)
-                                        } else {
-                                            RoseRed
-                                        },
+                                        color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -635,17 +626,16 @@ fun MyPlaylistsScreen(
 fun PlaylistItem(
     playlist: Playlist,
     favorites: List<com.neko.music.data.api.FavoriteMusic>,
-    firstMusicCover: String? = null, // 可选：歌单第一首音乐的封面
+    firstMusicCover: String? = null,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onClick: () -> Unit = {}
 ) {
-    // Preload strings
     val coverText = stringResource(id = R.string.content_description_cover)
     val songsCountLabelText = stringResource(id = R.string.songs_count_label, playlist.musicCount)
     val editText = stringResource(id = R.string.edit_playlist)
     val deleteText = stringResource(id = R.string.delete)
-    
+
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
@@ -654,164 +644,150 @@ fun PlaylistItem(
             stiffness = Spring.StiffnessLow
         )
     )
-    
-    val isMyFavorites = playlist.id == 0 // "我的收藏"不能编辑/删除
+
+    val isMyFavorites = playlist.id == 0
     val isDarkTheme = isSystemInDarkTheme()
-    
-    // 确定要显示的封面URL
+
     val coverUrl = remember(playlist, favorites, firstMusicCover) {
         val url = when {
             playlist.id == 0 && playlist.name == "我的收藏" -> {
-                // "我的收藏"使用第一首收藏音乐的封面
                 val firstFavorite = favorites.firstOrNull()
                 if (firstFavorite != null) {
                     UrlConfig.getMusicCoverUrl(firstFavorite.id)
                 } else {
-                    // 没有收藏，使用默认头像
                     UrlConfig.getDefaultAvatarUrl()
                 }
             }
             !playlist.coverPath.isNullOrEmpty() -> {
-                // 歌单有自己的封面
                 UrlConfig.buildFullUrl("${playlist.coverPath}")
             }
             !firstMusicCover.isNullOrEmpty() -> {
-                // 使用第一首音乐的封面
                 firstMusicCover
             }
             else -> {
-                // 没有封面，使用默认头像
                 UrlConfig.getDefaultAvatarUrl()
             }
         }
         Log.d("PlaylistItem", "歌单ID=${playlist.id}, 名称=${playlist.name}, coverPath=${playlist.coverPath}, firstMusicCover=$firstMusicCover, coverUrl=$url")
         url
     }
-    
-    Row(
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (isDarkTheme) {
-                    Color(0xFF252545).copy(alpha = 0.7f)
-                } else {
-                    Color.White.copy(alpha = 0.85f)
-                }
-            )
-            .shadow(
-                elevation = 6.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.1f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
-                }
-            )
             .clickable {
                 isPressed = true
                 onClick()
             }
-            .scale(scale)
-            .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .scale(scale),
+        shape = RoundedCornerShape(16.dp),
+        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
+        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
+        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
     ) {
-        // 歌单封面
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    if (isDarkTheme) {
-                        Color(0xFF353558).copy(alpha = 0.6f)
-                    } else {
-                        Color(0xFFE0E0E0)
-                    }
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(coverUrl)
-                    .crossfade(true)
-                    .error(R.drawable.music)
-                    .placeholder(R.drawable.music)
-                    .build(),
-                contentDescription = coverText,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(20.dp))
-        
-        // 歌单信息
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = playlist.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isDarkTheme) {
-                    Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
-            )
-            Spacer(modifier = Modifier.height(1.dp))
-            Text(
-                text = songsCountLabelText,
-                fontSize = 14.sp,
-                color = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-        }
-        
-        // 操作按钮（"我的收藏"不显示）
-        if (!isMyFavorites) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // 歌单封面
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isDarkTheme) {
+                            Color(0xFF353558).copy(alpha = 0.6f)
+                        } else {
+                            Color(0xFFE0E0E0)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier.size(40.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Transparent
-                    )
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(coverUrl)
+                        .crossfade(true)
+                        .error(R.drawable.music)
+                        .placeholder(R.drawable.music)
+                        .build(),
+                    contentDescription = coverText,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            // 歌单信息
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = playlist.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDarkTheme) {
+                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                Spacer(modifier = Modifier.height(1.dp))
+                Text(
+                    text = songsCountLabelText,
+                    fontSize = 14.sp,
+                    color = if (isDarkTheme) {
+                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
+            // 操作按钮
+            if (!isMyFavorites) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Create,
-                        contentDescription = editText,
-                        tint = if (isDarkTheme) {
-                            RoseRed.copy(alpha = 0.9f)
-                        } else {
-                            RoseRed
-                        }
-                    )
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(40.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.Transparent
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = deleteText,
-                        tint = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Create,
+                            contentDescription = editText,
+                            tint = if (isDarkTheme) {
+                                Color.White.copy(alpha = 0.9f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Transparent
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = deleteText,
+                            tint = if (isDarkTheme) {
+                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -849,7 +825,7 @@ fun PlaylistDialog(
                 .padding(24.dp)
                 .shadow(
                     elevation = 12.dp,
-                    spotColor = RoseRed.copy(alpha = 0.35f),
+                    spotColor = Color.Black.copy(alpha = 0.2f),
                     ambientColor = if (isDarkTheme) {
                         Color(0xFFB8B8D1).copy(alpha = 0.18f)
                     } else {
@@ -864,12 +840,12 @@ fun PlaylistDialog(
                     text = title,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = RoseRed,
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.95f) else Color.Black,
                     letterSpacing = 0.3.sp
                 )
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 OutlinedTextField(
                     value = playlistName,
                     onValueChange = onNameChange,
@@ -878,13 +854,13 @@ fun PlaylistDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = RoseRed,
+                        focusedBorderColor = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
                         unfocusedBorderColor = if (isDarkTheme) {
                             Color(0xFFB8B8D1).copy(alpha = 0.5f)
                         } else {
                             Color.Gray
                         },
-                        cursorColor = RoseRed,
+                        cursorColor = if (isDarkTheme) Color.White else Color.Black,
                         focusedTextColor = if (isDarkTheme) {
                             Color(0xFFF0F0F5).copy(alpha = 0.95f)
                         } else {
@@ -907,9 +883,9 @@ fun PlaylistDialog(
                         }
                     )
                 )
-                
+
                 Spacer(modifier = Modifier.height(32.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -926,29 +902,33 @@ fun PlaylistDialog(
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(14.dp))
-                    
-                    Button(
-                        onClick = onConfirm,
-                        enabled = playlistName.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = RoseRed,
-                            disabledContainerColor = RoseRed.copy(alpha = 0.3f)
-                        ),
+
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(48.dp)
+                            .clickable(enabled = playlistName.isNotBlank()) { onConfirm() },
                         shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.height(48.dp)
+                        backgroundAlpha = if (isDarkTheme) 0.32f else 0.12f,
+                        borderAlpha = if (isDarkTheme) 0.18f else 0.12f
                     ) {
-                        Text(
-                            text = confirmText,
-                            fontSize = 17.sp,
-                            color = if (isDarkTheme) {
-                                Color.White.copy(alpha = 0.95f)
-                            } else {
-                                MaterialTheme.colorScheme.onPrimary
-                            },
-                            fontWeight = FontWeight.Medium
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = confirmText,
+                                fontSize = 17.sp,
+                                color = if (isDarkTheme) {
+                                    Color.White.copy(alpha = if (playlistName.isNotBlank()) 0.95f else 0.4f)
+                                } else {
+                                    if (playlistName.isNotBlank()) Color.Black else Color.Gray
+                                },
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
                     }
                 }
             }
