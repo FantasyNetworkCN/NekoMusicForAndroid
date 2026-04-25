@@ -26,6 +26,7 @@ fun GlassSurface(
     backgroundAlpha: Float = 0.28f,
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,
+    borderColor: Color = Color.White,
     content: @Composable () -> Unit
 ) {
     Box(
@@ -34,7 +35,7 @@ fun GlassSurface(
             .background(Color(0xFF1A1A2E).copy(alpha = backgroundAlpha))
             .border(
                 width = 0.5.dp,
-                color = Color.White.copy(alpha = borderAlpha),
+                color = borderColor.copy(alpha = borderAlpha),
                 shape = shape
             )
     ) {
