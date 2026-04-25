@@ -387,7 +387,7 @@ fun HomeScreen(
                             Log.d("HomeScreen", "搜索框被点击")
                             onSearchClick()
                         },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(20.dp),
                     backgroundAlpha = 0.35f,
                     borderAlpha = 0.18f
                 ) {
