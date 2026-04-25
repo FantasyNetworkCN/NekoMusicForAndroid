@@ -458,30 +458,41 @@ fun PlayerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 二次元渐变背景
+        // 底层：专辑封面全屏背景（放大模拟模糊感）
+        AsyncImage(
+            model = coverUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(1.4f),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            alpha = if (isDarkTheme) 0.35f else 0.22f
+        )
+
+        // 暗色遮罩层：纯色+底部加深，保证文字可读
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     if (isDarkTheme) {
-                        Brush.radialGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF2D1B4E),
-                                Color(0xFF1A1A3E),
-                                Color(0xFF2D1B3E)
+                                Color(0xFF121228).copy(alpha = 0.75f),
+                                Color(0xFF121228).copy(alpha = 0.85f),
+                                Color(0xFF121228).copy(alpha = 0.92f)
                             ),
-                            center = androidx.compose.ui.geometry.Offset(0.5f, 0.3f),
-                            radius = 1200f
+                            startY = 0f,
+                            endY = 1400f
                         )
                     } else {
-                        Brush.linearGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFFFF0F5),
-                                Color(0xFFF0F8FF),
-                                Color(0xFFFFF5EE)
+                                Color(0xFFFFFFFF).copy(alpha = 0.78f),
+                                Color(0xFFFFFFFF).copy(alpha = 0.88f),
+                                Color(0xFFFFFFFF).copy(alpha = 0.94f)
                             ),
-                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            end = androidx.compose.ui.geometry.Offset(1000f, 1500f)
+                            startY = 0f,
+                            endY = 1400f
                         )
                     }
                 )
