@@ -642,26 +642,21 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier.padding(vertical = 16.dp)
                     ) {
-                        // 歌曲信息和收藏按钮
+                        // 歌曲信息（无按钮）
                         LyricSongInfoBar(
                             music = currentMusic,
                             isFavorite = isFavorite,
-                            onFavoriteClick = {
-                                if (isLoggedIn) {
-                                    playerManager.toggleFavorite()
-                                } else {
-                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                }
-                            },
+                            onFavoriteClick = {},
                             showLyrics = showLyrics,
                             isLoggedIn = isLoggedIn,
                             isDesktopLyricEnabled = isDesktopLyricEnabled,
-                            onDesktopLyricClick = toggleDesktopLyric
+                            onDesktopLyricClick = {},
+                            showActions = false
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // 进度条
+                        // 进度条（时间在上）
                         ProgressSlider(
                             progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
                             currentTime = currentTime,
@@ -673,6 +668,22 @@ fun PlayerScreen(
                                 }
                                 Unit
                             }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 收藏和歌词按钮
+                        SongActionButtons(
+                            isFavorite = isFavorite,
+                            onFavoriteClick = {
+                                if (isLoggedIn) {
+                                    playerManager.toggleFavorite()
+                                } else {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            isDesktopLyricEnabled = isDesktopLyricEnabled,
+                            onDesktopLyricClick = toggleDesktopLyric
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -693,26 +704,21 @@ fun PlayerScreen(
                     }
                 }
             } else {
-                // 歌曲信息和收藏按钮 - 紧贴在进度条上方
+                // 歌曲信息（无按钮）
                 LyricSongInfoBar(
                     music = currentMusic,
                     isFavorite = isFavorite,
-                    onFavoriteClick = {
-                        if (isLoggedIn) {
-                            playerManager.toggleFavorite()
-                        } else {
-                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                        }
-                    },
+                    onFavoriteClick = {},
                     showLyrics = showLyrics,
                     isLoggedIn = isLoggedIn,
                     isDesktopLyricEnabled = isDesktopLyricEnabled,
-                    onDesktopLyricClick = toggleDesktopLyric
+                    onDesktopLyricClick = {},
+                    showActions = false
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 进度条
+                // 进度条（时间在上）
                 ProgressSlider(
                     progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
                     currentTime = currentTime,
@@ -724,6 +730,22 @@ fun PlayerScreen(
                         }
                         Unit
                     }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 收藏和歌词按钮
+                SongActionButtons(
+                    isFavorite = isFavorite,
+                    onFavoriteClick = {
+                        if (isLoggedIn) {
+                            playerManager.toggleFavorite()
+                        } else {
+                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    isDesktopLyricEnabled = isDesktopLyricEnabled,
+                    onDesktopLyricClick = toggleDesktopLyric
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1489,7 +1511,8 @@ fun LyricSongInfoBar(
             showLyrics: Boolean,
             isLoggedIn: Boolean = true,
             isDesktopLyricEnabled: Boolean = false,
-            onDesktopLyricClick: () -> Unit = {}
+            onDesktopLyricClick: () -> Unit = {},
+            showActions: Boolean = true
         ) {
             val isDarkTheme = isSystemInDarkTheme()
             val titleColor = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
@@ -1595,41 +1618,104 @@ fun LyricSongInfoBar(
                 }
 
                 // 右侧按钮组
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 收藏按钮
-                    IconButton(
-                        onClick = onFavoriteClick,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                            tint = favColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // 桌面歌词按钮
-                    Box(
+                if (showActions) {
+                    Row(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(desktopLyricBg)
-                            .clickable(onClick = onDesktopLyricClick),
-                        contentAlignment = Alignment.Center
+                            .align(Alignment.CenterEnd),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "词",
-                            fontSize = 14.sp,
-                            fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Normal,
-                            color = desktopLyricText
-                        )
+                        // 收藏按钮
+                        IconButton(
+                            onClick = onFavoriteClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
+                                tint = favColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // 桌面歌词按钮
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(desktopLyricBg)
+                                .clickable(onClick = onDesktopLyricClick),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "词",
+                                fontSize = 14.sp,
+                                fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Normal,
+                                color = desktopLyricText
+                            )
+                        }
                     }
+                }
+            }
+        }
+
+        @Composable
+        fun SongActionButtons(
+            isFavorite: Boolean,
+            onFavoriteClick: () -> Unit,
+            isDesktopLyricEnabled: Boolean = false,
+            onDesktopLyricClick: () -> Unit = {}
+        ) {
+            val isDarkTheme = isSystemInDarkTheme()
+            val favColor = if (isFavorite) {
+                if (isDarkTheme) SakuraPink else RoseRed
+            } else {
+                if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+            }
+            val desktopLyricBg = if (isDesktopLyricEnabled) {
+                if (isDarkTheme) SakuraPink.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f)
+            } else Color.Transparent
+            val desktopLyricText = if (isDesktopLyricEnabled) {
+                if (isDarkTheme) SakuraPink else RoseRed
+            } else {
+                if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 收藏按钮
+                IconButton(
+                    onClick = onFavoriteClick,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
+                        tint = favColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // 桌面歌词按钮
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(desktopLyricBg)
+                        .clickable(onClick = onDesktopLyricClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "词",
+                        fontSize = 14.sp,
+                        fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Normal,
+                        color = desktopLyricText
+                    )
                 }
             }
         }
@@ -1844,19 +1930,6 @@ fun ProgressSlider(
                     .padding(horizontal = 32.dp)
             ) {
                 if (!isLoading) {
-                    Slider(
-                        value = progress,
-                        onValueChange = onProgressChange,
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = if (isDarkTheme) SakuraPink else RoseRed,
-                            inactiveTrackColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.15f) else Color(0xFFE0E0E0),
-                            thumbColor = if (isDarkTheme) SakuraPink else RoseRed
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -1872,6 +1945,19 @@ fun ProgressSlider(
                             color = if (isDarkTheme) SkyBlue.copy(alpha = 0.7f) else Color.Gray
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Slider(
+                        value = progress,
+                        onValueChange = onProgressChange,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = if (isDarkTheme) SakuraPink else RoseRed,
+                            inactiveTrackColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.15f) else Color(0xFFE0E0E0),
+                            thumbColor = if (isDarkTheme) SakuraPink else RoseRed
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
