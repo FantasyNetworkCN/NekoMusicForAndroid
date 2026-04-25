@@ -79,45 +79,16 @@ fun BottomNavigationBar(
     // 获取当前主题的背景色
     val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    Box(
-        modifier = modifier.fillMaxWidth()
+    GlassSurface(
+        modifier = modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(24.dp),
+        backgroundAlpha = 0.28f
     ) {
-        // 背景层：渐变背景（根据主题切换）
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(
-                    brush = if (isDarkTheme) {
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF1A1A2E).copy(alpha = 0.85f),
-                                Color(0xFF16213E).copy(alpha = 0.75f)
-                            )
-                        )
-                    } else {
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.95f),
-                                Color.White.copy(alpha = 0.88f)
-                            )
-                        )
-                    }
-                )
-        )
-
-        // 内容层：清晰的文字
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+        // 导航栏文字
+        Row(
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            // 导航栏文字
-            Row(
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
                 items.forEach { item ->
                     val isSelected = currentRoute == item.route
 
@@ -169,7 +140,6 @@ fun BottomNavigationBar(
             }
         }
     }
-}
 
 @Composable
 fun MiniPlayer(
@@ -205,75 +175,25 @@ fun MiniPlayer(
     // 获取当前主题的背景色
     val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
+    GlassSurface(
+        modifier = Modifier.fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(24.dp),
-        color = Color.Transparent
+        backgroundAlpha = 0.28f
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = {
+                        isPressed = true
+                        onPlayerClick()
+                    }
+                )
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .scale(scaleValue)
         ) {
-            // 渐变背景（根据主题切换）
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = if (isDarkTheme) {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFF1A1A2E).copy(alpha = 0.82f),
-                                    Color(0xFF16213E).copy(alpha = 0.72f)
-                                )
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.92f),
-                                    Color.White.copy(alpha = 0.85f)
-                                )
-                            )
-                        }
-                    )
-            )
-
-            // 顶部高光
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.5.dp)
-                    .background(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                if (isDarkTheme) {
-                                    Color(0xFF2A2A4E).copy(alpha = 0.6f)
-                                } else {
-                                    Color.White.copy(alpha = 0.7f)
-                                },
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-
-            // 内容层
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            isPressed = true
-                            onPlayerClick()
-                        }
-                    )
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                    .scale(scaleValue)
-            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -444,6 +364,5 @@ fun MiniPlayer(
                     }
                 }
             }
-        }
     }
 }

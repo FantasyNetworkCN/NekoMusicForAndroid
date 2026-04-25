@@ -79,6 +79,7 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
+import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -379,39 +380,39 @@ fun HomeScreen(
         ) {
             item {
                 // 搜索框
-                Row(
+                GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 12.dp)
                         .statusBarsPadding()
                         .height(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF1A1A2E).copy(alpha = 0.55f))
-                        .border(
-                            width = 0.5.dp,
-                            color = Color.White.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(16.dp)
-                        )
                         .clickable {
                             Log.d("HomeScreen", "搜索框被点击")
                             onSearchClick()
-                        }
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        },
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(id = R.string.search),
-                        tint = Color.White.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(id = R.string.search_music_artist_album),
-                        fontSize = 15.sp,
-                        color = Color.White.copy(alpha = 0.35f),
-                        fontWeight = FontWeight.Normal
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = stringResource(id = R.string.search),
+                            tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(id = R.string.search_music_artist_album),
+                            fontSize = 15.sp,
+                            color = Color.White.copy(alpha = 0.35f),
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 }
                 
                 // 顶部横幅
@@ -526,25 +527,7 @@ fun HomeScreen(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(100.dp))
-                
-                // 底部装饰渐变
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    RoseRed.copy(alpha = 0.4f),
-                                    SakuraPink.copy(alpha = 0.4f),
-                                    SkyBlue.copy(alpha = 0.4f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
+                Spacer(modifier = Modifier.height(120.dp))
             }
         }
     }
@@ -645,233 +628,71 @@ fun HeaderSection(
 @Composable
 fun WelcomeBanner() {
     var isVisible by remember { mutableStateOf(false) }
-    var showSparkle by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isVisible = true
-        kotlinx.coroutines.delay(300)
-        showSparkle = true
     }
 
-    // 入场动画
     val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.85f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
+        targetValue = if (isVisible) 1f else 0.96f,
+        animationSpec = tween(500, easing = FastOutSlowInEasing)
     )
 
-    // 闪烁动画
-    val infiniteTransition = rememberInfiniteTransition(label = "sparkle")
-    val sparkleScale by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-    val sparkleAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    // 渐变动画
-    val gradientTransition = rememberInfiniteTransition(label = "gradient")
-    val gradientOffset by gradientTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
-    Box(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 14.dp)
-            .height(120.dp)
-            .scale(scale)
-            .shadow(
-                elevation = 12.dp,
-                spotColor = RoseRed.copy(alpha = 0.4f),
-                ambientColor = Color.Gray.copy(alpha = 0.18f)
-            )
-            .clip(RoundedCornerShape(28.dp))
-            .clickable {
-                // 暂未实现
-            },
-        contentAlignment = Alignment.Center
+            .height(130.dp)
+            .scale(scale),
+        shape = RoundedCornerShape(24.dp),
+        backgroundAlpha = 0.22f,
+        borderAlpha = 0.12f,
+        highlightAlpha = 0.07f
     ) {
-        // 动态渐变背景
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            SakuraPink.copy(alpha = 0.6f),
-                            RoseRed.copy(alpha = 0.55f),
-                            SkyBlue.copy(alpha = 0.6f),
-                            Lilac.copy(alpha = 0.55f),
-                            SakuraPink.copy(alpha = 0.6f)
-                        ),
-                        start = androidx.compose.ui.geometry.Offset(
-                            x = gradientOffset * 900f,
-                            y = 0f
-                        ),
-                        end = androidx.compose.ui.geometry.Offset(
-                            x = gradientOffset * 900f + 900f,
-                            y = 450f
-                        )
-                    )
-                )
-        )
-
-        // 内部高光效果
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.White.copy(alpha = 0.8f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // 底部光晕效果
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .align(Alignment.BottomCenter)
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.White.copy(alpha = 0.5f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // 闪烁装饰元素
-        if (showSparkle) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .align(Alignment.TopEnd)
-                    .padding(end = 28.dp, top = 18.dp)
-                    .scale(sparkleScale)
-                    .alpha(sparkleAlpha)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = Color.White,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .align(Alignment.BottomStart)
-                    .padding(start = 36.dp, bottom = 24.dp)
-                    .scale(sparkleScale * 0.85f)
-                    .alpha(sparkleAlpha * 0.8f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = Color.White,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                )
-            }
-            
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .align(Alignment.TopStart)
-                    .padding(start = 48.dp, top = 40.dp)
-                    .scale(sparkleScale * 0.7f)
-                    .alpha(sparkleAlpha * 0.6f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = Color.White,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                )
-            }
-        }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+                .height(130.dp)
+                .padding(horizontal = 28.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
                     text = stringResource(id = R.string.explore_music_world),
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     letterSpacing = 0.5.sp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(id = R.string.discover_music_you_like),
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.55f),
+                    fontWeight = FontWeight.Normal,
                     letterSpacing = 0.3.sp
                 )
             }
             Box(
                 modifier = Modifier
-                    .size(62.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(48.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
                     .background(
-                        brush = Brush.verticalGradient(
+                        brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.18f)
+                                Color(0xFFFFB7C5).copy(alpha = 0.7f),
+                                Color(0xFFFF69B4).copy(alpha = 0.5f)
                             )
                         )
-                    )
-                    .shadow(
-                        elevation = 6.dp,
-                        spotColor = Color.White.copy(alpha = 0.35f),
-                        ambientColor = Color.Gray.copy(alpha = 0.12f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    painter = painterResource(R.drawable.play),
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
