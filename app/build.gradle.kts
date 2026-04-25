@@ -21,8 +21,8 @@ android {
         applicationId = "com.neko.music"
         minSdk = 23
         targetSdk = 36
-        versionCode = 46
-        versionName = "20260416"
+        versionCode = 47
+        versionName = "20260426"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
