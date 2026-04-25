@@ -40,6 +40,7 @@ import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.*
+import com.neko.music.ui.components.GlassSurface
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
@@ -116,7 +117,7 @@ fun RankingScreen(
                         text = stringResource(id = R.string.hot_music),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDarkMode) Color.White.copy(alpha = 0.95f) else RoseRed
+                        color = Color.White.copy(alpha = 0.95f)
                     )
                 },
                 navigationIcon = {
@@ -124,14 +125,14 @@ fun RankingScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkMode) Color.White.copy(alpha = 0.9f) else RoseRed
+                            tint = Color.White.copy(alpha = 0.9f)
                         )
                     }
                 },
                 actions = {
                     if (musicList.isNotEmpty()) {
                         TextButton(
-                            onClick = { 
+                            onClick = {
                                 Log.d("RankingScreen", "播放全部: ${musicList.size}首")
                                 scope.launch {
                                     try {
@@ -157,7 +158,7 @@ fun RankingScreen(
                                 text = stringResource(id = R.string.play_all),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isDarkMode) Color.White.copy(alpha = 0.9f) else RoseRed
+                                color = Color.White.copy(alpha = 0.9f)
                             )
                         }
                     }
@@ -261,7 +262,7 @@ fun RankingScreen(
                             state = pullRefreshState,
                             modifier = Modifier.align(Alignment.TopCenter),
                             backgroundColor = if (isDarkMode) Color(0xFF2A2A3E) else Color.White,
-                            contentColor = if (isDarkMode) Color.White else RoseRed
+                            contentColor = Color.White.copy(alpha = 0.8f)
                         )
                     }
                 }
@@ -297,14 +298,14 @@ fun LoadingState() {
         verticalArrangement = Arrangement.Center
     ) {
         CircularProgressIndicator(
-            color = RoseRed,
+            color = Color.White.copy(alpha = 0.8f),
             strokeWidth = 3.dp
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(id = R.string.loading_hot_music),
             fontSize = 14.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.7f) else RoseRed.copy(alpha = 0.7f)
+            color = if (isDarkMode) Color.White.copy(alpha = 0.7f) else Color.Gray
         )
     }
 }
@@ -341,27 +342,34 @@ fun ErrorState(
             text = stringResource(id = R.string.load_failed),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.95f) else RoseRed
+            color = Color.White.copy(alpha = 0.95f)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(id = R.string.network_error),
             fontSize = 14.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.6f)
+            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else Color.Gray
         )
         Spacer(modifier = Modifier.height(20.dp))
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = RoseRed
-            ),
-            shape = RoundedCornerShape(20.dp)
+        GlassSurface(
+            modifier = Modifier
+                .clickable { onRetry() }
+                .padding(horizontal = 24.dp, vertical = 10.dp),
+            shape = RoundedCornerShape(20.dp),
+            backgroundAlpha = if (isDarkMode) 0.28f else 0.08f,
+            borderAlpha = if (isDarkMode) 0.14f else 0.08f
         ) {
-            Text(
-                text = stringResource(id = R.string.retry),
-                fontSize = 14.sp,
-                color = Color.White
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(id = R.string.retry),
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -395,7 +403,7 @@ fun EmptyState() {
         Text(
             text = stringResource(id = R.string.no_hot_music),
             fontSize = 16.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.6f)
+            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else Color.Gray
         )
     }
 }
@@ -421,138 +429,123 @@ fun RankingItem(
         1 -> Color(0xFFFFD700)
         2 -> Color(0xFFC0C0C0)
         3 -> Color(0xFFCD7F32)
-        else -> RoseRed.copy(alpha = 0.5f)
+        else -> Color.White.copy(alpha = 0.5f)
     }
-    
-    val backgroundColor = when {
-        rank <= 3 -> Brush.horizontalGradient(
-            colors = if (isDarkMode) {
-                listOf(
-                    RoseRed.copy(alpha = 0.25f),
-                    RoseRed.copy(alpha = 0.15f)
-                )
-            } else {
-                listOf(
-                    RoseRed.copy(alpha = 0.15f),
-                    SakuraPink.copy(alpha = 0.1f)
-                )
-            }
-        )
-        else -> Brush.horizontalGradient(
-            colors = if (isDarkMode) {
-                listOf(
-                    RoseRed.copy(alpha = 0.12f),
-                    Color.Transparent
-                )
-            } else {
-                listOf(
-                    RoseRed.copy(alpha = 0.08f),
-                    Color.Transparent
-                )
-            }
-        )
-    }
-    
-    Row(
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
-            .shadow(
-                elevation = if (rank <= 3) 6.dp else 1.dp,
-                spotColor = RoseRed.copy(alpha = 0.3f),
-                ambientColor = RoseRed.copy(alpha = 0.1f)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = if (isDarkMode) {
+            if (rank <= 3) 0.32f else 0.22f
+        } else {
+            if (rank <= 3) 0.12f else 0.06f
+        },
+        borderAlpha = if (isDarkMode) {
+            if (rank <= 3) 0.18f else 0.12f
+        } else {
+            if (rank <= 3) 0.10f else 0.06f
+        },
+        highlightAlpha = if (isDarkMode) {
+            if (rank <= 3) 0.10f else 0.06f
+        } else {
+            if (rank <= 3) 0.05f else 0.03f
+        }
     ) {
-        AnimatedVisibility(
-            visible = isLoaded,
-            enter = fadeIn(
-                animationSpec = tween(300, delayMillis = rank * 30)
-            ) + slideInHorizontally(
-                animationSpec = tween(300, delayMillis = rank * 30),
-                initialOffsetX = { -50 }
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            AnimatedVisibility(
+                visible = isLoaded,
+                enter = fadeIn(
+                    animationSpec = tween(300, delayMillis = rank * 30)
+                ) + slideInHorizontally(
+                    animationSpec = tween(300, delayMillis = rank * 30),
+                    initialOffsetX = { -50 }
+                )
             ) {
-                Box(
-                    modifier = Modifier.width(36.dp),
-                    contentAlignment = Alignment.CenterStart
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = rank.toString(),
-                        fontSize = if (rank <= 3) 18.sp else 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = rankColor
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(6.dp))
-                
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    RoseRed.copy(alpha = 0.2f),
-                                    RoseRed.copy(alpha = 0.05f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(coverUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = music.title,
+                    Box(
+                        modifier = Modifier.width(36.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = rank.toString(),
+                            fontSize = if (rank <= 3) 18.sp else 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = rankColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(10.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(10.dp))
-                
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = music.title,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isDarkMode) Color.White.copy(alpha = 0.95f) else RoseRed.copy(alpha = 0.9f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = music.artist,
-                        fontSize = 12.sp,
-                        color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                
-                if (music.playCount != null && music.playCount > 0) {
-                    Text(
-                        text = formatPlayCount(music.playCount),
-                        fontSize = 11.sp,
-                        color = if (isDarkMode) Color.White.copy(alpha = 0.5f) else RoseRed.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
-                    )
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.15f),
+                                        Color.White.copy(alpha = 0.03f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(coverUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = music.title,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = music.title,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.95f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = music.artist,
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (music.playCount != null && music.playCount > 0) {
+                        Text(
+                            text = formatPlayCount(music.playCount),
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
