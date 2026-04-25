@@ -33,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import com.neko.music.ui.components.GlassSurface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -747,125 +748,225 @@ fun PlaylistDetailScreen(
                 ) {
                     val shareDialogIsDarkTheme = isSystemInDarkTheme()
                     
-                    Surface(
-                        shape = RoundedCornerShape(0.dp),
-                        color = if (shareDialogIsDarkTheme) {
-                            Color(0xFF1A1A2E).copy(alpha = 0.95f)
-                        } else {
-                            Color.White
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            Spacer(modifier = Modifier.height(16.dp))
+                    if (shareDialogIsDarkTheme) {
+                        GlassSurface(
+                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            // 分享标题
-                            Text(
-                                text = stringResource(id = R.string.share_playlist),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (shareDialogIsDarkTheme) {
-                                    Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                                } else {
-                                    Color.Black
-                                },
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
+                                // 分享标题
+                                Text(
+                                    text = stringResource(id = R.string.share_playlist),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFF0F0F5).copy(alpha = 0.95f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            // 分享选项
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                item {
-                                    ShareGridItem(
-                                        iconRes = R.drawable.twitter,
-                                        label = stringResource(id = R.string.share_to_twitter),
-                                        color = Color(0xFF1DA1F2),
-                                        onClick = {
-                                            val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
-                                            val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                                data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
-                                            }
-                                            context.startActivity(intent)
-                                            showShareDialog = false
-                                        }
-                                    )
-                                }
-                                item {
-                                    ShareGridItem(
-                                        iconRes = R.drawable.qq,
-                                        label = stringResource(id = R.string.share_to_qq),
-                                        color = Color(0xFF12B7F5),
-                                        onClick = {
-                                            scope.launch {
+                                // 分享选项
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                                ) {
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.twitter,
+                                            label = stringResource(id = R.string.share_to_twitter),
+                                            color = Color(0xFF1DA1F2),
+                                            onClick = {
+                                                val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+                                                val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                                    data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
+                                                }
+                                                context.startActivity(intent)
                                                 showShareDialog = false
-                                                try {
-                                                    val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
-
-                                                    // 使用QQ分享
-                                                    val qqIntent = android.content.Intent().apply {
-                                                        action = android.content.Intent.ACTION_SEND
-                                                        type = "text/plain"
-                                                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                                                        setPackage("com.tencent.mobileqq")
-                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                    }
-
-                                                    // 尝试启动QQ
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.qq,
+                                            label = stringResource(id = R.string.share_to_qq),
+                                            color = Color(0xFF12B7F5),
+                                            onClick = {
+                                                scope.launch {
+                                                    showShareDialog = false
                                                     try {
-                                                        context.startActivity(qqIntent)
+                                                        val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+
+                                                        // 使用QQ分享
+                                                        val qqIntent = android.content.Intent().apply {
+                                                            action = android.content.Intent.ACTION_SEND
+                                                            type = "text/plain"
+                                                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                            setPackage("com.tencent.mobileqq")
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+
+                                                        // 尝试启动QQ
+                                                        try {
+                                                            context.startActivity(qqIntent)
+                                                        } catch (e: Exception) {
+                                                            // 如果QQ未安装，提示用户
+                                                            android.widget.Toast.makeText(context, context.getString(R.string.qq_not_installed), android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
                                                     } catch (e: Exception) {
-                                                        // 如果QQ未安装，提示用户
-                                                        android.widget.Toast.makeText(context, context.getString(R.string.qq_not_installed), android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_SHORT).show()
                                                     }
-                                                } catch (e: Exception) {
-                                                    android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_SHORT).show()
                                                 }
                                             }
-                                        }
-                                    )
+                                        )
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.copy_link,
+                                            label = stringResource(id = R.string.copy_link),
+                                            color = Color.White,
+                                            onClick = {
+                                                val shareUrl = "$baseUrl/playlist/$playlistId"
+                                                val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+                                                val clip = android.content.ClipData.newPlainText(context.getString(R.string.playlist_link), shareText)
+                                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                clipboard.setPrimaryClip(clip)
+                                                android.widget.Toast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
+                                                showShareDialog = false
+                                            }
+                                        )
+                                    }
                                 }
-                                item {
-                                    ShareGridItem(
-                                        iconRes = R.drawable.copy_link,
-                                        label = stringResource(id = R.string.copy_link),
-                                        color = RoseRed,
-                                        onClick = {
-                                            val shareUrl = "$baseUrl/playlist/$playlistId"
-                                            val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
-                                            val clip = android.content.ClipData.newPlainText(context.getString(R.string.playlist_link), shareText)
-                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                            clipboard.setPrimaryClip(clip)
-                                            android.widget.Toast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
-                                            showShareDialog = false
-                                        }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // 取消按钮
+                                Divider(color = Color.White.copy(alpha = 0.1f))
+                                TextButton(
+                                    onClick = { showShareDialog = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.cancel),
+                                        fontSize = 16.sp,
+                                        color = Color(0xFFB8B8D1).copy(alpha = 0.8f)
                                     )
                                 }
                             }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                            color = Color.White,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            // 取消按钮
-                            Divider()
-                            TextButton(
-                                onClick = { showShareDialog = false },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                                // 分享标题
                                 Text(
-                                    text = stringResource(id = R.string.cancel),
-                                    fontSize = 16.sp,
-                                    color = if (shareDialogIsDarkTheme) {
-                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                                    } else {
-                                        Color.Gray
-                                    }
+                                    text = stringResource(id = R.string.share_playlist),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
                                 )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 分享选项
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                                ) {
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.twitter,
+                                            label = stringResource(id = R.string.share_to_twitter),
+                                            color = Color(0xFF1DA1F2),
+                                            onClick = {
+                                                val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+                                                val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                                    data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
+                                                }
+                                                context.startActivity(intent)
+                                                showShareDialog = false
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.qq,
+                                            label = stringResource(id = R.string.share_to_qq),
+                                            color = Color(0xFF12B7F5),
+                                            onClick = {
+                                                scope.launch {
+                                                    showShareDialog = false
+                                                    try {
+                                                        val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+
+                                                        // 使用QQ分享
+                                                        val qqIntent = android.content.Intent().apply {
+                                                            action = android.content.Intent.ACTION_SEND
+                                                            type = "text/plain"
+                                                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                            setPackage("com.tencent.mobileqq")
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+
+                                                        // 尝试启动QQ
+                                                        try {
+                                                            context.startActivity(qqIntent)
+                                                        } catch (e: Exception) {
+                                                            // 如果QQ未安装，提示用户
+                                                            android.widget.Toast.makeText(context, context.getString(R.string.qq_not_installed), android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.copy_link,
+                                            label = stringResource(id = R.string.copy_link),
+                                            color = RoseRed,
+                                            onClick = {
+                                                val shareUrl = "$baseUrl/playlist/$playlistId"
+                                                val shareText = context.getString(R.string.share_playlist_text, playlistName, playlistId)
+                                                val clip = android.content.ClipData.newPlainText(context.getString(R.string.playlist_link), shareText)
+                                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                clipboard.setPrimaryClip(clip)
+                                                android.widget.Toast.makeText(context, context.getString(R.string.link_copied), android.widget.Toast.LENGTH_SHORT).show()
+                                                showShareDialog = false
+                                            }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // 取消按钮
+                                Divider()
+                                TextButton(
+                                    onClick = { showShareDialog = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.cancel),
+                                        fontSize = 16.sp,
+                                        color = Color.Gray
+                                    )
+                                }
                             }
                         }
                     }
