@@ -460,13 +460,7 @@ fun HomeScreen(
                                     )
                                 )
                             }
-                            if (playlistsLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    strokeWidth = 2.5.dp
-                                )
-                            }
+
                         }
                     }
                     
@@ -517,7 +511,7 @@ fun HomeScreen(
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp)
+                            contentPadding = PaddingValues(horizontal = 0.dp)
                         ) {
                             // 热门音乐作为第一个
                             if (rankingMusic.isNotEmpty()) {
@@ -1472,44 +1466,55 @@ fun PlaylistCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 歌单名称
-        Text(
-            text = playlist.name,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.98f),
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp),
-            letterSpacing = 0.2.sp,
-            style = androidx.compose.ui.text.TextStyle(
-                shadow = Shadow(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    offset = Offset(0f, 1f),
-                    blurRadius = 5f
+        // 文字底衬
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .background(
+                    Color(0xFF1A1A2E).copy(alpha = 0.5f),
+                    RoundedCornerShape(10.dp)
                 )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(5.dp))
-
-        // 歌单描述
-        Text(
-            text = playlist.description ?: stringResource(id = R.string.no_description),
-            fontSize = 12.sp,
-            color = Color.White.copy(alpha = 0.75f),
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp),
-            fontWeight = FontWeight.Medium,
-            style = androidx.compose.ui.text.TextStyle(
-                shadow = Shadow(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    offset = Offset(0f, 1f),
-                    blurRadius = 4f
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Column {
+                // 歌单名称
+                Text(
+                    text = playlist.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 1.0f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    letterSpacing = 0.2.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
-            )
-        )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                // 歌单描述
+                Text(
+                    text = playlist.description ?: stringResource(id = R.string.no_description),
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 3f
+                        )
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -1673,43 +1678,54 @@ fun RankingMusicCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 标题
-        Text(
-            text = hotMusicText,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.98f),
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp),
-            letterSpacing = 0.2.sp,
-            style = androidx.compose.ui.text.TextStyle(
-                shadow = Shadow(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    offset = Offset(0f, 1f),
-                    blurRadius = 5f
+        // 文字底衬
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .background(
+                    Color(0xFF1A1A2E).copy(alpha = 0.5f),
+                    RoundedCornerShape(10.dp)
                 )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(5.dp))
-
-        // 描述
-        Text(
-            text = hotMusicDescText,
-            fontSize = 12.sp,
-            color = Color.White.copy(alpha = 0.75f),
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier.width(160.dp),
-            fontWeight = FontWeight.Medium,
-            style = androidx.compose.ui.text.TextStyle(
-                shadow = Shadow(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    offset = Offset(0f, 1f),
-                    blurRadius = 4f
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Column {
+                // 标题
+                Text(
+                    text = hotMusicText,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 1.0f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    letterSpacing = 0.2.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
-            )
-        )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                // 描述
+                Text(
+                    text = hotMusicDescText,
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 3f
+                        )
+                    )
+                )
+            }
+        }
     }
 }
