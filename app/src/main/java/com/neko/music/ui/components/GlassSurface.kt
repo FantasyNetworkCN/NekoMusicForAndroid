@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(20.dp),
     backgroundAlpha: Float = 0.28f,
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,
