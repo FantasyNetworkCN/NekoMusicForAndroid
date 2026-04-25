@@ -330,7 +330,7 @@ class MusicPlayerService : Service() {
                 nextPendingIntent
             )
             .addAction(
-                R.drawable.ic_widget_lyric,
+                R.drawable.music,
                 "词",
                 lyricPendingIntent
             )
