@@ -386,21 +386,6 @@ fun PlaylistDetailScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = playlistName,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) {
-                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                        } else {
-                            Color.Black
-                        },
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
                         text = stringResource(id = R.string.songs_count_label, musicList.size),
                         fontSize = 14.sp,
                         color = if (isDarkTheme) {
