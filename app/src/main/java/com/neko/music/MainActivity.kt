@@ -382,12 +382,50 @@ fun MainScreen() {
                     }
                 }
                 is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist -> {
-                    navController.navigate("playlist_detail/${route.id}/歌单/null/null/null/-1/false") {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
+                    // 通过API获取歌单详情后再跳转，不使用硬编码名称
+                    scope.launch {
+                        try {
+                            val playlistApi = com.neko.music.data.api.PlaylistApi(null, context)
+                            val response = playlistApi.getPlaylistDetail(route.id)
+                            if (response.success && response.playlist != null) {
+                                val playlist = response.playlist
+                                val encodedName = java.net.URLEncoder.encode(playlist.name, "UTF-8")
+                                val encodedDescription = java.net.URLEncoder.encode(playlist.description ?: "", "UTF-8")
+                                navController.navigate(
+                                    "playlist_detail/${route.id}/$encodedName/null/$encodedDescription/null/${playlist.userId ?: -1}/false"
+                                ) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                // 获取失败时降级为硬编码名称
+                                navController.navigate("playlist_detail/${route.id}/歌单/null/null/null/-1/false") {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "无法获取歌单信息",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Deep Link 获取歌单详情失败", e)
+                            // 异常时降级导航
+                            navController.navigate("playlist_detail/${route.id}/歌单/null/null/null/-1/false") {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
                 }
             }
