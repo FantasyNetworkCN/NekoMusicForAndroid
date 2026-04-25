@@ -106,6 +106,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.PlayMode
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.theme.SakuraPink
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -305,6 +306,7 @@ fun PlayerScreen(
 
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
+    val isDarkTheme = isSystemInDarkTheme()
 
     // 加载音乐文件URL，只在音乐ID不同时才重新播放
     LaunchedEffect(music.id) {
@@ -451,6 +453,7 @@ fun PlayerScreen(
                 .statusBarsPadding()
         ) {
             TopBar(
+                isDarkTheme = isDarkTheme,
                 onBackClick = onBackClick,
                 onMenuClick = {
                     scope.launch {
@@ -892,7 +895,10 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSystemInDarkTheme()) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(16.dp)
+                        )
                         .padding(24.dp)
                         .width(300.dp)
                 ) {
@@ -902,7 +908,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.notification_permission_title),
                             fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isSystemInDarkTheme()) Color.White else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -911,7 +917,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.notification_permission_message),
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -925,14 +931,17 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable { showNotificationPermissionDialog = false },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 15.sp,
-                                    color = Color.Gray,
+                                    color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.7f) else Color.Gray,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -941,7 +950,10 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .background(RoseRed, RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSystemInDarkTheme()) Color.White else RoseRed,
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable {
                                         notificationPermissionState?.launchPermissionRequest()
                                         showNotificationPermissionDialog = false
@@ -951,7 +963,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.authorize),
                                     fontSize = 15.sp,
-                                    color = Color.White,
+                                    color = if (isSystemInDarkTheme()) Color.Black else Color.White,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -991,7 +1003,10 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSystemInDarkTheme()) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(16.dp)
+                        )
                         .padding(24.dp)
                         .width(300.dp)
                 ) {
@@ -1001,7 +1016,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.desktop_lyric),
                             fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isSystemInDarkTheme()) Color.White else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -1010,7 +1025,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.desktop_lyric_permission_message),
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -1024,14 +1039,17 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .background(Color(0xFFF5F5F5), RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable { showOverlayPermissionDialog = false },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 15.sp,
-                                    color = Color.Gray,
+                                    color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.7f) else Color.Gray,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1040,7 +1058,10 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .background(RoseRed, RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSystemInDarkTheme()) Color.White else RoseRed,
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable {
                                         val intent = Intent(
                                             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -1054,7 +1075,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.authorize),
                                     fontSize = 15.sp,
-                                    color = Color.White,
+                                    color = if (isSystemInDarkTheme()) Color.Black else Color.White,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1068,6 +1089,7 @@ fun PlayerScreen(
 
 @Composable
 fun TopBar(
+    isDarkTheme: Boolean,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onPlaylistClick: () -> Unit = {}
@@ -1087,7 +1109,7 @@ fun TopBar(
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = stringResource(id = R.string.back),
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -1095,7 +1117,7 @@ fun TopBar(
                     text = stringResource(id = R.string.now_playing),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
                 )
 
                 IconButton(
@@ -1105,7 +1127,7 @@ fun TopBar(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = stringResource(id = R.string.more),
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -1119,6 +1141,7 @@ fun CoverImage(
             val context = LocalContext.current
             val musicApi = remember { MusicApi(context) }
             var coverUrl by remember { mutableStateOf<String?>(null) }
+            val isDarkTheme = isSystemInDarkTheme()
 
             LaunchedEffect(music.id) {
                 coverUrl = musicApi.getMusicCoverUrl(music)
@@ -1128,7 +1151,10 @@ fun CoverImage(
                 modifier = Modifier
                     .size(200.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(RoseRed.copy(alpha = 0.1f))
+                    .background(
+                        if (isDarkTheme) Color.White.copy(alpha = 0.08f)
+                        else RoseRed.copy(alpha = 0.1f)
+                    )
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
@@ -1155,7 +1181,9 @@ fun CoverImage(
                     isFavorite: Boolean,
                     onFavoriteClick: () -> Unit,
                     isLoggedIn: Boolean = true
-        ) {            Box(
+        ) {
+            val isDarkTheme = isSystemInDarkTheme()
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp)
@@ -1189,7 +1217,7 @@ fun CoverImage(
                             text = music.title,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             overflow = TextOverflow.Clip,
@@ -1204,7 +1232,7 @@ fun CoverImage(
                     Text(
                         text = music.artist,
                         fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -1219,7 +1247,11 @@ fun CoverImage(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                        tint = if (isFavorite) RoseRed else Color.Gray,
+                        tint = if (isFavorite) {
+                            if (isDarkTheme) Color.White else RoseRed
+                        } else {
+                            if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+                        },
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1232,6 +1264,7 @@ fun MusicInfo(
             isFavorite: Boolean,
             onFavoriteClick: () -> Unit
         ) {
+            val isDarkTheme = isSystemInDarkTheme()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1242,7 +1275,7 @@ fun MusicInfo(
                     text = music.title,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     maxLines = 2
                 )
@@ -1252,7 +1285,7 @@ fun MusicInfo(
                 Text(
                     text = music.artist,
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
@@ -1265,7 +1298,11 @@ fun MusicInfo(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                        tint = if (isFavorite) RoseRed else Color.Gray,
+                        tint = if (isFavorite) {
+                            if (isDarkTheme) Color.White else RoseRed
+                        } else {
+                            if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+                        },
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -1282,6 +1319,23 @@ fun LyricSongInfoBar(
             isDesktopLyricEnabled: Boolean = false,
             onDesktopLyricClick: () -> Unit = {}
         ) {
+            val isDarkTheme = isSystemInDarkTheme()
+            val titleColor = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
+            val artistColor = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
+            val favColor = if (isFavorite) {
+                if (isDarkTheme) Color.White else RoseRed
+            } else {
+                if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+            }
+            val desktopLyricBg = if (isDesktopLyricEnabled) {
+                if (isDarkTheme) Color.White.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f)
+            } else Color.Transparent
+            val desktopLyricText = if (isDesktopLyricEnabled) {
+                if (isDarkTheme) Color.White else RoseRed
+            } else {
+                if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1302,7 +1356,7 @@ fun LyricSongInfoBar(
                                 text = music.title,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = titleColor,
                                 maxLines = 1
                             )
                         }
@@ -1313,7 +1367,7 @@ fun LyricSongInfoBar(
                         Text(
                             text = music.artist,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = artistColor,
                             maxLines = 1
                         )
                     }
@@ -1331,7 +1385,7 @@ fun LyricSongInfoBar(
                         ) {
                             val scrollState = rememberScrollState()
                             val shouldScroll by remember { derivedStateOf { music.title.length > 15 } }
-                            
+
                             LaunchedEffect(shouldScroll, music.title) {
                                 if (shouldScroll) {
                                     while (true) {
@@ -1342,12 +1396,12 @@ fun LyricSongInfoBar(
                                     }
                                 }
                             }
-                            
+
                             Text(
                                 text = music.title,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = titleColor,
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
                                 overflow = TextOverflow.Clip,
@@ -1362,7 +1416,7 @@ fun LyricSongInfoBar(
                         Text(
                             text = music.artist,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = artistColor,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -1383,7 +1437,7 @@ fun LyricSongInfoBar(
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                            tint = if (isFavorite) RoseRed else Color.Gray,
+                            tint = favColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1393,9 +1447,7 @@ fun LyricSongInfoBar(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isDesktopLyricEnabled) RoseRed.copy(alpha = 0.15f) else Color.Transparent
-                            )
+                            .background(desktopLyricBg)
                             .clickable(onClick = onDesktopLyricClick),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1403,7 +1455,7 @@ fun LyricSongInfoBar(
                             text = "词",
                             fontSize = 14.sp,
                             fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isDesktopLyricEnabled) RoseRed else Color.Gray
+                            color = desktopLyricText
                         )
                     }
                 }
@@ -1476,6 +1528,7 @@ fun LyricsView(
             modifier: Modifier = Modifier,
             listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
         ) {
+            val isDarkTheme = isSystemInDarkTheme()
             val currentIndex = remember(lyrics, currentProgressSeconds) {
                 lyrics.indexOfLast { it.time <= currentProgressSeconds }
             }
@@ -1508,7 +1561,9 @@ fun LyricsView(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = RoseRed)
+                            CircularProgressIndicator(
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else RoseRed
+                            )
                         }
                     }
 
@@ -1520,7 +1575,7 @@ fun LyricsView(
                             Text(
                                 text = stringResource(id = R.string.no_lyrics),
                                 fontSize = 16.sp,
-                                color = Color.Gray
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                             )
                         }
                     }
@@ -1539,6 +1594,8 @@ fun LyricsView(
                             items(lyrics.size) { index ->
                                 val line = lyrics[index]
                                 val isCurrentLine = index == currentIndex
+                                val currentLineColor = if (isDarkTheme) Color.White else RoseRed
+                                val otherLineColor = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else Color.Gray
 
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1551,17 +1608,17 @@ fun LyricsView(
                                         text = line.text,
                                         fontSize = if (isCurrentLine) 18.sp else 14.sp,
                                         fontWeight = if (isCurrentLine) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isCurrentLine) RoseRed else Color.Gray,
+                                        color = if (isCurrentLine) currentLineColor else otherLineColor,
                                         textAlign = TextAlign.Center
                                     )
-                                    
+
                                     // 翻译歌词（如果存在）
                                     if (line.translation.isNotEmpty()) {
                                         Text(
                                             text = line.translation,
                                             fontSize = if (isCurrentLine) 14.sp else 12.sp,
                                             fontWeight = FontWeight.Normal,
-                                            color = if (isCurrentLine) RoseRed.copy(alpha = 0.9f) else Color.Gray.copy(alpha = 0.7f),
+                                            color = if (isCurrentLine) currentLineColor.copy(alpha = 0.9f) else otherLineColor.copy(alpha = 0.7f),
                                             textAlign = TextAlign.Center,
                                             modifier = Modifier.padding(top = 2.dp)
                                         )
@@ -1590,6 +1647,7 @@ fun ProgressSlider(
             isLoading: Boolean,
             onProgressChange: (Float) -> Unit
         ) {
+            val isDarkTheme = isSystemInDarkTheme()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1600,9 +1658,9 @@ fun ProgressSlider(
                         value = progress,
                         onValueChange = onProgressChange,
                         colors = SliderDefaults.colors(
-                            activeTrackColor = RoseRed,
-                            inactiveTrackColor = Color(0xFFE0E0E0),
-                            thumbColor = RoseRed
+                            activeTrackColor = if (isDarkTheme) Color.White else RoseRed,
+                            inactiveTrackColor = if (isDarkTheme) Color.White.copy(alpha = 0.2f) else Color(0xFFE0E0E0),
+                            thumbColor = if (isDarkTheme) Color.White else RoseRed
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1616,12 +1674,12 @@ fun ProgressSlider(
                         Text(
                             text = currentTime,
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else Color.Gray
                         )
                         Text(
                             text = totalTime,
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else Color.Gray
                         )
                     }
                 }
@@ -1640,6 +1698,8 @@ fun ProgressSlider(
             onPlaylistClick: () -> Unit,
             onPlayModeClick: () -> Unit
         ) {
+            val isDarkTheme = isSystemInDarkTheme()
+            val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1665,7 +1725,7 @@ fun ProgressSlider(
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(iconRes),
                             contentDescription = "Play Mode",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = iconColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1678,7 +1738,7 @@ fun ProgressSlider(
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.previous_song),
                             contentDescription = "Previous",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = iconColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1688,7 +1748,10 @@ fun ProgressSlider(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(RoseRed, CircleShape)
+                        .background(
+                            if (isDarkTheme) Color.White else RoseRed,
+                            CircleShape
+                        )
                         .clickable(
                             enabled = !isLoading && musicFileUrl != null,
                             onClick = onPlayPauseClick,
@@ -1700,7 +1763,7 @@ fun ProgressSlider(
                     when {
                         isLoading -> {
                             CircularProgressIndicator(
-                                color = Color.White,
+                                color = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -1709,7 +1772,7 @@ fun ProgressSlider(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Loading",
-                                tint = Color.White.copy(alpha = 0.5f),
+                                tint = if (isDarkTheme) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.5f),
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -1720,7 +1783,7 @@ fun ProgressSlider(
                                     id = if (isPlaying) R.drawable.pause else R.drawable.play
                                 ),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.White,
+                                tint = if (isDarkTheme) Color.Black else Color.White,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -1740,7 +1803,7 @@ fun ProgressSlider(
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.next_song),
                             contentDescription = "Next",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = iconColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1753,7 +1816,7 @@ fun ProgressSlider(
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.playlist),
                             contentDescription = "Playlist",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                            tint = iconColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1783,10 +1846,17 @@ fun ShareDialog(
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
     var customHours by remember { mutableStateOf(0) }
     var customMinutes by remember { mutableStateOf(0) }
+    val isDarkTheme = isSystemInDarkTheme()
 
     // 预加载额外的字符串资源
     val customLabel = stringResource(id = R.string.custom)
     val closeLabel = stringResource(id = R.string.close)
+
+    val sectionTitleColor = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val cancelTextColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
+    val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
+    val createPlaylistColor = if (isDarkTheme) Color.White else RoseRed
+    val copyLinkColor = if (isDarkTheme) Color.White else RoseRed
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -1826,237 +1896,68 @@ fun ShareDialog(
                         onClick = {}
                     )
             ) {
-                Surface(
-                    shape = RoundedCornerShape(0.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 横向滚动的分享列表
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(24.dp)
-                        ) {
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.twitter,
-                                    label = stringResource(id = R.string.share_to_twitter),
-                                    color = Color(0xFF1DA1F2),
-                                    onClick = onShareToTwitter
-                                )
-                            }
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.qq,
-                                    label = stringResource(id = R.string.share_to_qq),
-                                    color = Color(0xFF12B7F5),
-                                    onClick = onShareToQQ
-                                )
-                            }
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.copy_link,
-                                    label = stringResource(id = R.string.copy_link),
-                                    color = RoseRed,
-                                    onClick = onCopyLink
-                                )
-                            }
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.download,
-                                    label = stringResource(id = R.string.download),
-                                    color = Color(0xFF6B5B95),
-                                    onClick = onDownload
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // 添加到歌单选择器
-                        if (playlists.isNotEmpty()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.add_to_playlist),
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(bottom = 12.dp)
-                                )
-
-                                LazyRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(
-                                        count = playlists.size,
-                                        key = { index -> playlists[index].id }
-                                    ) { index ->
-                                        val playlist = playlists[index]
-                                        PlaylistChip(
-                                            playlist = playlist,
-                                            isSelected = selectedPlaylistId == playlist.id,
-                                            firstMusicCover = playlistFirstMusicCovers[playlist.id],
-                                            onClick = { onPlaylistSelected(playlist) }
-                                        )
-                                    }
-                                    // 新建歌单按钮
-                                    item {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(70.dp)
-                                                .height(56.dp)
-                                                .border(
-                                                    width = 2.dp,
-                                                    color = RoseRed,
-                                                    shape = RoundedCornerShape(12.dp)
-                                                )
-                                                .background(
-                                                    color = RoseRed.copy(alpha = 0.1f),
-                                                    shape = RoundedCornerShape(12.dp)
-                                                )
-                                                .clickable(onClick = onCreatePlaylist),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Add,
-                                                    contentDescription = stringResource(id = R.string.create_new),
-                                                    tint = RoseRed,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Text(
-                                                    text = stringResource(id = R.string.create_new),
-                                                    fontSize = 10.sp,
-                                                    color = RoseRed,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
-                        }
-
-                        // 倍速选择器
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.playback_speed),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(
-                                    count = 6,
-                                    key = { index -> index }
-                                ) { index ->
-                                    val speed = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)[index]
-                                    SpeedChip(
-                                        speed = speed,
-                                        isSelected = speed == currentSpeed,
-                                        onClick = { onSpeedChange(speed) }
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // 定时关闭选择器
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.sleep_timer),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            LazyRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(
-                                    count = 7,
-                                    key = { index -> index }
-                                ) { index ->
-                                    val presetMinutes = listOf(0, 10, 20, 30, 45, 60)
-                                    if (index == 6) {
-                                        val isCustomSelected = currentSleepTimerMinutes > 0 && currentSleepTimerMinutes !in presetMinutes
-                                        SleepTimerChip(
-                                            minutes = -1,
-                                            isSelected = isCustomSelected,
-                                            customMinutes = if (isCustomSelected) currentSleepTimerMinutes else null,
-                                            onClick = { showCustomSleepTimerDialog = true },
-                                            customLabel = customLabel,
-                                            closeLabel = closeLabel
-                                        )
-                                    } else {
-                                        val minutes = presetMinutes[index]
-                                        SleepTimerChip(
-                                            minutes = minutes,
-                                            isSelected = minutes == currentSleepTimerMinutes,
-                                            onClick = { onSleepTimerChange(minutes) },
-                                            customLabel = customLabel,
-                                            closeLabel = closeLabel
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // 分割线
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(0.5.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant)
+                if (isDarkTheme) {
+                    GlassSurface(
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ShareDialogContent(
+                            isDarkTheme = true,
+                            sectionTitleColor = sectionTitleColor,
+                            cancelTextColor = cancelTextColor,
+                            dividerColor = dividerColor,
+                            createPlaylistColor = createPlaylistColor,
+                            copyLinkColor = copyLinkColor,
+                            playlists = playlists,
+                            selectedPlaylistId = selectedPlaylistId,
+                            playlistFirstMusicCovers = playlistFirstMusicCovers,
+                            onPlaylistSelected = onPlaylistSelected,
+                            onCreatePlaylist = onCreatePlaylist,
+                            currentSpeed = currentSpeed,
+                            onSpeedChange = onSpeedChange,
+                            currentSleepTimerMinutes = currentSleepTimerMinutes,
+                            onSleepTimerChange = onSleepTimerChange,
+                            customLabel = customLabel,
+                            closeLabel = closeLabel,
+                            onDismiss = onDismiss,
+                            onShareToTwitter = onShareToTwitter,
+                            onShareToQQ = onShareToQQ,
+                            onCopyLink = onCopyLink,
+                            onDownload = onDownload,
+                            onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
                         )
-
-                        // 取消按钮
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .clickable { onDismiss() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.cancel),
-                                fontSize = 17.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ShareDialogContent(
+                            isDarkTheme = false,
+                            sectionTitleColor = sectionTitleColor,
+                            cancelTextColor = cancelTextColor,
+                            dividerColor = dividerColor,
+                            createPlaylistColor = createPlaylistColor,
+                            copyLinkColor = copyLinkColor,
+                            playlists = playlists,
+                            selectedPlaylistId = selectedPlaylistId,
+                            playlistFirstMusicCovers = playlistFirstMusicCovers,
+                            onPlaylistSelected = onPlaylistSelected,
+                            onCreatePlaylist = onCreatePlaylist,
+                            currentSpeed = currentSpeed,
+                            onSpeedChange = onSpeedChange,
+                            currentSleepTimerMinutes = currentSleepTimerMinutes,
+                            onSleepTimerChange = onSleepTimerChange,
+                            customLabel = customLabel,
+                            closeLabel = closeLabel,
+                            onDismiss = onDismiss,
+                            onShareToTwitter = onShareToTwitter,
+                            onShareToQQ = onShareToQQ,
+                            onCopyLink = onCopyLink,
+                            onDownload = onDownload,
+                            onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
+                        )
                     }
                 }
             }
@@ -2072,6 +1973,261 @@ fun ShareDialog(
                     onSleepTimerChange(totalMinutes)
                     showCustomSleepTimerDialog = false
                 }
+            )
+        }
+    }
+}
+
+@Composable
+fun ShareDialogContent(
+    isDarkTheme: Boolean,
+    sectionTitleColor: Color,
+    cancelTextColor: Color,
+    dividerColor: Color,
+    createPlaylistColor: Color,
+    copyLinkColor: Color,
+    playlists: List<PlaylistInfo>,
+    selectedPlaylistId: Int?,
+    playlistFirstMusicCovers: Map<Int, String>,
+    onPlaylistSelected: (PlaylistInfo) -> Unit,
+    onCreatePlaylist: () -> Unit,
+    currentSpeed: Float,
+    onSpeedChange: (Float) -> Unit,
+    currentSleepTimerMinutes: Int,
+    onSleepTimerChange: (Int) -> Unit,
+    customLabel: String,
+    closeLabel: String,
+    onDismiss: () -> Unit,
+    onShareToTwitter: () -> Unit,
+    onShareToQQ: () -> Unit,
+    onCopyLink: () -> Unit,
+    onDownload: () -> Unit,
+    onShowCustomSleepTimer: () -> Unit
+) {
+    Column {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 横向滚动的分享列表
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            item {
+                ShareGridItem(
+                    iconRes = R.drawable.twitter,
+                    label = stringResource(id = R.string.share_to_twitter),
+                    color = Color(0xFF1DA1F2),
+                    onClick = onShareToTwitter
+                )
+            }
+            item {
+                ShareGridItem(
+                    iconRes = R.drawable.qq,
+                    label = stringResource(id = R.string.share_to_qq),
+                    color = Color(0xFF12B7F5),
+                    onClick = onShareToQQ
+                )
+            }
+            item {
+                ShareGridItem(
+                    iconRes = R.drawable.copy_link,
+                    label = stringResource(id = R.string.copy_link),
+                    color = copyLinkColor,
+                    onClick = onCopyLink
+                )
+            }
+            item {
+                ShareGridItem(
+                    iconRes = R.drawable.download,
+                    label = stringResource(id = R.string.download),
+                    color = Color(0xFF6B5B95),
+                    onClick = onDownload
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 添加到歌单选择器
+        if (playlists.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = stringResource(id = R.string.add_to_playlist),
+                    fontSize = 14.sp,
+                    color = sectionTitleColor,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        count = playlists.size,
+                        key = { index -> playlists[index].id }
+                    ) { index ->
+                        val playlist = playlists[index]
+                        PlaylistChip(
+                            playlist = playlist,
+                            isSelected = selectedPlaylistId == playlist.id,
+                            firstMusicCover = playlistFirstMusicCovers[playlist.id],
+                            onClick = { onPlaylistSelected(playlist) }
+                        )
+                    }
+                    // 新建歌单按钮
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .width(70.dp)
+                                .height(56.dp)
+                                .border(
+                                    width = 2.dp,
+                                    color = createPlaylistColor,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .background(
+                                    color = createPlaylistColor.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(onClick = onCreatePlaylist),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = stringResource(id = R.string.create_new),
+                                    tint = createPlaylistColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = stringResource(id = R.string.create_new),
+                                    fontSize = 10.sp,
+                                    color = createPlaylistColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        // 倍速选择器
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.playback_speed),
+                fontSize = 14.sp,
+                color = sectionTitleColor,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(
+                    count = 6,
+                    key = { index -> index }
+                ) { index ->
+                    val speed = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)[index]
+                    SpeedChip(
+                        speed = speed,
+                        isSelected = speed == currentSpeed,
+                        onClick = { onSpeedChange(speed) }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 定时关闭选择器
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.sleep_timer),
+                fontSize = 14.sp,
+                color = sectionTitleColor,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(
+                    count = 7,
+                    key = { index -> index }
+                ) { index ->
+                    val presetMinutes = listOf(0, 10, 20, 30, 45, 60)
+                    if (index == 6) {
+                        val isCustomSelected = currentSleepTimerMinutes > 0 && currentSleepTimerMinutes !in presetMinutes
+                        SleepTimerChip(
+                            minutes = -1,
+                            isSelected = isCustomSelected,
+                            customMinutes = if (isCustomSelected) currentSleepTimerMinutes else null,
+                            onClick = onShowCustomSleepTimer,
+                            customLabel = customLabel,
+                            closeLabel = closeLabel
+                        )
+                    } else {
+                        val minutes = presetMinutes[index]
+                        SleepTimerChip(
+                            minutes = minutes,
+                            isSelected = minutes == currentSleepTimerMinutes,
+                            onClick = { onSleepTimerChange(minutes) },
+                            customLabel = customLabel,
+                            closeLabel = closeLabel
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 分割线
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(0.5.dp)
+                .background(dividerColor)
+        )
+
+        // 取消按钮
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(id = R.string.cancel),
+                fontSize = 17.sp,
+                color = cancelTextColor,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -2145,8 +2301,13 @@ fun SpeedChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundColor = if (isSelected) RoseRed else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val isDarkTheme = isSystemInDarkTheme()
+    val backgroundColor = if (isSelected) {
+        if (isDarkTheme) Color.White else RoseRed
+    } else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isSelected) {
+        if (isDarkTheme) Color.Black else Color.White
+    } else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = Modifier
@@ -2177,8 +2338,13 @@ fun SleepTimerChip(
     customLabel: String = "",
     closeLabel: String = ""
 ) {
-    val backgroundColor = if (isSelected) RoseRed else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+    val isDarkTheme = isSystemInDarkTheme()
+    val backgroundColor = if (isSelected) {
+        if (isDarkTheme) Color.White else RoseRed
+    } else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isSelected) {
+        if (isDarkTheme) Color.Black else Color.White
+    } else MaterialTheme.colorScheme.onSurfaceVariant
     val label = when {
         minutes == -1 && customMinutes != null -> {
             val hours = customMinutes / 60
@@ -2224,6 +2390,7 @@ fun CustomSleepTimerDialog(
 ) {
     var hours by remember { mutableStateOf(initialMinutes / 60) }
     var minutes by remember { mutableStateOf(initialMinutes % 60) }
+    val isDarkTheme = isSystemInDarkTheme()
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -2270,7 +2437,7 @@ fun CustomSleepTimerDialog(
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface,
+                    color = if (isDarkTheme) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
@@ -2283,7 +2450,7 @@ fun CustomSleepTimerDialog(
                         Text(
                             text = stringResource(id = R.string.custom_sleep_timer),
                             fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -2301,7 +2468,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.hours),
                                     fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -2323,7 +2490,7 @@ fun CustomSleepTimerDialog(
                                     Text(
                                         text = "$hours",
                                         fontSize = 32.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 24.dp)
                                     )
@@ -2335,7 +2502,7 @@ fun CustomSleepTimerDialog(
                                         Icon(
                                             painter = painterResource(R.drawable.next_song),
                                             contentDescription = stringResource(id = R.string.increase),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -2345,7 +2512,7 @@ fun CustomSleepTimerDialog(
                             Text(
                                 text = ":",
                                 fontSize = 32.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
                             )
 
@@ -2356,7 +2523,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.minutes),
                                     fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -2378,7 +2545,7 @@ fun CustomSleepTimerDialog(
                                     Text(
                                         text = String.format("%02d", minutes),
                                         fontSize = 32.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 24.dp)
                                     )
@@ -2390,7 +2557,7 @@ fun CustomSleepTimerDialog(
                                         Icon(
                                             painter = painterResource(R.drawable.next_song),
                                             contentDescription = stringResource(id = R.string.increase),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -2408,14 +2575,17 @@ fun CustomSleepTimerDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable { onDismiss() },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -2424,14 +2594,17 @@ fun CustomSleepTimerDialog(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
-                                    .background(RoseRed, RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isDarkTheme) Color.White else RoseRed,
+                                        RoundedCornerShape(12.dp)
+                                    )
                                     .clickable { onConfirm(hours, minutes) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(id = R.string.confirm),
                                     fontSize = 16.sp,
-                                    color = Color.White,
+                                    color = if (isDarkTheme) Color.Black else Color.White,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -2450,17 +2623,19 @@ fun PlaylistChip(
     firstMusicCover: String? = null,
     onClick: () -> Unit
 ) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val selectedColor = if (isDarkTheme) Color.White else RoseRed
     Box(
         modifier = Modifier
             .width(70.dp)
             .height(56.dp)
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) RoseRed else Color.Transparent,
+                color = if (isSelected) selectedColor else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             )
             .background(
-                color = if (isSelected) RoseRed.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
+                color = if (isSelected) selectedColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick),
@@ -2484,12 +2659,12 @@ fun PlaylistChip(
                     .clip(RoundedCornerShape(6.dp)),
                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
             )
-            
+
             // 歌单名称
             Text(
                 text = playlist.name,
                 fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
