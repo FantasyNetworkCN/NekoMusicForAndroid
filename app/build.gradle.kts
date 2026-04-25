@@ -37,9 +37,6 @@ android {
                 arguments("-DANDROID_STL=c++_shared")
             }
         }
-
-        buildConfigField("boolean", "ENABLE_DEBUG", "false")
-        buildConfigField("String", "BASE_URL", "\"https://music.cnmsb.xin\"")
     }
 
     sourceSets {
@@ -87,7 +84,7 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
+        buildConfig = false
     }
 
     lint {
@@ -139,8 +136,6 @@ dependencies {
     implementation(libs.ktor.client.logging)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.volley)
-
     // Image & Audio
     implementation(libs.coil.core)
     implementation(libs.coil.compose)
