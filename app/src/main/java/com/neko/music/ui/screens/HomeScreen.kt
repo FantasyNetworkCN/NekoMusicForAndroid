@@ -415,9 +415,6 @@ fun HomeScreen(
                     }
                 }
                 
-                // 顶部横幅
-                WelcomeBanner()
-                
                 // 推荐歌单
                 Column(
                     modifier = Modifier
@@ -625,79 +622,7 @@ fun HeaderSection(
     }
 }
 
-@Composable
-fun WelcomeBanner() {
-    var isVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.96f,
-        animationSpec = tween(500, easing = FastOutSlowInEasing)
-    )
-
-    GlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp)
-            .height(130.dp)
-            .scale(scale),
-        shape = RoundedCornerShape(24.dp),
-        backgroundAlpha = 0.22f,
-        borderAlpha = 0.12f,
-        highlightAlpha = 0.07f
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(130.dp)
-                .padding(horizontal = 28.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = stringResource(id = R.string.explore_music_world),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(id = R.string.discover_music_you_like),
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.55f),
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.3.sp
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFFFB7C5).copy(alpha = 0.7f),
-                                Color(0xFFFF69B4).copy(alpha = 0.5f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.play),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun QuickAccessItem(
