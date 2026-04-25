@@ -1007,9 +1007,9 @@ fun MainScreen() {
 
                                 layout(placeable.width, placeable.height) {
 
-                                    // 距离底部80dp，为导航菜单留出空间
+                                    // 距离底部96dp，为导航菜单留出空间并增加间隙
 
-                                    placeable.place(16.dp.roundToPx(), constraints.maxHeight - placeable.height - 80.dp.roundToPx())
+                                    placeable.place(16.dp.roundToPx(), constraints.maxHeight - placeable.height - 96.dp.roundToPx())
 
                                 }
 
