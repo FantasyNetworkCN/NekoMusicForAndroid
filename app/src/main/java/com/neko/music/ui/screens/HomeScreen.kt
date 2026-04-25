@@ -13,6 +13,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -378,61 +379,39 @@ fun HomeScreen(
         ) {
             item {
                 // 搜索框
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
                         .statusBarsPadding()
-                ) {
-                    var isPressed by remember { mutableStateOf(false) }
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.98f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1A1A2E).copy(alpha = 0.55f))
+                        .border(
+                            width = 0.5.dp,
+                            color = Color.White.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(16.dp)
                         )
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .scale(scale)
-                            .shadow(
-                                elevation = 12.dp,
-                                spotColor = RoseRed.copy(alpha = 0.2f),
-                                ambientColor = Color.Gray.copy(alpha = 0.1f)
-                            )
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(Color.White.copy(alpha = 0.98f))
-                            .clickable {
-                                isPressed = true
-                                Log.d("HomeScreen", "搜索框被点击")
-                                onSearchClick()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 20.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = stringResource(id = R.string.search),
-                                tint = RoseRed,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(id = R.string.search_music_artist_album),
-                                fontSize = 16.sp,
-                                color = Color.Gray.copy(alpha = 0.7f),
-                                fontWeight = FontWeight.Medium
-                            )
+                        .clickable {
+                            Log.d("HomeScreen", "搜索框被点击")
+                            onSearchClick()
                         }
-                    }
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(id = R.string.search),
+                        tint = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = stringResource(id = R.string.search_music_artist_album),
+                        fontSize = 15.sp,
+                        color = Color.White.copy(alpha = 0.35f),
+                        fontWeight = FontWeight.Normal
+                    )
                 }
                 
                 // 顶部横幅
