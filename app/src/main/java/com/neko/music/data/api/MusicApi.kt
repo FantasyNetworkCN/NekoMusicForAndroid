@@ -208,4 +208,36 @@ class MusicApi(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    /**
+     * 根据音乐ID获取详情
+     * 端点: GET /api/music/info/{id}
+     * @param id 音乐ID
+     */
+    suspend fun getMusicInfo(id: Int): Result<Music> {
+        return try {
+            Log.d("MusicApi", "Fetching music info for id: $id")
+            val response = client.get("$baseUrl/api/music/info/$id?t=${System.currentTimeMillis()}")
+            Log.d("MusicApi", "Response status: ${response.status}")
+            val responseText = response.body<String>()
+            Log.d("MusicApi", "Response raw text: $responseText")
+
+            val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
+            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
+            val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
+            val data = jsonResponse["data"]
+
+            if (success && data != null) {
+                val music = json.decodeFromJsonElement<Music>(data)
+                Log.d("MusicApi", "Music info loaded: ${music.title} - ${music.artist}")
+                Result.success(music)
+            } else {
+                Log.e("MusicApi", "Failed to get music info: $message")
+                Result.failure(Exception(message))
+            }
+        } catch (e: Exception) {
+            Log.e("MusicApi", "Get music info error", e)
+            Result.failure(e)
+        }
+    }
 }

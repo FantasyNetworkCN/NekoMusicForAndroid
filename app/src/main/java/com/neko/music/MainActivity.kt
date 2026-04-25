@@ -146,6 +146,9 @@ class MainActivity : ComponentActivity() {
         // 检查所有开关状态并启动相应的服务
         checkAndStartServices()
 
+        // 处理 Deep Link
+        handleIntent(intent)
+
         setContent {
             Neko云音乐Theme {
                 Surface(
@@ -158,6 +161,61 @@ class MainActivity : ComponentActivity() {
                         })
                     } else {
                         MainScreen()
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 解析外部传入的 Deep Link Intent
+     * 只解析ID，标题和歌手由应用内部通过API获取
+     */
+    private fun handleIntent(intent: Intent?) {
+        intent?.data?.let { uri ->
+            android.util.Log.d("MainActivity", "收到 Deep Link: $uri")
+            when (uri.host) {
+                "player" -> {
+                    val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
+                    if (id != null) {
+                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                            com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
+                        )
+                        android.util.Log.d("MainActivity", "Deep Link -> Player: id=$id")
+                    }
+                }
+                "playlist" -> {
+                    val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
+                    if (id != null) {
+                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                            com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
+                        )
+                        android.util.Log.d("MainActivity", "Deep Link -> Playlist: id=$id")
+                    }
+                }
+                else -> {
+                    // 兼容 https://nekomusic.app/player/{id}
+                    // 或 https://nekomusic.app/playlist/{id}
+                    val path = uri.path ?: return@let
+                    when {
+                        path.startsWith("/player/") -> {
+                            val id = path.removePrefix("/player/").substringBefore("/").substringBefore("?").toIntOrNull()
+                            if (id != null) {
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                    com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
+                                )
+                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player: id=$id")
+                            }
+                        }
+                        path.startsWith("/playlist/") -> {
+                            val id = path.removePrefix("/playlist/").substringBefore("/").substringBefore("?").toIntOrNull()
+                            if (id != null) {
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                    com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
+                                )
+                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Playlist: id=$id")
+                            }
+                        }
                     }
                 }
             }
@@ -201,6 +259,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // 处理 Deep Link（应用在后台时被唤醒）
+        handleIntent(intent)
         // 从后台返回，不需要恢复播放，只检查收藏状态
         val context = this
         val playerManager = MusicPlayerManager.getInstance(context)
@@ -275,6 +335,64 @@ fun MainScreen() {
 
     // 跟踪是否从播放页面返回
     var returningFromPlayer by androidx.compose.runtime.remember { mutableStateOf(false) }
+
+    // 监听 Deep Link 事件并导航
+    androidx.compose.runtime.LaunchedEffect(navController) {
+        com.neko.music.util.DeepLinkHandler.deepLinkEvent.collect { route ->
+            when (route) {
+                is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player -> {
+                    // 通过API获取音乐详情后再跳转，不依赖外部传入标题和歌手
+                    scope.launch {
+                        try {
+                            val musicApi = com.neko.music.data.api.MusicApi(context)
+                            val result = musicApi.getMusicInfo(route.id)
+                            result.fold(
+                                onSuccess = { music ->
+                                    val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                                    val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                                    navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist") {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                onFailure = {
+                                    // 获取失败时降级为占位符导航
+                                    val encodedTitle = java.net.URLEncoder.encode("未知歌曲", "UTF-8")
+                                    val encodedArtist = java.net.URLEncoder.encode("未知歌手", "UTF-8")
+                                    navController.navigate("player/${route.id}/$encodedTitle/$encodedArtist") {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "无法获取音乐信息",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Deep Link 获取音乐详情失败", e)
+                        }
+                    }
+                }
+                is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist -> {
+                    navController.navigate("playlist_detail/${route.id}/歌单/null/null/null/-1/false") {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+        }
+    }
 
     // 启动时恢复上次播放的音乐
     androidx.compose.runtime.LaunchedEffect(Unit) {
