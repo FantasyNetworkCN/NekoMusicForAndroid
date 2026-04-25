@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,6 +57,7 @@ import com.neko.music.data.manager.SearchHistoryManager
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchHistory
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.components.GlassSurface
 import io.ktor.client.call.body
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -255,7 +257,7 @@ fun SearchResultScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = RoseRed)
+                        CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
                     }
                 }
                 errorMessage != null -> {
@@ -355,11 +357,10 @@ fun SearchBar(
     val searchMusicText = stringResource(id = R.string.search_music)
     
     val isDarkTheme = isSystemInDarkTheme()
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White)
             .statusBarsPadding()
     ) {
         Row(
@@ -379,78 +380,74 @@ fun SearchBar(
                     tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onBackground
                 )
             }
-            
+
             Spacer(modifier = Modifier.composeWidth(4.dp))
-            
-            Box(
+
+            GlassSurface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp)
-                    .background(
-                        color = if (isDarkTheme) {
-                            Color.White.copy(alpha = 0.08f)
-                        } else {
-                            Color(0xFFF5F5F5)
-                        },
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 0.dp),
-                contentAlignment = Alignment.CenterStart
+                    .height(36.dp),
+                shape = RoundedCornerShape(18.dp),
+                backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
+                borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
+                highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp, vertical = 0.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = searchText,
-                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.composeWidth(8.dp))
-                    
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = query,
-                        onValueChange = {
-                            onQueryChange(it)
-                            Log.d("SearchScreen", "输入: $it")
-                        },
-                        modifier = Modifier.weight(1f),
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp
-                        ),
-                        singleLine = true,
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(RoseRed),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                        ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                            onSearch = {
-                                Log.d("SearchScreen", "触发搜索: $query")
-                                onSearch()
-                            }
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = searchText,
+                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
                         )
-                    )
-                    
-                    if (query.isEmpty()) {
-                        Text(
-                            text = searchMusicText,
-                            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray,
-                            fontSize = 15.sp
+
+                        Spacer(modifier = Modifier.composeWidth(8.dp))
+
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = query,
+                            onValueChange = {
+                                onQueryChange(it)
+                                Log.d("SearchScreen", "输入: $it")
+                            },
+                            modifier = Modifier.weight(1f),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 15.sp
+                            ),
+                            singleLine = true,
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(RoseRed),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = {
+                                    Log.d("SearchScreen", "触发搜索: $query")
+                                    onSearch()
+                                }
+                            )
                         )
+
+                        if (query.isEmpty()) {
+                            Text(
+                                text = searchMusicText,
+                                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray,
+                                fontSize = 15.sp
+                            )
+                        }
                     }
                 }
             }
         }
-        
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(if (isDarkTheme) Color(0xFF2A2A4E).copy(alpha = 0.5f) else Color(0xFFE0E0E0))
-        )
+
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -485,15 +482,15 @@ fun PlaylistItem(
     val songsCountFormatText = stringResource(id = R.string.songs_count, playlist.musicCount)
     
     val isDarkTheme = isSystemInDarkTheme()
-    
-    Card(
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-        )
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
+        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
+        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
     ) {
         Row(
             modifier = Modifier
@@ -603,63 +600,68 @@ fun MusicItem(
         }
     }
     
-    Row(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(
-                color = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
+        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
+        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = RoseRed.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!coverUrl.isNullOrEmpty()) {
-                coil3.compose.AsyncImage(
-                    model = coverUrl,
-                    contentDescription = coverText,
-                    modifier = Modifier.size(44.dp),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        color = RoseRed.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!coverUrl.isNullOrEmpty()) {
+                    coil3.compose.AsyncImage(
+                        model = coverUrl,
+                        contentDescription = coverText,
+                        modifier = Modifier.size(44.dp),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.music),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.composeWidth(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = music.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
                 )
-            } else {
-                Image(
-                    painter = painterResource(R.drawable.music),
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = authorPrefixText,
+                    fontSize = 13.sp,
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    maxLines = 1
                 )
             }
-        }
-        
-        Spacer(modifier = Modifier.composeWidth(12.dp))
-        
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = music.title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = authorPrefixText,
-                fontSize = 13.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                maxLines = 1
-            )
         }
     }
 }
@@ -726,27 +728,29 @@ fun SearchHistoryList(
             contentPadding = PaddingValues(bottom = 140.dp)
         ) {
             items(history) { item ->
-                Row(
+                GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
-                        .background(
-                            color = if (isDarkTheme) {
-                                Color.White.copy(alpha = 0.08f)
-                            } else {
-                                Color(0xFFF5F5F5)
-                            },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .clickable { onItemClick(item.query) }
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clickable { onItemClick(item.query) },
+                    shape = RoundedCornerShape(10.dp),
+                    backgroundAlpha = if (isDarkTheme) 0.22f else 0.06f,
+                    borderAlpha = if (isDarkTheme) 0.12f else 0.06f,
+                    highlightAlpha = if (isDarkTheme) 0.06f else 0.03f
                 ) {
-                    Text(
-                        text = item.query,
-                        fontSize = 14.sp,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = item.query,
+                            fontSize = 14.sp,
+                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
@@ -941,39 +945,38 @@ fun SearchTypeButton(
     onClick: () -> Unit
 ) {
     val isDarkTheme = isSystemInDarkTheme()
-    
-    Box(
+
+    Column(
         modifier = Modifier
             .height(36.dp)
-            .background(
-                color = if (isSelected) {
-                    RoseRed
-                } else {
-                    if (isDarkTheme) {
-                        Color(0xFF252545).copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                },
-                shape = RoundedCornerShape(18.dp)
-            )
             .clickable(
                 onClick = onClick,
                 indication = null,
                 interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource()
             )
-            .padding(horizontal = 20.dp, vertical = 0.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 16.dp, vertical = 0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = text,
             fontSize = 14.sp,
             color = if (isSelected) {
-                Color.White
+                Color.White.copy(alpha = 0.98f)
             } else {
-                if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
+                if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             },
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .height(3.dp)
+                .composeWidth(if (isSelected) 18.dp else 0.dp)
+                .background(
+                    color = Color.White.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(1.5.dp)
+                )
         )
     }
 }
@@ -1006,15 +1009,15 @@ fun ArtistItem(
     val songsCountSuffixText = stringResource(id = R.string.songs_count_suffix, artist.musicCount)
     
     val isDarkTheme = isSystemInDarkTheme()
-    
-    Card(
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-        )
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
+        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
+        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
     ) {
         Row(
             modifier = Modifier
