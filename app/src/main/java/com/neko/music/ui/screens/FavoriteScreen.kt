@@ -28,6 +28,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import com.neko.music.R
 import coil3.compose.AsyncImage
 import com.neko.music.util.UrlConfig
+import com.neko.music.ui.components.GlassSurface
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
 import kotlinx.coroutines.launch
@@ -135,6 +136,8 @@ fun FavoriteScreen(
         }
     }
 
+    val isDarkTheme = isSystemInDarkTheme()
+
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(id = R.drawable.playlist_background),
@@ -153,12 +156,24 @@ fun FavoriteScreen(
             topBar = {
                 Column {
                     TopAppBar(
-                        title = { Text(stringResource(id = R.string.my_favorites)) },
+                        title = {
+                            Text(
+                                text = stringResource(id = R.string.my_favorites),
+                                color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
                         navigationIcon = {
                             IconButton(onClick = onBackClick) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(id = R.string.back))
+                                Icon(
+                                    Icons.Default.ArrowBack,
+                                    contentDescription = stringResource(id = R.string.back),
+                                    tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent
+                        )
                     )
                     if (isLoggedIn) {
                         FavoriteSearchBar(
@@ -166,7 +181,8 @@ fun FavoriteScreen(
                             onQueryChange = { searchQuery = it },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            isDarkTheme = isDarkTheme
                         )
                     }
                 }
@@ -190,18 +206,21 @@ fun FavoriteScreen(
                                 text = stringResource(id = R.string.please_login_first),
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = stringResource(id = R.string.login_after_view),
                                 fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                     isLoading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                        )
                     }
                     errorMessage.isNotEmpty() -> {
                         Column(
@@ -214,7 +233,7 @@ fun FavoriteScreen(
                             Text(
                                 text = errorMessage,
                                 fontSize = 16.sp,
-                                color = Color.Red
+                                color = if (isDarkTheme) Color(0xFFFF6B6B) else Color.Red
                             )
                         }
                     }
@@ -230,48 +249,83 @@ fun FavoriteScreen(
                                 text = if (searchQuery.isEmpty()) stringResource(id = R.string.no_favorites) else stringResource(id = R.string.no_search_results),
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Gray
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Gray
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = if (searchQuery.isEmpty()) stringResource(id = R.string.go_discover) else stringResource(id = R.string.try_other_keywords),
                                 fontSize = 14.sp,
-                                color = Color.Gray
+                                color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                             )
                         }
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .background(
-                                        color = Color(0xFFE94560),
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable {
-                                        scope.launch {
-                                            playAllFavorites()
+                            if (isDarkTheme) {
+                                GlassSurface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .clickable {
+                                            scope.launch {
+                                                playAllFavorites()
+                                            }
                                         }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                                            contentDescription = stringResource(id = R.string.play_all),
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.play_all_count, filteredFavorites.size),
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
                                     }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(id = R.string.play_all),
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(id = R.string.play_all_count, filteredFavorites.size),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .background(
+                                            color = Color(0xFFE94560),
+                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            scope.launch {
+                                                playAllFavorites()
+                                            }
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                                        contentDescription = stringResource(id = R.string.play_all),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.play_all_count, filteredFavorites.size),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
                             }
                             Box(
                                 modifier = Modifier
@@ -280,7 +334,7 @@ fun FavoriteScreen(
                             ) {
                                 LazyColumn(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 160.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     items(filteredFavorites) { favorite ->
@@ -325,64 +379,96 @@ fun FavoriteItem(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
+    val isDarkTheme = isSystemInDarkTheme()
+
+    if (isDarkTheme) {
+        GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .clickable(onClick = onClick)
         ) {
-            // 封面
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                coil3.compose.AsyncImage(
-                    model = coverUrl,
-                    contentDescription = stringResource(id = R.string.cover),
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // 音乐信息
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = music.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = music.artist,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-
-            // 时长
-            Text(
-                text = formatDuration(music.duration),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            FavoriteItemContent(
+                coverUrl = coverUrl,
+                music = music,
+                isDarkTheme = true
             )
         }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            FavoriteItemContent(
+                coverUrl = coverUrl,
+                music = music,
+                isDarkTheme = false
+            )
+        }
+    }
+}
+
+@Composable
+fun FavoriteItemContent(
+    coverUrl: String,
+    music: com.neko.music.data.api.FavoriteMusic,
+    isDarkTheme: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 封面
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    if (isDarkTheme) Color.White.copy(alpha = 0.1f)
+                    else MaterialTheme.colorScheme.surfaceVariant
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            coil3.compose.AsyncImage(
+                model = coverUrl,
+                contentDescription = stringResource(id = R.string.cover),
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // 音乐信息
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = music.title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = music.artist,
+                fontSize = 14.sp,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+
+        // 时长
+        Text(
+            text = formatDuration(music.duration),
+            fontSize = 12.sp,
+            color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -390,49 +476,88 @@ fun FavoriteItem(
 fun FavoriteSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDarkTheme: Boolean = isSystemInDarkTheme()
 ) {
-    Row(
-        modifier = modifier
-            .height(40.dp)
-            .background(
-                color = if (isSystemInDarkTheme()) {
-                    Color.White.copy(alpha = 0.1f)
-                } else {
-                    Color(0xFFF5F5F5)
-                },
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = stringResource(id = R.string.search),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        androidx.compose.foundation.text.BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier.weight(1f),
-            textStyle = androidx.compose.ui.text.TextStyle(
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 14.sp
-            ),
-            singleLine = true,
-            decorationBox = { innerTextField ->
-                if (query.isEmpty()) {
-                    Text(
-                        text = stringResource(id = R.string.search_music),
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                innerTextField()
+    if (isDarkTheme) {
+        GlassSurface(
+            modifier = modifier.height(40.dp),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(id = R.string.search),
+                    tint = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                androidx.compose.foundation.text.BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.weight(1f),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp
+                    ),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (query.isEmpty()) {
+                            Text(
+                                text = stringResource(id = R.string.search_music),
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.4f)
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
             }
-        )
+        }
+    } else {
+        Row(
+            modifier = modifier
+                .height(40.dp)
+                .background(
+                    color = Color(0xFFF5F5F5),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(id = R.string.search),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            androidx.compose.foundation.text.BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.weight(1f),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 14.sp
+                ),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = stringResource(id = R.string.search_music),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    innerTextField()
+                }
+            )
+        }
     }
 }
 
