@@ -22,6 +22,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,6 +42,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.EaseInOutSine
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -119,6 +125,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 先切回正常主题，避免原生 Splash 背景一直显示
+        setTheme(R.style.Theme_Neko云音乐)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -1252,15 +1260,52 @@ fun MainScreen() {
 fun SplashScreen(onAnimationComplete: () -> Unit) {
     val scale = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
     val alpha = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "splash")
+    val orb1Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 30f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(4000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb1"
+    )
+    val orb2Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -25f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb2"
+    )
+    val orb3Offset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 20f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "orb3"
+    )
+    val logoGlow by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.6f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(2000, easing = androidx.compose.animation.core.EaseInOutSine),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "logoGlow"
+    )
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
         scale.animateTo(
             targetValue = 1f,
-            animationSpec = androidx.compose.animation.core.tween(durationMillis = 300, delayMillis = 30)
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, easing = androidx.compose.animation.core.FastOutSlowInEasing)
         )
         alpha.animateTo(
             targetValue = 1f,
-            animationSpec = androidx.compose.animation.core.tween(durationMillis = 300, delayMillis = 30)
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, easing = androidx.compose.animation.core.FastOutSlowInEasing)
         )
         kotlinx.coroutines.delay(1500)
         onAnimationComplete()
@@ -1270,22 +1315,28 @@ fun SplashScreen(onAnimationComplete: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                brush = androidx.compose.ui.graphics.Brush.radialGradient(
                     colors = listOf(
                         com.neko.music.ui.theme.DeepBlue,
-                        com.neko.music.ui.theme.RoseRed
-                    )
+                        Color(0xFF2D1B4E),
+                        Color(0xFF1A1A3E)
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(0.5f, 0.4f),
+                    radius = 1000f
                 )
             ),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
+        SplashThemeLayer(orb1Offset, orb2Offset, orb3Offset)
+
         Column(
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
             LogoIcon(
                 scale = scale.value,
-                alpha = alpha.value
+                alpha = alpha.value,
+                glowAlpha = logoGlow
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -1302,7 +1353,7 @@ fun SplashScreen(onAnimationComplete: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            LoadingDot(
+            LoadingDots(
                 alpha = alpha.value
             )
         }
@@ -1310,23 +1361,106 @@ fun SplashScreen(onAnimationComplete: () -> Unit) {
 }
 
 @Composable
-fun LogoIcon(scale: Float, alpha: Float) {
+fun SplashThemeLayer(orb1Offset: Float, orb2Offset: Float, orb3Offset: Float) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .offset(x = (-50).dp, y = (100 + orb1Offset).dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(com.neko.music.ui.theme.SakuraPink.copy(alpha = 0.2f), Color.Transparent)
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .align(androidx.compose.ui.Alignment.TopEnd)
+                .offset(x = 40.dp, y = (150 + orb2Offset).dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(com.neko.music.ui.theme.SkyBlue.copy(alpha = 0.15f), Color.Transparent)
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(220.dp)
+                .align(androidx.compose.ui.Alignment.BottomStart)
+                .offset(x = (-60).dp, y = (-120 + orb3Offset).dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(com.neko.music.ui.theme.Lilac.copy(alpha = 0.15f), Color.Transparent)
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(androidx.compose.ui.Alignment.BottomEnd)
+                .offset(x = 30.dp, y = (-80 + orb1Offset * 0.5f).dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(com.neko.music.ui.theme.RoseRed.copy(alpha = 0.12f), Color.Transparent)
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+    }
+}
+
+@Composable
+fun LogoIcon(scale: Float, alpha: Float, glowAlpha: Float = 0.4f) {
     Box(
         modifier = Modifier
-            .size(120.dp)
+            .size(140.dp)
             .scale(scale)
-            .alpha(alpha)
-            .background(
-                color = Color.White,
-                shape = androidx.compose.foundation.shape.CircleShape
-            ),
+            .alpha(alpha),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
-        Text(
-            text = "♪",
-            fontSize = 64.sp,
-            modifier = Modifier.alpha(alpha)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            com.neko.music.ui.theme.SakuraPink.copy(alpha = glowAlpha),
+                            com.neko.music.ui.theme.SkyBlue.copy(alpha = glowAlpha * 0.5f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
         )
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFFFFF5F5)
+                        )
+                    ),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+                .shadow(
+                    elevation = 24.dp,
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    spotColor = com.neko.music.ui.theme.SakuraPink.copy(alpha = 0.5f)
+                ),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            Text(
+                text = "♪",
+                fontSize = 72.sp,
+                color = com.neko.music.ui.theme.RoseRed
+            )
+        }
     }
 }
 
@@ -1334,11 +1468,18 @@ fun LogoIcon(scale: Float, alpha: Float) {
 fun AppTitle(alpha: Float) {
     Text(
         text = "Neko云音乐",
-        fontSize = 32.sp,
+        fontSize = 36.sp,
         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
         color = Color.White,
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        modifier = Modifier.alpha(alpha)
+        modifier = Modifier.alpha(alpha),
+        style = androidx.compose.ui.text.TextStyle(
+            shadow = androidx.compose.ui.graphics.Shadow(
+                color = com.neko.music.ui.theme.SakuraPink.copy(alpha = 0.4f),
+                offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                blurRadius = 12f
+            )
+        )
     )
 }
 
@@ -1348,22 +1489,71 @@ fun AppSubtitle(alpha: Float) {
         text = androidx.compose.ui.res.stringResource(id = R.string.splash_slogan),
         fontSize = 16.sp,
         fontWeight = androidx.compose.ui.text.font.FontWeight.Normal,
-        color = Color.White.copy(alpha = 0.8f),
+        color = Color.White.copy(alpha = 0.7f),
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         modifier = Modifier.alpha(alpha)
     )
 }
 
 @Composable
-fun LoadingDot(alpha: Float) {
-    Box(
-        modifier = Modifier
-            .size(4.dp)
-            .background(
-                color = Color.White,
-                shape = androidx.compose.foundation.shape.CircleShape
-            )
-            .alpha(alpha)
+fun LoadingDots(alpha: Float) {
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "loadingDots")
+    val dot1 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "dot1"
     )
+    val dot2 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(600, delayMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "dot2"
+    )
+    val dot3 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(600, delayMillis = 400, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "dot3"
+    )
+
+    androidx.compose.foundation.layout.Row(
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    color = com.neko.music.ui.theme.SakuraPink.copy(alpha = dot1),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    color = com.neko.music.ui.theme.SkyBlue.copy(alpha = dot2),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(
+                    color = com.neko.music.ui.theme.Lilac.copy(alpha = dot3),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                )
+        )
+    }
 }
 

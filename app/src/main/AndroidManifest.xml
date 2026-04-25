@@ -30,7 +30,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Neko云音乐"
+            android:theme="@style/Theme.Neko云Music.Splash"
             android:launchMode="singleTask"
             android:alwaysRetainTaskState="true"
             android:screenOrientation="unspecified"
