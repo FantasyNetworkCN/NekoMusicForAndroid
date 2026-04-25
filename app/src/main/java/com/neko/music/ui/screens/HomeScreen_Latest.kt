@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -139,12 +142,12 @@ fun LatestMusicCard(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f)
+                                Color.Black.copy(alpha = 0.55f)
                             )
                         )
                     )
             )
-            
+
             // 光泽效果
             Box(
                 modifier = Modifier
@@ -162,63 +165,79 @@ fun LatestMusicCard(
                         )
                     )
             )
-            
+
             // 音乐数量标签
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                SkyBlue.copy(alpha = 0.9f),
-                                Lilac.copy(alpha = 0.85f)
-                            )
-                        ),
+                        color = Color(0xFF1A1A2E).copy(alpha = 0.85f),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = SkyBlue.copy(alpha = 0.3f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    .border(
+                        width = 0.5.dp,
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = songsCountFormat,
                     fontSize = 11.sp,
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.95f),
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.3.sp
+                    letterSpacing = 0.3.sp,
+                    style = androidx.compose.ui.text.TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    )
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
+
         // 标题
         Text(
             text = latestMusicTitle,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = SkyBlue.copy(alpha = 0.95f),
+            color = Color.White.copy(alpha = 0.98f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            letterSpacing = 0.2.sp
+            letterSpacing = 0.2.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 5f
+                )
+            )
         )
-        
+
         Spacer(modifier = Modifier.height(5.dp))
-        
+
         // 描述
         Text(
             text = stringResource(id = R.string.latest_songs),
             fontSize = 12.sp,
-            color = SkyBlue.copy(alpha = 0.75f),
+            color = Color.White.copy(alpha = 0.75f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(160.dp),
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 4f
+                )
+            )
         )
     }
 }
