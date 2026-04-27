@@ -10,11 +10,10 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.FlowPreview
 
 class MusicPlayerService : Service() {
 

@@ -745,7 +745,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 PlaybackStateCompat.CustomAction.Builder(
                     "ACTION_TOGGLE_LYRIC",
                     "词",
-                    if (isDesktopLyricEnabled) com.neko.music.R.drawable.music else com.neko.music.R.drawable.music
+                    if (isDesktopLyricEnabled) com.neko.music.R.drawable.ic_lyric_toggle else com.neko.music.R.drawable.ic_lyric_toggle
                 ).build()
             )
             .setState(
