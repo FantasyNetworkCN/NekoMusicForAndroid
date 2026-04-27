@@ -14,8 +14,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
@@ -35,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1102,85 +1105,49 @@ fun MainScreen() {
                         label = "miniPlayer"
 
                     ) {
+                        val density = LocalDensity.current
+                        val bottomNavHeight = WindowInsets.navigationBars.getBottom(density)
 
                         androidx.compose.ui.layout.Layout(
-
                             content = {
-
                                 MiniPlayer(
-
                                     isPlaying = isPlaying,
-
                                     songTitle = currentMusicTitle ?: "暂无播放",
-
                                     artist = currentMusicArtist ?: "",
-
                                     coverUrl = currentMusicCover,
-
                                     progress = progress.floatValue,
-
                                     onPlayPauseClick = {
-
                                         playerManager.togglePlayPause()
-
                                     },
-
                                     onPlayerClick = {
-
-                                        // 跳转到播放页面，传递当前音乐ID
-
                                         val id = currentMusicId ?: 0
-
                                         val encodedTitle = java.net.URLEncoder.encode(
-
                                             currentMusicTitle ?: "未知歌曲", "UTF-8"
-
                                         )
-
                                         val encodedArtist = java.net.URLEncoder.encode(
-
                                             currentMusicArtist ?: "未知歌手", "UTF-8"
-
                                         )
-
                                         navController.navigate("player/$id/$encodedTitle/$encodedArtist")
-
                                     },
-
                                     onPlaylistClick = {
-
                                         showPlaylist = true
-
                                     }
-
                                 )
-
                             },
-
                             measurePolicy = { measurables, constraints ->
-
                                 val placeable = measurables.first().measure(
-
                                     constraints.copy(
-
-                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx() // 减去左右padding
-
+                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx()
                                     )
-
                                 )
-
                                 layout(placeable.width, placeable.height) {
-
-                                    // 距离底部96dp，为导航菜单留出空间并增加间隙
-
-                                    placeable.place(16.dp.roundToPx(), constraints.maxHeight - placeable.height - 96.dp.roundToPx())
-
+                                    placeable.place(
+                                        16.dp.roundToPx(),
+                                        constraints.maxHeight - placeable.height - 96.dp.roundToPx() - bottomNavHeight
+                                    )
                                 }
-
                             }
-
                         )
-
                     }
 
         
@@ -1216,37 +1183,27 @@ fun MainScreen() {
                         label = "bottomNavigation"
 
                     ) {
+                        val density = LocalDensity.current
+                        val bottomNavHeight = WindowInsets.navigationBars.getBottom(density)
 
                         androidx.compose.ui.layout.Layout(
-
                             content = {
-
                                 BottomNavigationBar(navController = navController)
-
                             },
-
                             measurePolicy = { measurables, constraints ->
-
                                 val placeable = measurables.first().measure(
-
                                     constraints.copy(
-
-                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx() // 减去左右padding
-
+                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx()
                                     )
-
                                 )
-
                                 layout(placeable.width, placeable.height) {
-
-                                    placeable.place(16.dp.roundToPx(), constraints.maxHeight - placeable.height - 16.dp.roundToPx())
-
+                                    placeable.place(
+                                        16.dp.roundToPx(),
+                                        constraints.maxHeight - placeable.height - 16.dp.roundToPx() - bottomNavHeight
+                                    )
                                 }
-
                             }
-
                         )
-
                     }
 
                 }
