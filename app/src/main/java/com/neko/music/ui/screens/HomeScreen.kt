@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -415,22 +416,23 @@ fun HomeScreen(
                 }
                 
                 // 推荐歌单
-                Column(
+                GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    backgroundAlpha = 0.32f,
+                    borderAlpha = 0.15f,
+                    highlightAlpha = 0.08f
                 ) {
-                    GlassSurface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        backgroundAlpha = 0.32f,
-                        borderAlpha = 0.15f,
-                        highlightAlpha = 0.08f
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
                     ) {
+                        // 标题
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -460,83 +462,97 @@ fun HomeScreen(
                                     )
                                 )
                             }
+                        }
 
-                        }
-                    }
-                    
-                    if (playlistsLoading) {
-                        GlassSurface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            backgroundAlpha = 0.28f,
-                            borderAlpha = 0.12f
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(36.dp),
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    strokeWidth = 2.5.dp
-                                )
-                            }
-                        }
-                    } else if (loadError) {
-                        GlassSurface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 40.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            backgroundAlpha = 0.28f,
-                            borderAlpha = 0.12f
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.network_error_msg),
-                                    fontSize = 16.sp,
-                                    color = Color.White.copy(alpha = 0.85f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            contentPadding = PaddingValues(horizontal = 0.dp)
-                        ) {
-                            // 热门音乐作为第一个
-                            if (rankingMusic.isNotEmpty()) {
-                                item {
-                                    RankingMusicCard(
-                                        musicList = rankingMusic,
-                                        onClick = { onNavigateToRanking() }
-                                    )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 内容区域 — 和标题同色背景
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            when {
+                                playlistsLoading -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(160.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(36.dp),
+                                            color = Color.White.copy(alpha = 0.7f),
+                                            strokeWidth = 2.5.dp
+                                        )
+                                    }
                                 }
-                            }
-                            // 最新音乐
-                            if (latestMusic.isNotEmpty()) {
-                                item {
-                                    LatestMusicCard(
-                                        musicList = latestMusic,
-                                        onClick = { onNavigateToLatest() }
-                                    )
+                                loadError -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 40.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = stringResource(id = R.string.network_error_msg),
+                                            fontSize = 16.sp,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
-                            }
-                            // 其他歌单
-                            items(recommendedPlaylists) { playlist ->
-                                PlaylistCard(
-                                    playlist = playlist,
-                                    onClick = { onNavigateToPlaylist(playlist.id) }
-                                )
+                                else -> {
+                                    // 2列网格布局
+                                    val gridItems = buildList {
+                                        if (rankingMusic.isNotEmpty()) {
+                                            add(@androidx.compose.runtime.Composable {
+                                                RankingMusicCard(
+                                                    musicList = rankingMusic,
+                                                    onClick = { onNavigateToRanking() },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            })
+                                        }
+                                        if (latestMusic.isNotEmpty()) {
+                                            add(@androidx.compose.runtime.Composable {
+                                                LatestMusicCard(
+                                                    musicList = latestMusic,
+                                                    onClick = { onNavigateToLatest() },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            })
+                                        }
+                                        recommendedPlaylists.take(2).forEach { playlist ->
+                                            add(@androidx.compose.runtime.Composable {
+                                                PlaylistCard(
+                                                    playlist = playlist,
+                                                    onClick = { onNavigateToPlaylist(playlist.id) },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            })
+                                        }
+                                    }
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        for (i in gridItems.indices step 2) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                            ) {
+                                                Box(modifier = Modifier.weight(1f)) {
+                                                    gridItems[i]()
+                                                }
+                                                if (i + 1 < gridItems.size) {
+                                                    Box(modifier = Modifier.weight(1f)) {
+                                                        gridItems[i + 1]()
+                                                    }
+                                                } else {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1332,7 +1348,8 @@ fun RankingCard(
 @Composable
 fun PlaylistCard(
     playlist: PlaylistInfo,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1344,8 +1361,7 @@ fun PlaylistCard(
     )
 
     Column(
-        modifier = Modifier
-            .width(160.dp)
+        modifier = modifier
             .scale(scale)
             .clickable(
                 indication = null,
@@ -1359,7 +1375,8 @@ fun PlaylistCard(
         // 封面
         Box(
             modifier = Modifier
-                .size(160.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f)
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,
@@ -1464,23 +1481,16 @@ fun PlaylistCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 文字底衬
-        Box(
+        // 文字信息
+        Column(
             modifier = Modifier
-                .width(160.dp)
-                .background(
-                    Color(0xFF1A1A2E).copy(alpha = 0.5f),
-                    RoundedCornerShape(10.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            Column {
-                // 歌单名称
-                Text(
-                    text = playlist.name,
-                    fontSize = 15.sp,
+            // 歌单名称
+            Text(
+                text = playlist.name,
+                fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 1.0f),
                     maxLines = 1,
@@ -1515,13 +1525,13 @@ fun PlaylistCard(
                 )
             }
         }
-    }
 }
 
 @Composable
 fun RankingMusicCard(
     musicList: List<com.neko.music.data.model.Music>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // Preload strings
     val hotMusicText = stringResource(id = R.string.hot_music)
@@ -1538,8 +1548,7 @@ fun RankingMusicCard(
     )
 
     Column(
-        modifier = Modifier
-            .width(160.dp)
+        modifier = modifier
             .scale(scale)
             .clickable(
                 indication = null,
@@ -1554,7 +1563,8 @@ fun RankingMusicCard(
         // 封面
         Box(
             modifier = Modifier
-                .size(160.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f)
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,
@@ -1676,23 +1686,16 @@ fun RankingMusicCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 文字底衬
-        Box(
+        // 文字信息
+        Column(
             modifier = Modifier
-                .width(160.dp)
-                .background(
-                    Color(0xFF1A1A2E).copy(alpha = 0.5f),
-                    RoundedCornerShape(10.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            Column {
-                // 标题
-                Text(
-                    text = hotMusicText,
-                    fontSize = 15.sp,
+            // 标题
+            Text(
+                text = hotMusicText,
+                fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 1.0f),
                     maxLines = 1,
@@ -1727,5 +1730,4 @@ fun RankingMusicCard(
                 )
             }
         }
-    }
 }

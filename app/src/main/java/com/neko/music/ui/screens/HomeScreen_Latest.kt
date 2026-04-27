@@ -44,7 +44,8 @@ import com.neko.music.ui.theme.SkyBlue
 @Composable
 fun LatestMusicCard(
     musicList: List<com.neko.music.data.model.Music>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // 预加载字符串资源
     val latestMusicTitle = stringResource(id = R.string.latest_music_title)
@@ -61,8 +62,7 @@ fun LatestMusicCard(
     )
 
     Column(
-        modifier = Modifier
-            .width(160.dp)
+        modifier = modifier
             .scale(scale)
             .clickable(
                 indication = null,
@@ -77,7 +77,8 @@ fun LatestMusicCard(
         // 封面
         Box(
             modifier = Modifier
-                .size(160.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f)
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,
@@ -199,23 +200,16 @@ fun LatestMusicCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 文字底衬
-        Box(
+        // 文字信息
+        Column(
             modifier = Modifier
-                .width(160.dp)
-                .background(
-                    Color(0xFF1A1A2E).copy(alpha = 0.5f),
-                    RoundedCornerShape(10.dp)
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            Column {
-                // 标题
-                Text(
-                    text = latestMusicTitle,
-                    fontSize = 15.sp,
+            // 标题
+            Text(
+                text = latestMusicTitle,
+                fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 1.0f),
                     maxLines = 1,
@@ -249,6 +243,5 @@ fun LatestMusicCard(
                     )
                 )
             }
-        }
     }
 }
