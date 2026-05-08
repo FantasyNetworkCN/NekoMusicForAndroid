@@ -29,8 +29,8 @@ import com.kyant.backdrop.effects.vibrancy
 
 /**
  * [Glass Slider](https://kyant.gitbook.io/backdrop/tutorials/glass-slider) 变体：
- * 透明 `trackBackdrop` 铺满 Tab 区供 `rememberCombinedBackdrop` 采样；**拇指为圆角玻璃 pill**，
- * 宽度对齐单列 Tab、叠在文字**背后**，随选中项平移，视觉上「包住」当前 Tab 文案。
+ * 透明 `trackBackdrop` 铺满 Tab 区供 `rememberCombinedBackdrop` 采样；拇指为 **胶囊形**（圆角半径 =
+ * `min(宽, 高) / 2`，两端半圆而非扁长方条），叠在 Tab 文字背后随选中项平移。
  */
 @Composable
 fun NavigationGlassSlider(
@@ -54,14 +54,16 @@ fun NavigationGlassSlider(
 
     val trackBackdrop = rememberLayerBackdrop()
     val combinedBackdrop = rememberCombinedBackdrop(mainBackdrop, trackBackdrop)
-    val thumbShape = RoundedCornerShape(18.dp)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val segment = maxWidth / safeCount
-        val horizontalInset = 5.dp
+        val horizontalInset = 4.dp
         val thumbW = (segment - horizontalInset * 2).coerceAtLeast(12.dp)
-        val thumbH = (maxHeight - 10.dp).coerceAtLeast(30.dp)
-        val thumbY = (maxHeight - thumbH) / 2
+        val verticalInset = 4.dp
+        val thumbH = (maxHeight - verticalInset * 2).coerceAtLeast(28.dp)
+        val thumbY = verticalInset
+        val capsuleRadius = minOf(thumbW, thumbH) / 2
+        val thumbShape = RoundedCornerShape(capsuleRadius)
         val targetOffsetX = segment * idx + horizontalInset
 
         val thumbOffsetX by animateDpAsState(
@@ -112,10 +114,13 @@ private fun NavigationGlassSliderFallback(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val safeCount = tabCount.coerceAtLeast(1)
         val segment = maxWidth / safeCount
-        val horizontalInset = 5.dp
+        val horizontalInset = 4.dp
         val thumbW = (segment - horizontalInset * 2).coerceAtLeast(12.dp)
-        val thumbH = (maxHeight - 10.dp).coerceAtLeast(30.dp)
-        val thumbY = (maxHeight - thumbH) / 2
+        val verticalInset = 4.dp
+        val thumbH = (maxHeight - verticalInset * 2).coerceAtLeast(28.dp)
+        val thumbY = verticalInset
+        val capsuleRadius = minOf(thumbW, thumbH) / 2
+        val thumbShape = RoundedCornerShape(capsuleRadius)
         val targetOffsetX = segment * selectedIndex + horizontalInset
 
         val thumbOffsetX by animateDpAsState(
@@ -128,7 +133,7 @@ private fun NavigationGlassSliderFallback(
             modifier = Modifier
                 .offset(x = thumbOffsetX, y = thumbY)
                 .size(thumbW, thumbH)
-                .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(18.dp))
+                .background(Color.White.copy(alpha = 0.22f), thumbShape)
         )
     }
 }

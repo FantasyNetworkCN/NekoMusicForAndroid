@@ -97,8 +97,9 @@ fun BottomNavigationBar(
 
     val pageBackdrop = LocalLiquidLayerBackdrop.current
 
+    // 与内层同高，避免内层固定 46dp 而外层 64dp 时在底部留出一条空带
     GlassSurface(
-        modifier = modifier.fillMaxWidth().height(64.dp),
+        modifier = modifier.fillMaxWidth().height(52.dp),
         shape = RoundedCornerShape(28.dp),
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
@@ -107,11 +108,7 @@ fun BottomNavigationBar(
         liquidLensHeight = 16.dp,
         liquidLensAmount = 32.dp
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             NavigationGlassSlider(
                 modifier = Modifier.fillMaxSize(),
                 mainBackdrop = pageBackdrop,
