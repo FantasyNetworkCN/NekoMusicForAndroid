@@ -38,6 +38,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +58,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -100,6 +102,8 @@ fun HomeScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkHome = colorScheme.background.luminance() < 0.5f
     val updateManager = remember { AppUpdateManager(context) }
     val toastMessage = remember { androidx.compose.runtime.mutableStateOf("") }
     val showToast = remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -389,8 +393,13 @@ fun HomeScreen(
                             onSearchClick()
                         },
                     shape = RoundedCornerShape(20.dp),
-                    backgroundAlpha = 0.35f,
-                    borderAlpha = 0.18f
+                    backgroundAlpha = if (isDarkHome) 0.35f else 0.30f,
+                    borderAlpha = if (isDarkHome) 0.18f else 0.20f,
+                    highlightAlpha = if (isDarkHome) 0.08f else 0.10f,
+                    borderColor = if (isDarkHome) Color.White else colorScheme.outline,
+                    liquidBlur = 8.dp,
+                    liquidLensHeight = 16.dp,
+                    liquidLensAmount = 26.dp
                 ) {
                     Row(
                         modifier = Modifier
@@ -402,34 +411,62 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = stringResource(id = R.string.search),
-                            tint = Color.White.copy(alpha = 0.7f),
+                            tint = if (isDarkHome) {
+                                Color.White.copy(alpha = 0.72f)
+                            } else {
+                                colorScheme.onSurface.copy(alpha = 0.55f)
+                            },
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = stringResource(id = R.string.search_music_artist_album),
                             fontSize = 15.sp,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = if (isDarkHome) {
+                                Color.White.copy(alpha = 0.62f)
+                            } else {
+                                colorScheme.onSurfaceVariant
+                            },
                             fontWeight = FontWeight.Normal
                         )
                     }
                 }
                 
-                // 推荐歌单
+                // 推荐歌单（热门 / 最新 / 推荐歌单网格）
                 GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(20.dp),
-                    backgroundAlpha = 0.32f,
-                    borderAlpha = 0.15f,
-                    highlightAlpha = 0.08f
+                    backgroundAlpha = if (isDarkHome) 0.32f else 0.28f,
+                    borderAlpha = if (isDarkHome) 0.15f else 0.20f,
+                    highlightAlpha = if (isDarkHome) 0.08f else 0.11f,
+                    borderColor = if (isDarkHome) Color.White else colorScheme.outline,
+                    liquidBlur = 10.dp,
+                    liquidLensHeight = 18.dp,
+                    liquidLensAmount = 28.dp
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 14.dp)
                     ) {
+                        val sectionTitleColor =
+                            if (isDarkHome) Color.White.copy(alpha = 0.98f) else colorScheme.onSurface
+                        val sectionTitleShadow =
+                            if (isDarkHome) {
+                                Shadow(
+                                    color = Color.Black.copy(alpha = 0.5f),
+                                    offset = Offset(0f, 1f),
+                                    blurRadius = 6f
+                                )
+                            } else {
+                                Shadow(
+                                    color = Color.Black.copy(alpha = 0.12f),
+                                    offset = Offset(0f, 1f),
+                                    blurRadius = 3f
+                                )
+                            }
                         // 标题
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -442,7 +479,7 @@ fun HomeScreen(
                                         .width(4.dp)
                                         .height(20.dp)
                                         .background(
-                                            Color.White.copy(alpha = 0.7f),
+                                            colorScheme.primary,
                                             RoundedCornerShape(2.dp)
                                         )
                                 )
@@ -451,14 +488,10 @@ fun HomeScreen(
                                     text = stringResource(id = R.string.recommended_playlists),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.98f),
+                                    color = sectionTitleColor,
                                     letterSpacing = 0.3.sp,
                                     style = androidx.compose.ui.text.TextStyle(
-                                        shadow = Shadow(
-                                            color = Color.Black.copy(alpha = 0.5f),
-                                            offset = Offset(0f, 1f),
-                                            blurRadius = 6f
-                                        )
+                                        shadow = sectionTitleShadow
                                     )
                                 )
                             }
@@ -466,7 +499,7 @@ fun HomeScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 内容区域 — 和标题同色背景
+                        // 内容区域
                         Column(modifier = Modifier.fillMaxWidth()) {
                             when {
                                 playlistsLoading -> {
@@ -478,7 +511,11 @@ fun HomeScreen(
                                     ) {
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(36.dp),
-                                            color = Color.White.copy(alpha = 0.7f),
+                                            color = if (isDarkHome) {
+                                                Color.White.copy(alpha = 0.75f)
+                                            } else {
+                                                colorScheme.primary
+                                            },
                                             strokeWidth = 2.5.dp
                                         )
                                     }
@@ -493,7 +530,11 @@ fun HomeScreen(
                                         Text(
                                             text = stringResource(id = R.string.network_error_msg),
                                             fontSize = 16.sp,
-                                            color = Color.White.copy(alpha = 0.85f),
+                                            color = if (isDarkHome) {
+                                                Color.White.copy(alpha = 0.88f)
+                                            } else {
+                                                colorScheme.onSurface
+                                            },
                                             fontWeight = FontWeight.Medium
                                         )
                                     }
@@ -1351,6 +1392,23 @@ fun PlaylistCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val isDarkCard = scheme.background.luminance() < 0.5f
+    val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
+    val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
+    val cardTitleShadow =
+        if (isDarkCard) {
+            Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
+        } else {
+            Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
+        }
+    val cardSubtitleShadow =
+        if (isDarkCard) {
+            Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
+        } else {
+            Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
+        }
+
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
@@ -1491,40 +1549,28 @@ fun PlaylistCard(
             Text(
                 text = playlist.name,
                 fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 1.0f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    letterSpacing = 0.2.sp,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f
-                        )
-                    )
-                )
+                fontWeight = FontWeight.Bold,
+                color = cardTitleColor,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                letterSpacing = 0.2.sp,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardTitleShadow)
+            )
 
-                Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
-                // 歌单描述
-                Text(
-                    text = playlist.description ?: stringResource(id = R.string.no_description),
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Medium,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 3f
-                        )
-                    )
-                )
-            }
+            // 歌单描述
+            Text(
+                text = playlist.description ?: stringResource(id = R.string.no_description),
+                fontSize = 12.sp,
+                color = cardSubtitleColor,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardSubtitleShadow)
+            )
         }
+    }
 }
 
 @Composable
@@ -1537,7 +1583,18 @@ fun RankingMusicCard(
     val hotMusicText = stringResource(id = R.string.hot_music)
     val hotMusicDescText = stringResource(id = R.string.hot_music_desc)
     val songsCountShortText = stringResource(id = R.string.songs_count_short, musicList.size)
-    
+
+    val scheme = MaterialTheme.colorScheme
+    val isDarkCard = scheme.background.luminance() < 0.5f
+    val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
+    val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
+    val cardTitleShadow =
+        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
+        else Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
+    val cardSubtitleShadow =
+        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
+        else Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
+
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
@@ -1692,42 +1749,28 @@ fun RankingMusicCard(
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            // 标题
             Text(
                 text = hotMusicText,
                 fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 1.0f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    letterSpacing = 0.2.sp,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f
-                        )
-                    )
-                )
+                fontWeight = FontWeight.Bold,
+                color = cardTitleColor,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                letterSpacing = 0.2.sp,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardTitleShadow)
+            )
 
-                Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
-                // 描述
-                Text(
-                    text = hotMusicDescText,
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Medium,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 3f
-                        )
-                    )
-                )
-            }
+            Text(
+                text = hotMusicDescText,
+                fontSize = 12.sp,
+                color = cardSubtitleColor,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardSubtitleShadow)
+            )
         }
+    }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -51,7 +53,18 @@ fun LatestMusicCard(
     val latestMusicTitle = stringResource(id = R.string.latest_music_title)
     val clickLatestMusicInfo = stringResource(id = R.string.click_latest_music_info, musicList.size)
     val songsCountFormat = stringResource(id = R.string.songs_count_format, musicList.size)
-    
+
+    val scheme = MaterialTheme.colorScheme
+    val isDarkCard = scheme.background.luminance() < 0.5f
+    val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
+    val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
+    val cardTitleShadow =
+        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
+        else Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
+    val cardSubtitleShadow =
+        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
+        else Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
+
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
@@ -206,42 +219,28 @@ fun LatestMusicCard(
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            // 标题
             Text(
                 text = latestMusicTitle,
                 fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 1.0f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    letterSpacing = 0.2.sp,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f
-                        )
-                    )
-                )
+                fontWeight = FontWeight.Bold,
+                color = cardTitleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                letterSpacing = 0.2.sp,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardTitleShadow)
+            )
 
-                Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
-                // 描述
-                Text(
-                    text = stringResource(id = R.string.latest_songs),
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Medium,
-                    style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 3f
-                        )
-                    )
-                )
-            }
+            Text(
+                text = stringResource(id = R.string.latest_songs),
+                fontSize = 12.sp,
+                color = cardSubtitleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+                style = androidx.compose.ui.text.TextStyle(shadow = cardSubtitleShadow)
+            )
+        }
     }
 }
