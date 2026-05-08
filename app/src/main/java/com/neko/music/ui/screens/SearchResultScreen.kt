@@ -191,7 +191,7 @@ fun SearchResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
-                .padding(top = topInsetDp)
+                .padding(top = topInsetDp + 20.dp)
         ) {
             when {
                 isLoading -> {

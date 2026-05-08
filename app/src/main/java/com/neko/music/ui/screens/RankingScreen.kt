@@ -129,7 +129,7 @@ fun RankingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     LoadingState()
                 }
@@ -138,7 +138,7 @@ fun RankingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     ErrorState(onRetry = { loadData() })
                 }
@@ -147,7 +147,7 @@ fun RankingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     EmptyState()
                 }
@@ -184,7 +184,7 @@ fun RankingScreen(
                         contentPadding = PaddingValues(
                             start = 16.dp,
                             end = 16.dp,
-                            top = topBarInsetDp + 28.dp,
+                            top = topBarInsetDp + 48.dp,
                             bottom = 160.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -225,7 +225,7 @@ fun RankingScreen(
                         state = pullRefreshState,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = topBarInsetDp + 16.dp),
+                            .padding(top = topBarInsetDp + 36.dp),
                         backgroundColor = scheme.surface,
                         contentColor = scheme.primary
                     )
