@@ -56,6 +56,7 @@ androidx-compose-ui-geometry = { group = "androidx.compose.ui", name = "ui-geome
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 # ✅ 核心修复：定义 ksp 插件，让 alias(libs.plugins.ksp) 有效
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -129,6 +129,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.geometry)
 
+    // 液态玻璃（源码：仓库内 AndroidLiquidGlass/backdrop，由 :backdrop-port 模块接入）
+    implementation(project(":backdrop-port"))
+
     // Network (Ktor)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

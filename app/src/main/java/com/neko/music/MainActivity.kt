@@ -30,15 +30,18 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
@@ -63,10 +66,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.BottomNavigationBar
 import com.neko.music.ui.components.BottomNavItem
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.MiniPlayer
 import com.neko.music.ui.components.PlaylistBottomSheet
 import com.neko.music.ui.screens.HomeScreen
@@ -270,6 +276,12 @@ class MainActivity : ComponentActivity() {
         playerManager.checkFavoriteStatus()
     }
 
+}
+
+/** [com.kyant.backdrop.backdrops.rememberLayerBackdrop] 的 onDraw：先铺底色再 `drawContent()`，与官方 Glass Bottom Bar 教程一致。 */
+private fun backdropLayerFillOnDraw(fill: Color): ContentDrawScope.() -> Unit = {
+    drawRect(fill)
+    drawContent()
 }
 
 @Composable
@@ -484,8 +496,20 @@ fun MainScreen() {
         }
     }
 
+    // 与官方教程一致：先铺主题底色再录内容，避免底栏玻璃出现「透明洞」
+    // https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar
+    val backdropFill = MaterialTheme.colorScheme.background
+    val liquidBackdrop = rememberLayerBackdrop(
+        onDraw = remember(backdropFill) { backdropLayerFillOnDraw(backdropFill) }
+    )
     Box(modifier = Modifier.fillMaxSize()) {
-        // 主内容区域 - 铺满全屏
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(liquidBackdrop)
+        ) {
+        // NavHost 内 Local=null：避免在已 layerBackdrop 的子树里再 drawBackdrop 同一 LayerBackdrop（见 FAQ / Glass Bottom Sheet）
         NavHost(
             navController = navController,
             startDestination = BottomNavItem.Home.route,
@@ -1069,10 +1093,13 @@ fun MainScreen() {
                 )
             }
         }
+        }
+        }
 
         // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部
 
-                if (!isPlayerScreen && showBottomControls) {
+        if (!isPlayerScreen && showBottomControls) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
 
                     // MiniPlayer - 悬浮在底部
 
@@ -1206,7 +1233,8 @@ fun MainScreen() {
                         )
                     }
 
-                }
+            }
+        }
 
         // 播放列表弹窗（在所有控件之上，覆盖显示）
                 Box(modifier = Modifier.zIndex(1f)) {
