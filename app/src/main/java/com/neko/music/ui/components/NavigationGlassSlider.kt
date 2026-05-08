@@ -12,10 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp as lerpDp
+import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
@@ -24,6 +27,9 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 
 internal fun navTabSegmentWidth(maxWidth: Dp, tabCount: Int): Dp =
     maxWidth / tabCount.coerceAtLeast(1)
@@ -68,12 +74,15 @@ internal fun navTabIndexForThumbLeft(thumbLeft: Dp, maxWidth: Dp, tabCount: Int,
 /**
  * [Glass Slider](https://kyant.gitbook.io/backdrop/tutorials/glass-slider) 变体：
  * 透明 `trackBackdrop` 铺满 Tab 区；拇指为 **胶囊形**，**`thumbLeftDp` 由父级驱动**（Animatable + 拖动 snap），保证跟手。
+ * [thumbSquishProgress] 参考 AndroidLiquidGlass `LiquidBottomTabs`：按压/拖动时略压扁拇指并带高光。
  */
 @Composable
 fun NavigationGlassSlider(
     mainBackdrop: Backdrop?,
     tabCount: Int,
     thumbLeftDp: Dp,
+    /** 0..1，与 LiquidBottomTabs 中 pressProgress 类似，驱动 lens / layerBlock / 高光 */
+    thumbSquishProgress: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -83,6 +92,7 @@ fun NavigationGlassSlider(
         NavigationGlassSliderFallback(
             tabCount = safeCount,
             thumbLeftDp = thumbLeftDp,
+            thumbSquishProgress = thumbSquishProgress,
             modifier = modifier
         )
         return
@@ -100,6 +110,7 @@ fun NavigationGlassSlider(
         val capsuleRadius = minOf(thumbW, thumbH) / 2
         val thumbShape = RoundedCornerShape(capsuleRadius)
         val thumbX = navTabThumbClampLeft(thumbLeftDp, maxWidth, safeCount)
+        val p = thumbSquishProgress.coerceIn(0f, 1f)
 
         Box(
             modifier = Modifier
@@ -115,17 +126,43 @@ fun NavigationGlassSlider(
                     shape = { thumbShape },
                     effects = {
                         vibrancy()
-                        blur(with(density) { 4.dp.toPx() })
+                        blur(with(density) { lerp(4f, 6f, p).dp.toPx() })
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             lens(
-                                refractionHeight = with(density) { 12.dp.toPx() },
-                                refractionAmount = with(density) { 16.dp.toPx() },
+                                refractionHeight = with(density) { lerp(10f, 16f, p).dp.toPx() },
+                                refractionAmount = with(density) { lerp(12f, 20f, p).dp.toPx() },
                                 chromaticAberration = true
                             )
                         }
                     },
+                    highlight = {
+                        if (p > 0.02f) Highlight.Default.copy(alpha = p * 0.75f) else null
+                    },
+                    shadow = {
+                        if (p > 0.02f) Shadow.Default.copy(alpha = p * 0.55f) else null
+                    },
+                    innerShadow = {
+                        if (p > 0.02f) {
+                            InnerShadow(
+                                radius = lerpDp(2.dp, 8.dp, p),
+                                alpha = p
+                            )
+                        } else {
+                            null
+                        }
+                    },
+                    layerBlock = if (p > 0.02f) {
+                        {
+                            val sx = lerp(1f, 1.1f, p)
+                            val sy = lerp(1f, 0.93f, p * 0.5f)
+                            scaleX = sx
+                            scaleY = sy
+                        }
+                    } else {
+                        null
+                    },
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = 0.2f))
+                        drawRect(Color.White.copy(alpha = lerp(0.2f, 0.12f, p)))
                     }
                 )
                 .size(thumbW, thumbH)
@@ -137,6 +174,7 @@ fun NavigationGlassSlider(
 private fun NavigationGlassSliderFallback(
     tabCount: Int,
     thumbLeftDp: Dp,
+    thumbSquishProgress: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -148,12 +186,19 @@ private fun NavigationGlassSliderFallback(
         val capsuleRadius = minOf(thumbW, thumbH) / 2
         val thumbShape = RoundedCornerShape(capsuleRadius)
         val thumbX = navTabThumbClampLeft(thumbLeftDp, maxWidth, safeCount)
+        val p = thumbSquishProgress.coerceIn(0f, 1f)
+        val sx = lerp(1f, 1.08f, p)
+        val sy = lerp(1f, 0.95f, p * 0.45f)
 
         Box(
             modifier = Modifier
                 .offset(x = thumbX, y = thumbY)
+                .graphicsLayer {
+                    scaleX = sx
+                    scaleY = sy
+                }
                 .size(thumbW, thumbH)
-                .background(Color.White.copy(alpha = 0.22f), thumbShape)
+                .background(Color.White.copy(alpha = lerp(0.22f, 0.16f, p)), thumbShape)
         )
     }
 }
