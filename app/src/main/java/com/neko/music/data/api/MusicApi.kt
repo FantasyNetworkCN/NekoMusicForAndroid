@@ -3,10 +3,8 @@ package com.neko.music.data.api
 import android.content.Context
 import android.util.Log
 import com.neko.music.data.cache.MusicCacheManager
-import com.neko.music.data.model.ErrorResponse
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchRequest
-import com.neko.music.data.model.SearchResponse
 import com.neko.music.util.UrlConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -21,13 +19,11 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType.Application.Json
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
 class MusicApi(private val context: Context) {
@@ -113,7 +109,7 @@ class MusicApi(private val context: Context) {
             val cachedLyrics = cacheManager.getCachedLyricsContent(music.id)
             if (cachedLyrics != null) {
                 Log.d("MusicApi", "使用缓存歌词: ${music.id}")
-                return Result.success(cachedLyrics)
+                return Result.success(sanitizeLyricsJsonEscapes(cachedLyrics))
             }
         }
 
@@ -128,7 +124,7 @@ class MusicApi(private val context: Context) {
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-            val data = jsonResponse["data"]?.toString()?.removeSurrounding("\"")?.replace("\\n", "\n") ?: ""
+            val data = extractLyricsStringFromJson(jsonResponse)
 
             Log.d("MusicApi", "Parsed lyrics: $data")
 
@@ -240,4 +236,32 @@ class MusicApi(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    /**
+     * 从歌词接口 JSON 的 `data` 字段取出字符串。
+     * 必须使用 [JsonPrimitive.content] 解码，不能对 [JsonElement.toString] 再 `removeSurrounding("\"")`，
+     * 否则 JSON 合法转义（如 `\/`、`\"`、`\n`）会残留在 LRC 正文中（下载到本地的 .lrc 亦同）。
+     */
+    private fun extractLyricsStringFromJson(jsonResponse: JsonObject): String {
+        return when (val el = jsonResponse["data"]) {
+            null, JsonNull -> ""
+            is JsonPrimitive -> el.content
+            else -> try {
+                json.decodeFromJsonElement<String>(el)
+            } catch (e: Exception) {
+                Log.w("MusicApi", "Lyrics data is not a JSON string, using fallback", e)
+                el.toString().removeSurrounding("\"")
+                    .replace("\\n", "\n")
+                    .replace("\\r", "\r")
+                    .replace("\\t", "\t")
+                    .replace("\\/", "/")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\")
+            }
+        }
+    }
+
+    /** 旧缓存中可能仍含 JSON 字面量 `\/`，读缓存时顺带规范化。 */
+    private fun sanitizeLyricsJsonEscapes(text: String): String =
+        text.replace("\\/", "/")
 }
