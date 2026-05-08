@@ -8,27 +8,27 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -39,15 +39,17 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
-import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.list.LatestLiquidBarState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material.ExperimentalMaterialApi::class)
+@OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun LatestScreen(
+    liquidBarState: LatestLiquidBarState,
+    topBarInsetDp: Dp,
     onBackClick: () -> Unit = {},
     onNavigateToPlayer: (Music) -> Unit = {}
 ) {
@@ -56,7 +58,8 @@ fun LatestScreen(
     val musicApi = remember { MusicApi(context) }
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
     val listState = rememberLazyListState()
-    val isDarkMode = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
     
     var musicList by remember { mutableStateOf<List<Music>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -110,163 +113,123 @@ fun LatestScreen(
     LaunchedEffect(Unit) {
         loadData()
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.latest_music),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.95f)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = Color.White.copy(alpha = 0.9f)
-                        )
-                    }
-                },
-                actions = {
-                    if (musicList.isNotEmpty()) {
-                        TextButton(
-                            onClick = {
-                                Log.d("LatestScreen", "播放全部: ${musicList.size}首")
-                                scope.launch {
-                                    try {
-                                        // 播放第一首，其他歌曲会在播放时自动添加到播放列表
-                                        val firstMusic = musicList[0]
-                                        val url = musicApi.getMusicFileUrl(firstMusic)
-                                        val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                        playerManager.playMusic(
-                                            url,
-                                            firstMusic.id,
-                                            firstMusic.title,
-                                            firstMusic.artist,
-                                            firstMusic.coverFilePath ?: "",
-                                            fullCoverUrl
+
+    SideEffect {
+        liquidBarState.musicList = musicList
+        liquidBarState.loading = loading
+        liquidBarState.loadError = loadError
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(scheme.background)
+    ) {
+        when {
+            loading && musicList.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topBarInsetDp)
+                ) {
+                    LatestLoadingState()
+                }
+            }
+            loadError && musicList.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topBarInsetDp)
+                ) {
+                    LatestErrorState(onRetry = { loadData() })
+                }
+            }
+            musicList.isEmpty() -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topBarInsetDp)
+                ) {
+                    LatestEmptyState()
+                }
+            }
+            else -> {
+                val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = if (isDark) {
+                                        listOf(
+                                            scheme.background,
+                                            scheme.surface.copy(alpha = 0.5f),
+                                            scheme.surface.copy(alpha = 0.35f)
                                         )
-                                    } catch (e: Exception) {
-                                        Log.e("LatestScreen", "播放全部失败", e)
+                                    } else {
+                                        listOf(
+                                            scheme.background,
+                                            scheme.surfaceVariant.copy(alpha = 0.35f),
+                                            scheme.surface.copy(alpha = 0.55f)
+                                        )
+                                    }
+                                )
+                            ),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = topBarInsetDp + 28.dp,
+                            bottom = 160.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        itemsIndexed(
+                            items = musicList,
+                            key = { _, music -> music.id }
+                        ) { index, music ->
+                            LatestItem(
+                                music = music,
+                                index = index,
+                                onClick = {
+                                    Log.d("LatestScreen", "点击歌曲: ${music.title}")
+                                    scope.launch {
+                                        try {
+                                            val url = musicApi.getMusicFileUrl(music)
+                                            val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
+                                            playerManager.playMusic(
+                                                url,
+                                                music.id,
+                                                music.title,
+                                                music.artist,
+                                                music.coverFilePath ?: "",
+                                                fullCoverUrl
+                                            )
+                                            onNavigateToPlayer(music)
+                                        } catch (e: Exception) {
+                                            Log.e("LatestScreen", "播放失败", e)
+                                        }
                                     }
                                 }
-                            }
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.play_all),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color.White.copy(alpha = 0.9f)
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (isDarkMode) DeepBlue else Color.Transparent
-                )
-            )
-        },
-        containerColor = if (isDarkMode) DeepBlue else Color.Transparent
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                loading && musicList.isEmpty() -> {
-                    LatestLoadingState()
-                }
-                loadError && musicList.isEmpty() -> {
-                    LatestErrorState(
-                        onRetry = { loadData() }
-                    )
-                }
-                musicList.isEmpty() -> {
-                    LatestEmptyState()
-                }
-                else -> {
-                    val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
-                    
-                    Box(
+
+                    PullRefreshIndicator(
+                        refreshing = refreshing,
+                        state = pullRefreshState,
                         modifier = Modifier
-                            .fillMaxSize()
-                            .pullRefresh(pullRefreshState)
-                    ) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = if (isDarkMode) {
-                                            listOf(
-                                                DeepBlue.copy(alpha = 0.3f),
-                                                DeepBlue.copy(alpha = 0.2f),
-                                                DeepBlue.copy(alpha = 0.1f)
-                                            )
-                                        } else {
-                                            listOf(
-                                                SakuraPink.copy(alpha = 0.12f),
-                                                SkyBlue.copy(alpha = 0.08f),
-                                                Lilac.copy(alpha = 0.05f)
-                                            )
-                                        }
-                                    )
-                                ),
-                            contentPadding = PaddingValues(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 12.dp,
-                                bottom = 160.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            itemsIndexed(
-                                items = musicList,
-                                key = { _, music -> music.id }
-                            ) { index, music ->
-                                LatestItem(
-                                    music = music,
-                                    index = index,
-                                    onClick = {
-                                        Log.d("LatestScreen", "点击歌曲: ${music.title}")
-                                        scope.launch {
-                                            try {
-                                                // 播放当前点击的歌曲
-                                                val url = musicApi.getMusicFileUrl(music)
-                                                val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
-                                                playerManager.playMusic(
-                                                    url,
-                                                    music.id,
-                                                    music.title,
-                                                    music.artist,
-                                                    music.coverFilePath ?: "",
-                                                    fullCoverUrl
-                                                )
-                                                // 跳转到播放页面，传递音乐信息
-                                                onNavigateToPlayer(music)
-                                            } catch (e: Exception) {
-                                                Log.e("LatestScreen", "播放失败", e)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                        
-                        PullRefreshIndicator(
-                            refreshing = refreshing,
-                            state = pullRefreshState,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            backgroundColor = if (isDarkMode) Color(0xFF2A2A3E) else Color.White,
-                            contentColor = Color.White.copy(alpha = 0.8f)
-                        )
-                    }
+                            .align(Alignment.TopCenter)
+                            .padding(top = topBarInsetDp + 16.dp),
+                        backgroundColor = scheme.surface,
+                        contentColor = scheme.primary
+                    )
                 }
             }
         }
@@ -275,23 +238,24 @@ fun LatestScreen(
 
 @Composable
 fun LatestLoadingState() {
-    val isDarkMode = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = if (isDarkMode) {
+                    colors = if (isDark) {
                         listOf(
-                            DeepBlue.copy(alpha = 0.3f),
-                            DeepBlue.copy(alpha = 0.2f),
-                            DeepBlue.copy(alpha = 0.1f)
+                            scheme.background,
+                            scheme.surface.copy(alpha = 0.5f),
+                            scheme.surface.copy(alpha = 0.35f)
                         )
                     } else {
                         listOf(
-                            SakuraPink.copy(alpha = 0.12f),
-                            SkyBlue.copy(alpha = 0.08f),
-                            Lilac.copy(alpha = 0.05f)
+                            scheme.background,
+                            scheme.surfaceVariant.copy(alpha = 0.35f),
+                            scheme.surface.copy(alpha = 0.55f)
                         )
                     }
                 )
@@ -300,14 +264,14 @@ fun LatestLoadingState() {
         verticalArrangement = Arrangement.Center
     ) {
         CircularProgressIndicator(
-            color = Color.White.copy(alpha = 0.8f),
+            color = scheme.primary,
             strokeWidth = 3.dp
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(id = R.string.loading_latest_music),
             fontSize = 14.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.7f) else Color.Gray
+            color = scheme.onSurfaceVariant
         )
     }
 }
@@ -316,23 +280,24 @@ fun LatestLoadingState() {
 fun LatestErrorState(
     onRetry: () -> Unit
 ) {
-    val isDarkMode = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = if (isDarkMode) {
+                    colors = if (isDark) {
                         listOf(
-                            DeepBlue.copy(alpha = 0.3f),
-                            DeepBlue.copy(alpha = 0.2f),
-                            DeepBlue.copy(alpha = 0.1f)
+                            scheme.background,
+                            scheme.surface.copy(alpha = 0.5f),
+                            scheme.surface.copy(alpha = 0.35f)
                         )
                     } else {
                         listOf(
-                            SakuraPink.copy(alpha = 0.12f),
-                            SkyBlue.copy(alpha = 0.08f),
-                            Lilac.copy(alpha = 0.05f)
+                            scheme.background,
+                            scheme.surfaceVariant.copy(alpha = 0.35f),
+                            scheme.surface.copy(alpha = 0.55f)
                         )
                     }
                 )
@@ -344,13 +309,13 @@ fun LatestErrorState(
             text = stringResource(id = R.string.load_failed),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = Color.White.copy(alpha = 0.95f)
+            color = scheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(id = R.string.network_error),
             fontSize = 14.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else Color.Gray
+            color = scheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(20.dp))
         GlassSurface(
@@ -358,8 +323,12 @@ fun LatestErrorState(
                 .clickable { onRetry() }
                 .padding(horizontal = 24.dp, vertical = 10.dp),
             shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = if (isDarkMode) 0.28f else 0.08f,
-            borderAlpha = if (isDarkMode) 0.14f else 0.08f
+            backgroundAlpha = if (isDark) 0.28f else 0.12f,
+            borderAlpha = if (isDark) 0.18f else 0.14f,
+            liquidBlur = 8.dp,
+            liquidLensHeight = 18.dp,
+            liquidLensAmount = 26.dp,
+            borderColor = if (isDark) Color.White else scheme.outline
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -368,7 +337,7 @@ fun LatestErrorState(
                 Text(
                     text = stringResource(id = R.string.retry),
                     fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.95f),
+                    color = scheme.primary,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -378,23 +347,24 @@ fun LatestErrorState(
 
 @Composable
 fun LatestEmptyState() {
-    val isDarkMode = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = if (isDarkMode) {
+                    colors = if (isDark) {
                         listOf(
-                            DeepBlue.copy(alpha = 0.3f),
-                            DeepBlue.copy(alpha = 0.2f),
-                            DeepBlue.copy(alpha = 0.1f)
+                            scheme.background,
+                            scheme.surface.copy(alpha = 0.5f),
+                            scheme.surface.copy(alpha = 0.35f)
                         )
                     } else {
                         listOf(
-                            SakuraPink.copy(alpha = 0.12f),
-                            SkyBlue.copy(alpha = 0.08f),
-                            Lilac.copy(alpha = 0.05f)
+                            scheme.background,
+                            scheme.surfaceVariant.copy(alpha = 0.35f),
+                            scheme.surface.copy(alpha = 0.55f)
                         )
                     }
                 )
@@ -405,7 +375,7 @@ fun LatestEmptyState() {
         Text(
             text = stringResource(id = R.string.no_latest_music),
             fontSize = 16.sp,
-            color = if (isDarkMode) Color.White.copy(alpha = 0.6f) else Color.Gray
+            color = scheme.onSurfaceVariant
         )
     }
 }
@@ -418,7 +388,8 @@ fun LatestItem(
 ) {
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
-    val isDarkMode = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
     var coverUrl by remember { mutableStateOf<String?>(null) }
     var isLoaded by remember { mutableStateOf(false) }
     
@@ -441,15 +412,23 @@ fun LatestItem(
         }
     }
 
+    val titleColor = scheme.onSurface
+    val subtitleColor = scheme.onSurfaceVariant
+    val metaColor = scheme.onSurfaceVariant.copy(alpha = 0.85f)
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDarkMode) 0.22f else 0.08f,
-        borderAlpha = if (isDarkMode) 0.14f else 0.08f,
-        highlightAlpha = if (isDarkMode) 0.08f else 0.04f
+        backgroundAlpha = if (isDark) 0.22f else 0.12f,
+        borderAlpha = if (isDark) 0.14f else 0.12f,
+        highlightAlpha = if (isDark) 0.08f else 0.06f,
+        liquidBlur = 6.dp,
+        liquidLensHeight = 14.dp,
+        liquidLensAmount = 22.dp,
+        borderColor = if (isDark) Color.White else scheme.outline
     ) {
         Row(
             modifier = Modifier
@@ -477,8 +456,8 @@ fun LatestItem(
                             .background(
                                 Brush.radialGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = 0.15f),
-                                        Color.White.copy(alpha = 0.03f)
+                                        scheme.surfaceVariant.copy(alpha = 0.5f),
+                                        scheme.surface.copy(alpha = 0.15f)
                                     )
                                 )
                             ),
@@ -507,7 +486,7 @@ fun LatestItem(
                             text = music.title,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.95f),
+                            color = titleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -515,7 +494,7 @@ fun LatestItem(
                         Text(
                             text = music.artist,
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = subtitleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -525,7 +504,7 @@ fun LatestItem(
                         Text(
                             text = uploadTime,
                             fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.5f),
+                            color = metaColor,
                             fontWeight = FontWeight.Medium
                         )
                     }

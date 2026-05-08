@@ -79,6 +79,10 @@ import com.neko.music.ui.components.MiniPlayer
 import com.neko.music.ui.components.PlaylistBottomSheet
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
+import com.neko.music.ui.list.LatestLiquidBarState
+import com.neko.music.ui.list.LatestLiquidTopBarOverlay
+import com.neko.music.ui.list.RankingLiquidBarState
+import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.ui.screens.LoginScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
@@ -512,6 +516,16 @@ fun MainScreen() {
     val heroTopInsetDp = remember(homeHeroInsetPx, density) {
         if (homeHeroInsetPx > 0) with(density) { homeHeroInsetPx.toDp() } else 380.dp
     }
+    val rankingLiquidBarState = remember { RankingLiquidBarState() }
+    var rankingBarInsetPx by remember { mutableIntStateOf(0) }
+    val rankingTopBarInsetDp = remember(rankingBarInsetPx, density) {
+        if (rankingBarInsetPx > 0) with(density) { rankingBarInsetPx.toDp() } else 88.dp
+    }
+    val latestLiquidBarState = remember { LatestLiquidBarState() }
+    var latestBarInsetPx by remember { mutableIntStateOf(0) }
+    val latestTopBarInsetDp = remember(latestBarInsetPx, density) {
+        if (latestBarInsetPx > 0) with(density) { latestBarInsetPx.toDp() } else 88.dp
+    }
     // 与 Glass Bottom Bar 一致：仅 MainNavHost 挂 layerBackdrop；底栏/迷你播放器在层外 drawBackdrop。
     // 切勿在 layerBackdrop(同一 backdrop) 的子树内再对该 backdrop drawBackdrop（会 SIGSEGV）。
     Box(modifier = Modifier.fillMaxSize()) {
@@ -703,8 +717,9 @@ fun MainScreen() {
                 )
             }
             composable("ranking") {
-                val scope = androidx.compose.runtime.rememberCoroutineScope()
                 RankingScreen(
+                    liquidBarState = rankingLiquidBarState,
+                    topBarInsetDp = rankingTopBarInsetDp,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -717,6 +732,8 @@ fun MainScreen() {
             }
             composable("latest") {
                 LatestScreen(
+                    liquidBarState = latestLiquidBarState,
+                    topBarInsetDp = latestTopBarInsetDp,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -1107,8 +1124,9 @@ fun MainScreen() {
         }
         }
 
+        // 播放列表全屏层必须高于液态顶栏（原 zIndex 1 < 2 会导致搜索/推荐盖在播放列表上）
         val isMainHome = currentRoute == BottomNavItem.Home.route
-        if (isMainHome) {
+        if (isMainHome && !showPlaylist) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 HomeLiquidHeroOverlay(
                     state = homeLiquidHeroState,
@@ -1134,6 +1152,36 @@ fun MainScreen() {
                         navController.navigate("latest")
                     },
                     onHeroHeightChanged = { h -> homeHeroInsetPx = h },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                )
+            }
+        }
+
+        val isRankingRoute = currentRoute == "ranking"
+        if (isRankingRoute && !showPlaylist) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+                RankingLiquidTopBarOverlay(
+                    state = rankingLiquidBarState,
+                    onBackClick = { navController.popBackStack() },
+                    onBarHeightChanged = { h -> rankingBarInsetPx = h },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                )
+            }
+        }
+
+        val isLatestRoute = currentRoute == "latest"
+        if (isLatestRoute && !showPlaylist) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+                LatestLiquidTopBarOverlay(
+                    state = latestLiquidBarState,
+                    onBackClick = { navController.popBackStack() },
+                    onBarHeightChanged = { h -> latestBarInsetPx = h },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .fillMaxWidth()
@@ -1282,8 +1330,8 @@ fun MainScreen() {
             }
         }
 
-        // 播放列表弹窗（在所有控件之上，覆盖显示）；提供与底栏相同的 LayerBackdrop 才能 drawBackdrop 液态采样
-                Box(modifier = Modifier.zIndex(1f)) {
+        // 播放列表：须高于首页液态浮层 (z=2)、底栏等，否则搜索/推荐会叠在列表之上
+                Box(modifier = Modifier.zIndex(20f)) {
                     CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                     PlaylistScreen(
                         isVisible = showPlaylist,
