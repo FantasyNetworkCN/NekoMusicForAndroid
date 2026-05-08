@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,8 @@ import com.kyant.backdrop.effects.vibrancy
  * [LocalLiquidLayerBackdrop] 仅应在 **`layerBackdrop` 子树之外** 提供（例如底栏 / 迷你播放器），与
  * [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 一致。
  * 若在已应用 `layerBackdrop(同一 LayerBackdrop)` 的区域内（如 `NavHost` 内）再 `drawBackdrop`，会触发 RenderThread SIGSEGV。
+ *
+ * 液态叠色随 [MaterialTheme] 深浅色：暗色为深色霜化底 + 弱顶光，浅色为白霜化（与系统玻璃语义一致）。
  */
 @Composable
 fun GlassSurface(
@@ -49,6 +53,7 @@ fun GlassSurface(
     val backdrop = LocalLiquidLayerBackdrop.current
     val density = LocalDensity.current
     val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (useLiquid) {
         val blurPx = with(density) { liquidBlur.toPx() }
@@ -56,6 +61,8 @@ fun GlassSurface(
         val lensAmt = with(density) { liquidLensAmount.toPx() }
         val frostTop = (highlightAlpha * 2.5f).coerceIn(0.08f, 0.32f)
         val frostBase = (backgroundAlpha * 0.45f).coerceIn(0.08f, 0.2f)
+        val darkFrostBase = (backgroundAlpha * 0.55f).coerceIn(0.14f, 0.36f)
+        val darkFrostTop = (highlightAlpha * 2.2f).coerceIn(0.08f, 0.22f)
         Box(
             modifier = modifier
                 .clip(shape)
@@ -71,15 +78,27 @@ fun GlassSurface(
                     },
                     innerShadow = null,
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = frostBase))
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = frostTop),
-                                    Color.White.copy(alpha = 0.04f)
+                        if (isDarkTheme) {
+                            drawRect(Color.Black.copy(alpha = darkFrostBase))
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = darkFrostTop * 0.42f),
+                                        Color.Transparent
+                                    )
                                 )
                             )
-                        )
+                        } else {
+                            drawRect(Color.White.copy(alpha = frostBase))
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = frostTop),
+                                        Color.White.copy(alpha = 0.04f)
+                                    )
+                                )
+                            )
+                        }
                     }
                 )
                 .border(
@@ -91,10 +110,16 @@ fun GlassSurface(
             content()
         }
     } else {
+        val fallbackFill =
+            if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = backgroundAlpha)
+            else MaterialTheme.colorScheme.surface.copy(alpha = (backgroundAlpha * 1.15f).coerceIn(0.35f, 0.92f))
+        val fallbackSheenTop =
+            if (isDarkTheme) Color.White.copy(alpha = highlightAlpha * 0.55f)
+            else Color.White.copy(alpha = highlightAlpha)
         Box(
             modifier = modifier
                 .clip(shape)
-                .background(Color(0xFF1A1A2E).copy(alpha = backgroundAlpha))
+                .background(fallbackFill)
                 .border(
                     width = 0.5.dp,
                     color = borderColor.copy(alpha = borderAlpha),
@@ -108,7 +133,7 @@ fun GlassSurface(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = highlightAlpha),
+                                fallbackSheenTop,
                                 Color.Transparent
                             )
                         )
