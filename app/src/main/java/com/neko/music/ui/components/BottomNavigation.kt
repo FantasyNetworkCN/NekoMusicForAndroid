@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -95,11 +94,10 @@ fun BottomNavigationBar(
         )
     )
 
-    // 获取当前主题的背景色
-    val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val pageBackdrop = LocalLiquidLayerBackdrop.current
 
     GlassSurface(
-        modifier = modifier.fillMaxWidth().height(64.dp),
+        modifier = modifier.fillMaxWidth().height(80.dp),
         shape = RoundedCornerShape(28.dp),
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
@@ -108,50 +106,50 @@ fun BottomNavigationBar(
         liquidLensHeight = 16.dp,
         liquidLensAmount = 32.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items.forEach { item ->
-                val isSelected = currentRoute == item.route
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { item ->
+                    val isSelected = currentRoute == item.route
 
-                val scaleValue by animateFloatAsState(
-                    targetValue = if (isSelected) 1.05f else 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
+                    val scaleValue by animateFloatAsState(
+                        targetValue = if (isSelected) 1.05f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
                     )
-                )
 
-                val indicatorAlpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0f,
-                    animationSpec = tween(300)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (currentRoute != item.route) {
-                                navController.navigate(item.route) {
-                                    popUpTo(item.route) { inclusive = true }
-                                    launchSingleTop = true
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                if (currentRoute != item.route) {
+                                    navController.navigate(item.route) {
+                                        popUpTo(item.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    navController.popBackStack(item.route, inclusive = false)
                                 }
-                            } else {
-                                navController.popBackStack(item.route, inclusive = false)
                             }
-                        }
-                        .scale(scaleValue),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .scale(scaleValue),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = stringResource(id = item.titleResId),
@@ -169,18 +167,16 @@ fun BottomNavigationBar(
                                 } else null
                             )
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        // 选中指示器
-                        Box(
-                            modifier = Modifier
-                                .width(20.dp)
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
-                                .background(Color.White.copy(alpha = 0.9f * indicatorAlpha))
-                        )
                     }
                 }
             }
+
+            NavigationGlassSlider(
+                mainBackdrop = pageBackdrop,
+                selectedIndex = selectedIndex.coerceAtLeast(0),
+                tabCount = items.size,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
