@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -97,7 +98,7 @@ fun BottomNavigationBar(
     val pageBackdrop = LocalLiquidLayerBackdrop.current
 
     GlassSurface(
-        modifier = modifier.fillMaxWidth().height(80.dp),
+        modifier = modifier.fillMaxWidth().height(64.dp),
         shape = RoundedCornerShape(28.dp),
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
@@ -106,17 +107,19 @@ fun BottomNavigationBar(
         liquidLensHeight = 16.dp,
         liquidLensAmount = 32.dp
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .height(46.dp)
         ) {
+            NavigationGlassSlider(
+                modifier = Modifier.fillMaxSize(),
+                mainBackdrop = pageBackdrop,
+                selectedIndex = selectedIndex.coerceAtLeast(0),
+                tabCount = items.size
+            )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp),
+                modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -170,13 +173,6 @@ fun BottomNavigationBar(
                     }
                 }
             }
-
-            NavigationGlassSlider(
-                mainBackdrop = pageBackdrop,
-                selectedIndex = selectedIndex.coerceAtLeast(0),
-                tabCount = items.size,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

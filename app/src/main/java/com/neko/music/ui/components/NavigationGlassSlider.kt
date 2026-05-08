@@ -7,14 +7,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,8 +28,9 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 
 /**
- * 底部 [Glass Slider](https://kyant.gitbook.io/backdrop/tutorials/glass-slider)：
- * 独立 `trackBackdrop` 录轨道，拇指用 `rememberCombinedBackdrop(main, track)` 同时折射主界面与轨道。
+ * [Glass Slider](https://kyant.gitbook.io/backdrop/tutorials/glass-slider) 变体：
+ * 透明 `trackBackdrop` 铺满 Tab 区供 `rememberCombinedBackdrop` 采样；**拇指为圆角玻璃 pill**，
+ * 宽度对齐单列 Tab、叠在文字**背后**，随选中项平移，视觉上「包住」当前 Tab 文案。
  */
 @Composable
 fun NavigationGlassSlider(
@@ -43,14 +40,13 @@ fun NavigationGlassSlider(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val idx = selectedIndex.coerceIn(0, (tabCount - 1).coerceAtLeast(0))
-    val trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    val safeCount = tabCount.coerceAtLeast(1)
+    val idx = selectedIndex.coerceIn(0, safeCount - 1)
 
     if (mainBackdrop == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
         NavigationGlassSliderFallback(
             selectedIndex = idx,
-            tabCount = tabCount,
-            trackColor = trackColor,
+            tabCount = safeCount,
             modifier = modifier
         )
         return
@@ -58,19 +54,15 @@ fun NavigationGlassSlider(
 
     val trackBackdrop = rememberLayerBackdrop()
     val combinedBackdrop = rememberCombinedBackdrop(mainBackdrop, trackBackdrop)
+    val thumbShape = RoundedCornerShape(18.dp)
 
-    BoxWithConstraints(
-        modifier = modifier
-            .padding(horizontal = 20.dp)
-            .fillMaxWidth()
-            .height(28.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        val segment = maxWidth / tabCount
-        val thumbW = 52.dp
-        val thumbH = 28.dp
-        val centerX = segment * (idx + 0.5f)
-        val targetOffsetX = (centerX - thumbW / 2).coerceIn(0.dp, maxWidth - thumbW)
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val segment = maxWidth / safeCount
+        val horizontalInset = 5.dp
+        val thumbW = (segment - horizontalInset * 2).coerceAtLeast(12.dp)
+        val thumbH = (maxHeight - 10.dp).coerceAtLeast(30.dp)
+        val thumbY = (maxHeight - thumbH) / 2
+        val targetOffsetX = segment * idx + horizontalInset
 
         val thumbOffsetX by animateDpAsState(
             targetValue = targetOffsetX,
@@ -78,20 +70,16 @@ fun NavigationGlassSlider(
             label = "navGlassThumb"
         )
 
+        // 文档：独立 track layer；此处不画可见横条，仅占位供拇指 combined 折射
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(6.dp)
+                .fillMaxSize()
                 .layerBackdrop(trackBackdrop)
-                .background(trackColor, CircleShape)
         )
 
-        val thumbShape = RoundedCornerShape(14.dp)
         Box(
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = thumbOffsetX)
+                .offset(x = thumbOffsetX, y = thumbY)
                 .drawBackdrop(
                     backdrop = combinedBackdrop,
                     shape = { thumbShape },
@@ -107,7 +95,7 @@ fun NavigationGlassSlider(
                         }
                     },
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = 0.22f))
+                        drawRect(Color.White.copy(alpha = 0.2f))
                     }
                 )
                 .size(thumbW, thumbH)
@@ -119,20 +107,17 @@ fun NavigationGlassSlider(
 private fun NavigationGlassSliderFallback(
     selectedIndex: Int,
     tabCount: Int,
-    trackColor: Color,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
-        modifier = modifier
-            .padding(horizontal = 20.dp)
-            .fillMaxWidth()
-            .height(28.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        val segment = maxWidth / tabCount
-        val thumbW = 52.dp
-        val centerX = segment * (selectedIndex + 0.5f)
-        val targetOffsetX = (centerX - thumbW / 2).coerceIn(0.dp, maxWidth - thumbW)
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val safeCount = tabCount.coerceAtLeast(1)
+        val segment = maxWidth / safeCount
+        val horizontalInset = 5.dp
+        val thumbW = (segment - horizontalInset * 2).coerceAtLeast(12.dp)
+        val thumbH = (maxHeight - 10.dp).coerceAtLeast(30.dp)
+        val thumbY = (maxHeight - thumbH) / 2
+        val targetOffsetX = segment * selectedIndex + horizontalInset
+
         val thumbOffsetX by animateDpAsState(
             targetValue = targetOffsetX,
             animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
@@ -141,17 +126,9 @@ private fun NavigationGlassSliderFallback(
 
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(6.dp)
-                .background(trackColor.copy(alpha = 0.5f), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = thumbOffsetX)
-                .size(thumbW, 28.dp)
-                .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                .offset(x = thumbOffsetX, y = thumbY)
+                .size(thumbW, thumbH)
+                .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(18.dp))
         )
     }
 }
