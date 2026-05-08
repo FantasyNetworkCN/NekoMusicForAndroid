@@ -15,7 +15,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -60,6 +64,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,12 +126,18 @@ fun BottomNavigationBar(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
+            val view = LocalView.current
             val scope = rememberCoroutineScope()
             var isDragging by remember { mutableStateOf(false) }
             val latestRoute by rememberUpdatedState(currentRoute)
 
             val thumbPosPx = remember { Animatable(0f) }
             var thumbLeftUi by remember { mutableStateOf(0.dp) }
+            val thumbSquish by animateFloatAsState(
+                targetValue = if (isDragging) 1f else 0f,
+                animationSpec = tween(140),
+                label = "thumbSquish"
+            )
 
             LaunchedEffect(thumbPosPx) {
                 snapshotFlow { thumbPosPx.value }.collect { px ->
@@ -140,6 +151,14 @@ fun BottomNavigationBar(
                         popUpTo(item.route) { inclusive = true }
                         launchSingleTop = true
                     }
+                    @Suppress("DEPRECATION")
+                    val haptic =
+                        if (Build.VERSION.SDK_INT >= 30) {
+                            HapticFeedbackConstants.SEGMENT_TICK
+                        } else {
+                            HapticFeedbackConstants.CONTEXT_CLICK
+                        }
+                    view.performHapticFeedback(haptic)
                 } else {
                     navController.popBackStack(item.route, inclusive = false)
                 }
@@ -153,7 +172,13 @@ fun BottomNavigationBar(
                     selectedIndex.coerceAtLeast(0),
                     density
                 )
-                thumbPosPx.animateTo(destPx, tween(220))
+                thumbPosPx.animateTo(
+                    destPx,
+                    spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
             }
 
             val dragState = rememberDraggableState { delta ->
@@ -177,7 +202,8 @@ fun BottomNavigationBar(
                 modifier = Modifier.fillMaxSize(),
                 mainBackdrop = pageBackdrop,
                 tabCount = items.size,
-                thumbLeftDp = thumbLeftUi
+                thumbLeftDp = thumbLeftUi,
+                thumbSquishProgress = thumbSquish
             )
             Row(
                 modifier = Modifier
@@ -198,6 +224,8 @@ fun BottomNavigationBar(
             ) {
                 items.forEach { item ->
                     val isSelected = currentRoute == item.route
+                    val interactionSource = remember(item.route) { MutableInteractionSource() }
+                    val tabPressed by interactionSource.collectIsPressedAsState()
 
                     val scaleValue by animateFloatAsState(
                         targetValue = if (isSelected) 1.05f else 1f,
@@ -206,18 +234,26 @@ fun BottomNavigationBar(
                             stiffness = Spring.StiffnessLow
                         )
                     )
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (tabPressed) 1.12f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "tabPress"
+                    )
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .clickable(
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                interactionSource = interactionSource,
                                 indication = null
                             ) {
                                 navigateToItem(item)
                             }
-                            .scale(scaleValue),
+                            .scale(scaleValue * pressScale),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
