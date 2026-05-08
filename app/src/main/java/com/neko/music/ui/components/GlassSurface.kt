@@ -27,7 +27,9 @@ import com.kyant.backdrop.effects.vibrancy
  * - 底栏玻璃：https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar
  * - 多层玻璃 / 避免 SIGSEGV：https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-sheet
  *
- * 主界面中 NavHost 内应保持 [LocalLiquidLayerBackdrop] 为 null，仅在已 `layerBackdrop` 的内容之上的悬浮层提供 backdrop。
+ * [LocalLiquidLayerBackdrop] 仅应在 **`layerBackdrop` 子树之外** 提供（例如底栏 / 迷你播放器），与
+ * [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 一致。
+ * 若在已应用 `layerBackdrop(同一 LayerBackdrop)` 的区域内（如 `NavHost` 内）再 `drawBackdrop`，会触发 RenderThread SIGSEGV。
  */
 @Composable
 fun GlassSurface(
@@ -44,9 +46,12 @@ fun GlassSurface(
     val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     if (useLiquid) {
-        val blurPx = with(density) { 12.dp.toPx() }
-        val lensH = with(density) { 10.dp.toPx() }
-        val lensAmt = with(density) { 22.dp.toPx() }
+        // 偏「液态」：中等 blur + 较强 lens；表面层用浅色薄雾，避免厚底色盖住 vibrancy/lens
+        val blurPx = with(density) { 14.dp.toPx() }
+        val lensH = with(density) { 16.dp.toPx() }
+        val lensAmt = with(density) { 32.dp.toPx() }
+        val frostTop = (highlightAlpha * 2.5f).coerceIn(0.06f, 0.28f)
+        val frostBase = (backgroundAlpha * 0.35f).coerceIn(0.04f, 0.14f)
         Box(
             modifier = modifier
                 .clip(shape)
@@ -60,16 +65,14 @@ fun GlassSurface(
                             lens(lensH, lensAmt)
                         }
                     },
-                    highlight = { null },
-                    shadow = { null },
                     innerShadow = null,
                     onDrawSurface = {
-                        drawRect(Color(0xFF1A1A2E).copy(alpha = backgroundAlpha))
+                        drawRect(Color.White.copy(alpha = frostBase))
                         drawRect(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = highlightAlpha),
-                                    Color.Transparent
+                                    Color.White.copy(alpha = frostTop),
+                                    Color.White.copy(alpha = 0.02f)
                                 )
                             )
                         )
