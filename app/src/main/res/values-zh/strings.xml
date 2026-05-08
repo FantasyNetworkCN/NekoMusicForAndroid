@@ -155,7 +155,7 @@
     <string name="download">下载</string>
     <string name="download_success">下载成功</string>
     <string name="download_failed">下载失败: %s</string>
-    <string name="share_to_twitter">分享到Twitter</string>
+    <string name="share_to_twitter">分享到X</string>
     <string name="share_to_qq">分享到QQ</string>
     <string name="qq_not_installed">未安装QQ</string>
     <string name="share_failed">分享失败</string>
