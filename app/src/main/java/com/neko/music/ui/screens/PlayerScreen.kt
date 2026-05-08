@@ -117,7 +117,6 @@ import com.neko.music.service.PlayMode
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
-import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -469,7 +468,8 @@ fun PlayerScreen(
     val pageBackdrop = rememberLiquidPageBackdrop(
         if (isDarkTheme) Color(0xFF121228) else colorScheme.background
     )
-    val bottomGlassReserve = 236.dp
+    // 底部液态面板实际高度约 168–188dp，略加余量避免与封面区重叠
+    val bottomGlassReserve = 188.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
@@ -668,43 +668,24 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .zIndex(1f)
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(26.dp),
-                    backgroundAlpha = if (isDarkTheme) 0.26f else 0.34f,
-                    borderAlpha = if (isDarkTheme) 0.32f else 0.24f,
-                    highlightAlpha = if (isDarkTheme) 0.14f else 0.16f,
+                    shape = RoundedCornerShape(20.dp),
+                    backgroundAlpha = if (isDarkTheme) 0.24f else 0.32f,
+                    borderAlpha = if (isDarkTheme) 0.28f else 0.22f,
+                    highlightAlpha = if (isDarkTheme) 0.11f else 0.13f,
                     borderColor = if (isDarkTheme) SakuraPink else colorScheme.outline,
-                    liquidBlur = 16.dp,
-                    liquidLensHeight = 22.dp,
-                    liquidLensAmount = 38.dp
+                    liquidBlur = 14.dp,
+                    liquidLensHeight = 18.dp,
+                    liquidLensAmount = 32.dp
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 18.dp)
+                            .padding(horizontal = 4.dp, vertical = 10.dp)
                     ) {
-                        // 顶缘高光条：叠在液态底上增加层次（非 drawBackdrop，避免嵌套采样）
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .height(2.dp)
-                                .clip(RoundedCornerShape(1.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            if (isDarkTheme) SakuraPink.copy(alpha = 0.45f) else RoseRed.copy(alpha = 0.35f),
-                                            SkyBlue.copy(alpha = if (isDarkTheme) 0.35f else 0.28f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
                         LyricSongInfoBar(
                             music = currentMusic,
                             isFavorite = isFavorite,
@@ -722,7 +703,7 @@ fun PlayerScreen(
                             showActions = true
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         ProgressSlider(
                             progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
@@ -737,7 +718,7 @@ fun PlayerScreen(
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         PlaybackControls(
                             isPlaying = isPlaying,
@@ -770,8 +751,9 @@ fun PlayerScreen(
         }
     }
 
-    // 分享对话框
+    // 分享对话框：须在同一页的 [pageBackdrop] 下提供 Local，底栏面板式 [GlassSurface] 才能真液态采样
     if (showShareDialog) {
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
         ShareDialog(
             music = currentMusic,
             onDismiss = { showShareDialog = false },
@@ -936,6 +918,7 @@ fun PlayerScreen(
                 }
             }
         )
+        }
     }
 
     // 创建歌单对话框
@@ -1521,7 +1504,7 @@ fun LyricSongInfoBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp)
+                    .padding(horizontal = 20.dp)
             ) {
                 // 歌曲信息区域，限制宽度避免与右侧按钮重叠
                 val textAreaModifier = if (showActions) {
@@ -1611,114 +1594,41 @@ fun LyricSongInfoBar(
                 // 右侧按钮组
                 if (showActions) {
                     Row(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 收藏：液态面板内小玻璃圆片（仅 CPU 叠层，不嵌套 drawBackdrop）
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isDarkTheme) Color.White.copy(alpha = 0.08f)
-                                    else Color.White.copy(alpha = 0.55f)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    brush = Brush.linearGradient(
-                                        colors = if (isDarkTheme) {
-                                            listOf(
-                                                SakuraPink.copy(alpha = 0.4f),
-                                                SkyBlue.copy(alpha = 0.28f),
-                                                SakuraPink.copy(alpha = 0.22f)
-                                            )
-                                        } else {
-                                            listOf(
-                                                RoseRed.copy(alpha = 0.28f),
-                                                SkyBlue.copy(alpha = 0.2f),
-                                                RoseRed.copy(alpha = 0.18f)
-                                            )
-                                        }
-                                    ),
-                                    shape = CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
+                        IconButton(
+                            onClick = onFavoriteClick,
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            IconButton(
-                                onClick = onFavoriteClick,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                                    tint = favColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
+                                tint = favColor,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
-
-                        // 桌面歌词：胶囊 + 渐变描边
                         Box(
                             modifier = Modifier
-                                .height(36.dp)
-                                .widthIn(min = 40.dp)
-                                .clip(RoundedCornerShape(18.dp))
+                                .height(32.dp)
+                                .widthIn(min = 36.dp)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = if (isDesktopLyricEnabled) {
-                                            if (isDarkTheme) {
-                                                listOf(
-                                                    SakuraPink.copy(alpha = 0.22f),
-                                                    SkyBlue.copy(alpha = 0.12f)
-                                                )
-                                            } else {
-                                                listOf(
-                                                    RoseRed.copy(alpha = 0.18f),
-                                                    SakuraPink.copy(alpha = 0.1f)
-                                                )
-                                            }
-                                        } else {
-                                            if (isDarkTheme) {
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.08f),
-                                                    Color.White.copy(alpha = 0.04f)
-                                                )
-                                            } else {
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.55f),
-                                                    Color.White.copy(alpha = 0.35f)
-                                                )
-                                            }
-                                        }
-                                    )
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    brush = Brush.linearGradient(
-                                        colors = if (isDarkTheme) {
-                                            listOf(
-                                                SakuraPink.copy(alpha = 0.45f),
-                                                SkyBlue.copy(alpha = 0.3f)
-                                            )
-                                        } else {
-                                            listOf(
-                                                RoseRed.copy(alpha = 0.3f),
-                                                SkyBlue.copy(alpha = 0.22f)
-                                            )
-                                        }
-                                    ),
-                                    shape = RoundedCornerShape(18.dp)
+                                    if (isDesktopLyricEnabled) {
+                                        if (isDarkTheme) SakuraPink.copy(alpha = 0.18f) else RoseRed.copy(alpha = 0.14f)
+                                    } else {
+                                        if (isDarkTheme) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.05f)
+                                    }
                                 )
                                 .clickable(onClick = onDesktopLyricClick)
-                                .padding(horizontal = 10.dp),
+                                .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "词",
-                                fontSize = 14.sp,
-                                fontWeight = if (isDesktopLyricEnabled) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.sp,
+                                fontWeight = if (isDesktopLyricEnabled) FontWeight.SemiBold else FontWeight.Normal,
                                 color = desktopLyricText
                             )
                         }
@@ -1992,75 +1902,42 @@ fun ProgressSlider(
             onProgressChange: (Float) -> Unit
         ) {
             val isDarkTheme = isSystemInDarkTheme()
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(
-                        if (isDarkTheme) Color.White.copy(alpha = 0.07f)
-                        else Color.White.copy(alpha = 0.5f)
-                    )
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            colors = if (isDarkTheme) {
-                                listOf(
-                                    SakuraPink.copy(alpha = 0.38f),
-                                    SkyBlue.copy(alpha = 0.22f),
-                                    SakuraPink.copy(alpha = 0.18f)
-                                )
-                            } else {
-                                listOf(
-                                    RoseRed.copy(alpha = 0.22f),
-                                    SkyBlue.copy(alpha = 0.16f),
-                                    RoseRed.copy(alpha = 0.12f)
-                                )
-                            }
-                        ),
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(horizontal = 16.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    if (!isLoading) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = currentTime,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isDarkTheme) SkyBlue.copy(alpha = 0.85f) else RoseRed.copy(alpha = 0.75f)
-                            )
-                            Text(
-                                text = totalTime,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isDarkTheme) SkyBlue.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Slider(
-                            value = progress,
-                            onValueChange = onProgressChange,
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = if (isDarkTheme) SakuraPink else RoseRed,
-                                inactiveTrackColor = if (isDarkTheme) {
-                                    SakuraPink.copy(alpha = 0.12f)
-                                } else {
-                                    Color(0xFFE8E8EC)
-                                },
-                                thumbColor = if (isDarkTheme) SakuraPink else RoseRed,
-                                activeTickColor = if (isDarkTheme) SakuraPink else RoseRed,
-                                inactiveTickColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.2f) else RoseRed.copy(alpha = 0.25f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                if (!isLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = currentTime,
+                            fontSize = 11.sp,
+                            color = if (isDarkTheme) SkyBlue.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = totalTime,
+                            fontSize = 11.sp,
+                            color = if (isDarkTheme) SkyBlue.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Slider(
+                        value = progress,
+                        onValueChange = onProgressChange,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = if (isDarkTheme) SakuraPink else RoseRed,
+                            inactiveTrackColor = if (isDarkTheme) {
+                                SakuraPink.copy(alpha = 0.14f)
+                            } else {
+                                Color(0xFFE8E8EC)
+                            },
+                            thumbColor = if (isDarkTheme) SakuraPink else RoseRed
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -2078,55 +1955,22 @@ fun ProgressSlider(
             onPlayModeClick: () -> Unit
         ) {
             val isDarkTheme = isSystemInDarkTheme()
-            val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
-            val glassChipBg =
-                if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.58f)
-            val glassChipBorder = Brush.linearGradient(
-                colors = if (isDarkTheme) {
-                    listOf(
-                        SakuraPink.copy(alpha = 0.42f),
-                        SkyBlue.copy(alpha = 0.28f),
-                        SakuraPink.copy(alpha = 0.2f)
-                    )
-                } else {
-                    listOf(
-                        RoseRed.copy(alpha = 0.26f),
-                        SkyBlue.copy(alpha = 0.18f),
-                        RoseRed.copy(alpha = 0.14f)
-                    )
-                }
-            )
-            @Composable
-            fun PlayerSideGlassIconButton(
-                onClick: () -> Unit,
-                content: @Composable () -> Unit
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(glassChipBg)
-                        .border(width = 1.dp, brush = glassChipBorder, shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconButton(onClick = onClick, modifier = Modifier.size(46.dp)) {
-                        content()
-                    }
-                }
-            }
+            val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurface
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 左侧：播放模式、上一首
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerSideGlassIconButton(onClick = onPlayModeClick) {
+                    IconButton(
+                        onClick = onPlayModeClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         val iconRes = when (playMode) {
                             PlayMode.LIST_LOOP -> R.drawable.list_loop
                             PlayMode.SINGLE_LOOP -> R.drawable.single_loop
@@ -2136,21 +1980,22 @@ fun ProgressSlider(
                             painter = androidx.compose.ui.res.painterResource(iconRes),
                             contentDescription = "Play Mode",
                             tint = iconColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    PlayerSideGlassIconButton(onClick = onPreviousClick) {
+                    IconButton(
+                        onClick = onPreviousClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.previous_song),
                             contentDescription = "Previous",
                             tint = iconColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
 
-                // 中间：渐变播放键 + 外圈液态高光环
                 val playButtonColors = if (isDarkTheme) {
                     listOf(Color(0xFFFFB7C5), Color(0xFF9B59B6), Color(0xFF3498DB))
                 } else {
@@ -2158,25 +2003,7 @@ fun ProgressSlider(
                 }
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
-                        .border(
-                            width = 2.dp,
-                            brush = Brush.sweepGradient(
-                                colors = listOf(
-                                    SakuraPink.copy(alpha = 0.85f),
-                                    SkyBlue.copy(alpha = 0.65f),
-                                    Lilac.copy(alpha = 0.55f),
-                                    SakuraPink.copy(alpha = 0.85f)
-                                )
-                            ),
-                            shape = CircleShape
-                        )
-                        .padding(3.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                Box(
-                    modifier = Modifier
-                        .size(68.dp)
+                        .size(58.dp)
                         .background(
                             Brush.linearGradient(
                                 colors = playButtonColors,
@@ -2186,9 +2013,9 @@ fun ProgressSlider(
                             CircleShape
                         )
                         .shadow(
-                            elevation = 14.dp,
+                            elevation = 8.dp,
                             shape = CircleShape,
-                            spotColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.55f) else RoseRed.copy(alpha = 0.35f)
+                            spotColor = if (isDarkTheme) SakuraPink.copy(alpha = 0.45f) else RoseRed.copy(alpha = 0.28f)
                         )
                         .clickable(
                             enabled = !isLoading && musicFileUrl != null,
@@ -2202,7 +2029,7 @@ fun ProgressSlider(
                         isLoading -> {
                             CircularProgressIndicator(
                                 color = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
 
@@ -2211,7 +2038,7 @@ fun ProgressSlider(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "Loading",
                                 tint = Color.White.copy(alpha = 0.6f),
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
 
@@ -2222,33 +2049,36 @@ fun ProgressSlider(
                                 ),
                                 contentDescription = if (isPlaying) "Pause" else "Play",
                                 tint = Color.White,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(30.dp)
                             )
                         }
                     }
                 }
-                }
 
-                // 右侧：下一首、播放列表
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerSideGlassIconButton(onClick = onNextClick) {
+                    IconButton(
+                        onClick = onNextClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.next_song),
                             contentDescription = "Next",
                             tint = iconColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    PlayerSideGlassIconButton(onClick = onPlaylistClick) {
+                    IconButton(
+                        onClick = onPlaylistClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             painter = androidx.compose.ui.res.painterResource(R.drawable.playlist),
                             contentDescription = "Playlist",
                             tint = iconColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -2288,6 +2118,7 @@ fun ShareDialog(
     val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
     val createPlaylistColor = if (isDarkTheme) Color.White else RoseRed
     val copyLinkColor = if (isDarkTheme) Color.White else RoseRed
+    val scheme = MaterialTheme.colorScheme
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -2327,69 +2158,45 @@ fun ShareDialog(
                         onClick = {}
                     )
             ) {
-                if (isDarkTheme) {
-                    GlassSurface(
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ShareDialogContent(
-                            isDarkTheme = true,
-                            sectionTitleColor = sectionTitleColor,
-                            cancelTextColor = cancelTextColor,
-                            dividerColor = dividerColor,
-                            createPlaylistColor = createPlaylistColor,
-                            copyLinkColor = copyLinkColor,
-                            playlists = playlists,
-                            selectedPlaylistId = selectedPlaylistId,
-                            playlistFirstMusicCovers = playlistFirstMusicCovers,
-                            onPlaylistSelected = onPlaylistSelected,
-                            onCreatePlaylist = onCreatePlaylist,
-                            currentSpeed = currentSpeed,
-                            onSpeedChange = onSpeedChange,
-                            currentSleepTimerMinutes = currentSleepTimerMinutes,
-                            onSleepTimerChange = onSleepTimerChange,
-                            customLabel = customLabel,
-                            closeLabel = closeLabel,
-                            onDismiss = onDismiss,
-                            onShareToTwitter = onShareToTwitter,
-                            onShareToQQ = onShareToQQ,
-                            onCopyLink = onCopyLink,
-                            onDownload = onDownload,
-                            onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
-                        )
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ShareDialogContent(
-                            isDarkTheme = false,
-                            sectionTitleColor = sectionTitleColor,
-                            cancelTextColor = cancelTextColor,
-                            dividerColor = dividerColor,
-                            createPlaylistColor = createPlaylistColor,
-                            copyLinkColor = copyLinkColor,
-                            playlists = playlists,
-                            selectedPlaylistId = selectedPlaylistId,
-                            playlistFirstMusicCovers = playlistFirstMusicCovers,
-                            onPlaylistSelected = onPlaylistSelected,
-                            onCreatePlaylist = onCreatePlaylist,
-                            currentSpeed = currentSpeed,
-                            onSpeedChange = onSpeedChange,
-                            currentSleepTimerMinutes = currentSleepTimerMinutes,
-                            onSleepTimerChange = onSleepTimerChange,
-                            customLabel = customLabel,
-                            closeLabel = closeLabel,
-                            onDismiss = onDismiss,
-                            onShareToTwitter = onShareToTwitter,
-                            onShareToQQ = onShareToQQ,
-                            onCopyLink = onCopyLink,
-                            onDownload = onDownload,
-                            onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
-                        )
-                    }
+                val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.navigationBars),
+                    shape = panelShape,
+                    backgroundAlpha = if (isDarkTheme) 0.30f else 0.34f,
+                    borderAlpha = if (isDarkTheme) 0.28f else 0.22f,
+                    highlightAlpha = if (isDarkTheme) 0.12f else 0.14f,
+                    borderColor = if (isDarkTheme) SakuraPink else scheme.outline,
+                    liquidBlur = 14.dp,
+                    liquidLensHeight = 18.dp,
+                    liquidLensAmount = 32.dp
+                ) {
+                    ShareDialogContent(
+                        isDarkTheme = isDarkTheme,
+                        sectionTitleColor = sectionTitleColor,
+                        cancelTextColor = cancelTextColor,
+                        dividerColor = dividerColor,
+                        createPlaylistColor = createPlaylistColor,
+                        copyLinkColor = copyLinkColor,
+                        playlists = playlists,
+                        selectedPlaylistId = selectedPlaylistId,
+                        playlistFirstMusicCovers = playlistFirstMusicCovers,
+                        onPlaylistSelected = onPlaylistSelected,
+                        onCreatePlaylist = onCreatePlaylist,
+                        currentSpeed = currentSpeed,
+                        onSpeedChange = onSpeedChange,
+                        currentSleepTimerMinutes = currentSleepTimerMinutes,
+                        onSleepTimerChange = onSleepTimerChange,
+                        customLabel = customLabel,
+                        closeLabel = closeLabel,
+                        onDismiss = onDismiss,
+                        onShareToTwitter = onShareToTwitter,
+                        onShareToQQ = onShareToQQ,
+                        onCopyLink = onCopyLink,
+                        onDownload = onDownload,
+                        onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
+                    )
                 }
             }
         }
