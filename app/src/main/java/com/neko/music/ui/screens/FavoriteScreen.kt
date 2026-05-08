@@ -26,9 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.isSystemInDarkTheme
 import com.neko.music.R
+import com.neko.music.ui.theme.RoseRed
 import coil3.compose.AsyncImage
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
 import kotlinx.coroutines.launch
@@ -137,6 +140,13 @@ fun FavoriteScreen(
     }
 
     val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
 
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
@@ -149,10 +159,16 @@ fun FavoriteScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(
+                    scheme.background.copy(
+                        alpha = if (isDarkTheme) 0.55f else 0.88f
+                    )
+                )
         )
 
         Scaffold(
+            containerColor = Color.Transparent,
+            contentColor = scheme.onBackground,
             topBar = {
                 Column {
                     TopAppBar(
@@ -193,6 +209,11 @@ fun FavoriteScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .layerBackdrop(pageBackdrop)
+                ) {
                 when {
                     !isLoggedIn -> {
                         Column(
@@ -261,53 +282,23 @@ fun FavoriteScreen(
                     }
                     else -> {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            if (isDarkTheme) {
-                                GlassSurface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        .clickable {
-                                            scope.launch {
-                                                playAllFavorites()
-                                            }
+                            GlassSurface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .clickable {
+                                        scope.launch {
+                                            playAllFavorites()
                                         }
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
-                                            contentDescription = stringResource(id = R.string.play_all),
-                                            tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = stringResource(id = R.string.play_all_count, filteredFavorites.size),
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            } else {
+                                    },
+                                shape = RoundedCornerShape(20.dp),
+                                backgroundAlpha = glassBg,
+                                borderAlpha = glassBorder,
+                                highlightAlpha = glassHighlight
+                            ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        .background(
-                                            color = Color(0xFFE94560),
-                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable {
-                                            scope.launch {
-                                                playAllFavorites()
-                                            }
-                                        }
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
@@ -315,7 +306,7 @@ fun FavoriteScreen(
                                     Icon(
                                         imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
                                         contentDescription = stringResource(id = R.string.play_all),
-                                        tint = Color.White,
+                                        tint = if (isDarkTheme) Color.White else RoseRed,
                                         modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -323,7 +314,7 @@ fun FavoriteScreen(
                                         text = stringResource(id = R.string.play_all_count, filteredFavorites.size),
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = if (isDarkTheme) Color.White else RoseRed
                                     )
                                 }
                             }
@@ -361,6 +352,7 @@ fun FavoriteScreen(
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -380,32 +372,24 @@ fun FavoriteItem(
     }
 
     val isDarkTheme = isSystemInDarkTheme()
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
 
-    if (isDarkTheme) {
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-        ) {
-            FavoriteItemContent(
-                coverUrl = coverUrl,
-                music = music,
-                isDarkTheme = true
-            )
-        }
-    } else {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            FavoriteItemContent(
-                coverUrl = coverUrl,
-                music = music,
-                isDarkTheme = false
-            )
-        }
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
+    ) {
+        FavoriteItemContent(
+            coverUrl = coverUrl,
+            music = music,
+            isDarkTheme = isDarkTheme
+        )
     }
 }
 
@@ -479,61 +463,26 @@ fun FavoriteSearchBar(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = isSystemInDarkTheme()
 ) {
-    if (isDarkTheme) {
-        GlassSurface(
-            modifier = modifier.height(40.dp),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(id = R.string.search),
-                    tint = Color.White.copy(alpha = 0.5f),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                androidx.compose.foundation.text.BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.weight(1f),
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 14.sp
-                    ),
-                    singleLine = true,
-                    decorationBox = { innerTextField ->
-                        if (query.isEmpty()) {
-                            Text(
-                                text = stringResource(id = R.string.search_music),
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.4f)
-                            )
-                        }
-                        innerTextField()
-                    }
-                )
-            }
-        }
-    } else {
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+    GlassSurface(
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(20.dp),
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
+    ) {
         Row(
-            modifier = modifier
-                .height(40.dp)
-                .background(
-                    color = Color(0xFFF5F5F5),
-                    shape = RoundedCornerShape(20.dp)
-                )
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(id = R.string.search),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -542,7 +491,7 @@ fun FavoriteSearchBar(
                 onValueChange = onQueryChange,
                 modifier = Modifier.weight(1f),
                 textStyle = androidx.compose.ui.text.TextStyle(
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 ),
                 singleLine = true,
@@ -551,7 +500,7 @@ fun FavoriteSearchBar(
                         Text(
                             text = stringResource(id = R.string.search_music),
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     innerTextField()

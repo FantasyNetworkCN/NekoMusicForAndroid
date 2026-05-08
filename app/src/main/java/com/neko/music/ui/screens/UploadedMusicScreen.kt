@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +88,9 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import kotlinx.coroutines.launch
@@ -115,6 +119,12 @@ fun UploadedMusicScreen(
 
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
+
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isSystemInDarkTheme()
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
 
     // 刷新数据的函数
     val refreshData = suspend {
@@ -245,19 +255,24 @@ fun UploadedMusicScreen(
                     EmptyView()
                 }
                 else -> {
-                    // 下拉刷新状态
                     val pullRefreshState = rememberPullToRefreshState()
 
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = { scope.launch { refreshData() } },
-                        state = pullRefreshState,
-                        modifier = Modifier.fillMaxSize()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(pageBackdrop)
                     ) {
-                        MusicList(
-                            musicList = musicList,
-                            onMusicClick = onMusicClick
-                        )
+                        PullToRefreshBox(
+                            isRefreshing = isRefreshing,
+                            onRefresh = { scope.launch { refreshData() } },
+                            state = pullRefreshState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            MusicList(
+                                musicList = musicList,
+                                onMusicClick = onMusicClick
+                            )
+                        }
                     }
                 }
             }
@@ -432,8 +447,12 @@ fun MusicItem(
         ),
         label = "scale"
     )
+    val isDarkTheme = isSystemInDarkTheme()
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
 
-    Card(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
@@ -442,13 +461,9 @@ fun MusicItem(
                 onClick()
             },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
-            pressedElevation = 8.dp
-        )
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
         Row(
             modifier = Modifier

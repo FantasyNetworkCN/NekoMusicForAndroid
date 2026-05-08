@@ -1,6 +1,8 @@
 package com.neko.music.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +34,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,13 +46,16 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.RoseRed
+import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,7 +67,14 @@ fun RecentPlayScreen(
     val playerManager = MusicPlayerManager.getInstance(context)
     val scope = rememberCoroutineScope()
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
     var playHistory by remember { mutableStateOf<List<Music>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
@@ -85,83 +99,133 @@ fun RecentPlayScreen(
         }
     }
     
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(if (isDarkTheme) Color(0xFF121228) else Color.White)
-            .statusBarsPadding()
-    ) {
-        // 顶部导航栏
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(id = R.string.back),
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else Color.Black
-                )
-            }
-            
-            Text(
-                text = stringResource(id = R.string.recent_play),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-            )
-            
-            Spacer(modifier = Modifier.size(48.dp))
-        }
-        
-        // 搜索框
-        SearchBar(
-            query = searchQuery,
-            onQueryChange = { searchQuery = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.playlist_background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // 内容区域
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = RoseRed)
-            }
-        } else if (filteredList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (searchQuery.isEmpty()) stringResource(id = R.string.no_play_history) else stringResource(id = R.string.no_related_songs),
-                    fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 150.dp)
-            ) {
-                items(filteredList) { music ->
-                    RecentPlayItem(
-                        music = music,
-                        onClick = { onMusicClick(music) }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    scheme.background.copy(
+                        alpha = if (isDarkTheme) 0.55f else 0.88f
                     )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = stringResource(id = R.string.back),
+                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                    )
+                }
+
+                Text(
+                    text = stringResource(id = R.string.recent_play),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+
+            RecentPlaySearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                isDarkTheme = isDarkTheme,
+                glassBg = glassBg,
+                glassBorder = glassBorder,
+                glassHighlight = glassHighlight,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .layerBackdrop(pageBackdrop)
+                ) {
+                    when {
+                        isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = RoseRed)
+                            }
+                        }
+                        filteredList.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (searchQuery.isEmpty()) {
+                                        stringResource(id = R.string.no_play_history)
+                                    } else {
+                                        stringResource(id = R.string.no_related_songs)
+                                    },
+                                    fontSize = 16.sp,
+                                    color = if (isDarkTheme) {
+                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                    } else {
+                                        Color.Gray
+                                    }
+                                )
+                            }
+                        }
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 16.dp,
+                                    bottom = 150.dp
+                                )
+                            ) {
+                                items(filteredList) { music ->
+                                    RecentPlayItem(
+                                        music = music,
+                                        onClick = { onMusicClick(music) },
+                                        glassBg = glassBg,
+                                        glassBorder = glassBorder,
+                                        glassHighlight = glassHighlight
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -171,144 +235,165 @@ fun RecentPlayScreen(
 @Composable
 fun RecentPlayItem(
     music: Music,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    glassBg: Float = 0.28f,
+    glassBorder: Float = 0.14f,
+    glassHighlight: Float = 0.08f
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val scope = rememberCoroutineScope()
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
-    // 获取当前播放的音乐ID
+    val scheme = MaterialTheme.colorScheme
+
     val currentMusicId by playerManager.currentMusicId.collectAsState()
-    
-    // 构建完整的封面URL
+
     val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
         UrlConfig.buildFullUrl("${music.coverFilePath}")
     } else {
         UrlConfig.getMusicCoverUrl(music.id)
     }
-    
-    Row(
+
+    val isCurrent = currentMusicId == music.id
+    val shape = RoundedCornerShape(12.dp)
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .background(
-                if (currentMusicId == music.id) 
-                    RoseRed.copy(alpha = 0.15f) 
-                else 
-                    Color.Transparent,
-                RoundedCornerShape(8.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 封面
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .background(
-                    RoseRed.copy(alpha = 0.1f),
-                    RoundedCornerShape(8.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            AsyncImage(
-                model = fullCoverUrl,
-                contentDescription = "封面",
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        // 歌曲信息
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = music.title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = music.artist,
-                fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                maxLines = 1
-            )
-        }
-        
-        // 播放按钮
-        IconButton(
-            onClick = {
-                scope.launch {
-                    val musicApi = com.neko.music.data.api.MusicApi(context)
-                    val url = musicApi.getMusicFileUrl(music)
-                    playerManager.playMusic(url, music.id, music.title, music.artist, music.coverFilePath, fullCoverUrl)
+            .then(
+                if (isCurrent) {
+                    Modifier.border(1.dp, RoseRed.copy(alpha = 0.55f), shape)
+                } else {
+                    Modifier
                 }
-            }
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "播放",
-                tint = RoseRed,
-                modifier = Modifier.size(32.dp)
             )
+            .clickable(onClick = onClick),
+        shape = shape,
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(
+                        RoseRed.copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = fullCoverUrl,
+                    contentDescription = stringResource(id = R.string.cover),
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = music.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = music.artist,
+                    fontSize = 14.sp,
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        val musicApi = com.neko.music.data.api.MusicApi(context)
+                        val url = musicApi.getMusicFileUrl(music)
+                        playerManager.playMusic(
+                            url,
+                            music.id,
+                            music.title,
+                            music.artist,
+                            music.coverFilePath,
+                            fullCoverUrl
+                        )
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = stringResource(id = R.string.play),
+                    tint = RoseRed,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }
 
-/**
- * 搜索框组件
- */
 @Composable
-fun SearchBar(
+private fun RecentPlaySearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    isDarkTheme: Boolean,
+    glassBg: Float,
+    glassBorder: Float,
+    glassHighlight: Float,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
-    Row(
-        modifier = modifier
-            .height(40.dp)
-            .background(
-                color = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color(0xFFF5F5F5),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val scheme = MaterialTheme.colorScheme
+    GlassSurface(
+        modifier = modifier.height(40.dp),
+        shape = RoundedCornerShape(20.dp),
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
-        Icon(
-            imageVector = Icons.Default.Search,
-            contentDescription = stringResource(id = R.string.search),
-            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else Color.Gray,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        androidx.compose.foundation.text.BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier.weight(1f),
-            textStyle = androidx.compose.ui.text.TextStyle(
-                fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-            ),
-            singleLine = true,
-            decorationBox = { innerTextField ->
-                if (query.isEmpty()) {
-                    Text(
-                        text = stringResource(id = R.string.search_songs),
-                        fontSize = 14.sp,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray
-                    )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(id = R.string.search),
+                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else scheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            androidx.compose.foundation.text.BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.weight(1f),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                ),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = stringResource(id = R.string.search_songs),
+                            fontSize = 14.sp,
+                            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
+                        )
+                    }
+                    innerTextField()
                 }
-                innerTextField()
-            }
-        )
+            )
+        }
     }
 }
