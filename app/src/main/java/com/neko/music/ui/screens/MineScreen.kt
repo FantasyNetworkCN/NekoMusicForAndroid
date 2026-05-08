@@ -555,7 +555,7 @@ fun MoreSettings(
         ) {
             ExternalLinkButton(
                 text = stringResource(id = R.string.api_docs),
-                url = "https://github.com/NyaNyagulugulu/NekoMusicDocs",
+                url = "https://github.com/FantasyNetworkCN/NekoMusicDocs",
                 icon = R.drawable.about
             )
             Spacer(modifier = Modifier.width(16.dp))
