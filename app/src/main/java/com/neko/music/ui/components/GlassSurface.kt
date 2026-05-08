@@ -54,8 +54,8 @@ fun GlassSurface(
         val blurPx = with(density) { liquidBlur.toPx() }
         val lensH = with(density) { liquidLensHeight.toPx() }
         val lensAmt = with(density) { liquidLensAmount.toPx() }
-        val frostTop = (highlightAlpha * 2.5f).coerceIn(0.06f, 0.28f)
-        val frostBase = (backgroundAlpha * 0.35f).coerceIn(0.04f, 0.14f)
+        val frostTop = (highlightAlpha * 2.5f).coerceIn(0.08f, 0.32f)
+        val frostBase = (backgroundAlpha * 0.45f).coerceIn(0.08f, 0.2f)
         Box(
             modifier = modifier
                 .clip(shape)
@@ -76,11 +76,16 @@ fun GlassSurface(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
                                     Color.White.copy(alpha = frostTop),
-                                    Color.White.copy(alpha = 0.02f)
+                                    Color.White.copy(alpha = 0.04f)
                                 )
                             )
                         )
                     }
+                )
+                .border(
+                    width = 0.5.dp,
+                    color = borderColor.copy(alpha = borderAlpha),
+                    shape = shape
                 )
         ) {
             content()

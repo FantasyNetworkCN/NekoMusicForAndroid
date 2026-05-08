@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -100,10 +99,7 @@ fun BottomNavigationBar(
     val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     GlassSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .safeContentPadding(),
+        modifier = modifier.fillMaxWidth().height(64.dp),
         shape = RoundedCornerShape(28.dp),
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
@@ -224,10 +220,7 @@ fun MiniPlayer(
     val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     GlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(68.dp)
-            .safeContentPadding(),
+        modifier = Modifier.fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(28.dp),
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
