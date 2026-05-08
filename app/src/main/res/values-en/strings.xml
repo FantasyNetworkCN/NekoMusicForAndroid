@@ -160,7 +160,7 @@
     <string name="download">Download</string>
     <string name="download_success">Download successful</string>
     <string name="download_failed">Download failed: %s</string>
-    <string name="share_to_twitter">Share to Twitter</string>
+    <string name="share_to_twitter">Share to X</string>
     <string name="share_to_qq">Share to QQ</string>
     <string name="qq_not_installed">QQ is not installed</string>
     <string name="share_failed">Share failed</string>
