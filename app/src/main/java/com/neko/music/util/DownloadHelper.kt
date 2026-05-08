@@ -2,7 +2,6 @@ package com.neko.music.util
 
 import android.app.DownloadManager
 import android.content.Context
-import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -11,12 +10,10 @@ import androidx.core.content.getSystemService
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
-import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class DownloadHelper(private val context: Context) {
 
