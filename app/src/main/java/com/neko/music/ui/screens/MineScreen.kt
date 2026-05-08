@@ -29,12 +29,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import kotlinx.coroutines.delay
 
 @Composable
 fun MineScreen(
@@ -86,51 +91,111 @@ fun MineScreen(
             repeatMode = RepeatMode.Restart
         )
     )
-    
+
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isSystemInDarkTheme()
+    // 与列表同层录屏：头图与下方一起滚动。列表内 [GlassSurface] 不提供 [LocalLiquidLayerBackdrop]，
+    // 走 CPU 磨砂（与 SearchResult 歌单项一致）；真 Kyant 折射仅适合 layerBackdrop 外叠层控件。
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(scheme.background)
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 60.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
         ) {
-            item {
-                MineHeader(
-                    onLoginClick = onLoginClick,
-                    isLoggedIn = isLoggedIn,
-                    username = username,
-                    userId = userId,
-                    onLogoutClick = onLogoutClick,
-                    onAccountInfoClick = onAccountInfoClick,
-                    bubble1Y = bubble1Y,
-                    bubble2Y = bubble2Y,
-                    bubble3Y = bubble3Y
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp)
+            ) {
+                item {
+                    MineHeader(
+                        onLoginClick = onLoginClick,
+                        isLoggedIn = isLoggedIn,
+                        username = username,
+                        userId = userId,
+                        onLogoutClick = onLogoutClick,
+                        onAccountInfoClick = onAccountInfoClick,
+                        bubble1Y = bubble1Y,
+                        bubble2Y = bubble2Y,
+                        bubble3Y = bubble3Y
+                    )
 
-                MineStats(onUploadClick = onUploadClick, token = token)
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                MineMenu(
-                    onRecentPlayClick = onRecentPlayClick,
-                    onFavoriteClick = onFavoriteClick
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                MoreSettings(
-                    onAboutClick = onAboutClick,
-                    onNavigateToSettings = onNavigateToSettings,
-                    isLoggedIn = isLoggedIn,
-                    onLoginClick = onLoginClick,
-                    onLogoutClick = onLogoutClick
-                )
-                
-                Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
+                    ) {
+                        MineStats(
+                            onUploadClick = onUploadClick,
+                            token = token,
+                            useOuterPadding = false,
+                            embeddedInGlass = true
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            MineMenu(
+                                onRecentPlayClick = onRecentPlayClick,
+                                onFavoriteClick = onFavoriteClick,
+                                useElevatedMenuItems = false,
+                                contentHorizontalPadding = 0.dp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            MoreSettings(
+                                onAboutClick = onAboutClick,
+                                onNavigateToSettings = onNavigateToSettings,
+                                isLoggedIn = isLoggedIn,
+                                onLoginClick = onLoginClick,
+                                onLogoutClick = onLogoutClick,
+                                useElevatedMenuItems = false,
+                                contentHorizontalPadding = 0.dp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
             }
         }
     }
@@ -288,7 +353,12 @@ fun MineHeader(
 }
 
 @Composable
-fun MineStats(onUploadClick: () -> Unit = {}, token: String? = null) {
+fun MineStats(
+    onUploadClick: () -> Unit = {},
+    token: String? = null,
+    useOuterPadding: Boolean = true,
+    embeddedInGlass: Boolean = false
+) {
     var uploadCount by remember { mutableStateOf(0) }
     val context = LocalContext.current
     
@@ -305,26 +375,41 @@ fun MineStats(onUploadClick: () -> Unit = {}, token: String? = null) {
             }
         }
     }
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        RoseRed.copy(alpha = 0.12f),
-                        SakuraPink.copy(alpha = 0.12f)
+
+    val rowModifier = Modifier
+        .fillMaxWidth()
+        .then(
+            if (useOuterPadding) {
+                Modifier.padding(horizontal = 20.dp)
+            } else {
+                Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            }
+        )
+        .then(
+            if (embeddedInGlass) {
+                Modifier
+            } else {
+                Modifier
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                RoseRed.copy(alpha = 0.12f),
+                                SakuraPink.copy(alpha = 0.12f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(20.dp)
                     )
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .shadow(
-                elevation = 4.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = Color.Gray.copy(alpha = 0.1f)
-            )
-            .padding(20.dp),
+                    .shadow(
+                        elevation = 4.dp,
+                        spotColor = RoseRed.copy(alpha = 0.2f),
+                        ambientColor = Color.Gray.copy(alpha = 0.1f)
+                    )
+            }
+        )
+        .padding(vertical = 16.dp, horizontal = 16.dp)
+
+    Row(
+        modifier = rowModifier,
         horizontalArrangement = Arrangement.Center
     ) {
         StatItem(uploadCount.toString(), stringResource(id = R.string.upload), onUploadClick = onUploadClick)
@@ -341,7 +426,13 @@ fun StatItem(count: String, label: String, onUploadClick: () -> Unit = {}) {
             stiffness = Spring.StiffnessLow
         )
     )
-    
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(140)
+            isPressed = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .scale(scale)
@@ -426,12 +517,15 @@ fun MineMenu(
     onFavoriteClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     onLogoutClick: () -> Unit = {},
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    useElevatedMenuItems: Boolean = true,
+    /** 嵌入 [GlassSurface] 时由外层留白，此处传 0.dp */
+    contentHorizontalPadding: Dp = 20.dp
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = contentHorizontalPadding)
     ) {
         Text(
             text = stringResource(id = R.string.mine),
@@ -442,8 +536,20 @@ fun MineMenu(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        MenuItem(stringResource(id = R.string.my_favorites), R.drawable.ic_favorite_filled, SakuraPink, onClick = onFavoriteClick)
-        MenuItem(stringResource(id = R.string.recent_play), R.drawable.recently_played, SkyBlue, onClick = onRecentPlayClick)
+        MenuItem(
+            stringResource(id = R.string.my_favorites),
+            R.drawable.ic_favorite_filled,
+            SakuraPink,
+            onClick = onFavoriteClick,
+            useElevatedSurface = useElevatedMenuItems
+        )
+        MenuItem(
+            stringResource(id = R.string.recent_play),
+            R.drawable.recently_played,
+            SkyBlue,
+            onClick = onRecentPlayClick,
+            useElevatedSurface = useElevatedMenuItems
+        )
     }
 }
 
@@ -452,7 +558,8 @@ fun MenuItem(
     title: String,
     iconResId: Int,
     iconColor: Color = RoseRed,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    useElevatedSurface: Boolean = true
 ) {
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -462,21 +569,35 @@ fun MenuItem(
             stiffness = Spring.StiffnessLow
         )
     )
-    
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(120)
+            isPressed = false
+        }
+    }
+
+    val rowShape = RoundedCornerShape(16.dp)
+    val elevatedModifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 6.dp)
+        .background(
+            color = MaterialTheme.colorScheme.surface,
+            shape = rowShape
+        )
+        .padding(16.dp)
+        .shadow(
+            elevation = 2.dp,
+            spotColor = RoseRed.copy(alpha = 0.15f),
+            ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+        )
+    val flatModifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp)
+        .padding(horizontal = 4.dp)
+
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(16.dp)
-            .shadow(
-                elevation = 2.dp,
-                spotColor = RoseRed.copy(alpha = 0.15f),
-                ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-            )
+            .then(if (useElevatedSurface) elevatedModifier else flatModifier)
             .scale(scale)
             .clickable {
                 isPressed = true
@@ -520,35 +641,66 @@ fun MoreSettings(
     onNavigateToSettings: () -> Unit = {},
     isLoggedIn: Boolean = false,
     onLoginClick: () -> Unit = {},
-    onLogoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    useElevatedMenuItems: Boolean = true,
+    showFooter: Boolean = true,
+    /** 嵌入 [GlassSurface] 时由外层留白 */
+    contentHorizontalPadding: Dp = 20.dp
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = contentHorizontalPadding)
     ) {
-        MenuItem(stringResource(id = R.string.settings_title), R.drawable.setting, RoseRed, onClick = onNavigateToSettings)
-        MenuItem(stringResource(id = R.string.about_us), R.drawable.about, StarYellow, onClick = onAboutClick)
+        MenuItem(
+            stringResource(id = R.string.settings_title),
+            R.drawable.setting,
+            RoseRed,
+            onClick = onNavigateToSettings,
+            useElevatedSurface = useElevatedMenuItems
+        )
+        MenuItem(
+            stringResource(id = R.string.about_us),
+            R.drawable.about,
+            StarYellow,
+            onClick = onAboutClick,
+            useElevatedSurface = useElevatedMenuItems
+        )
         
         Spacer(modifier = Modifier.height(16.dp))
         
         if (isLoggedIn) {
-            MenuItem(stringResource(id = R.string.logout), R.drawable.logout, Lilac, onClick = onLogoutClick)
+            MenuItem(
+                stringResource(id = R.string.logout),
+                R.drawable.logout,
+                Lilac,
+                onClick = onLogoutClick,
+                useElevatedSurface = useElevatedMenuItems
+            )
         } else {
-            MenuItem(stringResource(id = R.string.login), R.drawable.login, Peach, onClick = onLoginClick)
+            MenuItem(
+                stringResource(id = R.string.login),
+                R.drawable.login,
+                Peach,
+                onClick = onLoginClick,
+                useElevatedSurface = useElevatedMenuItems
+            )
         }
     }
-    
-    // 页脚
+
+    if (showFooter) {
+        MineScreenFooter()
+    }
+}
+
+@Composable
+private fun MineScreenFooter() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 24.dp),
+            .padding(vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        // API文档和GitHub链接
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
@@ -565,73 +717,7 @@ fun MoreSettings(
                 icon = R.drawable.about
             )
         }
-        
         Spacer(modifier = Modifier.height(16.dp))
-        
-//        // IPv6支持徽章
-//        Row(
-//            modifier = Modifier
-//                .background(
-//                    color = MaterialTheme.colorScheme.surface,
-//                    shape = RoundedCornerShape(12.dp)
-//                )
-//                .padding(horizontal = 16.dp, vertical = 8.dp)
-//                .shadow(
-//                    elevation = 2.dp,
-//                    spotColor = RoseRed.copy(alpha = 0.15f),
-//                    ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-//                ),
-//            verticalAlignment = Alignment.CenterVertically,
-//            horizontalArrangement = Arrangement.spacedBy(6.dp)
-//        ) {
-//            // IPv6图标
-//            Box(
-//                modifier = Modifier
-//                    .size(16.dp)
-//                    .clip(RoundedCornerShape(4.dp))
-//                    .background(
-//                        brush = Brush.linearGradient(
-//                            colors = listOf(
-//                                RoseRed.copy(alpha = 0.8f),
-//                                SakuraPink.copy(alpha = 0.8f)
-//                            )
-//                        )
-//                    ),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Text(
-//                    text = "6",
-//                    fontSize = 10.sp,
-//                    fontWeight = FontWeight.Bold,
-//                    color = Color.White
-//                )
-//            }
-//
-//            Text(
-//                text = "IPv6支持",
-//                fontSize = 12.sp,
-//                color = MaterialTheme.colorScheme.onSurface,
-//                fontWeight = FontWeight.Medium
-//            )
-//
-//            // 状态指示器
-//            Box(
-//                modifier = Modifier
-//                    .size(8.dp)
-//                    .clip(CircleShape)
-//                    .background(
-//                        brush = Brush.linearGradient(
-//                            colors = listOf(
-//                                RoseRed,
-//                                SakuraPink
-//                            )
-//                        )
-//                    )
-//            )
-//        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
         Text(
             text = stringResource(id = R.string.footer_icp),
             fontSize = 10.sp,
