@@ -52,6 +52,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -84,7 +85,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -305,347 +307,352 @@ fun PlaylistDetailScreen(
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-            ) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "返回",
-                            tint = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.9f)
-                            } else {
-                                Color.Black
-                            }
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = playlistName,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDarkTheme) {
-                                Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                            } else {
-                                Color.Black
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (!isOwnPlaylist && !isCheckingFavorite) {
-                            IconButton(
-                                onClick = toggleFavorite,
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (isFavorited) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border
-                                    ),
-                                    contentDescription = if (isFavorited) "取消收藏" else "收藏",
-                                    tint = RoseRed
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { showShareDialog = true },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(id = R.string.share_playlist),
-                                tint = if (isDarkTheme) {
-                                    Color(0xFFB8B8D1).copy(alpha = 0.92f)
-                                } else {
-                                    Color(0xFF2C2C2C)
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .fillMaxSize()
+                        .statusBarsPadding()
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(120.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isDarkTheme) {
-                                    Color(0xFF252545).copy(alpha = 0.6f)
-                                } else {
-                                    Color(0xFFF5F5F5)
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(coverUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "歌单封面",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(R.drawable.music),
-                            error = painterResource(R.drawable.music)
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.songs_count_label, musicList.size),
-                            fontSize = 14.sp,
-                            color = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                            } else {
-                                Color.Gray
-                            }
-                        )
-
-                        if (currentDescription.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = currentDescription,
-                                fontSize = 13.sp,
-                                color = if (isDarkTheme) {
-                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "返回",
+                                tint = if (isDarkTheme) {
+                                    Color(0xFFB8B8D1).copy(alpha = 0.9f)
                                 } else {
-                                    Color.Gray
-                                },
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable {
-                                    editingDescription = currentDescription
-                                    showEditDescriptionDialog = true
-                                }
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = stringResource(id = R.string.no_description_click_to_edit),
-                                fontSize = 13.sp,
-                                color = if (isDarkTheme) {
-                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                                } else {
-                                    Color.Gray
-                                },
-                                modifier = Modifier.clickable {
-                                    editingDescription = ""
-                                    showEditDescriptionDialog = true
+                                    Color.Black
                                 }
                             )
                         }
 
-                        // 创建者信息
-                        val displayCreatorUsername = actualCreatorUsername ?: creatorUsername
-                        val displayCreatorUserId = actualCreatorUserId ?: creatorUserId
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = playlistName,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) {
+                                    Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                                } else {
+                                    Color.Black
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
 
-                        if (displayCreatorUserId != null && displayCreatorUserId != -1) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current)
-                                        .data(UrlConfig.getUserAvatarUrl(displayCreatorUserId))
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = "创建者头像",
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape),
-                                    placeholder = painterResource(R.drawable.user),
-                                    error = painterResource(R.drawable.user)
-                                )
-                                Text(
-                                    text = if (displayCreatorUsername != null)
-                                        stringResource(
-                                            id = R.string.creator_info,
-                                            displayCreatorUsername
-                                        )
-                                    else
-                                        stringResource(
-                                            id = R.string.creator_id_info,
-                                            displayCreatorUserId ?: 0
+                        Row(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (!isOwnPlaylist && !isCheckingFavorite) {
+                                IconButton(
+                                    onClick = toggleFavorite,
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (isFavorited) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border
                                         ),
-                                    fontSize = 12.sp,
-                                    color = if (isDarkTheme) {
-                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                        contentDescription = if (isFavorited) "取消收藏" else "收藏",
+                                        tint = RoseRed
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { showShareDialog = true },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = stringResource(id = R.string.share_playlist),
+                                    tint = if (isDarkTheme) {
+                                        Color(0xFFB8B8D1).copy(alpha = 0.92f)
                                     } else {
-                                        Color.Gray
+                                        Color(0xFF2C2C2C)
                                     }
                                 )
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(
-                            onClick = {
-                                if (musicList.isNotEmpty()) {
-                                    onPlayAll(musicList)
-                                }
-                            },
-                            enabled = musicList.isNotEmpty(),
-                            modifier = Modifier.height(36.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = RoseRed,
-                                disabledContainerColor = RoseRed.copy(alpha = 0.3f)
-                            ),
-                            shape = RoundedCornerShape(18.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isDarkTheme) {
+                                        Color(0xFF252545).copy(alpha = 0.6f)
+                                    } else {
+                                        Color(0xFFF5F5F5)
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = if (isDarkTheme) {
-                                    Color.White.copy(alpha = 0.95f)
-                                } else {
-                                    Color.White
-                                },
-                                modifier = Modifier.size(18.dp)
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(coverUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "歌单封面",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                placeholder = painterResource(R.drawable.music),
+                                error = painterResource(R.drawable.music)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
-                                text = stringResource(id = R.string.play_all),
+                                text = stringResource(
+                                    id = R.string.songs_count_label,
+                                    musicList.size
+                                ),
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
                                 color = if (isDarkTheme) {
-                                    Color.White.copy(alpha = 0.95f)
+                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
                                 } else {
-                                    Color.White
+                                    Color.Gray
+                                }
+                            )
+
+                            if (currentDescription.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = currentDescription,
+                                    fontSize = 13.sp,
+                                    color = if (isDarkTheme) {
+                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                    } else {
+                                        Color.Gray
+                                    },
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable {
+                                        editingDescription = currentDescription
+                                        showEditDescriptionDialog = true
+                                    }
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = stringResource(id = R.string.no_description_click_to_edit),
+                                    fontSize = 13.sp,
+                                    color = if (isDarkTheme) {
+                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                    } else {
+                                        Color.Gray
+                                    },
+                                    modifier = Modifier.clickable {
+                                        editingDescription = ""
+                                        showEditDescriptionDialog = true
+                                    }
+                                )
+                            }
+
+                            // 创建者信息
+                            val displayCreatorUsername = actualCreatorUsername ?: creatorUsername
+                            val displayCreatorUserId = actualCreatorUserId ?: creatorUserId
+
+                            if (displayCreatorUserId != null && displayCreatorUserId != -1) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(UrlConfig.getUserAvatarUrl(displayCreatorUserId))
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "创建者头像",
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape),
+                                        placeholder = painterResource(R.drawable.user),
+                                        error = painterResource(R.drawable.user)
+                                    )
+                                    Text(
+                                        text = if (displayCreatorUsername != null)
+                                            stringResource(
+                                                id = R.string.creator_info,
+                                                displayCreatorUsername
+                                            )
+                                        else
+                                            stringResource(
+                                                id = R.string.creator_id_info,
+                                                displayCreatorUserId ?: 0
+                                            ),
+                                        fontSize = 12.sp,
+                                        color = if (isDarkTheme) {
+                                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                        } else {
+                                            Color.Gray
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = {
+                                    if (musicList.isNotEmpty()) {
+                                        onPlayAll(musicList)
+                                    }
+                                },
+                                enabled = musicList.isNotEmpty(),
+                                modifier = Modifier.height(36.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = RoseRed,
+                                    disabledContainerColor = RoseRed.copy(alpha = 0.3f)
+                                ),
+                                shape = RoundedCornerShape(18.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = if (isDarkTheme) {
+                                        Color.White.copy(alpha = 0.95f)
+                                    } else {
+                                        Color.White
+                                    },
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(id = R.string.play_all),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isDarkTheme) {
+                                        Color.White.copy(alpha = 0.95f)
+                                    } else {
+                                        Color.White
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = RoseRed)
+                        }
+                    } else if (errorMessage.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                fontSize = 16.sp,
+                                color = if (isDarkTheme) {
+                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                } else {
+                                    Color.Gray
                                 }
                             )
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = RoseRed)
-                    }
-                } else if (errorMessage.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = errorMessage,
-                            fontSize = 16.sp,
-                            color = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                            } else {
-                                Color.Gray
-                            }
-                        )
-                    }
-                } else if (musicList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.no_songs),
-                            fontSize = 16.sp,
-                            color = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                            } else {
-                                Color.Gray
-                            }
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 16.dp,
-                            bottom = 150.dp
-                        )
-                    ) {
-                        itemsIndexed(musicList) { index, music ->
-                            PlaylistMusicItem(
-                                music = music,
-                                position = index + 1,
-                                onClick = {
-                                    onMusicClick(
-                                        com.neko.music.data.model.Music(
-                                            music.id,
-                                            music.title,
-                                            music.artist,
-                                            music.coverPath ?: "",
-                                            music.duration,
-                                            "",
-                                            "",
-                                            0,
-                                            ""
-                                        )
-                                    )
-                                },
-                                onRemove = { removeMusic(music) },
-                                showDeleteButton = isOwner
+                    } else if (musicList.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.no_songs),
+                                fontSize = 16.sp,
+                                color = if (isDarkTheme) {
+                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                } else {
+                                    Color.Gray
+                                }
                             )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 16.dp,
+                                bottom = 150.dp
+                            )
+                        ) {
+                            itemsIndexed(musicList) { index, music ->
+                                PlaylistMusicItem(
+                                    music = music,
+                                    position = index + 1,
+                                    onClick = {
+                                        onMusicClick(
+                                            com.neko.music.data.model.Music(
+                                                music.id,
+                                                music.title,
+                                                music.artist,
+                                                music.coverPath ?: "",
+                                                music.duration,
+                                                "",
+                                                "",
+                                                0,
+                                                ""
+                                            )
+                                        )
+                                    },
+                                    onRemove = { removeMusic(music) },
+                                    showDeleteButton = isOwner
+                                )
+                            }
                         }
                     }
                 }
             }
-            if (showShareDialog) {
-                PlaylistShareSheet(
-                    playlistName = playlistName,
-                    playlistId = playlistId,
-                    onDismiss = { showShareDialog = false },
-                )
-            }
-            }
+        }
+
+        if (showShareDialog) {
+            PlaylistShareSheet(
+                playlistName = playlistName,
+                playlistId = playlistId,
+                liquidBackdrop = pageBackdrop,
+                onDismiss = { showShareDialog = false },
+            )
         }
 
         if (showEditDescriptionDialog) {
@@ -772,6 +779,7 @@ fun PlaylistDetailScreen(
 private fun PlaylistShareSheet(
     playlistName: String,
     playlistId: Int,
+    liquidBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -795,167 +803,175 @@ private fun PlaylistShareSheet(
     fun shareText(): String =
         context.getString(R.string.share_playlist_text, playlistName, playlistId)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .zIndex(48f),
+    // Dialog 独立窗口，叠在 MainActivity 迷你播放器/底栏之上；内层仍提供本页录屏供 Kyant 采样。
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.42f * scrimAlpha))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss,
-                ),
-        )
-        AnimatedVisibility(
-            visible = sheetShown,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(280, easing = FastOutSlowInEasing),
-            ) + fadeIn(tween(240, easing = FastOutSlowInEasing)),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(220, easing = FastOutSlowInEasing),
-            ) + fadeOut(tween(180)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
-        ) {
-            val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-            GlassSurface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars),
-                shape = panelShape,
-                backgroundAlpha = if (isDarkTheme) 0.26f else 0.30f,
-                borderAlpha = if (isDarkTheme) 0.26f else 0.20f,
-                highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
-                borderColor = if (isDarkTheme) RoseRed.copy(alpha = 0.55f) else scheme.outline,
-                liquidBlur = 11.dp,
-                liquidLensHeight = 16.dp,
-                liquidLensAmount = 28.dp,
-            ) {
-                Column(
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.42f * scrimAlpha))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onDismiss,
+                        ),
+                )
+                AnimatedVisibility(
+                    visible = sheetShown,
+                    enter = slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                    ) + fadeIn(tween(240, easing = FastOutSlowInEasing)),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    ) + fadeOut(tween(180)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .align(Alignment.BottomCenter)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ),
                 ) {
-                    Text(
-                        text = stringResource(id = R.string.share_playlist),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
-                        LazyRow(
+                    val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars),
+                        shape = panelShape,
+                        backgroundAlpha = if (isDarkTheme) 0.26f else 0.30f,
+                        borderAlpha = if (isDarkTheme) 0.26f else 0.20f,
+                        highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                        borderColor = if (isDarkTheme) RoseRed.copy(alpha = 0.55f) else scheme.outline,
+                        liquidBlur = 11.dp,
+                        liquidLensHeight = 16.dp,
+                        liquidLensAmount = 28.dp,
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.twitter,
-                                    label = stringResource(id = R.string.share_to_twitter),
-                                    color = Color(0xFF1DA1F2),
-                                    labelColor = shareLabelTint,
-                                    onClick = {
-                                        val text = shareText()
-                                        val encoded = java.net.URLEncoder.encode(text, "UTF-8")
-                                        context.startActivity(
-                                            Intent(Intent.ACTION_VIEW).apply {
-                                                data = Uri.parse("https://twitter.com/intent/tweet?text=$encoded")
+                            Text(
+                                text = stringResource(id = R.string.share_playlist),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                ) {
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.twitter,
+                                            label = stringResource(id = R.string.share_to_twitter),
+                                            color = Color(0xFF1DA1F2),
+                                            labelColor = shareLabelTint,
+                                            onClick = {
+                                                val text = shareText()
+                                                val encoded = java.net.URLEncoder.encode(text, "UTF-8")
+                                                context.startActivity(
+                                                    Intent(Intent.ACTION_VIEW).apply {
+                                                        data = Uri.parse("https://twitter.com/intent/tweet?text=$encoded")
+                                                    },
+                                                )
+                                                onDismiss()
                                             },
                                         )
-                                        onDismiss()
-                                    },
-                                )
-                            }
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.qq,
-                                    label = stringResource(id = R.string.share_to_qq),
-                                    color = Color(0xFF12B7F5),
-                                    labelColor = shareLabelTint,
-                                    onClick = {
-                                        scope.launch {
-                                            onDismiss()
-                                            try {
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.qq,
+                                            label = stringResource(id = R.string.share_to_qq),
+                                            color = Color(0xFF12B7F5),
+                                            labelColor = shareLabelTint,
+                                            onClick = {
+                                                scope.launch {
+                                                    onDismiss()
+                                                    try {
+                                                        val text = shareText()
+                                                        val qqIntent = Intent(Intent.ACTION_SEND).apply {
+                                                            type = "text/plain"
+                                                            putExtra(Intent.EXTRA_TEXT, text)
+                                                            setPackage("com.tencent.mobileqq")
+                                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        try {
+                                                            context.startActivity(qqIntent)
+                                                        } catch (_: Exception) {
+                                                            Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.qq_not_installed),
+                                                                Toast.LENGTH_SHORT,
+                                                            ).show()
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        Toast.makeText(
+                                                            context,
+                                                            context.getString(R.string.share_failed),
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
+                                    item {
+                                        ShareGridItem(
+                                            iconRes = R.drawable.copy_link,
+                                            label = stringResource(id = R.string.copy_link),
+                                            color = copyLinkIconColor,
+                                            labelColor = shareLabelTint,
+                                            onClick = {
                                                 val text = shareText()
-                                                val qqIntent = Intent(Intent.ACTION_SEND).apply {
-                                                    type = "text/plain"
-                                                    putExtra(Intent.EXTRA_TEXT, text)
-                                                    setPackage("com.tencent.mobileqq")
-                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                }
-                                                try {
-                                                    context.startActivity(qqIntent)
-                                                } catch (_: Exception) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.qq_not_installed),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                }
-                                            } catch (_: Exception) {
+                                                val clip = ClipData.newPlainText(
+                                                    context.getString(R.string.playlist_link),
+                                                    text,
+                                                )
+                                                val clipboard =
+                                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                clipboard.setPrimaryClip(clip)
                                                 Toast.makeText(
                                                     context,
-                                                    context.getString(R.string.share_failed),
+                                                    context.getString(R.string.link_copied),
                                                     Toast.LENGTH_SHORT,
                                                 ).show()
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                            item {
-                                ShareGridItem(
-                                    iconRes = R.drawable.copy_link,
-                                    label = stringResource(id = R.string.copy_link),
-                                    color = copyLinkIconColor,
-                                    labelColor = shareLabelTint,
-                                    onClick = {
-                                        val text = shareText()
-                                        val clip = ClipData.newPlainText(
-                                            context.getString(R.string.playlist_link),
-                                            text,
+                                                onDismiss()
+                                            },
                                         )
-                                        val clipboard =
-                                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.link_copied),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                        onDismiss()
-                                    },
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = dividerColor)
+                            TextButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.cancel),
+                                    fontSize = 17.sp,
+                                    color = cancelTextColor,
+                                    fontWeight = FontWeight.Medium,
                                 )
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider(color = dividerColor)
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.cancel),
-                            fontSize = 17.sp,
-                            color = cancelTextColor,
-                            fontWeight = FontWeight.Medium,
-                        )
                     }
                 }
             }
@@ -1096,3 +1112,5 @@ fun PlaylistMusicItem(
         }
     }
 }
+}
+        
