@@ -59,6 +59,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.BottomNavigationBar
 import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.MiniPlayer
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
@@ -489,7 +490,10 @@ fun MainScreen() {
     val latestLiquidBarState = remember { LatestLiquidBarState() }
     val searchLiquidBarState = remember { SearchLiquidBarState() }
     Box(modifier = Modifier.fillMaxSize()) {
-        Box(
+        CompositionLocalProvider(LocalNavHostRecordingBackdrop provides liquidBackdrop) {
+            NavHost(
+            navController = navController,
+            startDestination = BottomNavItem.Home.route,
             modifier = Modifier
                 .fillMaxSize()
                 .then(
@@ -498,12 +502,7 @@ fun MainScreen() {
                     } else {
                         Modifier
                     }
-                )
-        ) {
-            NavHost(
-            navController = navController,
-            startDestination = BottomNavItem.Home.route,
-            modifier = Modifier.fillMaxSize(),
+                ),
             enterTransition = {
                 androidx.compose.animation.scaleIn(
                     initialScale = 0.95f,

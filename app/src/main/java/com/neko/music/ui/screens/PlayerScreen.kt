@@ -121,6 +121,7 @@ import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
@@ -2067,30 +2068,6 @@ fun ProgressSlider(
                 }
             }
         }
-
-
-/** 分享面板内分区：再叠一层真液态，与外层底栏玻璃同一 [LocalLiquidLayerBackdrop] 采样。 */
-@Composable
-private fun ShareSheetLiquidSection(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    val isDark = isSystemInDarkTheme()
-    val scheme = MaterialTheme.colorScheme
-    GlassSurface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        backgroundAlpha = if (isDark) 0.17f else 0.22f,
-        borderAlpha = if (isDark) 0.22f else 0.17f,
-        highlightAlpha = if (isDark) 0.07f else 0.09f,
-        borderColor = if (isDark) SakuraPink.copy(alpha = 0.42f) else scheme.outline,
-        liquidBlur = 9.dp,
-        liquidLensHeight = 12.dp,
-        liquidLensAmount = 22.dp
-    ) {
-        content()
-    }
-}
 
 @Composable
 fun ShareDialog(

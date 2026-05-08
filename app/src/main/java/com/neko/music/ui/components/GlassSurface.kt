@@ -1,6 +1,7 @@
 package com.neko.music.ui.components
 
 import android.os.Build
+import androidx.annotation.FloatRange
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.opacity
 import com.kyant.backdrop.effects.vibrancy
 
 /**
@@ -32,9 +34,13 @@ import com.kyant.backdrop.effects.vibrancy
  *
  * [LocalLiquidLayerBackdrop] 仅应在 **`layerBackdrop` 子树之外** 提供（例如底栏 / 迷你播放器），与
  * [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 一致。
- * 若在已应用 `layerBackdrop(同一 LayerBackdrop)` 的区域内（如 `NavHost` 内）再 `drawBackdrop`，会触发 RenderThread SIGSEGV。
+ * 若在已应用 `layerBackdrop(同一 LayerBackdrop)` 的区域内再对同一实例 `drawBackdrop`，或 LazyColumn 多行共享
+ * 同一 export 并各自 `drawBackdrop`，会触发 RenderThread SIGSEGV。
  *
  * 液态叠色随 [MaterialTheme] 深浅色：暗色为深色霜化底 + 弱顶光，浅色为白霜化（与系统玻璃语义一致）。
+ *
+ * Kyant 要求效果顺序为 **color filter ⇒ blur ⇒ lens**；[opacity](https://kyant.gitbook.io/backdrop/api/backdrop-effects#opacity)
+ * 属于 color filter，在 [liquidBackdropOpacity] 中传入 0..1，在 vibrancy/blur 之前应用。
  */
 @Composable
 fun GlassSurface(
@@ -44,6 +50,11 @@ fun GlassSurface(
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,
     borderColor: Color = Color.White,
+    /**
+     * 对采样到的 backdrop 做矩阵透明度（Kyant [opacity](https://kyant.gitbook.io/backdrop/api/backdrop-effects#opacity)），
+     * 仅 `LocalLiquidLayerBackdrop` 非空且 API 31+ 时生效；与 [liquidBlur] 等同属液态路径。
+     */
+    @FloatRange(from = 0.0, to = 1.0) liquidBackdropOpacity: Float = 0.92f,
     /** Kyant 液态路径专用；教程 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 底栏约 4.dp。 */
     liquidBlur: Dp = 14.dp,
     liquidLensHeight: Dp = 16.dp,
@@ -70,6 +81,7 @@ fun GlassSurface(
                     backdrop = backdrop,
                     shape = { shape },
                     effects = {
+                        opacity(liquidBackdropOpacity.coerceIn(0f, 1f))
                         vibrancy()
                         blur(blurPx)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

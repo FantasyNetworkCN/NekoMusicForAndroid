@@ -199,9 +199,8 @@ class MusicPlayerService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // 先删除旧的通知频道
-            notificationManager.deleteNotificationChannel(CHANNEL_ID)
-
+            // 禁止 deleteNotificationChannel：前台服务正在使用该 channel 时系统会抛 SecurityException（如 Android 14+）。
+            // 同 ID 再次 createNotificationChannel 即可（系统会按策略更新可变更字段）。
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.music_playback),

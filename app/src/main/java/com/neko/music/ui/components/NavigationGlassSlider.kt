@@ -26,6 +26,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.opacity
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
@@ -129,6 +130,7 @@ fun NavigationGlassSlider(
                     backdrop = combinedBackdrop,
                     shape = { thumbShape },
                     effects = {
+                        opacity(0.94f)
                         vibrancy()
                         blur(with(density) { lerp(4f, 6f, p).dp.toPx() })
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
