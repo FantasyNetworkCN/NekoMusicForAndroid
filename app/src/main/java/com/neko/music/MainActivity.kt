@@ -66,6 +66,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -299,7 +300,7 @@ fun MainScreen() {
     val scope = rememberCoroutineScope()
 
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryFlow.collectAsState(initial = null)
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     // 检查是否在播放页面
