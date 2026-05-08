@@ -1,5 +1,6 @@
 package com.neko.music.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -35,11 +36,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,13 +60,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import kotlinx.coroutines.launch
 
 sealed class BottomNavItem(
     val route: String,
@@ -116,9 +121,18 @@ fun BottomNavigationBar(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val density = LocalDensity.current
-            var dragPx by remember { mutableStateOf(0f) }
-            var dragAnchorIndex by remember { mutableStateOf(0) }
-            val latestSafeSelected by rememberUpdatedState(selectedIndex.coerceAtLeast(0))
+            val scope = rememberCoroutineScope()
+            var isDragging by remember { mutableStateOf(false) }
+            val latestRoute by rememberUpdatedState(currentRoute)
+
+            val thumbPosPx = remember { Animatable(0f) }
+            var thumbLeftUi by remember { mutableStateOf(0.dp) }
+
+            LaunchedEffect(thumbPosPx) {
+                snapshotFlow { thumbPosPx.value }.collect { px ->
+                    thumbLeftUi = with(density) { px.toDp() }
+                }
+            }
 
             fun navigateToItem(item: BottomNavItem) {
                 if (currentRoute != item.route) {
@@ -131,15 +145,39 @@ fun BottomNavigationBar(
                 }
             }
 
-            val dragState = rememberDraggableState { delta -> dragPx += delta }
-            val dragDp = with(density) { dragPx.toDp() }
+            LaunchedEffect(maxWidth, selectedIndex, isDragging) {
+                if (maxWidth <= 0.dp || isDragging) return@LaunchedEffect
+                val destPx = navTabThumbLeftPxForIndex(
+                    maxWidth,
+                    items.size,
+                    selectedIndex.coerceAtLeast(0),
+                    density
+                )
+                thumbPosPx.animateTo(destPx, tween(220))
+            }
+
+            val dragState = rememberDraggableState { delta ->
+                scope.launch {
+                    val nextPx = navTabThumbClampLeftPx(
+                        thumbPosPx.value + delta,
+                        maxWidth,
+                        items.size,
+                        density
+                    )
+                    thumbPosPx.snapTo(nextPx)
+                    val nextDp = with(density) { nextPx.toDp() }
+                    val newIdx = navTabIndexForThumbLeft(nextDp, maxWidth, items.size, density)
+                    if (items[newIdx].route != latestRoute) {
+                        navigateToItem(items[newIdx])
+                    }
+                }
+            }
 
             NavigationGlassSlider(
                 modifier = Modifier.fillMaxSize(),
                 mainBackdrop = pageBackdrop,
-                selectedIndex = selectedIndex.coerceAtLeast(0),
                 tabCount = items.size,
-                dragOffsetXDp = dragDp
+                thumbLeftDp = thumbLeftUi
             )
             Row(
                 modifier = Modifier
@@ -148,17 +186,11 @@ fun BottomNavigationBar(
                         state = dragState,
                         orientation = Orientation.Horizontal,
                         onDragStarted = {
-                            dragAnchorIndex = latestSafeSelected
+                            isDragging = true
+                            thumbPosPx.stop()
                         },
                         onDragStopped = {
-                            val segmentPx = with(density) { maxWidth.toPx() } / items.size
-                            if (segmentPx > 0f) {
-                                val deltaTabs = (dragPx / segmentPx).roundToInt()
-                                    .coerceIn(-items.size, items.size)
-                                val newIdx = (dragAnchorIndex + deltaTabs).coerceIn(0, items.lastIndex)
-                                navigateToItem(items[newIdx])
-                            }
-                            dragPx = 0f
+                            isDragging = false
                         }
                     ),
                 horizontalArrangement = Arrangement.SpaceEvenly,
