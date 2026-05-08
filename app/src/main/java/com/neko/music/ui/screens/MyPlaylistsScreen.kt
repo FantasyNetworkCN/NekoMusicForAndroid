@@ -61,7 +61,10 @@ import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.model.Playlist
 import com.neko.music.ui.theme.*
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +83,9 @@ fun MyPlaylistsScreen(
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
     val myFavoritesLabel = stringResource(id = R.string.my_favorites_label)
     val loadingFailed = stringResource(id = R.string.loading_failed)
+
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     
     // 歌单数据
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
@@ -369,206 +375,217 @@ fun MyPlaylistsScreen(
         }
     }
     
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // 背景图片 - 使用WindowInsets处理状态栏
-        androidx.compose.foundation.Image(
-            painter = painterResource(id = R.drawable.list_background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-        
-        // 暗色模式灰色遮罩
-        if (isSystemInDarkTheme()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-            )
-        }
-        
-        // 内容层
-        Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 仅背景进入本页 layerBackdrop；列表在兄弟层上采样，避免 NavHost 内多行共享 export 导致 SIGSEGV（对齐底栏「录屏在下、玻璃在上」）。
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
+                .layerBackdrop(pageBackdrop)
         ) {
-            // 顶部标题栏
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .padding(top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.my_playlists),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = R.drawable.list_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            if (isSystemInDarkTheme()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f))
                 )
             }
-            
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
-                }
-            } else if (allPlaylists.isEmpty()) {
-                // 空状态
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.music),
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Text(
-                            text = stringResource(id = R.string.no_playlists_yet),
-                            fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            } else {
-                // 歌单列表
-                val pullRefreshState = rememberPullToRefreshState()
+        }
 
-                PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        isRefreshing = true
-                        scope.launch {
-                            refreshData()
-                        }
-                    },
-                    state = pullRefreshState,
-                    modifier = Modifier.fillMaxSize()
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                // 顶部标题栏
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Transparent)
+                        .padding(top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 150.dp)
+                    Text(
+                        text = stringResource(id = R.string.my_playlists),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                    itemsIndexed(allPlaylists) { index, playlist ->
-                        // 检查是否是第一个收藏歌单（"我喜欢的音乐"的索引是0，所以用户歌单从1开始）
-                        val isFirstFavoritePlaylist = index == playlists.size + 1 && favoritePlaylists.isNotEmpty()
-                        
-                        // 如果是第一个收藏歌单，先显示分割线
-                        if (isFirstFavoritePlaylist) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .height(1.dp)
-                                    .background(
-                                        if (isSystemInDarkTheme()) {
-                                            Color.White.copy(alpha = 0.1f)
-                                        } else {
-                                            Color.Black.copy(alpha = 0.1f)
-                                        }
-                                    )
+                        CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
+                    }
+                } else if (allPlaylists.isEmpty()) {
+                    // 空状态
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.music),
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Text(
+                                text = stringResource(id = R.string.no_playlists_yet),
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                        
-                        PlaylistItem(
-                            playlist = playlist,
-                            favorites = favorites,
-                            firstMusicCover = playlistFirstMusicCovers[playlist.id],
-                            onEdit = {
-                                if (playlist.id != 0) { // "我的收藏"不能编辑
-                                    editingPlaylist = playlist
-                                    dialogPlaylistName = playlist.name
-                                    showCreateDialog = true
-                                }
-                            },
-                            onDelete = {
-                                if (playlist.id != 0) { // "我的收藏"不能删除
-                                    deletePlaylist(playlist)
-                                }
-                            },
-                            onClick = {
-                                // 点击歌单
-                                if (playlist.id == 0) {
-                                    // "我的收藏"直接跳转到收藏页面
-                                    onNavigateToFavorite()
-                                } else {
-                                    // 其他歌单跳转到歌单详情页面
-                                    onNavigateToPlaylistDetail(
-                                        playlist.id,
-                                        playlist.name,
-                                        playlist.coverPath,
-                                        playlist.description,
-                                        playlist.username,
-                                        playlist.userId
-                                    )
-                                }
-                            }
-                        )
                     }
-                    
-                    // 添加创建按钮项
-                    item {
-                        val isDark = isSystemInDarkTheme()
-                        GlassSurface(
+                } else {
+                    val pullRefreshState = rememberPullToRefreshState()
+
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            isRefreshing = true
+                            scope.launch {
+                                refreshData()
+                            }
+                        },
+                        state = pullRefreshState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        LazyColumn(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
-                                .clickable {
-                                    if (tokenManager.getToken() != null) {
-                                        editingPlaylist = null
-                                        dialogPlaylistName = ""
-                                        showCreateDialog = true
-                                    } else {
-                                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                            shape = RoundedCornerShape(16.dp),
-                            backgroundAlpha = if (isDark) 0.28f else 0.08f,
-                            borderAlpha = if (isDark) 0.14f else 0.08f,
-                            highlightAlpha = if (isDark) 0.08f else 0.04f
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 150.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            itemsIndexed(allPlaylists) { index, playlist ->
+                                // 检查是否是第一个收藏歌单（"我喜欢的音乐"的索引是0，所以用户歌单从1开始）
+                                val isFirstFavoritePlaylist =
+                                    index == playlists.size + 1 && favoritePlaylists.isNotEmpty()
+
+                                // 如果是第一个收藏歌单，先显示分割线
+                                if (isFirstFavoritePlaylist) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp)
+                                            .height(1.dp)
+                                            .background(
+                                                if (isSystemInDarkTheme()) {
+                                                    Color.White.copy(alpha = 0.1f)
+                                                } else {
+                                                    Color.Black.copy(alpha = 0.1f)
+                                                }
+                                            )
+                                    )
+                                }
+
+                                PlaylistItem(
+                                    playlist = playlist,
+                                    favorites = favorites,
+                                    firstMusicCover = playlistFirstMusicCovers[playlist.id],
+                                    onEdit = {
+                                        if (playlist.id != 0) { // "我的收藏"不能编辑
+                                            editingPlaylist = playlist
+                                            dialogPlaylistName = playlist.name
+                                            showCreateDialog = true
+                                        }
+                                    },
+                                    onDelete = {
+                                        if (playlist.id != 0) { // "我的收藏"不能删除
+                                            deletePlaylist(playlist)
+                                        }
+                                    },
+                                    onClick = {
+                                        // 点击歌单
+                                        if (playlist.id == 0) {
+                                            // "我的收藏"直接跳转到收藏页面
+                                            onNavigateToFavorite()
+                                        } else {
+                                            // 其他歌单跳转到歌单详情页面
+                                            onNavigateToPlaylistDetail(
+                                                playlist.id,
+                                                playlist.name,
+                                                playlist.coverPath,
+                                                playlist.description,
+                                                playlist.username,
+                                                playlist.userId
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
+                            // 添加创建按钮项
+                            item {
+                                val isDark = isSystemInDarkTheme()
+                                val rowScheme = MaterialTheme.colorScheme
+                                GlassSurface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp)
+                                        .clickable {
+                                            if (tokenManager.getToken() != null) {
+                                                editingPlaylist = null
+                                                dialogPlaylistName = ""
+                                                showCreateDialog = true
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    pleaseLoginFirst,
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        },
+                                    shape = RoundedCornerShape(16.dp),
+                                    backgroundAlpha = if (isDark) 0.24f else 0.12f,
+                                    borderAlpha = if (isDark) 0.16f else 0.12f,
+                                    highlightAlpha = if (isDark) 0.09f else 0.06f,
+                                    borderColor = if (isDark) Color.White else rowScheme.outline,
+                                    liquidBlur = 8.dp,
+                                    liquidLensHeight = 16.dp,
+                                    liquidLensAmount = 26.dp
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
-                                    )
-                                    Text(
-                                        text = stringResource(id = R.string.create_new_playlist),
-                                        fontSize = 16.sp,
-                                        color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
+                                            )
+                                            Text(
+                                                text = stringResource(id = R.string.create_new_playlist),
+                                                fontSize = 16.sp,
+                                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                }
                     }
                 }
             }
         }
-        
+
         // 创建/编辑歌单对话框
         if (showCreateDialog) {
             PlaylistDialog(
@@ -621,6 +638,7 @@ fun MyPlaylistsScreen(
             }
         }
     }
+}
 
 @Composable
 fun PlaylistItem(
@@ -647,6 +665,7 @@ fun PlaylistItem(
 
     val isMyFavorites = playlist.id == 0
     val isDarkTheme = isSystemInDarkTheme()
+    val itemScheme = MaterialTheme.colorScheme
 
     val coverUrl = remember(playlist, favorites, firstMusicCover) {
         val url = when {
@@ -682,9 +701,13 @@ fun PlaylistItem(
             }
             .scale(scale),
         shape = RoundedCornerShape(16.dp),
-        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
-        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
-        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
+        backgroundAlpha = if (isDarkTheme) 0.24f else 0.12f,
+        borderAlpha = if (isDarkTheme) 0.16f else 0.12f,
+        highlightAlpha = if (isDarkTheme) 0.09f else 0.06f,
+        borderColor = if (isDarkTheme) Color.White else itemScheme.outline,
+        liquidBlur = 8.dp,
+        liquidLensHeight = 16.dp,
+        liquidLensAmount = 26.dp
     ) {
         Row(
             modifier = Modifier
@@ -734,7 +757,7 @@ fun PlaylistItem(
                     color = if (isDarkTheme) {
                         Color(0xFFF0F0F5).copy(alpha = 0.95f)
                     } else {
-                        MaterialTheme.colorScheme.onSurface
+                        itemScheme.onSurface
                     }
                 )
                 Spacer(modifier = Modifier.height(1.dp))
@@ -744,7 +767,7 @@ fun PlaylistItem(
                     color = if (isDarkTheme) {
                         Color(0xFFB8B8D1).copy(alpha = 0.8f)
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        itemScheme.onSurfaceVariant
                     }
                 )
             }
@@ -767,7 +790,7 @@ fun PlaylistItem(
                             tint = if (isDarkTheme) {
                                 Color.White.copy(alpha = 0.9f)
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                itemScheme.onSurfaceVariant
                             }
                         )
                     }
@@ -784,7 +807,7 @@ fun PlaylistItem(
                             tint = if (isDarkTheme) {
                                 Color(0xFFB8B8D1).copy(alpha = 0.8f)
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                itemScheme.onSurfaceVariant
                             }
                         )
                     }
