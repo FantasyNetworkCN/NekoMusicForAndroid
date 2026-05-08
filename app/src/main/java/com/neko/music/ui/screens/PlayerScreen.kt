@@ -6,6 +6,7 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -92,6 +93,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -320,6 +322,45 @@ fun PlayerScreen(
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
     val isDarkTheme = isSystemInDarkTheme()
+
+    // 分享面板打开后再拉歌单，避免点击菜单被网络阻塞导致「卡一下才弹出」
+    LaunchedEffect(showShareDialog) {
+        if (!showShareDialog) return@LaunchedEffect
+        try {
+            val token = tokenManager.getToken()
+            if (token != null) {
+                val playlistApi = PlaylistApi(token, context)
+                val response = playlistApi.getMyPlaylists()
+                if (response.success) {
+                    playlists = response.playlists ?: emptyList()
+                    playlistFirstMusicCovers = emptyMap()
+                    playlists.forEach { playlist ->
+                        if (playlist.coverPath.isNullOrEmpty() && playlist.musicCount > 0) {
+                            scope.launch {
+                                try {
+                                    val musicResponse = playlistApi.getPlaylistMusic(playlist.id)
+                                    if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
+                                        val firstMusic = musicResponse.musicList[0]
+                                        val firstCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
+                                        playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to firstCoverUrl)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("PlayerScreen", "加载歌单${playlist.id}封面失败", e)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    playlists = emptyList()
+                }
+            } else {
+                playlists = emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("PlayerScreen", "加载歌单失败", e)
+            playlists = emptyList()
+        }
+    }
 
     // 加载音乐文件URL，只在音乐ID不同时才重新播放
     LaunchedEffect(music.id) {
@@ -618,46 +659,7 @@ fun PlayerScreen(
                     TopBar(
                         isDarkTheme = isDarkTheme,
                         onBackClick = onBackClick,
-                        onMenuClick = {
-                            scope.launch {
-                                try {
-                                    val token = tokenManager.getToken()
-                                    if (token != null) {
-                                        val playlistApi = PlaylistApi(token, context)
-                                        val response = playlistApi.getMyPlaylists()
-                                        if (response.success) {
-                                            playlists = response.playlists ?: emptyList()
-                                            playlistFirstMusicCovers = emptyMap()
-                                            playlists.forEach { playlist ->
-                                                if (playlist.coverPath.isNullOrEmpty() && playlist.musicCount > 0) {
-                                                    scope.launch {
-                                                        try {
-                                                            val musicResponse = playlistApi.getPlaylistMusic(playlist.id)
-                                                            if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
-                                                                val firstMusic = musicResponse.musicList[0]
-                                                                val firstCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                                                playlistFirstMusicCovers = playlistFirstMusicCovers + (playlist.id to firstCoverUrl)
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            Log.e("PlayerScreen", "加载歌单${playlist.id}封面失败", e)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            playlists = emptyList()
-                                        }
-                                    } else {
-                                        playlists = emptyList()
-                                    }
-                                    showShareDialog = true
-                                } catch (e: Exception) {
-                                    Log.e("PlayerScreen", "加载歌单失败", e)
-                                    playlists = emptyList()
-                                    showShareDialog = true
-                                }
-                            }
-                        },
+                        onMenuClick = { showShareDialog = true },
                         onPlaylistClick = onPlaylistClick
                     )
                 }
@@ -736,6 +738,157 @@ fun PlayerScreen(
                     }
                 }
             }
+            if (showShareDialog) {
+                ShareDialog(
+                    music = currentMusic,
+                    onDismiss = { showShareDialog = false },
+                    onCopyLink = {
+                        scope.launch {
+                            showShareDialog = false
+                            try {
+                                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
+                                val clip = android.content.ClipData.newPlainText(context.getString(R.string.music_link), shareText)
+                                clipboardManager.setPrimaryClip(clip)
+                                Toast.makeText(context, linkCopied, Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, copyFailed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onDownload = {
+                        scope.launch {
+                            showShareDialog = false
+                            try {
+                                val downloadHelper = com.neko.music.util.DownloadHelper(context)
+                                val result = downloadHelper.downloadMusicWithLyrics(currentMusic)
+                                result.fold(
+                                    onSuccess = { message ->
+                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                    },
+                                    onFailure = { error ->
+                                        val errorMsg = error.message ?: "Unknown error"
+                                        Toast.makeText(context, context.getString(R.string.download_failed_format, errorMsg), Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            } catch (e: Exception) {
+                                val errorMsg = e.message ?: "Unknown error"
+                                Toast.makeText(context, "下载失败: $errorMsg", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onShareToTwitter = {
+                        scope.launch {
+                            showShareDialog = false
+                            try {
+                                val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
+                                val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
+                                val twitterIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                    data = android.net.Uri.parse("twitter://post?message=$encodedText")
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                try {
+                                    context.startActivity(twitterIntent)
+                                } catch (e: Exception) {
+                                    val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                        data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(webIntent)
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, shareFailed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onShareToQQ = {
+                        scope.launch {
+                            showShareDialog = false
+                            try {
+                                val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
+                                val qqIntent = android.content.Intent().apply {
+                                    action = android.content.Intent.ACTION_SEND
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                    setPackage("com.tencent.mobileqq")
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                try {
+                                    context.startActivity(qqIntent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, context.getString(R.string.qq_not_installed), Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, shareFailed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onSpeedChange = { speed ->
+                        playerManager.setPlaybackSpeed(speed)
+                        Toast.makeText(context, context.getString(R.string.playback_speed_format, speed), Toast.LENGTH_SHORT).show()
+                    },
+                    currentSpeed = playbackSpeed,
+                    onSleepTimerChange = { minutes ->
+                        if (minutes > 0 && notificationPermissionState != null && !notificationPermissionState.status.isGranted) {
+                            showNotificationPermissionDialog = true
+                        } else {
+                            playerManager.setSleepTimer(minutes)
+                            val message = if (minutes == 0) {
+                                sleepTimerCancelled
+                            } else {
+                                val hours = minutes / 60
+                                val mins = minutes % 60
+                                if (hours > 0 && mins > 0) {
+                                    context.getString(R.string.sleep_timer_hours_minutes, hours, mins)
+                                } else if (hours > 0) {
+                                    context.getString(R.string.sleep_timer_hours, hours)
+                                } else {
+                                    context.getString(R.string.sleep_timer_minutes, minutes)
+                                }
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    currentSleepTimerMinutes = sleepTimerMinutes,
+                    playlists = playlists,
+                    selectedPlaylistId = selectedPlaylistId,
+                    playlistFirstMusicCovers = playlistFirstMusicCovers,
+                    onPlaylistSelected = { playlist ->
+                        selectedPlaylistId = playlist.id
+                        scope.launch {
+                            try {
+                                val token = tokenManager.getToken()
+                                Log.d("PlayerScreen", "开始添加到歌单: playlistId=${playlist.id}, musicId=${currentMusic.id}, token=$token")
+                                if (token != null) {
+                                    val playlistApi = PlaylistApi(token, context)
+                                    val response = playlistApi.addMusicToPlaylist(playlist.id, currentMusic.id)
+                                    Log.d("PlayerScreen", "API响应: success=${response.success}, message=${response.message}")
+                                    if (response.success) {
+                                        Toast.makeText(context, context.getString(R.string.added_to_playlist_format, playlist.name), Toast.LENGTH_SHORT).show()
+                                        showShareDialog = false
+                                    } else {
+                                        Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Log.e("PlayerScreen", "Token为空")
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Log.e("PlayerScreen", "添加到歌单失败", e)
+                                val errorMsg = e.message ?: "Unknown error"
+                                Toast.makeText(context, context.getString(R.string.add_to_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onCreatePlaylist = {
+                        if (isLoggedIn) {
+                            showCreateDialog = true
+                        } else {
+                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            }
         }
     }
     
@@ -748,176 +901,6 @@ fun PlayerScreen(
                 PlayMode.SHUFFLE -> shufflePlay
             }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // 分享对话框：须在同一页的 [pageBackdrop] 下提供 Local，底栏面板式 [GlassSurface] 才能真液态采样
-    if (showShareDialog) {
-        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-        ShareDialog(
-            music = currentMusic,
-            onDismiss = { showShareDialog = false },
-            onCopyLink = {
-                scope.launch {
-                    showShareDialog = false
-                    try {
-                        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
-                        val clip = android.content.ClipData.newPlainText(context.getString(R.string.music_link), shareText)
-                        clipboardManager.setPrimaryClip(clip)
-                        Toast.makeText(context, linkCopied, Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, copyFailed, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onDownload = {
-                scope.launch {
-                    showShareDialog = false
-                    try {
-                        val downloadHelper = com.neko.music.util.DownloadHelper(context)
-                        val result = downloadHelper.downloadMusicWithLyrics(currentMusic)
-                        result.fold(
-                            onSuccess = { message ->
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            },
-                            onFailure = { error ->
-                                val errorMsg = error.message ?: "Unknown error"
-                                Toast.makeText(context, context.getString(R.string.download_failed_format, errorMsg), Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                    } catch (e: Exception) {
-                        val errorMsg = e.message ?: "Unknown error"
-                        Toast.makeText(context, "下载失败: $errorMsg", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onShareToTwitter = {
-                scope.launch {
-                    showShareDialog = false
-                    try {
-                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
-                        val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
-
-                        // 先尝试使用Twitter应用
-                        val twitterIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                            data = android.net.Uri.parse("twitter://post?message=$encodedText")
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-
-                        // 尝试启动Twitter应用
-                        try {
-                            context.startActivity(twitterIntent)
-                        } catch (e: Exception) {
-                            // 如果Twitter应用未安装，使用网页版
-                            val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                data = android.net.Uri.parse("https://twitter.com/intent/tweet?text=$encodedText")
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(webIntent)
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, shareFailed, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onShareToQQ = {
-                scope.launch {
-                    showShareDialog = false
-                    try {
-                        val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
-                        val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
-
-                        // 使用QQ分享
-                        val qqIntent = android.content.Intent().apply {
-                            action = android.content.Intent.ACTION_SEND
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                            setPackage("com.tencent.mobileqq")
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-
-                        // 尝试启动QQ
-                        try {
-                            context.startActivity(qqIntent)
-                        } catch (e: Exception) {
-                            // 如果QQ未安装，提示用户
-                            Toast.makeText(context, context.getString(R.string.qq_not_installed), Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, shareFailed, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onSpeedChange = { speed ->
-                playerManager.setPlaybackSpeed(speed)
-                Toast.makeText(context, context.getString(R.string.playback_speed_format, speed), Toast.LENGTH_SHORT).show()
-            },
-            currentSpeed = playbackSpeed,
-            onSleepTimerChange = { minutes ->
-                if (minutes > 0 && notificationPermissionState != null && !notificationPermissionState.status.isGranted) {
-                    showNotificationPermissionDialog = true
-                } else {
-                    playerManager.setSleepTimer(minutes)
-                    val message = if (minutes == 0) {
-                        sleepTimerCancelled
-                    } else {
-                        val hours = minutes / 60
-                        val mins = minutes % 60
-                        if (hours > 0 && mins > 0) {
-                            context.getString(R.string.sleep_timer_hours_minutes, hours, mins)
-                        } else if (hours > 0) {
-                            context.getString(R.string.sleep_timer_hours, hours)
-                        } else {
-                            context.getString(R.string.sleep_timer_minutes, minutes)
-                        }
-                    }
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                }
-            },
-            currentSleepTimerMinutes = sleepTimerMinutes,
-            playlists = playlists,
-            selectedPlaylistId = selectedPlaylistId,
-            playlistFirstMusicCovers = playlistFirstMusicCovers,
-            onPlaylistSelected = { playlist ->
-                selectedPlaylistId = playlist.id
-                scope.launch {
-                    try {
-                        val token = tokenManager.getToken()
-                        Log.d("PlayerScreen", "开始添加到歌单: playlistId=${playlist.id}, musicId=${currentMusic.id}, token=$token")
-
-                        if (token != null) {
-                            val playlistApi = PlaylistApi(token, context)
-                            Log.d("PlayerScreen", "调用API添加到歌单")
-
-                            val response = playlistApi.addMusicToPlaylist(playlist.id, currentMusic.id)
-                            Log.d("PlayerScreen", "API响应: success=${response.success}, message=${response.message}")
-
-                            if (response.success) {
-                                Toast.makeText(context, context.getString(R.string.added_to_playlist_format, playlist.name), Toast.LENGTH_SHORT).show()
-                                showShareDialog = false
-                            } else {
-                                Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            Log.e("PlayerScreen", "Token为空")
-                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        Log.e("PlayerScreen", "添加到歌单失败", e)
-                        val errorMsg = e.message ?: "Unknown error"
-                        Toast.makeText(context, context.getString(R.string.add_to_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onCreatePlaylist = {
-                if (isLoggedIn) {
-                    showCreateDialog = true
-                } else {
-                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                }
-            }
-        )
         }
     }
 
@@ -2086,6 +2069,29 @@ fun ProgressSlider(
         }
 
 
+/** 分享面板内分区：再叠一层真液态，与外层底栏玻璃同一 [LocalLiquidLayerBackdrop] 采样。 */
+@Composable
+private fun ShareSheetLiquidSection(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    GlassSurface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        backgroundAlpha = if (isDark) 0.17f else 0.22f,
+        borderAlpha = if (isDark) 0.22f else 0.17f,
+        highlightAlpha = if (isDark) 0.07f else 0.09f,
+        borderColor = if (isDark) SakuraPink.copy(alpha = 0.42f) else scheme.outline,
+        liquidBlur = 9.dp,
+        liquidLensHeight = 12.dp,
+        liquidLensAmount = 22.dp
+    ) {
+        content()
+    }
+}
+
 @Composable
 fun ShareDialog(
     music: Music,
@@ -2105,8 +2111,6 @@ fun ShareDialog(
     onCreatePlaylist: () -> Unit = {}
 ) {
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
-    var customHours by remember { mutableStateOf(0) }
-    var customMinutes by remember { mutableStateOf(0) }
     val isDarkTheme = isSystemInDarkTheme()
 
     // 预加载额外的字符串资源
@@ -2117,91 +2121,99 @@ fun ShareDialog(
     val cancelTextColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
     val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
     val createPlaylistColor = if (isDarkTheme) Color.White else RoseRed
-    val copyLinkColor = if (isDarkTheme) Color.White else RoseRed
+    // 暗色下勿用纯白作圆形底，否则与白色线稿图标糊成一片
+    val copyLinkColor = if (isDarkTheme) RoseRed.copy(alpha = 0.92f) else RoseRed
     val scheme = MaterialTheme.colorScheme
 
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            usePlatformDefaultWidth = false
-        )
+    // visible 恒为 true 时 enter 过渡不会跑：首帧 false，下一帧再 true 才能触发滑入+淡入
+    var sheetShown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        sheetShown = true
+    }
+    val scrimAlpha by animateFloatAsState(
+        targetValue = if (sheetShown) 1f else 0f,
+        animationSpec = tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "share_scrim"
+    )
+
+    BackHandler(onBack = onDismiss)
+    // 不用 Dialog 独立窗口，避免首帧建窗卡顿；与播放页同层合成，液态采样更稳定
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(40f)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .background(Color.Black.copy(alpha = 0.42f * scrimAlpha))
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null,
                     onClick = onDismiss
                 )
+        )
+        AnimatedVisibility(
+            visible = sheetShown,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(180)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                )
         ) {
-            // 底部弹出面板
-            androidx.compose.animation.AnimatedVisibility(
-                visible = true,
-                enter = slideInVertically(
-                    initialOffsetY = { it },
-                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { it },
-                    animationSpec = tween(250, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-                ),
+            val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+            GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    )
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                shape = panelShape,
+                backgroundAlpha = if (isDarkTheme) 0.26f else 0.30f,
+                borderAlpha = if (isDarkTheme) 0.26f else 0.20f,
+                highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                borderColor = if (isDarkTheme) SakuraPink else scheme.outline,
+                liquidBlur = 11.dp,
+                liquidLensHeight = 16.dp,
+                liquidLensAmount = 28.dp
             ) {
-                val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars),
-                    shape = panelShape,
-                    backgroundAlpha = if (isDarkTheme) 0.30f else 0.34f,
-                    borderAlpha = if (isDarkTheme) 0.28f else 0.22f,
-                    highlightAlpha = if (isDarkTheme) 0.12f else 0.14f,
-                    borderColor = if (isDarkTheme) SakuraPink else scheme.outline,
-                    liquidBlur = 14.dp,
-                    liquidLensHeight = 18.dp,
-                    liquidLensAmount = 32.dp
-                ) {
-                    ShareDialogContent(
-                        isDarkTheme = isDarkTheme,
-                        sectionTitleColor = sectionTitleColor,
-                        cancelTextColor = cancelTextColor,
-                        dividerColor = dividerColor,
-                        createPlaylistColor = createPlaylistColor,
-                        copyLinkColor = copyLinkColor,
-                        playlists = playlists,
-                        selectedPlaylistId = selectedPlaylistId,
-                        playlistFirstMusicCovers = playlistFirstMusicCovers,
-                        onPlaylistSelected = onPlaylistSelected,
-                        onCreatePlaylist = onCreatePlaylist,
-                        currentSpeed = currentSpeed,
-                        onSpeedChange = onSpeedChange,
-                        currentSleepTimerMinutes = currentSleepTimerMinutes,
-                        onSleepTimerChange = onSleepTimerChange,
-                        customLabel = customLabel,
-                        closeLabel = closeLabel,
-                        onDismiss = onDismiss,
-                        onShareToTwitter = onShareToTwitter,
-                        onShareToQQ = onShareToQQ,
-                        onCopyLink = onCopyLink,
-                        onDownload = onDownload,
-                        onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
-                    )
-                }
+                ShareDialogContent(
+                    isDarkTheme = isDarkTheme,
+                    sectionTitleColor = sectionTitleColor,
+                    cancelTextColor = cancelTextColor,
+                    dividerColor = dividerColor,
+                    createPlaylistColor = createPlaylistColor,
+                    copyLinkColor = copyLinkColor,
+                    playlists = playlists,
+                    selectedPlaylistId = selectedPlaylistId,
+                    playlistFirstMusicCovers = playlistFirstMusicCovers,
+                    onPlaylistSelected = onPlaylistSelected,
+                    onCreatePlaylist = onCreatePlaylist,
+                    currentSpeed = currentSpeed,
+                    onSpeedChange = onSpeedChange,
+                    currentSleepTimerMinutes = currentSleepTimerMinutes,
+                    onSleepTimerChange = onSleepTimerChange,
+                    customLabel = customLabel,
+                    closeLabel = closeLabel,
+                    onDismiss = onDismiss,
+                    onShareToTwitter = onShareToTwitter,
+                    onShareToQQ = onShareToQQ,
+                    onCopyLink = onCopyLink,
+                    onDownload = onDownload,
+                    onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
+                )
             }
         }
 
-        // 自定义时间设置对话框
         if (showCustomSleepTimerDialog) {
             CustomSleepTimerDialog(
                 initialMinutes = currentSleepTimerMinutes,
@@ -2242,69 +2254,76 @@ fun ShareDialogContent(
     onDownload: () -> Unit,
     onShowCustomSleepTimer: () -> Unit
 ) {
-    Column {
-        Spacer(modifier = Modifier.height(16.dp))
+    val shareLabelTint =
+        if (isDarkTheme) Color.White.copy(alpha = 0.82f) else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+    ) {
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 横向滚动的分享列表
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            item {
-                ShareGridItem(
-                    iconRes = R.drawable.twitter,
-                    label = stringResource(id = R.string.share_to_twitter),
-                    color = Color(0xFF1DA1F2),
-                    onClick = onShareToTwitter
-                )
-            }
-            item {
-                ShareGridItem(
-                    iconRes = R.drawable.qq,
-                    label = stringResource(id = R.string.share_to_qq),
-                    color = Color(0xFF12B7F5),
-                    onClick = onShareToQQ
-                )
-            }
-            item {
-                ShareGridItem(
-                    iconRes = R.drawable.copy_link,
-                    label = stringResource(id = R.string.copy_link),
-                    color = copyLinkColor,
-                    onClick = onCopyLink
-                )
-            }
-            item {
-                ShareGridItem(
-                    iconRes = R.drawable.download,
-                    label = stringResource(id = R.string.download),
-                    color = Color(0xFF6B5B95),
-                    onClick = onDownload
-                )
+        ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.twitter,
+                        label = stringResource(id = R.string.share_to_twitter),
+                        color = Color(0xFF1DA1F2),
+                        labelColor = shareLabelTint,
+                        onClick = onShareToTwitter
+                    )
+                }
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.qq,
+                        label = stringResource(id = R.string.share_to_qq),
+                        color = Color(0xFF12B7F5),
+                        labelColor = shareLabelTint,
+                        onClick = onShareToQQ
+                    )
+                }
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.copy_link,
+                        label = stringResource(id = R.string.copy_link),
+                        color = copyLinkColor,
+                        labelColor = shareLabelTint,
+                        onClick = onCopyLink
+                    )
+                }
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.download,
+                        label = stringResource(id = R.string.download),
+                        color = Color(0xFF6B5B95),
+                        labelColor = shareLabelTint,
+                        onClick = onDownload
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 添加到歌单选择器
         if (playlists.isNotEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.add_to_playlist),
-                    fontSize = 14.sp,
-                    color = sectionTitleColor,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
+            Text(
+                text = stringResource(id = R.string.add_to_playlist),
+                fontSize = 14.sp,
+                color = sectionTitleColor,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 8.dp)
+            )
+            ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(
@@ -2319,7 +2338,6 @@ fun ShareDialogContent(
                             onClick = { onPlaylistSelected(playlist) }
                         )
                     }
-                    // 新建歌单按钮
                     item {
                         Box(
                             modifier = Modifier
@@ -2331,7 +2349,7 @@ fun ShareDialogContent(
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .background(
-                                    color = createPlaylistColor.copy(alpha = 0.1f),
+                                    color = createPlaylistColor.copy(alpha = 0.12f),
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable(onClick = onCreatePlaylist),
@@ -2358,27 +2376,22 @@ fun ShareDialogContent(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // 倍速选择器
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.playback_speed),
-                fontSize = 14.sp,
-                color = sectionTitleColor,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
+        Text(
+            text = stringResource(id = R.string.playback_speed),
+            fontSize = 14.sp,
+            color = sectionTitleColor,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 8.dp)
+        )
+        ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(
                     count = 6,
@@ -2394,25 +2407,21 @@ fun ShareDialogContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 定时关闭选择器
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.sleep_timer),
-                fontSize = 14.sp,
-                color = sectionTitleColor,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
+        Text(
+            text = stringResource(id = R.string.sleep_timer),
+            fontSize = 14.sp,
+            color = sectionTitleColor,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = 6.dp, end = 6.dp, bottom = 8.dp)
+        )
+        ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
             LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(
                     count = 7,
@@ -2420,7 +2429,8 @@ fun ShareDialogContent(
                 ) { index ->
                     val presetMinutes = listOf(0, 10, 20, 30, 45, 60)
                     if (index == 6) {
-                        val isCustomSelected = currentSleepTimerMinutes > 0 && currentSleepTimerMinutes !in presetMinutes
+                        val isCustomSelected =
+                            currentSleepTimerMinutes > 0 && currentSleepTimerMinutes !in presetMinutes
                         SleepTimerChip(
                             minutes = -1,
                             isSelected = isCustomSelected,
@@ -2443,31 +2453,25 @@ fun ShareDialogContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 分割线
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(0.5.dp)
-                .background(dividerColor)
-        )
-
-        // 取消按钮
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = stringResource(id = R.string.cancel),
-                fontSize = 17.sp,
-                color = cancelTextColor,
-                fontWeight = FontWeight.Medium
-            )
+        ShareSheetLiquidSection(modifier = Modifier.padding(horizontal = 4.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .clickable { onDismiss() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(id = R.string.cancel),
+                    fontSize = 17.sp,
+                    color = cancelTextColor,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(6.dp))
     }
 }
 
@@ -2477,6 +2481,7 @@ fun ShareGridItem(
     iconRes: Int? = null,
     label: String,
     color: Color,
+    labelColor: Color,
     onClick: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -2487,6 +2492,13 @@ fun ShareGridItem(
             stiffness = Spring.StiffnessLow
         )
     )
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            delay(140)
+            isPressed = false
+        }
+    }
+    val iconTint = if (color.luminance() > 0.72f) Color(0xFF2A2A2A) else Color.White
 
     Column(
         modifier = Modifier
@@ -2513,7 +2525,7 @@ fun ShareGridItem(
                 Icon(
                     painter = painterResource(id = iconRes),
                     contentDescription = label,
-                    tint = Color.White,
+                    tint = iconTint,
                     modifier = Modifier.size(28.dp)
                 )
             } else if (icon != null) {
@@ -2527,7 +2539,7 @@ fun ShareGridItem(
         Text(
             text = label,
             fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = labelColor,
             fontWeight = FontWeight.Medium
         )
     }
@@ -2541,15 +2553,28 @@ fun SpeedChip(
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isSelected) {
-        if (isDarkTheme) Color.White else RoseRed
-    } else MaterialTheme.colorScheme.surfaceVariant
+        if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+    } else {
+        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+    }
     val textColor = if (isSelected) {
-        if (isDarkTheme) Color.Black else Color.White
-    } else MaterialTheme.colorScheme.onSurfaceVariant
+        if (isDarkTheme) Color.White else Color.White
+    } else {
+        if (isDarkTheme) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Box(
         modifier = Modifier
             .height(36.dp)
+            .border(
+                width = 1.dp,
+                color = if (isSelected) {
+                    if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
+                } else {
+                    if (isDarkTheme) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                },
+                shape = RoundedCornerShape(18.dp)
+            )
             .background(
                 color = backgroundColor,
                 shape = RoundedCornerShape(18.dp)
@@ -2578,11 +2603,15 @@ fun SleepTimerChip(
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isSelected) {
-        if (isDarkTheme) Color.White else RoseRed
-    } else MaterialTheme.colorScheme.surfaceVariant
+        if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+    } else {
+        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+    }
     val textColor = if (isSelected) {
-        if (isDarkTheme) Color.Black else Color.White
-    } else MaterialTheme.colorScheme.onSurfaceVariant
+        Color.White
+    } else {
+        if (isDarkTheme) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+    }
     val label = when {
         minutes == -1 && customMinutes != null -> {
             val hours = customMinutes / 60
@@ -2603,6 +2632,15 @@ fun SleepTimerChip(
     Box(
         modifier = Modifier
             .height(36.dp)
+            .border(
+                width = 1.dp,
+                color = if (isSelected) {
+                    if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
+                } else {
+                    if (isDarkTheme) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                },
+                shape = RoundedCornerShape(18.dp)
+            )
             .background(
                 color = backgroundColor,
                 shape = RoundedCornerShape(18.dp)
