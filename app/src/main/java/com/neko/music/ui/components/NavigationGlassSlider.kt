@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -37,6 +38,8 @@ fun NavigationGlassSlider(
     mainBackdrop: Backdrop?,
     selectedIndex: Int,
     tabCount: Int = 3,
+    /** 水平拖动产生的额外偏移（与 Tab 切换动画叠加） */
+    dragOffsetXDp: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -47,6 +50,7 @@ fun NavigationGlassSlider(
         NavigationGlassSliderFallback(
             selectedIndex = idx,
             tabCount = safeCount,
+            dragOffsetXDp = dragOffsetXDp,
             modifier = modifier
         )
         return
@@ -81,7 +85,7 @@ fun NavigationGlassSlider(
 
         Box(
             modifier = Modifier
-                .offset(x = thumbOffsetX, y = thumbY)
+                .offset(x = thumbOffsetX + dragOffsetXDp, y = thumbY)
                 .drawBackdrop(
                     backdrop = combinedBackdrop,
                     shape = { thumbShape },
@@ -109,6 +113,7 @@ fun NavigationGlassSlider(
 private fun NavigationGlassSliderFallback(
     selectedIndex: Int,
     tabCount: Int,
+    dragOffsetXDp: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -131,7 +136,7 @@ private fun NavigationGlassSliderFallback(
 
         Box(
             modifier = Modifier
-                .offset(x = thumbOffsetX, y = thumbY)
+                .offset(x = thumbOffsetX + dragOffsetXDp, y = thumbY)
                 .size(thumbW, thumbH)
                 .background(Color.White.copy(alpha = 0.22f), thumbShape)
         )

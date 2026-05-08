@@ -15,8 +15,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +28,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +55,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
@@ -108,15 +114,53 @@ fun BottomNavigationBar(
         liquidLensHeight = 16.dp,
         liquidLensAmount = 32.dp
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val density = LocalDensity.current
+            var dragPx by remember { mutableStateOf(0f) }
+            var dragAnchorIndex by remember { mutableStateOf(0) }
+            val latestSafeSelected by rememberUpdatedState(selectedIndex.coerceAtLeast(0))
+
+            fun navigateToItem(item: BottomNavItem) {
+                if (currentRoute != item.route) {
+                    navController.navigate(item.route) {
+                        popUpTo(item.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                } else {
+                    navController.popBackStack(item.route, inclusive = false)
+                }
+            }
+
+            val dragState = rememberDraggableState { delta -> dragPx += delta }
+            val dragDp = with(density) { dragPx.toDp() }
+
             NavigationGlassSlider(
                 modifier = Modifier.fillMaxSize(),
                 mainBackdrop = pageBackdrop,
                 selectedIndex = selectedIndex.coerceAtLeast(0),
-                tabCount = items.size
+                tabCount = items.size,
+                dragOffsetXDp = dragDp
             )
             Row(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .draggable(
+                        state = dragState,
+                        orientation = Orientation.Horizontal,
+                        onDragStarted = {
+                            dragAnchorIndex = latestSafeSelected
+                        },
+                        onDragStopped = {
+                            val segmentPx = with(density) { maxWidth.toPx() } / items.size
+                            if (segmentPx > 0f) {
+                                val deltaTabs = (dragPx / segmentPx).roundToInt()
+                                    .coerceIn(-items.size, items.size)
+                                val newIdx = (dragAnchorIndex + deltaTabs).coerceIn(0, items.lastIndex)
+                                navigateToItem(items[newIdx])
+                            }
+                            dragPx = 0f
+                        }
+                    ),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -139,14 +183,7 @@ fun BottomNavigationBar(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
                             ) {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        popUpTo(item.route) { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                } else {
-                                    navController.popBackStack(item.route, inclusive = false)
-                                }
+                                navigateToItem(item)
                             }
                             .scale(scaleValue),
                         contentAlignment = Alignment.Center

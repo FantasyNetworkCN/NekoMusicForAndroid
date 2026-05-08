@@ -1169,7 +1169,7 @@ fun MainScreen() {
                                 layout(placeable.width, placeable.height) {
                                     placeable.place(
                                         16.dp.roundToPx(),
-                                        constraints.maxHeight - placeable.height - 96.dp.roundToPx() - bottomNavHeight
+                                        constraints.maxHeight - placeable.height - 72.dp.roundToPx() - bottomNavHeight
                                     )
                                 }
                             }
