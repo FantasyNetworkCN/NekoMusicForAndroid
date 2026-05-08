@@ -10,13 +10,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
@@ -26,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.neko.music.ui.theme.*
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
@@ -84,13 +88,23 @@ fun AboutScreen(
             stiffness = Spring.StiffnessLow
         )
     )
-    
+
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA))
             .statusBarsPadding()
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,6 +151,7 @@ fun AboutScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
         }
+        }
     }
 }
 
@@ -148,21 +163,20 @@ fun InfoCard(
     scale: Float
 ) {
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
-    Card(
+    val scheme = MaterialTheme.colorScheme
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .scale(scale)
-            .shadow(
-                elevation = 4.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f)
-            ),
+            .scale(scale),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-        )
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -180,13 +194,13 @@ fun InfoCard(
                     text = title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                 )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Divider(
+            HorizontalDivider(
                 color = if (isDarkTheme) Color(0xFF2A2A4E).copy(alpha = 0.5f) else Color(0xFFE0E0E0),
                 thickness = 1.dp
             )
@@ -209,7 +223,7 @@ fun InfoCard(
                     Text(
                         text = value,
                         fontSize = 15.sp,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -221,21 +235,20 @@ fun InfoCard(
 @Composable
 fun TechStackCard(scale: Float) {
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
-    Card(
+    val scheme = MaterialTheme.colorScheme
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .scale(scale)
-            .shadow(
-                elevation = 4.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f)
-            ),
+            .scale(scale),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-        )
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -255,13 +268,13 @@ fun TechStackCard(scale: Float) {
                     text = stringResource(id = R.string.tech_stack),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                 )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Divider(
+            HorizontalDivider(
                 color = if (isDarkTheme) Color(0xFF2A2A4E).copy(alpha = 0.5f) else Color(0xFFE0E0E0),
                 thickness = 1.dp
             )
@@ -333,20 +346,19 @@ fun TechItem(tech: String, desc: String, modifier: Modifier = Modifier) {
 @Composable
 fun CopyrightCard() {
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
-    Card(
+    val scheme = MaterialTheme.colorScheme
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .shadow(
-                elevation = 4.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f)
-            ),
+            .padding(horizontal = 20.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-        )
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
@@ -358,12 +370,12 @@ fun CopyrightCard() {
                 text = stringResource(id = R.string.copyright_info),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Divider(
+            HorizontalDivider(
                 color = if (isDarkTheme) Color(0xFF2A2A4E).copy(alpha = 0.5f) else Color(0xFFE0E0E0),
                 thickness = 1.dp
             )

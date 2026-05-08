@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
 import kotlinx.coroutines.launch
 
@@ -206,13 +209,27 @@ fun SettingsScreen(
         }
     }
 
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isSystemInDarkTheme()
+    // 与内容区一致，避免 Scaffold / 顶栏透明时露出窗口默认浅色（状态栏、手势导航条一带白块）
+    val pageBg = if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA)
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = pageBg,
+        contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         stringResource(id = R.string.settings),
-                        color = if (isSystemInDarkTheme()) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                     )
                 },
                 navigationIcon = {
@@ -220,12 +237,13 @@ fun SettingsScreen(
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
-                            tint = if (isSystemInDarkTheme()) Color(0xFFB8B8D1).copy(alpha = 0.9f) else Color.Black
+                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (isSystemInDarkTheme()) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
+                    containerColor = pageBg,
+                    scrolledContainerColor = pageBg
                 )
             )
         }
@@ -234,9 +252,13 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(if (isSystemInDarkTheme()) Color(0xFF121228) else Color(0xFFFAFAFA))
+                .background(pageBg)
         ) {
-            // 设置列表
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(pageBackdrop)
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -245,17 +267,12 @@ fun SettingsScreen(
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 版本信息卡片
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSystemInDarkTheme()) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 2.dp
-                    )
+                GlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    backgroundAlpha = glassBg,
+                    borderAlpha = glassBorder,
+                    highlightAlpha = glassHighlight
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp)
@@ -270,13 +287,13 @@ fun SettingsScreen(
                                     text = stringResource(id = R.string.app_name),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSystemInDarkTheme()) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "${stringResource(id = R.string.version)} $versionName ($versionCode)",
                                     fontSize = 14.sp,
-                                    color = if (isSystemInDarkTheme()) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
                                 )
                             }
 
@@ -398,7 +415,8 @@ fun SettingsScreen(
                     }
                 )
             }
-            
+
+            }
             }
     }
 }
@@ -408,25 +426,25 @@ fun SettingSection(
         title: String,
         content: @Composable ColumnScope.() -> Unit
     ) {
+        val isDark = isSystemInDarkTheme()
+        val glassBg = if (isDark) 0.28f else 0.08f
+        val glassBorder = if (isDark) 0.14f else 0.08f
+        val glassHighlight = if (isDark) 0.08f else 0.04f
         Column {
             Text(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isSystemInDarkTheme()) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSystemInDarkTheme()) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 2.dp
-                )
+            GlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                backgroundAlpha = glassBg,
+                borderAlpha = glassBorder,
+                highlightAlpha = glassHighlight
             ) {
                 Column {
                     content()

@@ -20,6 +20,9 @@ import androidx.compose.ui.unit.sp
 import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.painterResource
@@ -35,6 +38,14 @@ fun CacheManagementScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val pageBg = if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA)
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
     val cacheManager = remember { MusicCacheManager.getInstance(context) }
     val playlistManager = remember { com.neko.music.data.manager.PlaylistManager.getInstance(context) }
     val musicPlayerManager = remember { com.neko.music.service.MusicPlayerManager.getInstance(context) }
@@ -62,14 +73,30 @@ fun CacheManagementScreen(
     }
     
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = pageBg,
+        contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(id = R.string.cache_management)) },
+                title = {
+                    Text(
+                        stringResource(id = R.string.cache_management),
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(id = R.string.back))
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(id = R.string.back),
+                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                        )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = pageBg,
+                    scrolledContainerColor = pageBg
+                ),
                 actions = {
                     // 播放全部按钮
                     TextButton(
@@ -141,7 +168,11 @@ fun CacheManagementScreen(
                     ) {
                         Text(
                             text = stringResource(id = R.string.play_all),
-                            color = if (cachedItems.isNotEmpty() && !isLoading) RoseRed else Color.Gray,
+                            color = if (cachedItems.isNotEmpty() && !isLoading) {
+                                RoseRed
+                            } else {
+                                if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.45f) else scheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            },
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -156,7 +187,11 @@ fun CacheManagementScreen(
                     ) {
                         Text(
                             text = stringResource(id = R.string.clear_all_cache),
-                            color = if (cachedItems.isNotEmpty()) RoseRed else Color.Gray,
+                            color = if (cachedItems.isNotEmpty()) {
+                                RoseRed
+                            } else {
+                                if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.45f) else scheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            },
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -168,8 +203,13 @@ fun CacheManagementScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA))
+                .background(pageBg)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(pageBackdrop)
+            ) {
             if (cachedItems.isEmpty()) {
                 // 空状态
                 Column(
@@ -181,13 +221,13 @@ fun CacheManagementScreen(
                         text = stringResource(id = R.string.no_cache),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = stringResource(id = R.string.cache_hint),
                         fontSize = 14.sp,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray
+                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant.copy(alpha = 0.85f)
                     )
                 }
             } else {
@@ -195,17 +235,14 @@ fun CacheManagementScreen(
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // 统计信息卡片
-                    Card(
+                    GlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White
-                        ),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 2.dp
-                        )
+                        shape = RoundedCornerShape(16.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp)
@@ -219,18 +256,18 @@ fun CacheManagementScreen(
                                         text = stringResource(id = R.string.cache_statistics),
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = stringResource(id = R.string.cached_songs_count, cachedMusicCount),
                                         fontSize = 14.sp,
-                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
                                     )
                                     Text(
                                         text = stringResource(id = R.string.cache_size, cacheSize),
                                         fontSize = 14.sp,
-                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
                                     )
                                     if (isLoading) {
                                         Spacer(modifier = Modifier.height(8.dp))
@@ -256,13 +293,20 @@ fun CacheManagementScreen(
                         text = stringResource(id = R.string.cache_list),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                     )
                     
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = 150.dp
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(cachedItems) { item ->
@@ -277,6 +321,7 @@ fun CacheManagementScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -416,28 +461,23 @@ fun CacheItem(
     artist: String,
     onDelete: () -> Unit
 ) {
-    var isPressed by remember { mutableStateOf(false) }
     val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val glassBg = if (isDarkTheme) 0.28f else 0.08f
+    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
+    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
     val context = androidx.compose.ui.platform.LocalContext.current
     val cacheManager = remember { com.neko.music.data.cache.MusicCacheManager.getInstance(context) }
     val cachedCover = remember { cacheManager.getCachedCoverFile(musicId.toInt()) }
-    
-    Card(
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                isPressed = true
-                onDelete()
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPressed) 
-                (if (isDarkTheme) Color(0xFF2A2A4E).copy(alpha = 0.5f) else Color(0xFFF5F5F5))
-            else 
-                (if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+            .clickable { onDelete() },
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
         Row(
             modifier = Modifier
@@ -479,13 +519,13 @@ fun CacheItem(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                     maxLines = 1
                 )
                 Text(
                     text = "$artist · ID: $musicId",
                     fontSize = 13.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }
@@ -496,13 +536,6 @@ fun CacheItem(
                 tint = RoseRed,
                 modifier = Modifier.size(24.dp)
             )
-        }
-    }
-    
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            kotlinx.coroutines.delay(100)
-            isPressed = false
         }
     }
 }
