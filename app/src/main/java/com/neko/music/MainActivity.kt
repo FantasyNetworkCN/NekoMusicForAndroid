@@ -1124,9 +1124,9 @@ fun MainScreen() {
         }
         }
 
-        // 播放列表全屏层必须高于液态顶栏（原 zIndex 1 < 2 会导致搜索/推荐盖在播放列表上）
+        // 播放列表 zIndex 须高于此处浮层；勿在 showPlaylist 时卸掉浮层，否则会瞬间消失且与播放列表动画不同步
         val isMainHome = currentRoute == BottomNavItem.Home.route
-        if (isMainHome && !showPlaylist) {
+        if (isMainHome) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 HomeLiquidHeroOverlay(
                     state = homeLiquidHeroState,
@@ -1161,7 +1161,7 @@ fun MainScreen() {
         }
 
         val isRankingRoute = currentRoute == "ranking"
-        if (isRankingRoute && !showPlaylist) {
+        if (isRankingRoute) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 RankingLiquidTopBarOverlay(
                     state = rankingLiquidBarState,
@@ -1176,7 +1176,7 @@ fun MainScreen() {
         }
 
         val isLatestRoute = currentRoute == "latest"
-        if (isLatestRoute && !showPlaylist) {
+        if (isLatestRoute) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 LatestLiquidTopBarOverlay(
                     state = latestLiquidBarState,
