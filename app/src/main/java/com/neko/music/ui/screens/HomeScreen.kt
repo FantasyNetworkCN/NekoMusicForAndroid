@@ -43,15 +43,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -81,7 +85,11 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -95,7 +103,6 @@ import java.io.File
 @Composable
 fun HomeScreen(
     liquidHeroState: HomeLiquidHeroState,
-    heroTopInsetDp: androidx.compose.ui.unit.Dp,
     onSearchClick: () -> Unit = {},
     onNavigateToFavorite: () -> Unit = {},
     onNavigateToPlaylist: (Int) -> Unit = {},
@@ -108,7 +115,7 @@ fun HomeScreen(
     val toastMessage = remember { androidx.compose.runtime.mutableStateOf("") }
     val showToast = remember { androidx.compose.runtime.mutableStateOf(false) }
     
-    // 推荐歌单等数据写入 [liquidHeroState]，供 layerBackdrop 外的 [HomeLiquidHeroOverlay] 真液态采样
+    // 推荐歌单等数据写入 [liquidHeroState]，供页内 [HomeLiquidHeroOverlay] 真液态采样
     LaunchedEffect(Unit) {
         liquidHeroState.playlistsLoading = true
         liquidHeroState.loadError = false
@@ -298,10 +305,20 @@ fun HomeScreen(
         )
     )
     
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    var heroInsetPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val heroTopInsetDp = remember(heroInsetPx, density) {
+        if (heroInsetPx > 0) with(density) { heroInsetPx.toDp() } else 380.dp
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
         Image(
             painter = painterResource(id = R.drawable.home_background),
             contentDescription = null,
@@ -370,13 +387,31 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 170.dp)
         ) {
             item {
-                // 搜索 + 推荐液态玻璃在 MainActivity 的 layerBackdrop 外绘制；此处占位高度与浮层一致，避免列表与壁纸错位
                 Spacer(modifier = Modifier.height(heroTopInsetDp))
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .zIndex(1f)
+        ) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                HomeLiquidHeroOverlay(
+                    state = liquidHeroState,
+                    onSearchClick = onSearchClick,
+                    onNavigateToPlaylist = onNavigateToPlaylist,
+                    onNavigateToRanking = onNavigateToRanking,
+                    onNavigateToLatest = onNavigateToLatest,
+                    onHeroHeightChanged = { heroInsetPx = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
-    
+
     // 更新对话框
     if (showUpdateDialog && updateInfo != null) {
         UpdateDialog(

@@ -16,7 +16,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,10 +34,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -39,15 +49,18 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.list.RankingLiquidBarState
+import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun RankingScreen(
     liquidBarState: RankingLiquidBarState,
-    topBarInsetDp: Dp,
     onBackClick: () -> Unit = {},
     onNavigateToPlayer: (Music) -> Unit = {}
 ) {
@@ -112,11 +125,18 @@ fun RankingScreen(
         loadData()
     }
 
-    // 顶栏在 MainActivity 的 layerBackdrop 外以真液态绘制；此处同步列表供「播放全部」与占位高度。
+    // 顶栏在本页独立 layerBackdrop 外采样同一页 backdrop；此处同步列表供「播放全部」与占位高度。
     SideEffect {
         liquidBarState.musicList = musicList
         liquidBarState.loading = loading
         liquidBarState.loadError = loadError
+    }
+
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    var barInsetPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val topBarInsetDp = remember(barInsetPx, density) {
+        if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 88.dp
     }
 
     Box(
@@ -124,6 +144,11 @@ fun RankingScreen(
             .fillMaxSize()
             .background(scheme.background)
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
         when {
             loading && musicList.isEmpty() -> {
                 Column(
@@ -230,6 +255,22 @@ fun RankingScreen(
                         contentColor = scheme.primary
                     )
                 }
+            }
+        }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .zIndex(2f)
+        ) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                RankingLiquidTopBarOverlay(
+                    state = liquidBarState,
+                    onBackClick = onBackClick,
+                    onBarHeightChanged = { barInsetPx = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

@@ -2,7 +2,6 @@ package com.neko.music
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -10,18 +9,13 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
@@ -34,37 +28,25 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.EaseInOutSine
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.ui.zIndex
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -72,22 +54,16 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.BottomNavigationBar
 import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.MiniPlayer
-import com.neko.music.ui.components.PlaylistBottomSheet
-import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
-import com.neko.music.ui.list.LatestLiquidTopBarOverlay
 import com.neko.music.ui.list.RankingLiquidBarState
-import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import com.neko.music.ui.search.SearchLiquidBarState
-import com.neko.music.ui.search.SearchLiquidTopOverlay
 import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.ui.screens.LoginScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
@@ -110,7 +86,7 @@ import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko云音乐Theme
-import kotlinx.coroutines.async
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -289,12 +265,6 @@ class MainActivity : ComponentActivity() {
         playerManager.checkFavoriteStatus()
     }
 
-}
-
-/** [com.kyant.backdrop.backdrops.rememberLayerBackdrop] 的 onDraw：先铺底色再 `drawContent()`，与官方 Glass Bottom Bar 教程一致。 */
-private fun backdropLayerFillOnDraw(fill: Color): ContentDrawScope.() -> Unit = {
-    drawRect(fill)
-    drawContent()
 }
 
 @Composable
@@ -509,35 +479,14 @@ fun MainScreen() {
         }
     }
 
-    // 与官方教程一致：先铺主题底色再录内容，避免底栏玻璃出现「透明洞」
-    // https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar
+    // 与官方教程一致：主 Nav 区域铺主题底色并录屏，供底栏/迷你播放器与「页外」玻璃同一采样。
+    // 含顶栏的 Home / 榜单 / 新歌 / 搜索在各自 Screen 内使用独立 [rememberLiquidPageBackdrop]；页内勿对同一 backdrop 在 layer 子树内再 drawBackdrop。
     val backdropFill = MaterialTheme.colorScheme.background
-    val liquidBackdrop = rememberLayerBackdrop(
-        onDraw = remember(backdropFill) { backdropLayerFillOnDraw(backdropFill) }
-    )
+    val liquidBackdrop = rememberLiquidPageBackdrop(backdropFill)
     val homeLiquidHeroState = remember { HomeLiquidHeroState() }
-    var homeHeroInsetPx by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
-    val heroTopInsetDp = remember(homeHeroInsetPx, density) {
-        if (homeHeroInsetPx > 0) with(density) { homeHeroInsetPx.toDp() } else 380.dp
-    }
     val rankingLiquidBarState = remember { RankingLiquidBarState() }
-    var rankingBarInsetPx by remember { mutableIntStateOf(0) }
-    val rankingTopBarInsetDp = remember(rankingBarInsetPx, density) {
-        if (rankingBarInsetPx > 0) with(density) { rankingBarInsetPx.toDp() } else 88.dp
-    }
     val latestLiquidBarState = remember { LatestLiquidBarState() }
-    var latestBarInsetPx by remember { mutableIntStateOf(0) }
-    val latestTopBarInsetDp = remember(latestBarInsetPx, density) {
-        if (latestBarInsetPx > 0) with(density) { latestBarInsetPx.toDp() } else 88.dp
-    }
     val searchLiquidBarState = remember { SearchLiquidBarState() }
-    var searchBarInsetPx by remember { mutableIntStateOf(0) }
-    val searchTopBarInsetDp = remember(searchBarInsetPx, density) {
-        if (searchBarInsetPx > 0) with(density) { searchBarInsetPx.toDp() } else 168.dp
-    }
-    // 与 Glass Bottom Bar 一致：仅 MainNavHost 挂 layerBackdrop；底栏/迷你播放器在层外 drawBackdrop。
-    // 切勿在 layerBackdrop(同一 backdrop) 的子树内再对该 backdrop drawBackdrop（会 SIGSEGV）。
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -608,7 +557,6 @@ fun MainScreen() {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
                     liquidHeroState = homeLiquidHeroState,
-                    heroTopInsetDp = heroTopInsetDp,
                     onSearchClick = {
                         Log.d("MainActivity", "导航到搜索页面")
                         // 清除保存的搜索状态，让用户看到一个干净的搜索界面
@@ -729,7 +677,6 @@ fun MainScreen() {
             composable("ranking") {
                 RankingScreen(
                     liquidBarState = rankingLiquidBarState,
-                    topBarInsetDp = rankingTopBarInsetDp,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -743,7 +690,6 @@ fun MainScreen() {
             composable("latest") {
                 LatestScreen(
                     liquidBarState = latestLiquidBarState,
-                    topBarInsetDp = latestTopBarInsetDp,
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -1032,7 +978,6 @@ fun MainScreen() {
                 Log.d("MainActivity", "搜索页面加载，查询: $query")
                 SearchResultScreen(
                     liquidBarState = searchLiquidBarState,
-                    topInsetDp = searchTopBarInsetDp,
                     initialQuery = query,
                     onBackClick = {
                         Log.d("MainActivity", "从搜索页面返回")
@@ -1136,124 +1081,7 @@ fun MainScreen() {
         }
         }
 
-        // 播放列表 zIndex 须高于此处浮层；勿在 showPlaylist 时卸掉浮层，否则会瞬间消失且与播放列表动画不同步
-        // 液态浮层在 NavHost 外，需与 NavHost 的 scaleIn+fadeIn / scaleOut+fadeOut 时长一致，否则会「瞬出」、和页面转场脱节
-        val liquidOverlayEnter = scaleIn(
-            initialScale = 0.95f,
-            animationSpec = tween(280, easing = FastOutSlowInEasing)
-        ) + fadeIn(
-            animationSpec = tween(280, easing = FastOutSlowInEasing)
-        )
-        val liquidOverlayExit = scaleOut(
-            targetScale = 1.05f,
-            animationSpec = tween(240, easing = FastOutSlowInEasing)
-        ) + fadeOut(
-            animationSpec = tween(240, easing = FastOutSlowInEasing)
-        )
-
-        val isMainHome = currentRoute == BottomNavItem.Home.route
-        AnimatedVisibility(
-            visible = isMainHome,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f),
-            enter = liquidOverlayEnter,
-            exit = liquidOverlayExit,
-            label = "homeLiquidHero"
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-                HomeLiquidHeroOverlay(
-                    state = homeLiquidHeroState,
-                    onSearchClick = {
-                        val searchStatePrefs = context.getSharedPreferences(
-                            "search_state",
-                            android.content.Context.MODE_PRIVATE
-                        )
-                        searchStatePrefs.edit()
-                            .remove("last_search_query")
-                            .remove("last_search_type")
-                            .apply()
-                        navController.navigate("search")
-                    },
-                    onNavigateToPlaylist = { playlistId ->
-                        Log.d("MainActivity", "导航到歌单详情: $playlistId")
-                        navController.navigate("playlist_detail/$playlistId/歌单/null/null/null/-1/false")
-                    },
-                    onNavigateToRanking = {
-                        navController.navigate("ranking")
-                    },
-                    onNavigateToLatest = {
-                        navController.navigate("latest")
-                    },
-                    onHeroHeightChanged = { h -> homeHeroInsetPx = h },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        val isRankingRoute = currentRoute == "ranking"
-        AnimatedVisibility(
-            visible = isRankingRoute,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f),
-            enter = liquidOverlayEnter,
-            exit = liquidOverlayExit,
-            label = "rankingLiquidBar"
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-                RankingLiquidTopBarOverlay(
-                    state = rankingLiquidBarState,
-                    onBackClick = { navController.popBackStack() },
-                    onBarHeightChanged = { h -> rankingBarInsetPx = h },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        val isLatestRoute = currentRoute == "latest"
-        AnimatedVisibility(
-            visible = isLatestRoute,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f),
-            enter = liquidOverlayEnter,
-            exit = liquidOverlayExit,
-            label = "latestLiquidBar"
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-                LatestLiquidTopBarOverlay(
-                    state = latestLiquidBarState,
-                    onBackClick = { navController.popBackStack() },
-                    onBarHeightChanged = { h -> latestBarInsetPx = h },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        val isSearchRoute = currentRoute?.substringBefore("?") == "search"
-        AnimatedVisibility(
-            visible = isSearchRoute,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f),
-            enter = liquidOverlayEnter,
-            exit = liquidOverlayExit,
-            label = "searchLiquidBar"
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-                SearchLiquidTopOverlay(
-                    state = searchLiquidBarState,
-                    onBackClick = { navController.popBackStack() },
-                    onBarHeightChanged = { h -> searchBarInsetPx = h },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
+        // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
 
         // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部
 

@@ -41,7 +41,7 @@ import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
 
 /**
- * 叠在 NavHost 之上、**处于 [layerBackdrop] 子树之外**，与底栏同理可对 [LocalLiquidLayerBackdrop] 做真 [drawBackdrop]。
+ * 位于首页内：与列表共用本页的独立 [layerBackdrop]；顶栏在录屏层外通过 [LocalLiquidLayerBackdrop] 做真 [drawBackdrop]。
  * 搜索框与推荐区仍为 **两块独立** GlassSurface。
  */
 @Composable
