@@ -15,16 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width as composeWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -32,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
@@ -56,8 +55,9 @@ import com.neko.music.data.api.MusicApi
 import com.neko.music.data.manager.SearchHistoryManager
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchHistory
-import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.search.SearchLiquidBarState
+import com.neko.music.ui.theme.RoseRed
 import io.ktor.client.call.body
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -67,16 +67,14 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SearchResultScreen(
+    liquidBarState: SearchLiquidBarState,
+    topInsetDp: Dp,
     initialQuery: String = "",
     onBackClick: () -> Unit,
     onMusicClick: (Music) -> Unit,
     onPlaylistClick: (Int, String, String?, String?, String?, Int?) -> Unit = { _, _, _, _, _, _ -> },
     onArtistClick: (String, Int, String?) -> Unit = { _, _, _ -> }
 ) {
-    // Preload strings
-    val singleText = stringResource(id = R.string.single)
-    val playlistText = stringResource(id = R.string.playlist)
-    val artistText = stringResource(id = R.string.artist)
     val searchFailedText = stringResource(id = R.string.search_failed)
     val noSearchMusicText = stringResource(id = R.string.no_search_music)
     val noSearchPlaylistText = stringResource(id = R.string.no_search_playlist)
@@ -90,8 +88,6 @@ fun SearchResultScreen(
     val context = LocalContext.current
     val historyManager = remember { SearchHistoryManager(context) }
     val searchStatePrefs = remember { context.getSharedPreferences("search_state", android.content.Context.MODE_PRIVATE) }
-    var searchQuery by remember { mutableStateOf(initialQuery.ifEmpty { searchStatePrefs.getString("last_search_query", "") ?: "" } ) }
-    var searchType by remember { mutableStateOf(searchStatePrefs.getString("last_search_type", "music") ?: "music") } // music 或 playlist
     var searchResults by remember { mutableStateOf<List<Music>>(emptyList()) }
     var playlistResults by remember { mutableStateOf<List<com.neko.music.data.api.PlaylistInfo>>(emptyList()) }
     var artistResults by remember { mutableStateOf<List<com.neko.music.data.model.Artist>>(emptyList()) }
@@ -102,73 +98,40 @@ fun SearchResultScreen(
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
     
-    // 保存搜索状态
-    androidx.compose.runtime.LaunchedEffect(searchQuery, searchType) {
-        searchStatePrefs.edit()
-            .putString("last_search_query", searchQuery)
-            .putString("last_search_type", searchType)
-            .apply()
-    }
-    
-    // 如果有保存的搜索内容且不是初始查询，自动加载搜索结果
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        val savedQuery = searchStatePrefs.getString("last_search_query", "") ?: ""
-        val savedType = searchStatePrefs.getString("last_search_type", "music") ?: "music"
-        
-        // 只有当初始查询为空且存在保存的查询时才自动加载
-        if (initialQuery.isEmpty() && savedQuery.isNotEmpty()) {
-            searchQuery = savedQuery
-            searchType = savedType
-            isLoading = true
-            errorMessage = null
-            
-            if (searchType == "music") {
-                performSearch(musicApi, savedQuery, scope) { results, error ->
-                    searchResults = results
-                    isLoading = false
-                    errorMessage = error
-                }
-            } else if (searchType == "playlist") {
-                performPlaylistSearch(savedQuery, context, scope) { results, error ->
-                    playlistResults = results
-                    isLoading = false
-                    errorMessage = error
-                }
-            } else if (searchType == "artist") {
-                performArtistSearch(savedQuery, context, scope) { results, error ->
-                    artistResults = results
-                    isLoading = false
-                    errorMessage = error
-                }
-            }
+    androidx.compose.runtime.LaunchedEffect(initialQuery) {
+        searchHistory = historyManager.getSearchHistory()
+        if (initialQuery.isNotEmpty()) {
+            liquidBarState.searchQuery = initialQuery
+        } else {
+            liquidBarState.searchQuery = searchStatePrefs.getString("last_search_query", "") ?: ""
+            liquidBarState.searchType = searchStatePrefs.getString("last_search_type", "music") ?: "music"
         }
     }
-    
-    // 实时搜索 - 输入后立即请求
-    androidx.compose.runtime.LaunchedEffect(searchQuery, searchType) {
-        if (searchQuery.isNotEmpty()) {
-            Log.d("SearchScreen", "实时搜索: $searchQuery, 类型: $searchType")
+
+    androidx.compose.runtime.LaunchedEffect(liquidBarState.searchQuery, liquidBarState.searchType) {
+        searchStatePrefs.edit()
+            .putString("last_search_query", liquidBarState.searchQuery)
+            .putString("last_search_type", liquidBarState.searchType)
+            .apply()
+        if (liquidBarState.searchQuery.isNotEmpty()) {
+            Log.d("SearchScreen", "实时搜索: ${liquidBarState.searchQuery}, 类型: ${liquidBarState.searchType}")
             isLoading = true
-            if (searchType == "music") {
-                performSearch(musicApi, searchQuery, scope) { results, error ->
+            when (liquidBarState.searchType) {
+                "music" -> performSearch(musicApi, liquidBarState.searchQuery, scope) { results, error ->
                     searchResults = results
                     playlistResults = emptyList()
                     artistResults = emptyList()
                     isLoading = false
                     errorMessage = error
                 }
-            } else if (searchType == "playlist") {
-                // 歌单搜索
-                performPlaylistSearch(searchQuery, context, scope) { results, error ->
+                "playlist" -> performPlaylistSearch(liquidBarState.searchQuery, context, scope) { results, error ->
                     playlistResults = results
                     searchResults = emptyList()
                     artistResults = emptyList()
                     isLoading = false
                     errorMessage = error
                 }
-            } else {
-                // 歌手搜索
-                performArtistSearch(searchQuery, context, scope) { results, error ->
+                else -> performArtistSearch(liquidBarState.searchQuery, context, scope) { results, error ->
                     artistResults = results
                     searchResults = emptyList()
                     playlistResults = emptyList()
@@ -182,17 +145,41 @@ fun SearchResultScreen(
             artistResults = emptyList()
         }
     }
-    
-    // 初始查询
-    androidx.compose.runtime.LaunchedEffect(initialQuery) {
-        if (initialQuery.isNotEmpty()) {
-            searchQuery = initialQuery
+
+    SideEffect {
+        liquidBarState.onImeSearchAction = {
+            val q = liquidBarState.searchQuery
+            if (q.isNotEmpty()) {
+                historyManager.saveSearch(q)
+                searchHistory = historyManager.getSearchHistory()
+                isLoading = true
+                scope.launch {
+                    when (liquidBarState.searchType) {
+                        "music" -> performSearch(musicApi, q, scope) { results, error ->
+                            searchResults = results
+                            playlistResults = emptyList()
+                            artistResults = emptyList()
+                            isLoading = false
+                            errorMessage = error
+                        }
+                        "playlist" -> performPlaylistSearch(q, context, scope) { results, error ->
+                            playlistResults = results
+                            searchResults = emptyList()
+                            artistResults = emptyList()
+                            isLoading = false
+                            errorMessage = error
+                        }
+                        else -> performArtistSearch(q, context, scope) { results, error ->
+                            artistResults = results
+                            searchResults = emptyList()
+                            playlistResults = emptyList()
+                            isLoading = false
+                            errorMessage = error
+                        }
+                    }
+                }
+            }
         }
-    }
-    
-    // 加载搜索历史
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        searchHistory = historyManager.getSearchHistory()
     }
     
     Column(
@@ -200,56 +187,11 @@ fun SearchResultScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        SearchBar(
-            query = searchQuery,
-            onQueryChange = { 
-                searchQuery = it
-                Log.d("SearchScreen", "输入: $it")
-            },
-            onSearch = {
-                if (searchQuery.isNotEmpty()) {
-                    Log.d("SearchScreen", "手动触发搜索: $searchQuery")
-                    historyManager.saveSearch(searchQuery)
-                    searchHistory = historyManager.getSearchHistory()
-                    isLoading = true
-                    performSearch(musicApi, searchQuery, scope) { results, error ->
-                        searchResults = results
-                        isLoading = false
-                        errorMessage = error
-                    }
-                }
-            },
-            onBackClick = onBackClick
-        )
-
-        // 搜索类型选择
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SearchTypeButton(
-                text = singleText,
-                isSelected = searchType == "music",
-                onClick = { searchType = "music" }
-            )
-            SearchTypeButton(
-                text = playlistText,
-                isSelected = searchType == "playlist",
-                onClick = { searchType = "playlist" }
-            )
-            SearchTypeButton(
-                text = artistText,
-                isSelected = searchType == "artist",
-                onClick = { searchType = "artist" }
-            )
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
+                .padding(top = topInsetDp)
         ) {
             when {
                 isLoading -> {
@@ -257,7 +199,7 @@ fun SearchResultScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 errorMessage != null -> {
@@ -272,11 +214,11 @@ fun SearchResultScreen(
                         )
                     }
                 }
-                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && searchQuery.isEmpty() && searchHistory.isNotEmpty() -> {
+                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isNotEmpty() -> {
                     SearchHistoryList(
                         history = searchHistory,
                         onItemClick = { query ->
-                            searchQuery = query
+                            liquidBarState.searchQuery = query
                         },
                         onClearClick = {
                             historyManager.clearHistory()
@@ -284,13 +226,13 @@ fun SearchResultScreen(
                         }
                     )
                 }
-                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && searchQuery.isNotEmpty() -> {
+                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isNotEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = when (searchType) {
+                            text = when (liquidBarState.searchType) {
                                 "music" -> noSearchMusicText
                                 "playlist" -> noSearchPlaylistText
                                 else -> noSearchArtistText
@@ -300,7 +242,7 @@ fun SearchResultScreen(
                         )
                     }
                 }
-                searchResults.isEmpty() && playlistResults.isEmpty() && searchQuery.isEmpty() && searchHistory.isEmpty() -> {
+                searchResults.isEmpty() && playlistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -313,17 +255,17 @@ fun SearchResultScreen(
                     }
                 }
                 else -> {
-                    if (searchType == "music") {
+                    if (liquidBarState.searchType == "music") {
                         MusicList(
                             musics = searchResults,
                             onMusicClick = { music ->
                                 // 保存单曲名称到历史记录
-                                historyManager.addSearchHistory(music.title, searchQuery)
+                                historyManager.addSearchHistory(music.title, liquidBarState.searchQuery)
                                 // 调用原有的点击事件
                                 onMusicClick(music)
                             }
                         )
-                    } else if (searchType == "playlist") {
+                    } else if (liquidBarState.searchType == "playlist") {
                         PlaylistList(
                             playlists = playlistResults,
                             onPlaylistClick = { playlist ->
@@ -341,113 +283,6 @@ fun SearchResultScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    onBackClick: () -> Unit
-) {
-    // Preload strings
-    val backText = stringResource(id = R.string.back)
-    val searchText = stringResource(id = R.string.search)
-    val searchMusicText = stringResource(id = R.string.search_music)
-    
-    val isDarkTheme = isSystemInDarkTheme()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = backText,
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            Spacer(modifier = Modifier.composeWidth(4.dp))
-
-            GlassSurface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp),
-                shape = RoundedCornerShape(18.dp),
-                backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
-                borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
-                highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 0.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = searchText,
-                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-
-                        Spacer(modifier = Modifier.composeWidth(8.dp))
-
-                        androidx.compose.foundation.text.BasicTextField(
-                            value = query,
-                            onValueChange = {
-                                onQueryChange(it)
-                                Log.d("SearchScreen", "输入: $it")
-                            },
-                            modifier = Modifier.weight(1f),
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
-                                fontSize = 15.sp
-                            ),
-                            singleLine = true,
-                            cursorBrush = androidx.compose.ui.graphics.SolidColor(RoseRed),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                            ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                onSearch = {
-                                    Log.d("SearchScreen", "触发搜索: $query")
-                                    onSearch()
-                                }
-                            )
-                        )
-
-                        if (query.isEmpty()) {
-                            Text(
-                                text = searchMusicText,
-                                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray,
-                                fontSize = 15.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
