@@ -75,6 +75,8 @@ internal fun navTabIndexForThumbLeft(thumbLeft: Dp, maxWidth: Dp, tabCount: Int,
  * [Glass Slider](https://kyant.gitbook.io/backdrop/tutorials/glass-slider) 变体：
  * 透明 `trackBackdrop` 铺满 Tab 区；拇指为 **胶囊形**，**`thumbLeftDp` 由父级驱动**（Animatable + 拖动 snap），保证跟手。
  * [thumbSquishProgress] 参考 AndroidLiquidGlass `LiquidBottomTabs`：按压/拖动时略压扁拇指并带高光。
+ *
+ * @param darkBarStyle 与底栏背景一致：深色底栏用偏亮拇指叠色，浅色底栏用偏暗叠色（避免「永远像亮色模式」）。
  */
 @Composable
 fun NavigationGlassSlider(
@@ -83,6 +85,7 @@ fun NavigationGlassSlider(
     thumbLeftDp: Dp,
     /** 0..1，与 LiquidBottomTabs 中 pressProgress 类似，驱动 lens / layerBlock / 高光 */
     thumbSquishProgress: Float = 0f,
+    darkBarStyle: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -93,6 +96,7 @@ fun NavigationGlassSlider(
             tabCount = safeCount,
             thumbLeftDp = thumbLeftDp,
             thumbSquishProgress = thumbSquishProgress,
+            darkBarStyle = darkBarStyle,
             modifier = modifier
         )
         return
@@ -162,7 +166,15 @@ fun NavigationGlassSlider(
                         null
                     },
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = lerp(0.2f, 0.12f, p)))
+                        val a0 = if (darkBarStyle) 0.2f else 0.11f
+                        val a1 = if (darkBarStyle) 0.12f else 0.07f
+                        drawRect(
+                            if (darkBarStyle) {
+                                Color.White.copy(alpha = lerp(a0, a1, p))
+                            } else {
+                                Color.Black.copy(alpha = lerp(a0, a1, p))
+                            }
+                        )
                     }
                 )
                 .size(thumbW, thumbH)
@@ -175,6 +187,7 @@ private fun NavigationGlassSliderFallback(
     tabCount: Int,
     thumbLeftDp: Dp,
     thumbSquishProgress: Float = 0f,
+    darkBarStyle: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -198,7 +211,14 @@ private fun NavigationGlassSliderFallback(
                     scaleY = sy
                 }
                 .size(thumbW, thumbH)
-                .background(Color.White.copy(alpha = lerp(0.22f, 0.16f, p)), thumbShape)
+                .background(
+                    color = if (darkBarStyle) {
+                        Color.White.copy(alpha = lerp(0.22f, 0.16f, p))
+                    } else {
+                        Color.Black.copy(alpha = lerp(0.12f, 0.09f, p))
+                    },
+                    shape = thumbShape
+                )
         )
     }
 }
