@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import com.neko.music.ui.theme.SakuraPink
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.activity.compose.BackHandler
@@ -88,13 +89,13 @@ fun PlaylistScreen(
             GlassSurface(
                 modifier = panelModifier,
                 shape = panelShape,
-                backgroundAlpha = if (isDark) 0.40f else 0.34f,
-                borderAlpha = if (isDark) 0.16f else 0.20f,
-                highlightAlpha = if (isDark) 0.08f else 0.11f,
-                borderColor = if (isDark) Color.White else MaterialTheme.colorScheme.outline,
-                liquidBlur = 10.dp,
-                liquidLensHeight = 18.dp,
-                liquidLensAmount = 28.dp
+                backgroundAlpha = if (isDark) 0.42f else 0.36f,
+                borderAlpha = if (isDark) 0.26f else 0.22f,
+                highlightAlpha = if (isDark) 0.12f else 0.14f,
+                borderColor = if (isDark) SakuraPink else MaterialTheme.colorScheme.outline,
+                liquidBlur = 14.dp,
+                liquidLensHeight = 20.dp,
+                liquidLensAmount = 34.dp
             ) {
                 PlaylistContent(
                     playlist = playlist,
@@ -235,10 +236,10 @@ fun PlaylistItem(
             isPlaying -> if (isDark) 0.11f else 0.12f
             else -> if (isDark) 0.06f else 0.08f
         },
-        borderColor = if (isDark) Color.White else scheme.outline,
-        liquidBlur = 6.dp,
-        liquidLensHeight = 14.dp,
-        liquidLensAmount = 22.dp
+        borderColor = if (isDark) SakuraPink.copy(alpha = 0.55f) else scheme.outline,
+        liquidBlur = 8.dp,
+        liquidLensHeight = 16.dp,
+        liquidLensAmount = 26.dp
     ) {
         PlaylistItemRow(
             music = music,

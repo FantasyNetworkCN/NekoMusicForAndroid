@@ -480,7 +480,8 @@ fun MainScreen() {
     }
 
     // 与官方教程一致：主 Nav 区域铺主题底色并录屏，供底栏/迷你播放器与「页外」玻璃同一采样。
-    // 含顶栏的 Home / 榜单 / 新歌 / 搜索在各自 Screen 内使用独立 [rememberLiquidPageBackdrop]；页内勿对同一 backdrop 在 layer 子树内再 drawBackdrop。
+    // 纯播放路由时不套主 layerBackdrop，避免与 PlayerScreen 内 [layerBackdrop(pageBackdrop)] 双录屏冲突；
+    // 但播放列表浮层依赖 [liquidBackdrop] 录 NavHost 内容做真液态，故 showPlaylist 时仍开启主录屏（与 page 为不同 LayerBackdrop）。
     val backdropFill = MaterialTheme.colorScheme.background
     val liquidBackdrop = rememberLiquidPageBackdrop(backdropFill)
     val homeLiquidHeroState = remember { HomeLiquidHeroState() }
@@ -491,7 +492,13 @@ fun MainScreen() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(liquidBackdrop)
+                .then(
+                    if (!isPlayerScreen || showPlaylist) {
+                        Modifier.layerBackdrop(liquidBackdrop)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             NavHost(
             navController = navController,
