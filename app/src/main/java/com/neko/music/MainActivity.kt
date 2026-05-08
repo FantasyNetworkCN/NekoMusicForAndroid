@@ -1235,8 +1235,9 @@ fun MainScreen() {
             }
         }
 
-        // 播放列表弹窗（在所有控件之上，覆盖显示）
+        // 播放列表弹窗（在所有控件之上，覆盖显示）；提供与底栏相同的 LayerBackdrop 才能 drawBackdrop 液态采样
                 Box(modifier = Modifier.zIndex(1f)) {
+                    CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                     PlaylistScreen(
                         isVisible = showPlaylist,
                         currentMusicId = currentMusicId,
@@ -1265,6 +1266,7 @@ fun MainScreen() {
                             showPlaylist = false
                         }
                     )
+                    }
                 }                        
         // 登录和注册页面（在最顶层显示）
         AnimatedVisibility(

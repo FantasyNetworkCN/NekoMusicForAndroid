@@ -21,9 +21,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.activity.compose.BackHandler
@@ -42,7 +46,6 @@ import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.model.Music
-import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.components.GlassSurface
 import kotlinx.coroutines.launch
 
@@ -57,7 +60,7 @@ fun PlaylistScreen(
     val playlistManager = PlaylistManager.getInstance(context)
     val playlist by playlistManager.playlist.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     AnimatedVisibility(
         visible = isVisible,
@@ -70,7 +73,6 @@ fun PlaylistScreen(
                 .background(Color.Black.copy(alpha = 0.5f))
                 .clickable(onClick = onBackClick)
         ) {
-            // 处理返回键
             BackHandler(enabled = isVisible) {
                 onBackClick()
             }
@@ -81,40 +83,27 @@ fun PlaylistScreen(
                 .fillMaxWidth()
                 .height(600.dp)
                 .clip(panelShape)
+                .clickable(enabled = false) {}
 
-            if (isDarkTheme) {
-                GlassSurface(
-                    modifier = panelModifier,
-                    shape = panelShape,
-                    backgroundAlpha = 0.85f,
-                    borderAlpha = 0.18f,
-                    highlightAlpha = 0.10f
-                ) {
-                    PlaylistContent(
-                        playlist = playlist,
-                        currentMusicId = currentMusicId,
-                        onBackClick = onBackClick,
-                        onMusicClick = onMusicClick,
-                        playlistManager = playlistManager,
-                        scope = scope
-                    )
-                }
-            } else {
-                Column(
-                    modifier = panelModifier
-                        .background(Color.White)
-                        .clickable(enabled = false) {},
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    PlaylistContent(
-                        playlist = playlist,
-                        currentMusicId = currentMusicId,
-                        onBackClick = onBackClick,
-                        onMusicClick = onMusicClick,
-                        playlistManager = playlistManager,
-                        scope = scope
-                    )
-                }
+            GlassSurface(
+                modifier = panelModifier,
+                shape = panelShape,
+                backgroundAlpha = if (isDark) 0.40f else 0.34f,
+                borderAlpha = if (isDark) 0.16f else 0.20f,
+                highlightAlpha = if (isDark) 0.08f else 0.11f,
+                borderColor = if (isDark) Color.White else MaterialTheme.colorScheme.outline,
+                liquidBlur = 10.dp,
+                liquidLensHeight = 18.dp,
+                liquidLensAmount = 28.dp
+            ) {
+                PlaylistContent(
+                    playlist = playlist,
+                    currentMusicId = currentMusicId,
+                    onBackClick = onBackClick,
+                    onMusicClick = onMusicClick,
+                    playlistManager = playlistManager,
+                    scope = scope
+                )
             }
         }
     }
@@ -129,15 +118,14 @@ fun PlaylistContent(
     playlistManager: PlaylistManager,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .clickable(enabled = false) {},
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 顶部栏
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,7 +141,7 @@ fun PlaylistContent(
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = stringResource(id = R.string.back),
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else Color.Black,
+                    tint = scheme.onSurface.copy(alpha = 0.88f),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -162,10 +150,10 @@ fun PlaylistContent(
                 text = stringResource(id = R.string.playback_list),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                color = scheme.onSurface
             )
 
-            androidx.compose.material3.TextButton(
+            TextButton(
                 onClick = {
                     scope.launch {
                         currentMusicId?.let { playlistManager.clearPlaylistExcept(it) }
@@ -175,19 +163,16 @@ fun PlaylistContent(
                 Text(
                     text = stringResource(id = R.string.clear),
                     fontSize = 14.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                    color = scheme.onSurfaceVariant
                 )
             }
         }
 
-        if (!isDarkTheme) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color(0xFFE0E0E0))
-            )
-        }
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            thickness = 1.dp,
+            color = scheme.outline.copy(alpha = 0.35f)
+        )
 
         if (playlist.isEmpty()) {
             Box(
@@ -199,7 +184,7 @@ fun PlaylistContent(
                 Text(
                     text = stringResource(id = R.string.playlist_empty),
                     fontSize = 14.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                    color = scheme.onSurfaceVariant
                 )
             }
         } else {
@@ -207,8 +192,8 @@ fun PlaylistContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(playlist) { music ->
                     PlaylistItem(
@@ -228,34 +213,38 @@ fun PlaylistItem(
     isPlaying: Boolean,
     onClick: () -> Unit
 ) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
 
-    if (isDarkTheme) {
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            shape = RoundedCornerShape(10.dp),
-            backgroundAlpha = if (isPlaying) 0.45f else 0.22f,
-            borderAlpha = if (isPlaying) 0.25f else 0.12f,
-            highlightAlpha = if (isPlaying) 0.12f else 0.06f
-        ) {
-            PlaylistItemRow(music = music, isPlaying = isPlaying, isDarkTheme = true)
-        }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .background(
-                    if (isPlaying) Color(0xFFF5F5F5) else Color.Transparent,
-                    RoundedCornerShape(10.dp)
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PlaylistItemRow(music = music, isPlaying = isPlaying, isDarkTheme = false)
-        }
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = when {
+            isPlaying && isDark -> 0.46f
+            isPlaying && !isDark -> 0.36f
+            isDark -> 0.22f
+            else -> 0.20f
+        },
+        borderAlpha = when {
+            isPlaying -> if (isDark) 0.24f else 0.22f
+            else -> if (isDark) 0.12f else 0.16f
+        },
+        highlightAlpha = when {
+            isPlaying -> if (isDark) 0.11f else 0.12f
+            else -> if (isDark) 0.06f else 0.08f
+        },
+        borderColor = if (isDark) Color.White else scheme.outline,
+        liquidBlur = 6.dp,
+        liquidLensHeight = 14.dp,
+        liquidLensAmount = 22.dp
+    ) {
+        PlaylistItemRow(
+            music = music,
+            isPlaying = isPlaying,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -263,19 +252,19 @@ fun PlaylistItem(
 private fun PlaylistItemRow(
     music: Music,
     isPlaying: Boolean,
-    isDarkTheme: Boolean
+    modifier: Modifier = Modifier
 ) {
+    val scheme = MaterialTheme.colorScheme
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(
-                    if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color(0xFFF5F5F5)
-                ),
+                .clip(RoundedCornerShape(8.dp))
+                .background(scheme.surfaceVariant.copy(alpha = 0.65f)),
             contentAlignment = Alignment.Center
         ) {
             val coverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
@@ -301,18 +290,14 @@ private fun PlaylistItemRow(
                 text = music.title,
                 fontSize = 15.sp,
                 fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.Medium,
-                color = if (isDarkTheme) {
-                    Color.White.copy(alpha = if (isPlaying) 1.0f else 0.85f)
-                } else {
-                    if (isPlaying) Color.Black else Color.DarkGray
-                },
+                color = if (isPlaying) scheme.primary else scheme.onSurface,
                 maxLines = 1
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = music.artist,
                 fontSize = 13.sp,
-                color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Gray,
+                color = scheme.onSurfaceVariant,
                 maxLines = 1
             )
         }
