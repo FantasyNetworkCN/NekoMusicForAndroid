@@ -130,7 +130,7 @@ fun LatestScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     LatestLoadingState()
                 }
@@ -139,7 +139,7 @@ fun LatestScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     LatestErrorState(onRetry = { loadData() })
                 }
@@ -148,7 +148,7 @@ fun LatestScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = topBarInsetDp)
+                        .padding(top = topBarInsetDp + 20.dp)
                 ) {
                     LatestEmptyState()
                 }
@@ -185,7 +185,7 @@ fun LatestScreen(
                         contentPadding = PaddingValues(
                             start = 16.dp,
                             end = 16.dp,
-                            top = topBarInsetDp + 28.dp,
+                            top = topBarInsetDp + 48.dp,
                             bottom = 160.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -226,7 +226,7 @@ fun LatestScreen(
                         state = pullRefreshState,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = topBarInsetDp + 16.dp),
+                            .padding(top = topBarInsetDp + 36.dp),
                         backgroundColor = scheme.surface,
                         contentColor = scheme.primary
                     )
