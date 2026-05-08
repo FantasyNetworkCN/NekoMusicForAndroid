@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -119,6 +120,9 @@ fun BottomNavigationBar(
 
     // 与内层同高；外层 BoxWithConstraints 以便整颗 GlassSurface 应用跟手位移（对齐 LiquidBottomTabs panelOffset）
     BoxWithConstraints(modifier = modifier.fillMaxWidth().height(52.dp)) {
+            val colorScheme = MaterialTheme.colorScheme
+            /** 与主题背景一致（含动态色 / 深浅色），避免底栏写死成「深色玻璃 + 白字」 */
+            val isDarkBar = colorScheme.background.luminance() < 0.5f
             val density = LocalDensity.current
             val view = LocalView.current
             val scope = rememberCoroutineScope()
@@ -214,9 +218,10 @@ fun BottomNavigationBar(
                     .fillMaxSize()
                     .graphicsLayer { translationX = panelOffsetPx },
                 shape = RoundedCornerShape(28.dp),
-                backgroundAlpha = 0.32f,
-                borderAlpha = 0.15f,
-                highlightAlpha = 0.08f,
+                backgroundAlpha = if (isDarkBar) 0.32f else 0.26f,
+                borderAlpha = if (isDarkBar) 0.15f else 0.20f,
+                highlightAlpha = if (isDarkBar) 0.08f else 0.12f,
+                borderColor = if (isDarkBar) Color.White else colorScheme.outline.copy(alpha = 1f),
                 liquidBlur = 4.dp,
                 liquidLensHeight = 16.dp,
                 liquidLensAmount = 32.dp
@@ -226,7 +231,8 @@ fun BottomNavigationBar(
                     mainBackdrop = pageBackdrop,
                     tabCount = items.size,
                     thumbLeftDp = thumbLeftUi,
-                    thumbSquishProgress = thumbSquish
+                    thumbSquishProgress = thumbSquish,
+                    darkBarStyle = isDarkBar
                 )
             Row(
                 modifier = Modifier
@@ -254,6 +260,41 @@ fun BottomNavigationBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val selectedLabelColor =
+                    if (isDarkBar) Color.White.copy(alpha = 0.98f)
+                    else colorScheme.onSurface.copy(alpha = 0.94f)
+                val unselectedLabelColor =
+                    if (isDarkBar) Color.White.copy(alpha = 0.74f)
+                    else colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                val labelShadowSelected =
+                    if (isDarkBar) {
+                        Shadow(
+                            color = Color.Black.copy(alpha = 0.5f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 4f
+                        )
+                    } else {
+                        Shadow(
+                            color = Color.Black.copy(alpha = 0.16f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 3f
+                        )
+                    }
+                val labelShadowUnselected =
+                    if (isDarkBar) {
+                        Shadow(
+                            color = Color.Black.copy(alpha = 0.35f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 2.5f
+                        )
+                    } else {
+                        Shadow(
+                            color = Color.Black.copy(alpha = 0.10f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 2f
+                        )
+                    }
+
                 items.forEach { item ->
                     val isSelected = currentRoute == item.route
                     val interactionSource = remember(item.route) { MutableInteractionSource() }
@@ -292,26 +333,10 @@ fun BottomNavigationBar(
                             text = stringResource(id = item.titleResId),
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (isSelected) {
-                                Color.White.copy(alpha = 0.98f)
-                            } else {
-                                Color.White.copy(alpha = 0.74f)
-                            },
+                            color = if (isSelected) selectedLabelColor else unselectedLabelColor,
                             letterSpacing = if (isSelected) 0.35.sp else 0.2.sp,
                             style = androidx.compose.ui.text.TextStyle(
-                                shadow = if (isSelected) {
-                                    Shadow(
-                                        color = Color.Black.copy(alpha = 0.5f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 4f
-                                    )
-                                } else {
-                                    Shadow(
-                                        color = Color.Black.copy(alpha = 0.35f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 2.5f
-                                    )
-                                }
+                                shadow = if (isSelected) labelShadowSelected else labelShadowUnselected
                             )
                         )
                     }
