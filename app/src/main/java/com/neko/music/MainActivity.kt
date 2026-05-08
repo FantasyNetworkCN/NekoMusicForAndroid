@@ -34,10 +34,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -75,6 +77,8 @@ import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.MiniPlayer
 import com.neko.music.ui.components.PlaylistBottomSheet
+import com.neko.music.ui.home.HomeLiquidHeroOverlay
+import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.ui.screens.LoginScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
@@ -502,6 +506,12 @@ fun MainScreen() {
     val liquidBackdrop = rememberLayerBackdrop(
         onDraw = remember(backdropFill) { backdropLayerFillOnDraw(backdropFill) }
     )
+    val homeLiquidHeroState = remember { HomeLiquidHeroState() }
+    var homeHeroInsetPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val heroTopInsetDp = remember(homeHeroInsetPx, density) {
+        if (homeHeroInsetPx > 0) with(density) { homeHeroInsetPx.toDp() } else 380.dp
+    }
     // 与 Glass Bottom Bar 一致：仅 MainNavHost 挂 layerBackdrop；底栏/迷你播放器在层外 drawBackdrop。
     // 切勿在 layerBackdrop(同一 backdrop) 的子树内再对该 backdrop drawBackdrop（会 SIGSEGV）。
     Box(modifier = Modifier.fillMaxSize()) {
@@ -573,6 +583,8 @@ fun MainScreen() {
         ) {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
+                    liquidHeroState = homeLiquidHeroState,
+                    heroTopInsetDp = heroTopInsetDp,
                     onSearchClick = {
                         Log.d("MainActivity", "导航到搜索页面")
                         // 清除保存的搜索状态，让用户看到一个干净的搜索界面
@@ -1093,6 +1105,41 @@ fun MainScreen() {
                 )
             }
         }
+        }
+
+        val isMainHome = currentRoute == BottomNavItem.Home.route
+        if (isMainHome) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+                HomeLiquidHeroOverlay(
+                    state = homeLiquidHeroState,
+                    onSearchClick = {
+                        val searchStatePrefs = context.getSharedPreferences(
+                            "search_state",
+                            android.content.Context.MODE_PRIVATE
+                        )
+                        searchStatePrefs.edit()
+                            .remove("last_search_query")
+                            .remove("last_search_type")
+                            .apply()
+                        navController.navigate("search")
+                    },
+                    onNavigateToPlaylist = { playlistId ->
+                        Log.d("MainActivity", "导航到歌单详情: $playlistId")
+                        navController.navigate("playlist_detail/$playlistId/歌单/null/null/null/-1/false")
+                    },
+                    onNavigateToRanking = {
+                        navController.navigate("ranking")
+                    },
+                    onNavigateToLatest = {
+                        navController.navigate("latest")
+                    },
+                    onHeroHeightChanged = { h -> homeHeroInsetPx = h },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                )
+            }
         }
 
         // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部

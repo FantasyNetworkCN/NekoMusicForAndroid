@@ -81,7 +81,7 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
-import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -94,6 +94,8 @@ import java.io.File
 
 @Composable
 fun HomeScreen(
+    liquidHeroState: HomeLiquidHeroState,
+    heroTopInsetDp: androidx.compose.ui.unit.Dp,
     onSearchClick: () -> Unit = {},
     onNavigateToFavorite: () -> Unit = {},
     onNavigateToPlaylist: (Int) -> Unit = {},
@@ -102,80 +104,67 @@ fun HomeScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    val colorScheme = MaterialTheme.colorScheme
-    val isDarkHome = colorScheme.background.luminance() < 0.5f
     val updateManager = remember { AppUpdateManager(context) }
     val toastMessage = remember { androidx.compose.runtime.mutableStateOf("") }
     val showToast = remember { androidx.compose.runtime.mutableStateOf(false) }
     
-    // 推荐歌单状态
-    var recommendedPlaylists by remember { mutableStateOf<List<PlaylistInfo>>(emptyList()) }
-    var rankingMusic by remember { mutableStateOf<List<com.neko.music.data.model.Music>>(emptyList()) }
-    var latestMusic by remember { mutableStateOf<List<com.neko.music.data.model.Music>>(emptyList()) }
-    var playlistsLoading by remember { mutableStateOf(false) }
-    var loadError by remember { mutableStateOf(false) }
-    
-    // 获取推荐歌单
+    // 推荐歌单等数据写入 [liquidHeroState]，供 layerBackdrop 外的 [HomeLiquidHeroOverlay] 真液态采样
     LaunchedEffect(Unit) {
-        playlistsLoading = true
-        loadError = false
+        liquidHeroState.playlistsLoading = true
+        liquidHeroState.loadError = false
         scope.launch {
             try {
-                // 并行获取热门音乐、最新音乐和歌单
                 val playlistsDeferred = async {
                     Log.d("HomeScreen", "开始加载推荐歌单...")
                     val playlistApi = PlaylistApi(null, context)
                     playlistApi.searchPlaylists()
                 }
-                
+
                 val rankingDeferred = async {
                     Log.d("HomeScreen", "开始加载热门音乐...")
                     val musicApi = com.neko.music.data.api.MusicApi(context)
                     musicApi.getRanking(200)
                 }
-                
+
                 val latestDeferred = async {
                     Log.d("HomeScreen", "开始加载最新音乐...")
                     val musicApi = com.neko.music.data.api.MusicApi(context)
                     musicApi.getLatest(300)
                 }
-                
+
                 val playlistResponse = playlistsDeferred.await()
                 val rankingResult = rankingDeferred.await()
                 val latestResult = latestDeferred.await()
-                
-                // 处理歌单响应
+
                 if (playlistResponse.success && playlistResponse.playlists != null) {
-                    recommendedPlaylists = playlistResponse.playlists.take(7)
+                    liquidHeroState.recommendedPlaylists = playlistResponse.playlists.take(7)
                     Log.d("HomeScreen", "推荐歌单加载成功: ${playlistResponse.playlists.size}个")
                 } else {
                     Log.e("HomeScreen", "推荐歌单加载失败: ${playlistResponse.message}")
                 }
-                
-                // 处理热门音乐响应
+
                 rankingResult.onSuccess { musicList ->
-                    rankingMusic = musicList
+                    liquidHeroState.rankingMusic = musicList
                     Log.d("HomeScreen", "热门音乐加载成功: ${musicList.size}首")
                 }.onFailure { error ->
                     Log.e("HomeScreen", "热门音乐加载失败: ${error.message}")
                 }
-                
-                // 处理最新音乐响应
+
                 latestResult.onSuccess { musicList ->
-                    latestMusic = musicList
+                    liquidHeroState.latestMusic = musicList
                     Log.d("HomeScreen", "最新音乐加载成功: ${musicList.size}首")
                 }.onFailure { error ->
                     Log.e("HomeScreen", "最新音乐加载失败: ${error.message}")
                 }
-                
+
                 if (playlistResponse.success && playlistResponse.playlists == null) {
-                    loadError = true
+                    liquidHeroState.loadError = true
                 }
             } catch (e: Exception) {
                 Log.e("HomeScreen", "推荐歌单异常: ${e.message}", e)
-                loadError = true
+                liquidHeroState.loadError = true
             } finally {
-                playlistsLoading = false
+                liquidHeroState.playlistsLoading = false
             }
         }
     }
@@ -381,224 +370,8 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 170.dp)
         ) {
             item {
-                // 搜索框
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                        .statusBarsPadding()
-                        .height(48.dp)
-                        .clickable {
-                            Log.d("HomeScreen", "搜索框被点击")
-                            onSearchClick()
-                        },
-                    shape = RoundedCornerShape(20.dp),
-                    backgroundAlpha = if (isDarkHome) 0.35f else 0.30f,
-                    borderAlpha = if (isDarkHome) 0.18f else 0.20f,
-                    highlightAlpha = if (isDarkHome) 0.08f else 0.10f,
-                    borderColor = if (isDarkHome) Color.White else colorScheme.outline,
-                    liquidBlur = 8.dp,
-                    liquidLensHeight = 16.dp,
-                    liquidLensAmount = 26.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = stringResource(id = R.string.search),
-                            tint = if (isDarkHome) {
-                                Color.White.copy(alpha = 0.72f)
-                            } else {
-                                colorScheme.onSurface.copy(alpha = 0.55f)
-                            },
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = stringResource(id = R.string.search_music_artist_album),
-                            fontSize = 15.sp,
-                            color = if (isDarkHome) {
-                                Color.White.copy(alpha = 0.62f)
-                            } else {
-                                colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = FontWeight.Normal
-                        )
-                    }
-                }
-                
-                // 推荐歌单（热门 / 最新 / 推荐歌单网格）
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    backgroundAlpha = if (isDarkHome) 0.32f else 0.28f,
-                    borderAlpha = if (isDarkHome) 0.15f else 0.20f,
-                    highlightAlpha = if (isDarkHome) 0.08f else 0.11f,
-                    borderColor = if (isDarkHome) Color.White else colorScheme.outline,
-                    liquidBlur = 10.dp,
-                    liquidLensHeight = 18.dp,
-                    liquidLensAmount = 28.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 14.dp)
-                    ) {
-                        val sectionTitleColor =
-                            if (isDarkHome) Color.White.copy(alpha = 0.98f) else colorScheme.onSurface
-                        val sectionTitleShadow =
-                            if (isDarkHome) {
-                                Shadow(
-                                    color = Color.Black.copy(alpha = 0.5f),
-                                    offset = Offset(0f, 1f),
-                                    blurRadius = 6f
-                                )
-                            } else {
-                                Shadow(
-                                    color = Color.Black.copy(alpha = 0.12f),
-                                    offset = Offset(0f, 1f),
-                                    blurRadius = 3f
-                                )
-                            }
-                        // 标题
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(4.dp)
-                                        .height(20.dp)
-                                        .background(
-                                            colorScheme.primary,
-                                            RoundedCornerShape(2.dp)
-                                        )
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = stringResource(id = R.string.recommended_playlists),
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = sectionTitleColor,
-                                    letterSpacing = 0.3.sp,
-                                    style = androidx.compose.ui.text.TextStyle(
-                                        shadow = sectionTitleShadow
-                                    )
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 内容区域
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            when {
-                                playlistsLoading -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(160.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(36.dp),
-                                            color = if (isDarkHome) {
-                                                Color.White.copy(alpha = 0.75f)
-                                            } else {
-                                                colorScheme.primary
-                                            },
-                                            strokeWidth = 2.5.dp
-                                        )
-                                    }
-                                }
-                                loadError -> {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 40.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = stringResource(id = R.string.network_error_msg),
-                                            fontSize = 16.sp,
-                                            color = if (isDarkHome) {
-                                                Color.White.copy(alpha = 0.88f)
-                                            } else {
-                                                colorScheme.onSurface
-                                            },
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-                                else -> {
-                                    // 2列网格布局
-                                    val gridItems = buildList {
-                                        if (rankingMusic.isNotEmpty()) {
-                                            add(@androidx.compose.runtime.Composable {
-                                                RankingMusicCard(
-                                                    musicList = rankingMusic,
-                                                    onClick = { onNavigateToRanking() },
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            })
-                                        }
-                                        if (latestMusic.isNotEmpty()) {
-                                            add(@androidx.compose.runtime.Composable {
-                                                LatestMusicCard(
-                                                    musicList = latestMusic,
-                                                    onClick = { onNavigateToLatest() },
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            })
-                                        }
-                                        recommendedPlaylists.take(2).forEach { playlist ->
-                                            add(@androidx.compose.runtime.Composable {
-                                                PlaylistCard(
-                                                    playlist = playlist,
-                                                    onClick = { onNavigateToPlaylist(playlist.id) },
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            })
-                                        }
-                                    }
-
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        for (i in gridItems.indices step 2) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                            ) {
-                                                Box(modifier = Modifier.weight(1f)) {
-                                                    gridItems[i]()
-                                                }
-                                                if (i + 1 < gridItems.size) {
-                                                    Box(modifier = Modifier.weight(1f)) {
-                                                        gridItems[i + 1]()
-                                                    }
-                                                } else {
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
+                // 搜索 + 推荐液态玻璃在 MainActivity 的 layerBackdrop 外绘制；此处占位高度与浮层一致，避免列表与壁纸错位
+                Spacer(modifier = Modifier.height(heroTopInsetDp))
                 Spacer(modifier = Modifier.height(120.dp))
             }
         }
