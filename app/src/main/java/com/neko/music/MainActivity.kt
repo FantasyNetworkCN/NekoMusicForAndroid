@@ -502,15 +502,15 @@ fun MainScreen() {
     val liquidBackdrop = rememberLayerBackdrop(
         onDraw = remember(backdropFill) { backdropLayerFillOnDraw(backdropFill) }
     )
+    // 与 Glass Bottom Bar 一致：仅 MainNavHost 挂 layerBackdrop；底栏/迷你播放器在层外 drawBackdrop。
+    // 切勿在 layerBackdrop(同一 backdrop) 的子树内再对该 backdrop drawBackdrop（会 SIGSEGV）。
     Box(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalLiquidLayerBackdrop provides null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(liquidBackdrop)
         ) {
-        // NavHost 内 Local=null：避免在已 layerBackdrop 的子树里再 drawBackdrop 同一 LayerBackdrop（见 FAQ / Glass Bottom Sheet）
-        NavHost(
+            NavHost(
             navController = navController,
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.fillMaxSize(),
@@ -1094,7 +1094,6 @@ fun MainScreen() {
             }
         }
         }
-        }
 
         // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部
 
@@ -1392,8 +1391,8 @@ fun MainScreen() {
                     }
                 )
             }
-        }
     }
+}
 
 // ==================== 启动页相关组件 ====================
 
