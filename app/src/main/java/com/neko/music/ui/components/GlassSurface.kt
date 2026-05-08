@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -39,6 +40,10 @@ fun GlassSurface(
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,
     borderColor: Color = Color.White,
+    /** Kyant 液态路径专用；教程 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 底栏约 4.dp。 */
+    liquidBlur: Dp = 14.dp,
+    liquidLensHeight: Dp = 16.dp,
+    liquidLensAmount: Dp = 32.dp,
     content: @Composable () -> Unit
 ) {
     val backdrop = LocalLiquidLayerBackdrop.current
@@ -46,10 +51,9 @@ fun GlassSurface(
     val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     if (useLiquid) {
-        // 偏「液态」：中等 blur + 较强 lens；表面层用浅色薄雾，避免厚底色盖住 vibrancy/lens
-        val blurPx = with(density) { 14.dp.toPx() }
-        val lensH = with(density) { 16.dp.toPx() }
-        val lensAmt = with(density) { 32.dp.toPx() }
+        val blurPx = with(density) { liquidBlur.toPx() }
+        val lensH = with(density) { liquidLensHeight.toPx() }
+        val lensAmt = with(density) { liquidLensAmount.toPx() }
         val frostTop = (highlightAlpha * 2.5f).coerceIn(0.06f, 0.28f)
         val frostBase = (backgroundAlpha * 0.35f).coerceIn(0.04f, 0.14f)
         Box(
