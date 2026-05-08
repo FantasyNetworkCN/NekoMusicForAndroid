@@ -1,6 +1,7 @@
 package com.neko.music.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -41,6 +42,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -72,6 +75,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 
 sealed class BottomNavItem(
@@ -113,18 +117,8 @@ fun BottomNavigationBar(
 
     val pageBackdrop = LocalLiquidLayerBackdrop.current
 
-    // 与内层同高，避免内层固定 46dp 而外层 64dp 时在底部留出一条空带
-    GlassSurface(
-        modifier = modifier.fillMaxWidth().height(52.dp),
-        shape = RoundedCornerShape(28.dp),
-        backgroundAlpha = 0.32f,
-        borderAlpha = 0.15f,
-        highlightAlpha = 0.08f,
-        liquidBlur = 4.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 32.dp
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    // 与内层同高；外层 BoxWithConstraints 以便整颗 GlassSurface 应用跟手位移（对齐 LiquidBottomTabs panelOffset）
+    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(52.dp)) {
             val density = LocalDensity.current
             val view = LocalView.current
             val scope = rememberCoroutineScope()
@@ -132,6 +126,22 @@ fun BottomNavigationBar(
             val latestRoute by rememberUpdatedState(currentRoute)
 
             val thumbPosPx = remember { Animatable(0f) }
+            /** 与 LiquidBottomTabs 一致：累积拖动手势，整栏用 [panelOffset] 轻微跟手，松手回弹 */
+            val dragPanelSlip = remember { Animatable(0f) }
+            val panelOffsetPx by remember(density, maxWidth) {
+                derivedStateOf<Float> {
+                    val denom = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
+                    val fraction = (dragPanelSlip.value / denom).coerceIn(-1f, 1f)
+                    val dir = when {
+                        fraction > 0f -> 1f
+                        fraction < 0f -> -1f
+                        else -> 0f
+                    }
+                    with(density) {
+                        4.dp.toPx() * dir * EaseOut.transform(abs(fraction))
+                    }
+                }
+            }
             var thumbLeftUi by remember { mutableStateOf(0.dp) }
             val thumbSquish by animateFloatAsState(
                 targetValue = if (isDragging) 1f else 0f,
@@ -190,6 +200,7 @@ fun BottomNavigationBar(
                         density
                     )
                     thumbPosPx.snapTo(nextPx)
+                    dragPanelSlip.snapTo(dragPanelSlip.value + delta)
                     val nextDp = with(density) { nextPx.toDp() }
                     val newIdx = navTabIndexForThumbLeft(nextDp, maxWidth, items.size, density)
                     if (items[newIdx].route != latestRoute) {
@@ -198,13 +209,25 @@ fun BottomNavigationBar(
                 }
             }
 
-            NavigationGlassSlider(
-                modifier = Modifier.fillMaxSize(),
-                mainBackdrop = pageBackdrop,
-                tabCount = items.size,
-                thumbLeftDp = thumbLeftUi,
-                thumbSquishProgress = thumbSquish
-            )
+            GlassSurface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { translationX = panelOffsetPx },
+                shape = RoundedCornerShape(28.dp),
+                backgroundAlpha = 0.32f,
+                borderAlpha = 0.15f,
+                highlightAlpha = 0.08f,
+                liquidBlur = 4.dp,
+                liquidLensHeight = 16.dp,
+                liquidLensAmount = 32.dp
+            ) {
+                NavigationGlassSlider(
+                    modifier = Modifier.fillMaxSize(),
+                    mainBackdrop = pageBackdrop,
+                    tabCount = items.size,
+                    thumbLeftDp = thumbLeftUi,
+                    thumbSquishProgress = thumbSquish
+                )
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -217,6 +240,15 @@ fun BottomNavigationBar(
                         },
                         onDragStopped = {
                             isDragging = false
+                            scope.launch {
+                                dragPanelSlip.animateTo(
+                                    0f,
+                                    spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                            }
                         }
                     ),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -228,7 +260,7 @@ fun BottomNavigationBar(
                     val tabPressed by interactionSource.collectIsPressedAsState()
 
                     val scaleValue by animateFloatAsState(
-                        targetValue = if (isSelected) 1.05f else 1f,
+                        targetValue = if (isSelected) 1.05f else 0.99f,
                         animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
                             stiffness = Spring.StiffnessLow
@@ -259,9 +291,13 @@ fun BottomNavigationBar(
                         Text(
                             text = stringResource(id = item.titleResId),
                             fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White.copy(alpha = 0.98f) else Color.White.copy(alpha = 0.5f),
-                            letterSpacing = 0.3.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            color = if (isSelected) {
+                                Color.White.copy(alpha = 0.98f)
+                            } else {
+                                Color.White.copy(alpha = 0.74f)
+                            },
+                            letterSpacing = if (isSelected) 0.35.sp else 0.2.sp,
                             style = androidx.compose.ui.text.TextStyle(
                                 shadow = if (isSelected) {
                                     Shadow(
@@ -269,13 +305,19 @@ fun BottomNavigationBar(
                                         offset = Offset(0f, 1f),
                                         blurRadius = 4f
                                     )
-                                } else null
+                                } else {
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.35f),
+                                        offset = Offset(0f, 1f),
+                                        blurRadius = 2.5f
+                                    )
+                                }
                             )
                         )
                     }
                 }
             }
-        }
+            }
     }
 }
 
