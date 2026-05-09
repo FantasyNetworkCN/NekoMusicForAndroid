@@ -37,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
+import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
+import com.neko.music.ui.components.AppUpdateErrorDialog
+import com.neko.music.ui.components.AppUpdatePromptDialog
+import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -372,7 +376,7 @@ fun SettingsScreen(
 
             // 更新对话框
             if (showUpdateDialog && updateInfo != null) {
-                SettingsUpdateDialog(
+                AppUpdatePromptDialog(
                     versionName = updateInfo!!.versionName,
                     versionCode = updateInfo!!.versionCode,
                     onConfirm = { downloadAndInstall() },
@@ -381,20 +385,20 @@ fun SettingsScreen(
             }
 
             if (isDownloading) {
-                SettingsDownloadProgressDialog(
+                AppUpdateDownloadProgressDialog(
                     progress = downloadProgress,
                     onDismiss = { isDownloading = false }
                 )
             }
 
             if (showUpdateSuccessDialog) {
-                SettingsUpdateSuccessDialog(
+                AppUpdateSuccessDialog(
                     onDismiss = { showUpdateSuccessDialog = false }
                 )
             }
 
             if (showUpdateErrorDialog) {
-                SettingsUpdateErrorDialog(
+                AppUpdateErrorDialog(
                     message = errorMessage,
                     onDismiss = { showUpdateErrorDialog = false }
                 )
@@ -542,199 +546,6 @@ fun SettingItem(
         }
 }
 
-// 对话框组件
-@Composable
-fun SettingsUpdateDialog(
-        versionName: String,
-        versionCode: Int,
-        onConfirm: () -> Unit,
-        onDismiss: () -> Unit
-    ) {
-    val isDarkTheme = isSystemInDarkTheme()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            // 喵！用 Row 把图标和文字排在一起
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    // 使用自带的更新图标，或者主人有特定的 DW 图标资源也可以换成 painterResource
-                    painter = painterResource(id = R.drawable.update),
-                    contentDescription = null,
-                    tint = RoseRed,
-                    modifier = Modifier.size(24.dp) // 比文字稍微大一点点会更好看喵
-                )
-                Spacer(modifier = Modifier.width(8.dp)) // 给图标和文字留点小缝隙
-                Text(
-                    text = stringResource(id = R.string.new_version_found),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoseRed
-                )
-            }
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(id = R.string.new_version, versionName),
-                    fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(id = R.string.version_code_display, versionCode),
-                    fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RoseRed
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = stringResource(id = R.string.update_now),
-                    fontSize = 16.sp,
-                    color = Color.White
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(id = R.string.later),
-                    fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                )
-            }
-        },
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-    )
-}
-
-@Composable
-fun SettingsDownloadProgressDialog(
-        progress: Float,
-        onDismiss: () -> Unit
-    ) {
-    val isDarkTheme = isSystemInDarkTheme()
-
-    AlertDialog(
-        onDismissRequest = { },
-        title = {
-            Text(
-                text = stringResource(id = R.string.downloading_update_progress),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = RoseRed
-            )
-        },
-        text = {
-            Column {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp),
-                    color = RoseRed,
-                    trackColor = if (isDarkTheme) Color(0xFF353558).copy(alpha = 0.6f) else Color.Gray.copy(alpha = 0.3f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
-        },
-        confirmButton = {},
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-    )
-
-}
-
-@Composable
-fun SettingsUpdateSuccessDialog(
-        onDismiss: () -> Unit
-    ) {
-    val isDarkTheme = isSystemInDarkTheme()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column(
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "✓",
-                    fontSize = 56.sp,
-                    color = Color(0xFF4CAF50)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(id = R.string.download_complete),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-                )
-            }
-        },
-        text = {
-            Text(
-                text = stringResource(id = R.string.installing_update),
-                fontSize = 16.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        },
-        confirmButton = {},
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-    )
-}
-
-@Composable
-fun SettingsUpdateErrorDialog(
-        message: String,
-        onDismiss: () -> Unit
-    ) {
-    val isDarkTheme = isSystemInDarkTheme()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(id = R.string.update_failed_msg),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFF44336)
-            )
-        },
-        text = {
-            Text(
-                text = message,
-                fontSize = 16.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(id = R.string.confirm),
-                    fontSize = 16.sp,
-                    color = RoseRed
-                )
-            }
-        },
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-    )
-}
 @Composable
 fun SettingSwitchItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
