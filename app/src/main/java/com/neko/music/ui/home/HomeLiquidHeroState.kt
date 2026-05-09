@@ -7,8 +7,8 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.model.Music
 
 /**
- * 首页顶部「搜索 + 推荐歌单」与 [com.neko.music.ui.screens.HomeScreen] 内列表共享，
- * 以便在 **layerBackdrop 外** 的 [com.neko.music.ui.home.HomeLiquidHeroOverlay] 中绘制真液态玻璃。
+ * 首页顶部「搜索 + 推荐歌单」数据：由 [com.neko.music.ui.screens.HomeScreen] 拉取并写入；
+ * [HomeLiquidHeroOverlay] 在 MainActivity 中与 NavHost 同级叠放，采样主 [liquidBackdrop] 绘制真液态玻璃。
  */
 class HomeLiquidHeroState {
     var recommendedPlaylists: List<PlaylistInfo> by mutableStateOf(emptyList())

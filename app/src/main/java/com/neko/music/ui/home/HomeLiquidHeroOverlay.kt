@@ -45,8 +45,13 @@ import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
 
 /**
- * 首页顶栏：与 [HomeScreen] 内仅背景层 `layerBackdrop(pageBackdrop)` 兄弟层叠放；本组件内提供 [LocalLiquidLayerBackdrop]，
- * 搜索框与推荐区 [GlassSurface] 走 Kyant **opacity → vibrancy → blur →（API 33+）lens** 真液态。
+ * 首页搜索 + 推荐区顶栏。
+ *
+ * **须**与 [com.neko.music.MainActivity] 中 `NavHost` **同级**、在 Nav 绘制**之后**组合，并向 [GlassSurface] 传入
+ * 与 `NavHost` 相同的 `layerBackdrop(liquidBackdrop)` 实例（与底栏一致）。若在 NavHost 内再套独立 pageBackdrop，
+ * 嵌套录屏在部分机型上会导致折射/模糊无效。
+ *
+ * 本组件内 `CompositionLocalProvider(LocalLiquidLayerBackdrop provides …)` 仅便于子级读取；也可由调用方提供。
  */
 @Composable
 fun HomeLiquidHeroOverlay(
