@@ -211,7 +211,7 @@ fun RecentPlayScreen(
                                     start = 16.dp,
                                     end = 16.dp,
                                     top = 16.dp,
-                                    bottom = 230.dp
+                                    bottom = 150.dp
                                 )
                             ) {
                                 items(filteredList) { music ->

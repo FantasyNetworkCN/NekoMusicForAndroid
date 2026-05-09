@@ -305,7 +305,7 @@ fun CacheManagementScreen(
                             start = 16.dp,
                             end = 16.dp,
                             top = 8.dp,
-                            bottom = 230.dp
+                            bottom = 150.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {

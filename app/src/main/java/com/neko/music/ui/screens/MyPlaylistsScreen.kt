@@ -467,7 +467,7 @@ fun MyPlaylistsScreen(
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(bottom = 230.dp)
+                            contentPadding = PaddingValues(bottom = 150.dp)
                         ) {
                             itemsIndexed(allPlaylists) { index, playlist ->
                                 // 检查是否是第一个收藏歌单（"我喜欢的音乐"的索引是0，所以用户歌单从1开始）
@@ -613,7 +613,7 @@ fun MyPlaylistsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 180.dp),
+                    .padding(bottom = 100.dp),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Surface(

@@ -115,7 +115,7 @@ fun MineScreen(
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 168.dp)
+                contentPadding = PaddingValues(bottom = 88.dp)
             ) {
                 item {
                     MineHeader(
