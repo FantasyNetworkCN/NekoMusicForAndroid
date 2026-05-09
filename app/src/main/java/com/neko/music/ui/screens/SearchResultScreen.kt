@@ -28,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +59,6 @@ import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchHistory
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
-import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
@@ -206,121 +204,110 @@ fun SearchResultScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                        .padding(top = topInsetDp + 20.dp)
-                ) {
-                    when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = errorMessage ?: searchFailedText,
-                            color = Color.Gray,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isNotEmpty() -> {
-                    SearchHistoryList(
-                        history = searchHistory,
-                        onItemClick = { query ->
-                            liquidBarState.searchQuery = query
-                        },
-                        onClearClick = {
-                            historyManager.clearHistory()
-                            searchHistory = emptyList()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topInsetDp + 20.dp)
+            ) {
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
-                    )
-                }
-                searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isNotEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = when (liquidBarState.searchType) {
-                                "music" -> noSearchMusicText
-                                "playlist" -> noSearchPlaylistText
-                                else -> noSearchArtistText
+                    }
+                    errorMessage != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = errorMessage ?: searchFailedText,
+                                color = Color.Gray,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                    searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isNotEmpty() -> {
+                        SearchHistoryList(
+                            history = searchHistory,
+                            onItemClick = { query ->
+                                liquidBarState.searchQuery = query
                             },
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-                searchResults.isEmpty() && playlistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = noSearchHistoryYetText,
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-                else -> {
-                    if (liquidBarState.searchType == "music") {
-                        MusicList(
-                            musics = searchResults,
-                            onMusicClick = { music ->
-                                // 保存单曲名称到历史记录
-                                historyManager.addSearchHistory(music.title, liquidBarState.searchQuery)
-                                // 调用原有的点击事件
-                                onMusicClick(music)
-                            }
-                        )
-                    } else if (liquidBarState.searchType == "playlist") {
-                        PlaylistList(
-                            playlists = playlistResults,
-                            onPlaylistClick = { playlist ->
-                                onPlaylistClick(playlist.id, playlist.name, playlist.coverPath, playlist.description, playlist.username, playlist.userId)
-                            }
-                        )
-                    } else {
-                        ArtistList(
-                            artists = artistResults,
-                            onArtistClick = { artist ->
-                                onArtistClick(artist.name, artist.musicCount, artist.coverPath)
+                            onClearClick = {
+                                historyManager.clearHistory()
+                                searchHistory = emptyList()
                             }
                         )
                     }
-                }
-            }
+                    searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isNotEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = when (liquidBarState.searchType) {
+                                    "music" -> noSearchMusicText
+                                    "playlist" -> noSearchPlaylistText
+                                    else -> noSearchArtistText
+                                },
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    searchResults.isEmpty() && playlistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = noSearchHistoryYetText,
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    else -> {
+                        if (liquidBarState.searchType == "music") {
+                            MusicList(
+                                musics = searchResults,
+                                onMusicClick = { music ->
+                                    historyManager.addSearchHistory(music.title, liquidBarState.searchQuery)
+                                    onMusicClick(music)
+                                }
+                            )
+                        } else if (liquidBarState.searchType == "playlist") {
+                            PlaylistList(
+                                playlists = playlistResults,
+                                onPlaylistClick = { playlist ->
+                                    onPlaylistClick(playlist.id, playlist.name, playlist.coverPath, playlist.description, playlist.username, playlist.userId)
+                                }
+                            )
+                        } else {
+                            ArtistList(
+                                artists = artistResults,
+                                onArtistClick = { artist ->
+                                    onArtistClick(artist.name, artist.musicCount, artist.coverPath)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
-        Box(
+        SearchLiquidTopOverlay(
+            state = liquidBarState,
+            onBackClick = onBackClick,
+            onBarHeightChanged = { barInsetPx = it },
             modifier = Modifier
-                .align(Alignment.TopStart)
                 .fillMaxWidth()
-                .zIndex(2f)
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-                SearchLiquidTopOverlay(
-                    state = liquidBarState,
-                    onBackClick = onBackClick,
-                    onBarHeightChanged = { barInsetPx = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    sampleBackdrop = pageBackdrop
-                )
-            }
-        }
+                .align(Alignment.TopStart)
+                .zIndex(2f),
+            sampleBackdrop = pageBackdrop
+        )
     }
 }
 
