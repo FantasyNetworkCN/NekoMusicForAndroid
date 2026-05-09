@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -28,6 +29,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -61,6 +63,7 @@ import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.MiniPlayer
+import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
 import com.neko.music.ui.list.RankingLiquidBarState
@@ -486,6 +489,7 @@ fun MainScreen() {
     val backdropFill = MaterialTheme.colorScheme.background
     val liquidBackdrop = rememberLiquidPageBackdrop(backdropFill)
     val homeLiquidHeroState = remember { HomeLiquidHeroState() }
+    var homeHeroInsetPx by remember { mutableIntStateOf(0) }
     val rankingLiquidBarState = remember { RankingLiquidBarState() }
     val latestLiquidBarState = remember { LatestLiquidBarState() }
     val searchLiquidBarState = remember { SearchLiquidBarState() }
@@ -563,6 +567,7 @@ fun MainScreen() {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
                     liquidHeroState = homeLiquidHeroState,
+                    heroInsetPx = homeHeroInsetPx,
                     onSearchClick = {
                         Log.d("MainActivity", "导航到搜索页面")
                         // 清除保存的搜索状态，让用户看到一个干净的搜索界面
@@ -1085,6 +1090,52 @@ fun MainScreen() {
                 )
             }
         }
+        }
+
+        // 首页搜索/推荐：与迷你播放器/底栏一致，在 NavHost 之外采样主 [liquidBackdrop]。
+        // NavHost 内再套独立 pageBackdrop 时，嵌套录屏在部分机型上折射/模糊无效，看起来像「假磨砂」。
+        if (currentRoute == BottomNavItem.Home.route && !isPlayerScreen) {
+            Box(
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.TopStart)
+                    .fillMaxWidth()
+                    .zIndex(1f)
+            ) {
+                CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+                    HomeLiquidHeroOverlay(
+                        state = homeLiquidHeroState,
+                        liquidBackdrop = liquidBackdrop,
+                        onSearchClick = {
+                            Log.d("MainActivity", "导航到搜索页面")
+                            val searchStatePrefs = context.getSharedPreferences(
+                                "search_state",
+                                android.content.Context.MODE_PRIVATE
+                            )
+                            searchStatePrefs.edit()
+                                .remove("last_search_query")
+                                .remove("last_search_type")
+                                .apply()
+                            navController.navigate("search")
+                        },
+                        onNavigateToPlaylist = { playlistId ->
+                            Log.d("MainActivity", "导航到歌单详情: $playlistId")
+                            navController.navigate(
+                                "playlist_detail/$playlistId/歌单/null/null/null/-1/false"
+                            )
+                        },
+                        onNavigateToRanking = {
+                            Log.d("MainActivity", "导航到排行榜页面")
+                            navController.navigate("ranking")
+                        },
+                        onNavigateToLatest = {
+                            Log.d("MainActivity", "导航到最新音乐页面")
+                            navController.navigate("latest")
+                        },
+                        onHeroHeightChanged = { homeHeroInsetPx = it },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
 
         // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
