@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -33,19 +34,27 @@ import com.kyant.backdrop.effects.vibrancy
  * - 多层玻璃 / 避免 SIGSEGV：https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-sheet
  *
  * [LocalLiquidLayerBackdrop] 仅应在 **`layerBackdrop` 子树之外** 提供（例如底栏 / 迷你播放器），与
- * [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 一致。
+ * [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 一致。也可传 [sampleBackdrop] 显式指定采样源。
+ *
+ * 勿在 `drawBackdrop` **之前**再 `.clip(shape)`：会干扰部分机型上的 [RenderEffect](https://kyant.gitbook.io/backdrop/api/backdrop-effects.md)（折射/模糊看起来像失效）。
  * 若在已应用 `layerBackdrop(同一 LayerBackdrop)` 的区域内再对同一实例 `drawBackdrop`，或 LazyColumn 多行共享
  * 同一 export 并各自 `drawBackdrop`，会触发 RenderThread SIGSEGV。
  *
  * 液态叠色随 [MaterialTheme] 深浅色：暗色为深色霜化底 + 弱顶光，浅色为白霜化（与系统玻璃语义一致）。
  *
- * Kyant 要求效果顺序为 **color filter ⇒ blur ⇒ lens**；[opacity](https://kyant.gitbook.io/backdrop/api/backdrop-effects#opacity)
- * 属于 color filter，在 [liquidBackdropOpacity] 中传入 0..1，在 vibrancy/blur 之前应用。
+ * Kyant 要求效果顺序为 **color filter ⇒ blur ⇒ lens**；可选的 [opacity] 须在 vibrancy/blur 之前。
+ * 官方 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 终稿 **未** 对采样层做 opacity，
+ * 额外衰减易让模糊/折射看起来像「假磨砂」；默认 **1** 表示不应用该 color filter。
  */
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
+    /**
+     * 与 `Modifier.layerBackdrop(同一实例)` 对应；非空时优先于 [LocalLiquidLayerBackdrop]。
+     * 对齐教程在父级 `rememberLayerBackdrop { drawRect(..); drawContent() }` 后传入同一 [LayerBackdrop]。
+     */
+    sampleBackdrop: LayerBackdrop? = null,
     backgroundAlpha: Float = 0.28f,
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,
@@ -54,14 +63,14 @@ fun GlassSurface(
      * 对采样到的 backdrop 做矩阵透明度（Kyant [opacity](https://kyant.gitbook.io/backdrop/api/backdrop-effects#opacity)），
      * 仅 `LocalLiquidLayerBackdrop` 非空且 API 31+ 时生效；与 [liquidBlur] 等同属液态路径。
      */
-    @FloatRange(from = 0.0, to = 1.0) liquidBackdropOpacity: Float = 0.92f,
+    @FloatRange(from = 0.0, to = 1.0) liquidBackdropOpacity: Float = 1f,
     /** Kyant 液态路径专用；教程 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 底栏约 4.dp。 */
     liquidBlur: Dp = 14.dp,
     liquidLensHeight: Dp = 16.dp,
     liquidLensAmount: Dp = 32.dp,
     content: @Composable () -> Unit
 ) {
-    val backdrop = LocalLiquidLayerBackdrop.current
+    val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val density = LocalDensity.current
     val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -70,18 +79,21 @@ fun GlassSurface(
         val blurPx = with(density) { liquidBlur.toPx() }
         val lensH = with(density) { liquidLensHeight.toPx() }
         val lensAmt = with(density) { liquidLensAmount.toPx() }
-        val frostTop = (highlightAlpha * 2.5f).coerceIn(0.08f, 0.32f)
-        val frostBase = (backgroundAlpha * 0.45f).coerceIn(0.08f, 0.2f)
-        val darkFrostBase = (backgroundAlpha * 0.55f).coerceIn(0.14f, 0.36f)
-        val darkFrostTop = (highlightAlpha * 2.2f).coerceIn(0.08f, 0.22f)
+        // 教程 onDrawSurface 约半透明白；过厚会盖住 vibrancy/blur/lens。
+        val frostTop = (highlightAlpha * 0.75f).coerceIn(0.04f, 0.11f)
+        val frostBase = (backgroundAlpha * 0.16f).coerceIn(0.05f, 0.13f)
+        val darkFrostBase = (backgroundAlpha * 0.12f).coerceIn(0.04f, 0.11f)
+        val darkFrostTop = (highlightAlpha * 0.55f).coerceIn(0.03f, 0.08f)
+        val opacitySample = liquidBackdropOpacity.coerceIn(0f, 1f)
         Box(
             modifier = modifier
-                .clip(shape)
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { shape },
                     effects = {
-                        opacity(liquidBackdropOpacity.coerceIn(0f, 1f))
+                        if (opacitySample < 0.999f) {
+                            opacity(opacitySample)
+                        }
                         vibrancy()
                         blur(blurPx)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -95,7 +107,7 @@ fun GlassSurface(
                             drawRect(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = darkFrostTop * 0.42f),
+                                        Color.White.copy(alpha = darkFrostTop * 0.35f),
                                         Color.Transparent
                                     )
                                 )
