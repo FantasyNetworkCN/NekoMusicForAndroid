@@ -33,9 +33,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
+
+/**
+ * 弹窗不在底栏等 `LocalLiquidLayerBackdrop` 子树内，须显式采样 [LocalNavHostRecordingBackdrop]（MainActivity Nav 录屏），
+ * 否则 [GlassSurface] 一直走 CPU 磨砂、看不出 Kyant 液态。
+ */
+@Composable
+private fun appDialogSampleBackdrop(): LayerBackdrop? =
+    LocalNavHostRecordingBackdrop.current ?: LocalLiquidLayerBackdrop.current
 
 @Composable
 fun AppUpdatePromptDialog(
@@ -55,11 +64,12 @@ fun AppUpdatePromptDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = if (isDark) 0.34f else 0.22f,
             borderAlpha = if (isDark) 0.18f else 0.12f,
             highlightAlpha = if (isDark) 0.09f else 0.07f,
             borderColor = if (isDark) SakuraPink.copy(alpha = 0.48f) else scheme.outline,
-            liquidBlur = 4.dp,
+            liquidBlur = 6.dp,
             liquidLensHeight = 16.dp,
             liquidLensAmount = 32.dp
         ) {
@@ -156,11 +166,12 @@ fun AppUpdateDownloadProgressDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = if (isDark) 0.34f else 0.22f,
             borderAlpha = if (isDark) 0.18f else 0.12f,
             highlightAlpha = if (isDark) 0.09f else 0.07f,
             borderColor = if (isDark) SakuraPink.copy(alpha = 0.48f) else scheme.outline,
-            liquidBlur = 4.dp,
+            liquidBlur = 6.dp,
             liquidLensHeight = 16.dp,
             liquidLensAmount = 32.dp
         ) {
@@ -234,11 +245,12 @@ fun AppUpdateSuccessDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = if (isDark) 0.34f else 0.22f,
             borderAlpha = if (isDark) 0.18f else 0.12f,
             highlightAlpha = if (isDark) 0.09f else 0.07f,
             borderColor = if (isDark) green.copy(alpha = 0.35f) else scheme.outline,
-            liquidBlur = 4.dp,
+            liquidBlur = 6.dp,
             liquidLensHeight = 16.dp,
             liquidLensAmount = 32.dp
         ) {
@@ -311,11 +323,12 @@ fun AppUpdateErrorDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = if (isDark) 0.34f else 0.22f,
             borderAlpha = if (isDark) 0.18f else 0.12f,
             highlightAlpha = if (isDark) 0.09f else 0.07f,
             borderColor = if (isDark) red.copy(alpha = 0.4f) else scheme.outline,
-            liquidBlur = 4.dp,
+            liquidBlur = 6.dp,
             liquidLensHeight = 16.dp,
             liquidLensAmount = 32.dp
         ) {
