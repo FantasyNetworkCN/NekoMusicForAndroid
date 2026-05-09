@@ -316,7 +316,8 @@ fun SearchResultScreen(
                     state = liquidBarState,
                     onBackClick = onBackClick,
                     onBarHeightChanged = { barInsetPx = it },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    sampleBackdrop = pageBackdrop
                 )
             }
         }

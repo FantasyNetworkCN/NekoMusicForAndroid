@@ -36,8 +36,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.screens.SearchTypeButton
 import com.neko.music.ui.theme.RoseRed
 
@@ -46,8 +48,11 @@ fun SearchLiquidTopOverlay(
     state: SearchLiquidBarState,
     onBackClick: () -> Unit,
     onBarHeightChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** 与页内 [androidx.compose.ui.Modifier.layerBackdrop] 同一实例；与首页顶栏一致，避免仅依赖 Local 时取错。 */
+    sampleBackdrop: LayerBackdrop? = null
 ) {
+    val backdropForGlass = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     val density = LocalDensity.current
@@ -73,13 +78,14 @@ fun SearchLiquidTopOverlay(
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .height(52.dp),
             shape = RoundedCornerShape(22.dp),
+            sampleBackdrop = backdropForGlass,
             backgroundAlpha = if (isDark) 0.35f else 0.30f,
             borderAlpha = if (isDark) 0.18f else 0.20f,
             highlightAlpha = if (isDark) 0.08f else 0.10f,
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 8.dp,
+            liquidBlur = 4.dp,
             liquidLensHeight = 16.dp,
-            liquidLensAmount = 26.dp
+            liquidLensAmount = 32.dp
         ) {
             Row(
                 modifier = Modifier
@@ -147,13 +153,14 @@ fun SearchLiquidTopOverlay(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             shape = RoundedCornerShape(20.dp),
+            sampleBackdrop = backdropForGlass,
             backgroundAlpha = if (isDark) 0.32f else 0.28f,
             borderAlpha = if (isDark) 0.15f else 0.20f,
             highlightAlpha = if (isDark) 0.08f else 0.11f,
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 10.dp,
-            liquidLensHeight = 18.dp,
-            liquidLensAmount = 28.dp
+            liquidBlur = 4.dp,
+            liquidLensHeight = 16.dp,
+            liquidLensAmount = 32.dp
         ) {
             Row(
                 modifier = Modifier

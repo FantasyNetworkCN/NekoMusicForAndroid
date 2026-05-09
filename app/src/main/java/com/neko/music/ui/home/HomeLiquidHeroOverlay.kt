@@ -79,15 +79,16 @@ fun HomeLiquidHeroOverlay(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
                 .height(48.dp),
+            sampleBackdrop = liquidBackdrop,
             shape = RoundedCornerShape(20.dp),
             backgroundAlpha = if (isDarkHome) 0.35f else 0.30f,
             borderAlpha = if (isDarkHome) 0.20f else 0.20f,
             highlightAlpha = if (isDarkHome) 0.09f else 0.11f,
             borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.55f) else colorScheme.outline,
-            liquidBackdropOpacity = 0.90f,
-            liquidBlur = 12.dp,
-            liquidLensHeight = 18.dp,
-            liquidLensAmount = 30.dp
+            // 与 Kyant Glass Bottom Bar 教程同量级，便于看出 vibrancy + blur + lens
+            liquidBlur = 4.dp,
+            liquidLensHeight = 16.dp,
+            liquidLensAmount = 32.dp
         ) {
             Row(
                 modifier = Modifier
@@ -129,14 +130,14 @@ fun HomeLiquidHeroOverlay(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
+            sampleBackdrop = liquidBackdrop,
             shape = RoundedCornerShape(20.dp),
             backgroundAlpha = if (isDarkHome) 0.34f else 0.30f,
             borderAlpha = if (isDarkHome) 0.18f else 0.20f,
             highlightAlpha = if (isDarkHome) 0.09f else 0.12f,
             borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.48f) else colorScheme.outline,
-            liquidBackdropOpacity = 0.88f,
-            liquidBlur = 14.dp,
-            liquidLensHeight = 18.dp,
+            liquidBlur = 4.dp,
+            liquidLensHeight = 16.dp,
             liquidLensAmount = 32.dp
         ) {
             Column(
