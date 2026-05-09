@@ -116,7 +116,7 @@ class MusicApi(private val context: Context) {
         // 没有缓存或缓存未启用，从服务器获取
         return try {
             Log.d("MusicApi", "Fetching lyrics for music: ${music.id}")
-            val response = client.get("$baseUrl/api/music/lyrics/${music.id}?t=${System.currentTimeMillis()}")
+            val response = client.get("$baseUrl/api/music/lyrics/${music.id}")
             Log.d("MusicApi", "Response status: ${response.status}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText")
@@ -150,7 +150,7 @@ class MusicApi(private val context: Context) {
     suspend fun getRanking(limit: Int = 8): Result<List<Music>> {
         return try {
             Log.d("MusicApi", "Fetching ranking with limit: $limit")
-            val response = client.get("$baseUrl/api/music/ranking?limit=$limit&t=${System.currentTimeMillis()}")
+            val response = client.get("$baseUrl/api/music/ranking?limit=$limit")
             Log.d("MusicApi", "Response status: ${response.status}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText")
@@ -179,7 +179,7 @@ class MusicApi(private val context: Context) {
     suspend fun getLatest(limit: Int = 300): Result<List<Music>> {
         return try {
             Log.d("MusicApi", "Fetching latest music with limit: $limit")
-            val response = client.get("$baseUrl/api/music/latest?limit=$limit&t=${System.currentTimeMillis()}")
+            val response = client.get("$baseUrl/api/music/latest?limit=$limit")
             Log.d("MusicApi", "Response status: ${response.status}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText")
@@ -213,7 +213,7 @@ class MusicApi(private val context: Context) {
     suspend fun getMusicInfo(id: Int): Result<Music> {
         return try {
             Log.d("MusicApi", "Fetching music info for id: $id")
-            val response = client.get("$baseUrl/api/music/info/$id?t=${System.currentTimeMillis()}")
+            val response = client.get("$baseUrl/api/music/info/$id")
             Log.d("MusicApi", "Response status: ${response.status}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText")
