@@ -138,139 +138,151 @@ fun RankingScreen(
     val topBarInsetDp = remember(barInsetPx, density) {
         if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 88.dp
     }
+    val pageGradientBrush = remember(isDark, scheme) {
+        Brush.verticalGradient(
+            colors = if (isDark) {
+                listOf(
+                    scheme.background,
+                    scheme.surface.copy(alpha = 0.5f),
+                    scheme.surface.copy(alpha = 0.35f)
+                )
+            } else {
+                listOf(
+                    scheme.background,
+                    scheme.surfaceVariant.copy(alpha = 0.35f),
+                    scheme.surface.copy(alpha = 0.55f)
+                )
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(scheme.background)
     ) {
+        // 仅渐变进 layerBackdrop；列表与顶栏在兄弟层 drawBackdrop，避免多行共享录屏 export（与我的歌单页一致）。
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-        when {
-            loading && musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    LoadingState()
-                }
-            }
-            loadError && musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    ErrorState(onRetry = { loadData() })
-                }
-            }
-            musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    EmptyState()
-                }
-            }
-            else -> {
-                val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(pageGradientBrush)
+            )
+        }
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        loading && musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                LoadingState()
+                            }
+                        }
+                        loadError && musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                ErrorState(onRetry = { loadData() })
+                            }
+                        }
+                        musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                EmptyState()
+                            }
+                        }
+                        else -> {
+                            val pullRefreshState =
+                                rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pullRefresh(pullRefreshState)
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = if (isDark) {
-                                        listOf(
-                                            scheme.background,
-                                            scheme.surface.copy(alpha = 0.5f),
-                                            scheme.surface.copy(alpha = 0.35f)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pullRefresh(pullRefreshState)
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = topBarInsetDp + 48.dp,
+                                        bottom = 160.dp
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    itemsIndexed(
+                                        items = musicList,
+                                        key = { _, music -> music.id }
+                                    ) { index, music ->
+                                        RankingItem(
+                                            music = music,
+                                            rank = index + 1,
+                                            onClick = {
+                                                Log.d("RankingScreen", "点击歌曲: ${music.title}")
+                                                scope.launch {
+                                                    try {
+                                                        val url = musicApi.getMusicFileUrl(music)
+                                                        val fullCoverUrl =
+                                                            UrlConfig.getMusicCoverUrl(music.id)
+                                                        playerManager.playMusic(
+                                                            url,
+                                                            music.id,
+                                                            music.title,
+                                                            music.artist,
+                                                            music.coverFilePath ?: "",
+                                                            fullCoverUrl
+                                                        )
+                                                        onNavigateToPlayer(music)
+                                                    } catch (e: Exception) {
+                                                        Log.e("RankingScreen", "播放失败", e)
+                                                    }
+                                                }
+                                            }
                                         )
-                                    } else {
-                                        listOf(
-                                            scheme.background,
-                                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                                            scheme.surface.copy(alpha = 0.55f)
-                                        )
-                                    }
-                                )
-                            ),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = topBarInsetDp + 48.dp,
-                            bottom = 160.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        itemsIndexed(
-                            items = musicList,
-                            key = { _, music -> music.id }
-                        ) { index, music ->
-                            RankingItem(
-                                music = music,
-                                rank = index + 1,
-                                onClick = {
-                                    Log.d("RankingScreen", "点击歌曲: ${music.title}")
-                                    scope.launch {
-                                        try {
-                                            val url = musicApi.getMusicFileUrl(music)
-                                            val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
-                                            playerManager.playMusic(
-                                                url,
-                                                music.id,
-                                                music.title,
-                                                music.artist,
-                                                music.coverFilePath ?: "",
-                                                fullCoverUrl
-                                            )
-                                            onNavigateToPlayer(music)
-                                        } catch (e: Exception) {
-                                            Log.e("RankingScreen", "播放失败", e)
-                                        }
                                     }
                                 }
-                            )
+
+                                PullRefreshIndicator(
+                                    refreshing = refreshing,
+                                    state = pullRefreshState,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = topBarInsetDp + 36.dp),
+                                    backgroundColor = scheme.surface,
+                                    contentColor = scheme.primary
+                                )
+                            }
                         }
                     }
-
-                    PullRefreshIndicator(
-                        refreshing = refreshing,
-                        state = pullRefreshState,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = topBarInsetDp + 36.dp),
-                        backgroundColor = scheme.surface,
-                        contentColor = scheme.primary
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                ) {
+                    RankingLiquidTopBarOverlay(
+                        state = liquidBarState,
+                        onBackClick = onBackClick,
+                        onBarHeightChanged = { barInsetPx = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        sampleBackdrop = pageBackdrop
                     )
                 }
-            }
-        }
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f)
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-                RankingLiquidTopBarOverlay(
-                    state = liquidBarState,
-                    onBackClick = onBackClick,
-                    onBarHeightChanged = { barInsetPx = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
@@ -279,27 +291,8 @@ fun RankingScreen(
 @Composable
 fun LoadingState() {
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -323,25 +316,7 @@ fun ErrorState(
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -365,9 +340,9 @@ fun ErrorState(
             shape = RoundedCornerShape(20.dp),
             backgroundAlpha = if (isDark) 0.28f else 0.12f,
             borderAlpha = if (isDark) 0.18f else 0.14f,
-            liquidBlur = 8.dp,
-            liquidLensHeight = 18.dp,
-            liquidLensAmount = 26.dp,
+            liquidBlur = 4.dp,
+            liquidLensHeight = 16.dp,
+            liquidLensAmount = 32.dp,
             borderColor = if (isDark) Color.White else scheme.outline
         ) {
             Box(
@@ -388,27 +363,8 @@ fun ErrorState(
 @Composable
 fun EmptyState() {
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -469,9 +425,9 @@ fun RankingItem(
         } else {
             if (rank <= 3) 0.06f else 0.04f
         },
-        liquidBlur = 6.dp,
-        liquidLensHeight = 14.dp,
-        liquidLensAmount = 22.dp,
+        liquidBlur = 4.dp,
+        liquidLensHeight = 16.dp,
+        liquidLensAmount = 32.dp,
         borderColor = if (isDark) Color.White else scheme.outline
     ) {
         Row(

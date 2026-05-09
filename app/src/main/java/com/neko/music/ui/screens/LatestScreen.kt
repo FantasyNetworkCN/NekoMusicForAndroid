@@ -139,139 +139,151 @@ fun LatestScreen(
     val topBarInsetDp = remember(barInsetPx, density) {
         if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 88.dp
     }
+    val pageGradientBrush = remember(isDark, scheme) {
+        Brush.verticalGradient(
+            colors = if (isDark) {
+                listOf(
+                    scheme.background,
+                    scheme.surface.copy(alpha = 0.5f),
+                    scheme.surface.copy(alpha = 0.35f)
+                )
+            } else {
+                listOf(
+                    scheme.background,
+                    scheme.surfaceVariant.copy(alpha = 0.35f),
+                    scheme.surface.copy(alpha = 0.55f)
+                )
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(scheme.background)
     ) {
+        // 仅渐变进 layerBackdrop；列表与顶栏在兄弟层 drawBackdrop（与排行榜、我的歌单一致）。
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-        when {
-            loading && musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    LatestLoadingState()
-                }
-            }
-            loadError && musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    LatestErrorState(onRetry = { loadData() })
-                }
-            }
-            musicList.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topBarInsetDp + 20.dp)
-                ) {
-                    LatestEmptyState()
-                }
-            }
-            else -> {
-                val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(pageGradientBrush)
+            )
+        }
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when {
+                        loading && musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                LatestLoadingState()
+                            }
+                        }
+                        loadError && musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                LatestErrorState(onRetry = { loadData() })
+                            }
+                        }
+                        musicList.isEmpty() -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(top = topBarInsetDp + 20.dp)
+                            ) {
+                                LatestEmptyState()
+                            }
+                        }
+                        else -> {
+                            val pullRefreshState =
+                                rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pullRefresh(pullRefreshState)
-                ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = if (isDark) {
-                                        listOf(
-                                            scheme.background,
-                                            scheme.surface.copy(alpha = 0.5f),
-                                            scheme.surface.copy(alpha = 0.35f)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pullRefresh(pullRefreshState)
+                            ) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = topBarInsetDp + 48.dp,
+                                        bottom = 160.dp
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    itemsIndexed(
+                                        items = musicList,
+                                        key = { _, music -> music.id }
+                                    ) { index, music ->
+                                        LatestItem(
+                                            music = music,
+                                            index = index,
+                                            onClick = {
+                                                Log.d("LatestScreen", "点击歌曲: ${music.title}")
+                                                scope.launch {
+                                                    try {
+                                                        val url = musicApi.getMusicFileUrl(music)
+                                                        val fullCoverUrl =
+                                                            UrlConfig.getMusicCoverUrl(music.id)
+                                                        playerManager.playMusic(
+                                                            url,
+                                                            music.id,
+                                                            music.title,
+                                                            music.artist,
+                                                            music.coverFilePath ?: "",
+                                                            fullCoverUrl
+                                                        )
+                                                        onNavigateToPlayer(music)
+                                                    } catch (e: Exception) {
+                                                        Log.e("LatestScreen", "播放失败", e)
+                                                    }
+                                                }
+                                            }
                                         )
-                                    } else {
-                                        listOf(
-                                            scheme.background,
-                                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                                            scheme.surface.copy(alpha = 0.55f)
-                                        )
-                                    }
-                                )
-                            ),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = topBarInsetDp + 48.dp,
-                            bottom = 160.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        itemsIndexed(
-                            items = musicList,
-                            key = { _, music -> music.id }
-                        ) { index, music ->
-                            LatestItem(
-                                music = music,
-                                index = index,
-                                onClick = {
-                                    Log.d("LatestScreen", "点击歌曲: ${music.title}")
-                                    scope.launch {
-                                        try {
-                                            val url = musicApi.getMusicFileUrl(music)
-                                            val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
-                                            playerManager.playMusic(
-                                                url,
-                                                music.id,
-                                                music.title,
-                                                music.artist,
-                                                music.coverFilePath ?: "",
-                                                fullCoverUrl
-                                            )
-                                            onNavigateToPlayer(music)
-                                        } catch (e: Exception) {
-                                            Log.e("LatestScreen", "播放失败", e)
-                                        }
                                     }
                                 }
-                            )
+
+                                PullRefreshIndicator(
+                                    refreshing = refreshing,
+                                    state = pullRefreshState,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = topBarInsetDp + 36.dp),
+                                    backgroundColor = scheme.surface,
+                                    contentColor = scheme.primary
+                                )
+                            }
                         }
                     }
-
-                    PullRefreshIndicator(
-                        refreshing = refreshing,
-                        state = pullRefreshState,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = topBarInsetDp + 36.dp),
-                        backgroundColor = scheme.surface,
-                        contentColor = scheme.primary
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .zIndex(2f)
+                ) {
+                    LatestLiquidTopBarOverlay(
+                        state = liquidBarState,
+                        onBackClick = onBackClick,
+                        onBarHeightChanged = { barInsetPx = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        sampleBackdrop = pageBackdrop
                     )
                 }
-            }
-        }
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f)
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-                LatestLiquidTopBarOverlay(
-                    state = liquidBarState,
-                    onBackClick = onBackClick,
-                    onBarHeightChanged = { barInsetPx = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
@@ -280,27 +292,8 @@ fun LatestScreen(
 @Composable
 fun LatestLoadingState() {
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -324,25 +317,7 @@ fun LatestErrorState(
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -366,9 +341,9 @@ fun LatestErrorState(
             shape = RoundedCornerShape(20.dp),
             backgroundAlpha = if (isDark) 0.28f else 0.12f,
             borderAlpha = if (isDark) 0.18f else 0.14f,
-            liquidBlur = 8.dp,
-            liquidLensHeight = 18.dp,
-            liquidLensAmount = 26.dp,
+            liquidBlur = 4.dp,
+            liquidLensHeight = 16.dp,
+            liquidLensAmount = 32.dp,
             borderColor = if (isDark) Color.White else scheme.outline
         ) {
             Box(
@@ -389,27 +364,8 @@ fun LatestErrorState(
 @Composable
 fun LatestEmptyState() {
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = if (isDark) {
-                        listOf(
-                            scheme.background,
-                            scheme.surface.copy(alpha = 0.5f),
-                            scheme.surface.copy(alpha = 0.35f)
-                        )
-                    } else {
-                        listOf(
-                            scheme.background,
-                            scheme.surfaceVariant.copy(alpha = 0.35f),
-                            scheme.surface.copy(alpha = 0.55f)
-                        )
-                    }
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -466,9 +422,9 @@ fun LatestItem(
         backgroundAlpha = if (isDark) 0.22f else 0.12f,
         borderAlpha = if (isDark) 0.14f else 0.12f,
         highlightAlpha = if (isDark) 0.08f else 0.06f,
-        liquidBlur = 6.dp,
-        liquidLensHeight = 14.dp,
-        liquidLensAmount = 22.dp,
+        liquidBlur = 4.dp,
+        liquidLensHeight = 16.dp,
+        liquidLensAmount = 32.dp,
         borderColor = if (isDark) Color.White else scheme.outline
     ) {
         Row(

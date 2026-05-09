@@ -37,7 +37,9 @@ import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 
@@ -46,7 +48,8 @@ fun RankingLiquidTopBarOverlay(
     state: RankingLiquidBarState,
     onBackClick: () -> Unit,
     onBarHeightChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sampleBackdrop: LayerBackdrop? = null
 ) {
     ListScreenLiquidTopBarOverlay(
         titleRes = R.string.hot_music,
@@ -54,7 +57,8 @@ fun RankingLiquidTopBarOverlay(
         logTag = "RankingLiquidTopBar",
         onBackClick = onBackClick,
         onBarHeightChanged = onBarHeightChanged,
-        modifier = modifier
+        modifier = modifier,
+        sampleBackdrop = sampleBackdrop
     )
 }
 
@@ -63,7 +67,8 @@ fun LatestLiquidTopBarOverlay(
     state: LatestLiquidBarState,
     onBackClick: () -> Unit,
     onBarHeightChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sampleBackdrop: LayerBackdrop? = null
 ) {
     ListScreenLiquidTopBarOverlay(
         titleRes = R.string.latest_music,
@@ -71,7 +76,8 @@ fun LatestLiquidTopBarOverlay(
         logTag = "LatestLiquidTopBar",
         onBackClick = onBackClick,
         onBarHeightChanged = onBarHeightChanged,
-        modifier = modifier
+        modifier = modifier,
+        sampleBackdrop = sampleBackdrop
     )
 }
 
@@ -82,8 +88,10 @@ private fun ListScreenLiquidTopBarOverlay(
     logTag: String,
     onBackClick: () -> Unit,
     onBarHeightChanged: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sampleBackdrop: LayerBackdrop? = null
 ) {
+    val backdropForGlass = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val musicApi = remember { MusicApi(context) }
@@ -108,13 +116,14 @@ private fun ListScreenLiquidTopBarOverlay(
                 .padding(horizontal = 20.dp, vertical = 10.dp)
                 .height(52.dp),
             shape = RoundedCornerShape(22.dp),
+            sampleBackdrop = backdropForGlass,
             backgroundAlpha = if (isDark) 0.35f else 0.30f,
             borderAlpha = if (isDark) 0.18f else 0.20f,
             highlightAlpha = if (isDark) 0.08f else 0.10f,
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 8.dp,
+            liquidBlur = 4.dp,
             liquidLensHeight = 16.dp,
-            liquidLensAmount = 26.dp
+            liquidLensAmount = 32.dp
         ) {
             Row(
                 modifier = Modifier
