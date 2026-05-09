@@ -50,13 +50,12 @@
                 <data android:scheme="nekomusic" />
             </intent-filter>
 
-            <!-- Deep Link: https 域名 -->
-            <intent-filter>
+            <!-- Deep Link / App Links：站点域名（需在 https://music.cnmsb.xin/.well-known/assetlinks.json 验证） -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="nekomusic.app" />
-                <data android:scheme="https" android:host="www.nekomusic.app" />
+                <data android:scheme="https" android:host="music.cnmsb.xin" />
             </intent-filter>
         </activity>
         
