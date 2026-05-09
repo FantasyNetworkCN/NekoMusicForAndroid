@@ -221,7 +221,7 @@ fun LatestScreen(
                                         start = 16.dp,
                                         end = 16.dp,
                                         top = topBarInsetDp + 48.dp,
-                                        bottom = 160.dp
+                                        bottom = 240.dp
                                     ),
                                     verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {

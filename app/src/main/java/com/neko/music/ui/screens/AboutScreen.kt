@@ -109,7 +109,7 @@ fun AboutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 150.dp)
+                .padding(bottom = 230.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             

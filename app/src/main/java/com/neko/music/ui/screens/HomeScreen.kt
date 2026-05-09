@@ -371,7 +371,7 @@ fun HomeScreen(
 
         androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 170.dp)
+            contentPadding = PaddingValues(bottom = 250.dp)
         ) {
             item {
                 Spacer(modifier = Modifier.height(heroTopInsetDp))

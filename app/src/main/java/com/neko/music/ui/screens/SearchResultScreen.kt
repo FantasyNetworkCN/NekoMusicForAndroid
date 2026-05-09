@@ -318,7 +318,12 @@ fun PlaylistList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 96.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(playlists) { playlist ->
@@ -426,7 +431,7 @@ fun MusicList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 160.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(musics) { music ->
@@ -585,7 +590,7 @@ fun SearchHistoryList(
         
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(4.dp),
-            contentPadding = PaddingValues(bottom = 140.dp)
+            contentPadding = PaddingValues(bottom = 220.dp)
         ) {
             items(history) { item ->
                 GlassSurface(
@@ -848,7 +853,12 @@ fun ArtistList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 96.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(artists) { artist ->

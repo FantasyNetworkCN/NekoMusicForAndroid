@@ -40,7 +40,7 @@ fun DiscoverScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(bottom = 150.dp)
+        contentPadding = PaddingValues(bottom = 230.dp)
     ) {
         item {
             DiscoverHeader()
