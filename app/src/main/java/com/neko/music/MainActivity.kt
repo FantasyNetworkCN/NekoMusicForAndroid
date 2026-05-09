@@ -196,10 +196,19 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 else -> {
-                    // 兼容 https://nekomusic.app/player/{id}
-                    // 或 https://nekomusic.app/playlist/{id}
+                    // 兼容 https://music.cnmsb.xin/detail/{id}（站点实际路径）
+                    // 以及 https://…/player/{id}、https://…/playlist/{id}
                     val path = uri.path ?: return@let
                     when {
+                        path.startsWith("/detail/") -> {
+                            val id = path.removePrefix("/detail/").substringBefore("/").substringBefore("?").toIntOrNull()
+                            if (id != null) {
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                    com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
+                                )
+                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player (detail): id=$id")
+                            }
+                        }
                         path.startsWith("/player/") -> {
                             val id = path.removePrefix("/player/").substringBefore("/").substringBefore("?").toIntOrNull()
                             if (id != null) {
