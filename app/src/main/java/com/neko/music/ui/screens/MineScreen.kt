@@ -310,7 +310,9 @@ fun MineHeader(
                 if (isLoggedIn && userId != -1) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(UrlConfig.getUserAvatarUrl(userId, avatarUpdateTime))
+                            .data(UrlConfig.getUserAvatarUrl(userId))
+                            .memoryCacheKey("avatar_${userId}_$avatarUpdateTime")
+                            .diskCacheKey("avatar_${userId}_$avatarUpdateTime")
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(id = R.string.user_avatar),

@@ -175,7 +175,9 @@ fun AccountInfoScreen(
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data("$baseUrl/api/user/avatar/$userId?t=$avatarUpdateTime")
+                            .data("$baseUrl/api/user/avatar/$userId")
+                            .memoryCacheKey("avatar_${userId}_$avatarUpdateTime")
+                            .diskCacheKey("avatar_${userId}_$avatarUpdateTime")
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(id = R.string.user_avatar),

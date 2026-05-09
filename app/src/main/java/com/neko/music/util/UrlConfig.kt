@@ -28,15 +28,8 @@ object UrlConfig {
     /**
      * 获取用户头像URL
      * @param userId 用户ID
-     * @param updateTime 更新时间（可选，用于刷新缓存）
      */
-    fun getUserAvatarUrl(userId: Int, updateTime: Long? = null): String {
-        return if (updateTime != null) {
-            "${BASE_URL}/api/user/avatar/$userId?t=$updateTime"
-        } else {
-            "${BASE_URL}/api/user/avatar/$userId"
-        }
-    }
+    fun getUserAvatarUrl(userId: Int): String = "${BASE_URL}/api/user/avatar/$userId"
 
     /**
      * 获取API基础URL
