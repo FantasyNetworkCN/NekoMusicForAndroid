@@ -33,15 +33,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -69,8 +65,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -82,6 +76,10 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
+import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
+import com.neko.music.ui.components.AppUpdateErrorDialog
+import com.neko.music.ui.components.AppUpdatePromptDialog
+import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
@@ -382,29 +380,29 @@ fun HomeScreen(
 
     // 更新对话框
     if (showUpdateDialog && updateInfo != null) {
-        UpdateDialog(
+        AppUpdatePromptDialog(
             versionName = updateInfo!!.versionName,
             versionCode = updateInfo!!.versionCode,
             onConfirm = { downloadAndInstall() },
             onDismiss = { showUpdateDialog = false }
         )
     }
-    
+
     if (isDownloading) {
-        DownloadProgressDialog(
+        AppUpdateDownloadProgressDialog(
             progress = downloadProgress,
             onDismiss = { isDownloading = false }
         )
     }
-    
+
     if (showUpdateSuccessDialog) {
-        UpdateSuccessDialog(
+        AppUpdateSuccessDialog(
             onDismiss = { showUpdateSuccessDialog = false }
         )
     }
-    
+
     if (showUpdateErrorDialog) {
-        UpdateErrorDialog(
+        AppUpdateErrorDialog(
             message = errorMessage,
             onDismiss = { showUpdateErrorDialog = false }
         )
@@ -531,391 +529,6 @@ fun QuickAccessItem(
             fontWeight = FontWeight.Medium
         )
     }
-}
-
-// 更新提示组件
-@Composable
-fun UpdateDialog(
-    versionName: String,
-    versionCode: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    spotColor = RoseRed.copy(alpha = 0.35f),
-                    ambientColor = Color.Gray.copy(alpha = 0.18f)
-                )
-        ) {
-            Column(
-                modifier = Modifier.padding(32.dp)
-            ) {
-                // 顶部图标
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    RoseRed.copy(alpha = 0.15f),
-                                    SakuraPink.copy(alpha = 0.15f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.update),
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = stringResource(id = R.string.new_version_found),
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoseRed,
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = stringResource(id = R.string.new_version, versionName),
-                    fontSize = 17.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = stringResource(id = R.string.version_code, versionCode),
-                    fontSize = 17.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(
-                            text = stringResource(id = R.string.later),
-                            fontSize = 17.sp,
-                            color = Color.Gray.copy(alpha = 0.8f),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Button(
-                        onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = RoseRed
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.update_now),
-                            fontSize = 17.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DownloadProgressDialog(
-    progress: Float,
-    onDismiss: () -> Unit
-) {
-    // Preload strings
-    val downloadingUpdateText = stringResource(id = R.string.downloading_update)
-    
-    Dialog(
-        onDismissRequest = { },
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    spotColor = RoseRed.copy(alpha = 0.35f),
-                    ambientColor = Color.Gray.copy(alpha = 0.18f)
-                )
-        ) {
-            Column(
-                modifier = Modifier.padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 顶部图标
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    RoseRed.copy(alpha = 0.15f),
-                                    SakuraPink.copy(alpha = 0.15f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.download),
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = downloadingUpdateText,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RoseRed,
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp),
-                    color = RoseRed,
-                    trackColor = Color.Gray.copy(alpha = 0.25f)
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    fontSize = 18.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun UpdateSuccessDialog(
-    onDismiss: () -> Unit
-) {
-    // Preload strings
-    val downloadCompleteText = stringResource(id = R.string.download_complete)
-    val installingUpdateText = stringResource(id = R.string.installing_update)
-    
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    spotColor = Color(0xFF4CAF50).copy(alpha = 0.35f),
-                    ambientColor = Color.Gray.copy(alpha = 0.18f)
-                )
-        ) {
-            Column(
-                modifier = Modifier.padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 顶部图标
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f),
-                                    Color(0xFF66BB6A).copy(alpha = 0.15f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                color = Color(0xFF4CAF50),
-                                shape = RoundedCornerShape(20.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "√",
-                            fontSize = 28.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = downloadCompleteText,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = installingUpdateText,
-                    fontSize = 17.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun UpdateErrorDialog(
-    message: String,
-    onDismiss: () -> Unit
-) {
-    // Preload strings
-    val updateFailedText = stringResource(id = R.string.update_failed)
-    val confirmText = stringResource(id = R.string.confirm)
-    
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    spotColor = Color(0xFFF44336).copy(alpha = 0.35f),
-                    ambientColor = Color.Gray.copy(alpha = 0.18f)
-                )
-        ) {
-            Column(
-                modifier = Modifier.padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 顶部图标
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFF44336).copy(alpha = 0.15f),
-                                    Color(0xFFEF5350).copy(alpha = 0.15f)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                color = Color(0xFFF44336),
-                                shape = RoundedCornerShape(20.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "×",
-                            fontSize = 32.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = updateFailedText,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFF44336),
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = message,
-                    fontSize = 17.sp,
-                    color = Color.Gray.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(
-                            text = confirmText,
-                            fontSize = 17.sp,
-                            color = RoseRed,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-    }
-
 }
 
 @Composable
