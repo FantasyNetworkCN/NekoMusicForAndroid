@@ -43,7 +43,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -85,7 +84,6 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
-import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
@@ -398,17 +396,16 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .zIndex(1f)
         ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-                HomeLiquidHeroOverlay(
-                    state = liquidHeroState,
-                    onSearchClick = onSearchClick,
-                    onNavigateToPlaylist = onNavigateToPlaylist,
-                    onNavigateToRanking = onNavigateToRanking,
-                    onNavigateToLatest = onNavigateToLatest,
-                    onHeroHeightChanged = { heroInsetPx = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            HomeLiquidHeroOverlay(
+                state = liquidHeroState,
+                liquidBackdrop = pageBackdrop,
+                onSearchClick = onSearchClick,
+                onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToRanking = onNavigateToRanking,
+                onNavigateToLatest = onNavigateToLatest,
+                onHeroHeightChanged = { heroInsetPx = it },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 

@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,19 +35,23 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.screens.LatestMusicCard
 import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
 
 /**
- * 位于首页内：与列表共用本页的独立 [layerBackdrop]；顶栏在录屏层外通过 [LocalLiquidLayerBackdrop] 做真 [drawBackdrop]。
- * 搜索框与推荐区仍为 **两块独立** GlassSurface。
+ * 首页顶栏：与 [HomeScreen] 内仅背景层 `layerBackdrop(pageBackdrop)` 兄弟层叠放；本组件内提供 [LocalLiquidLayerBackdrop]，
+ * 搜索框与推荐区 [GlassSurface] 走 Kyant **opacity → vibrancy → blur →（API 33+）lens** 真液态。
  */
 @Composable
 fun HomeLiquidHeroOverlay(
     state: HomeLiquidHeroState,
+    liquidBackdrop: LayerBackdrop,
     onSearchClick: () -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToRanking: () -> Unit,
@@ -57,6 +62,7 @@ fun HomeLiquidHeroOverlay(
     val colorScheme = MaterialTheme.colorScheme
     val isDarkHome = colorScheme.background.luminance() < 0.5f
 
+    CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -70,12 +76,13 @@ fun HomeLiquidHeroOverlay(
                 .height(48.dp),
             shape = RoundedCornerShape(20.dp),
             backgroundAlpha = if (isDarkHome) 0.35f else 0.30f,
-            borderAlpha = if (isDarkHome) 0.18f else 0.20f,
-            highlightAlpha = if (isDarkHome) 0.08f else 0.10f,
-            borderColor = if (isDarkHome) Color.White else colorScheme.outline,
-            liquidBlur = 8.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 26.dp
+            borderAlpha = if (isDarkHome) 0.20f else 0.20f,
+            highlightAlpha = if (isDarkHome) 0.09f else 0.11f,
+            borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.55f) else colorScheme.outline,
+            liquidBackdropOpacity = 0.90f,
+            liquidBlur = 12.dp,
+            liquidLensHeight = 18.dp,
+            liquidLensAmount = 30.dp
         ) {
             Row(
                 modifier = Modifier
@@ -118,13 +125,14 @@ fun HomeLiquidHeroOverlay(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = if (isDarkHome) 0.32f else 0.28f,
-            borderAlpha = if (isDarkHome) 0.15f else 0.20f,
-            highlightAlpha = if (isDarkHome) 0.08f else 0.11f,
-            borderColor = if (isDarkHome) Color.White else colorScheme.outline,
-            liquidBlur = 10.dp,
+            backgroundAlpha = if (isDarkHome) 0.34f else 0.30f,
+            borderAlpha = if (isDarkHome) 0.18f else 0.20f,
+            highlightAlpha = if (isDarkHome) 0.09f else 0.12f,
+            borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.48f) else colorScheme.outline,
+            liquidBackdropOpacity = 0.88f,
+            liquidBlur = 14.dp,
             liquidLensHeight = 18.dp,
-            liquidLensAmount = 28.dp
+            liquidLensAmount = 32.dp
         ) {
             Column(
                 modifier = Modifier
@@ -275,5 +283,6 @@ fun HomeLiquidHeroOverlay(
                 }
             }
         }
+    }
     }
 }
