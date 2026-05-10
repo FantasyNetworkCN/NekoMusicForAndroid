@@ -20,9 +20,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.text.format.Formatter
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.theme.RoseRed
@@ -152,9 +155,11 @@ fun AppUpdatePromptDialog(
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun AppUpdateDownloadProgressDialog(
-    progress: Float,
+    transferredBytes: Long,
+    contentLengthBytes: Long,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     Dialog(
@@ -208,22 +213,63 @@ fun AppUpdateDownloadProgressDialog(
                     letterSpacing = 0.3.sp
                 )
                 Spacer(modifier = Modifier.height(28.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp),
-                    color = RoseRed,
-                    trackColor = if (isDark) scheme.surfaceVariant.copy(alpha = 0.5f)
-                    else Color.Gray.copy(alpha = 0.25f)
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    fontSize = 18.sp,
-                    color = scheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
+                key(contentLengthBytes, transferredBytes) {
+                    val receivedStr = Formatter.formatFileSize(context, transferredBytes)
+                    val totalStr = if (contentLengthBytes > 0L) {
+                        Formatter.formatFileSize(context, contentLengthBytes)
+                    } else {
+                        ""
+                    }
+                    val hasKnownTotal = contentLengthBytes > 0L
+                    val progressFraction = if (hasKnownTotal) {
+                        (transferredBytes.toFloat() / contentLengthBytes.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+                    if (hasKnownTotal) {
+                        LinearProgressIndicator(
+                            progress = { progressFraction },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp),
+                            color = RoseRed,
+                            trackColor = if (isDark) scheme.surfaceVariant.copy(alpha = 0.5f)
+                            else Color.Gray.copy(alpha = 0.25f)
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp),
+                            color = RoseRed,
+                            trackColor = if (isDark) scheme.surfaceVariant.copy(alpha = 0.5f)
+                            else Color.Gray.copy(alpha = 0.25f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = if (hasKnownTotal) {
+                            stringResource(R.string.update_download_bytes_pair, receivedStr, totalStr)
+                        } else {
+                            stringResource(R.string.update_download_bytes_only, receivedStr)
+                        },
+                        fontSize = 16.sp,
+                        color = scheme.onSurface,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (hasKnownTotal) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.update_download_percent,
+                                (progressFraction * 100).toInt()
+                            ),
+                            fontSize = 17.sp,
+                            color = scheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }

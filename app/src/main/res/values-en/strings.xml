@@ -114,6 +114,9 @@
     <string name="downloading_update_progress">Downloading Update</string>
     <string name="downloading_update_failed">Download failed, please try again later</string>
     <string name="downloading_update_failed_msg">Download failed: %s</string>
+    <string name="update_download_bytes_pair" formatted="false">%1$s / %2$s</string>
+    <string name="update_download_bytes_only" formatted="false">Downloaded %1$s</string>
+    <string name="update_download_percent">%d%%</string>
     <string name="new_version_found">New Version Available</string>
     <string name="new_version">New Version: %s</string>
     <string name="version_code_display">Version Code: %d</string>
