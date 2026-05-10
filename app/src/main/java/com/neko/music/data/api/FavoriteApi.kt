@@ -12,9 +12,14 @@ import kotlinx.serialization.json.Json
 import android.util.Log
 import com.neko.music.data.model.Music
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffixOrEmpty
 
 class FavoriteApi(private val context: android.content.Context) {
     private val client = HttpClient(OkHttp) {
+        engine {
+            config { preferHttp2AlpnOverHttp1() }
+        }
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -37,7 +42,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "获取收藏列表失败", e)
+            Log.e("FavoriteApi", "获取收藏列表失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoriteListResponse(success = false, favorites = emptyList())
         }
     }
@@ -55,7 +60,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "添加收藏失败", e)
+            Log.e("FavoriteApi", "添加收藏失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoriteResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -71,7 +76,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "取消收藏失败", e)
+            Log.e("FavoriteApi", "取消收藏失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoriteResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -87,7 +92,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "获取收藏歌单列表失败", e)
+            Log.e("FavoriteApi", "获取收藏歌单列表失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoritePlaylistListResponse(success = false, playlists = emptyList())
         }
     }
@@ -105,7 +110,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "收藏歌单失败", e)
+            Log.e("FavoriteApi", "收藏歌单失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoriteResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -121,7 +126,7 @@ class FavoriteApi(private val context: android.content.Context) {
             response.body()
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("FavoriteApi", "取消收藏歌单失败", e)
+            Log.e("FavoriteApi", "取消收藏歌单失败${e.protocolLogSuffixOrEmpty()}", e)
             FavoriteResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -138,7 +143,7 @@ class FavoriteApi(private val context: android.content.Context) {
                 false
             }
         } catch (e: Exception) {
-            Log.e("FavoriteApi", "检查收藏状态失败", e)
+            Log.e("FavoriteApi", "检查收藏状态失败${e.protocolLogSuffixOrEmpty()}", e)
             false
         }
     }

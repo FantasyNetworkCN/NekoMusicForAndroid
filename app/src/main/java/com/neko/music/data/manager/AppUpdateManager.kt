@@ -25,6 +25,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.Headers
 import io.ktor.utils.io.ByteReadChannel
@@ -69,6 +72,9 @@ class AppUpdateManager(private val context: Context) {
     
     private val client = HttpClient(OkHttp) {
         expectSuccess = false
+        engine {
+            config { preferHttp2AlpnOverHttp1() }
+        }
         install(ContentNegotiation) {
             json(json)
         }
@@ -79,6 +85,7 @@ class AppUpdateManager(private val context: Context) {
         expectSuccess = false
         engine {
             config {
+                preferHttp2AlpnOverHttp1()
                 followRedirects(true)
             }
         }
@@ -114,7 +121,8 @@ class AppUpdateManager(private val context: Context) {
     suspend fun checkUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
         return@withContext try {
             Log.d("AppUpdateManager", "开始检查更新...")
-            val response: VersionResponse = client.get(versionCheckUrl).body()
+            val httpCheck = client.get(versionCheckUrl)
+            val response: VersionResponse = httpCheck.body()
             val currentVersion = getCurrentVersion()
             val currentVersionName = currentVersion.first
             val currentVersionCode = currentVersion.second
@@ -122,19 +130,19 @@ class AppUpdateManager(private val context: Context) {
             val versionName = response.ver
             val updateUrl = response.updateUrl
             
-            Log.d("AppUpdateManager", "当前版本: $currentVersionName ($currentVersionCode)")
-            Log.d("AppUpdateManager", "服务器版本: $versionName")
-            Log.d("AppUpdateManager", "更新URL: $updateUrl")
+            Log.d("AppUpdateManager", "当前版本: $currentVersionName ($currentVersionCode)${httpCheck.protocolLogSuffix()}")
+            Log.d("AppUpdateManager", "服务器版本: $versionName${httpCheck.protocolLogSuffix()}")
+            Log.d("AppUpdateManager", "更新URL: $updateUrl${httpCheck.protocolLogSuffix()}")
             
             // 提取 versionCode（括号中的数字）
             val versionCode = extractVersionCode(versionName)
             
-            Log.d("AppUpdateManager", "提取的版本号: $versionCode")
+            Log.d("AppUpdateManager", "提取的版本号: $versionCode${httpCheck.protocolLogSuffix()}")
             
             // 判断是否需要更新：两个版本数据都必须比当前版本新
             val isUpdateAvailable = versionCode > currentVersionCode
             
-            Log.d("AppUpdateManager", "是否需要更新: $isUpdateAvailable")
+            Log.d("AppUpdateManager", "是否需要更新: $isUpdateAvailable${httpCheck.protocolLogSuffix()}")
             
             UpdateInfo(
                 versionName = versionName,
@@ -143,7 +151,7 @@ class AppUpdateManager(private val context: Context) {
                 isUpdateAvailable = isUpdateAvailable,
             )
         } catch (e: Exception) {
-            Log.e("AppUpdateManager", "检查更新失败", e)
+            Log.e("AppUpdateManager", "检查更新失败${e.protocolLogSuffixOrEmpty()}", e)
             null
         }
     }    
@@ -227,11 +235,11 @@ class AppUpdateManager(private val context: Context) {
             }
             val fromHead = headResponse.headers.contentLengthBytes()
             if (fromHead > 0L) {
-                Log.d("AppUpdateManager", "HEAD 探测到 Content-Length: $fromHead")
+                Log.d("AppUpdateManager", "HEAD 探测到 Content-Length: $fromHead${headResponse.protocolLogSuffix()}")
                 return fromHead
             }
         }.onFailure {
-            Log.d("AppUpdateManager", "HEAD 探测不可用: ${it.message}")
+            Log.d("AppUpdateManager", "HEAD 探测不可用: ${it.message}${it.protocolLogSuffixOrEmpty()}")
         }
 
         runCatching {
@@ -246,7 +254,7 @@ class AppUpdateManager(private val context: Context) {
                             rangeResponse.headers[HttpHeaders.ContentRange]
                         )
                         if (total > 0L) {
-                            Log.d("AppUpdateManager", "Range 206 探测到总大小: $total")
+                            Log.d("AppUpdateManager", "Range 206 探测到总大小: $total${rangeResponse.protocolLogSuffix()}")
                         }
                         val ch = rangeResponse.body<ByteReadChannel>()
                         ch.discard(Long.MAX_VALUE)
@@ -256,7 +264,7 @@ class AppUpdateManager(private val context: Context) {
                         val cl = rangeResponse.headers.contentLengthBytes()
                         runCatching { rangeResponse.body<ByteReadChannel>().cancel(null) }
                         if (cl > 0L) {
-                            Log.d("AppUpdateManager", "Range 请求返回 200，使用 Content-Length: $cl")
+                            Log.d("AppUpdateManager", "Range 请求返回 200，使用 Content-Length: $cl${rangeResponse.protocolLogSuffix()}")
                             return cl
                         }
                     }
@@ -272,7 +280,7 @@ class AppUpdateManager(private val context: Context) {
                 }
             }
         }.onFailure {
-            Log.d("AppUpdateManager", "Range 探测失败: ${it.message}")
+            Log.d("AppUpdateManager", "Range 探测失败: ${it.message}${it.protocolLogSuffixOrEmpty()}")
         }
 
         return 0L
@@ -339,7 +347,7 @@ class AppUpdateManager(private val context: Context) {
             }
             Log.d(
                 "AppUpdateManager",
-                "开始下载 APK 总字节=$contentLength (GET Content-Length=$headerCl, 探测=$probed)"
+                "开始下载 APK 总字节=$contentLength (GET Content-Length=$headerCl, 探测=$probed)${getResponse.protocolLogSuffix()}"
             )
 
             val byteReadChannel = getResponse.body<ByteReadChannel>()
@@ -365,7 +373,7 @@ class AppUpdateManager(private val context: Context) {
                     scheduleProgress(totalBytes, contentLength, immediate = false)
                     if (totalBytes - lastLogDone >= 512L * 1024L || totalBytes == contentLength) {
                         lastLogDone = totalBytes
-                        Log.d("AppUpdateManager", "下载进度: $totalBytes / $contentLength")
+                        Log.d("AppUpdateManager", "下载进度: $totalBytes / $contentLength${getResponse.protocolLogSuffix()}")
                     }
                 }
             } finally {
@@ -381,7 +389,7 @@ class AppUpdateManager(private val context: Context) {
             if (tempFile.exists() && tempFile.length() > 0) {
                 val apkFile = File(context.getExternalFilesDir(null), "update.apk")
                 if (tempFile.renameTo(apkFile)) {
-                    Log.d("AppUpdateManager", "下载完成: ${apkFile.absolutePath}, 大小: ${apkFile.length()} 字节")
+                    Log.d("AppUpdateManager", "下载完成: ${apkFile.absolutePath}, 大小: ${apkFile.length()} 字节${getResponse.protocolLogSuffix()}")
                     apkFile
                 } else {
                     Log.e("AppUpdateManager", "重命名文件失败")
@@ -394,7 +402,7 @@ class AppUpdateManager(private val context: Context) {
                 null
             }
         } catch (e: Exception) {
-            Log.e("AppUpdateManager", "下载 APK 失败", e)
+            Log.e("AppUpdateManager", "下载 APK 失败${e.protocolLogSuffixOrEmpty()}", e)
             // 清理临时文件
             val tempFile = File(context.getExternalFilesDir(null), "update_temp.apk")
             if (tempFile.exists()) {

@@ -6,6 +6,9 @@ import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchRequest
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -34,6 +37,9 @@ class MusicApi(private val context: Context) {
     }
     
     private val client = HttpClient(OkHttp) {
+        engine {
+            config { preferHttp2AlpnOverHttp1() }
+        }
         install(ContentNegotiation) {
             json(json)
         }
@@ -63,9 +69,9 @@ class MusicApi(private val context: Context) {
                 setBody(requestBody)
             }
             
-            Log.d("MusicApi", "Response status: ${response.status}")
+            Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
-            Log.d("MusicApi", "Response raw text: $responseText")
+            Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
             
             // 手动解析响应
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
@@ -73,18 +79,18 @@ class MusicApi(private val context: Context) {
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
             val resultsArray = jsonResponse["results"]
             
-            Log.d("MusicApi", "Parsed response - success: $success, message: $message, results: $resultsArray")
+            Log.d("MusicApi", "Parsed response - success: $success, message: $message, results: $resultsArray${response.protocolLogSuffix()}")
             
             if (success && resultsArray != null) {
                 val results = json.decodeFromJsonElement<List<Music>>(resultsArray)
-                Log.d("MusicApi", "Found ${results.size} results")
+                Log.d("MusicApi", "Found ${results.size} results${response.protocolLogSuffix()}")
                 Result.success(results)
             } else {
-                Log.e("MusicApi", "Search failed: $message")
+                Log.e("MusicApi", "Search failed: $message${response.protocolLogSuffix()}")
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Log.e("MusicApi", "Search error", e)
+            Log.e("MusicApi", "Search error${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
     }
@@ -117,16 +123,16 @@ class MusicApi(private val context: Context) {
         return try {
             Log.d("MusicApi", "Fetching lyrics for music: ${music.id}")
             val response = client.get("$baseUrl/api/music/lyrics/${music.id}")
-            Log.d("MusicApi", "Response status: ${response.status}")
+            Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
-            Log.d("MusicApi", "Response raw text: $responseText")
+            Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
 
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
             val data = extractLyricsStringFromJson(jsonResponse)
 
-            Log.d("MusicApi", "Parsed lyrics: $data")
+            Log.d("MusicApi", "Parsed lyrics: $data${response.protocolLogSuffix()}")
 
             if (success) {
                 // 仅在缓存启用时缓存歌词
@@ -138,7 +144,7 @@ class MusicApi(private val context: Context) {
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Log.e("MusicApi", "Fetch lyrics error", e)
+            Log.e("MusicApi", "Fetch lyrics error${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
     }
@@ -151,27 +157,27 @@ class MusicApi(private val context: Context) {
         return try {
             Log.d("MusicApi", "Fetching ranking with limit: $limit")
             val response = client.get("$baseUrl/api/music/ranking?limit=$limit")
-            Log.d("MusicApi", "Response status: ${response.status}")
+            Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
-            Log.d("MusicApi", "Response raw text: $responseText")
+            Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
             
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
             val data = jsonResponse["data"]
             
-            Log.d("MusicApi", "Parsed response - success: $success, message: $message, data: $data")
+            Log.d("MusicApi", "Parsed response - success: $success, message: $message, data: $data${response.protocolLogSuffix()}")
             
             if (success && data != null) {
                 val results = json.decodeFromJsonElement<List<Music>>(data)
-                Log.d("MusicApi", "Found ${results.size} ranking music")
+                Log.d("MusicApi", "Found ${results.size} ranking music${response.protocolLogSuffix()}")
                 Result.success(results)
             } else {
-                Log.e("MusicApi", "Ranking fetch failed: $message")
+                Log.e("MusicApi", "Ranking fetch failed: $message${response.protocolLogSuffix()}")
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Log.e("MusicApi", "Ranking fetch error", e)
+            Log.e("MusicApi", "Ranking fetch error${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
     }
@@ -180,27 +186,27 @@ class MusicApi(private val context: Context) {
         return try {
             Log.d("MusicApi", "Fetching latest music with limit: $limit")
             val response = client.get("$baseUrl/api/music/latest?limit=$limit")
-            Log.d("MusicApi", "Response status: ${response.status}")
+            Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
-            Log.d("MusicApi", "Response raw text: $responseText")
+            Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
             
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
             val data = jsonResponse["data"]
             
-            Log.d("MusicApi", "Parsed response - success: $success, message: $message, data: $data")
+            Log.d("MusicApi", "Parsed response - success: $success, message: $message, data: $data${response.protocolLogSuffix()}")
             
             if (success && data != null) {
                 val results = json.decodeFromJsonElement<List<Music>>(data)
-                Log.d("MusicApi", "Found ${results.size} latest music")
+                Log.d("MusicApi", "Found ${results.size} latest music${response.protocolLogSuffix()}")
                 Result.success(results)
             } else {
-                Log.e("MusicApi", "Latest music fetch failed: $message")
+                Log.e("MusicApi", "Latest music fetch failed: $message${response.protocolLogSuffix()}")
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Log.e("MusicApi", "Latest music fetch error", e)
+            Log.e("MusicApi", "Latest music fetch error${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
     }
@@ -214,9 +220,9 @@ class MusicApi(private val context: Context) {
         return try {
             Log.d("MusicApi", "Fetching music info for id: $id")
             val response = client.get("$baseUrl/api/music/info/$id")
-            Log.d("MusicApi", "Response status: ${response.status}")
+            Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
-            Log.d("MusicApi", "Response raw text: $responseText")
+            Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
 
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
@@ -225,14 +231,14 @@ class MusicApi(private val context: Context) {
 
             if (success && data != null) {
                 val music = json.decodeFromJsonElement<Music>(data)
-                Log.d("MusicApi", "Music info loaded: ${music.title} - ${music.artist}")
+                Log.d("MusicApi", "Music info loaded: ${music.title} - ${music.artist}${response.protocolLogSuffix()}")
                 Result.success(music)
             } else {
-                Log.e("MusicApi", "Failed to get music info: $message")
+                Log.e("MusicApi", "Failed to get music info: $message${response.protocolLogSuffix()}")
                 Result.failure(Exception(message))
             }
         } catch (e: Exception) {
-            Log.e("MusicApi", "Get music info error", e)
+            Log.e("MusicApi", "Get music info error${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
     }

@@ -63,7 +63,12 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
+import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.utils.EmptyContent.headers
@@ -636,7 +641,7 @@ private fun performSearch(
                 onResult(musics, null)
             },
 onFailure = { error ->
-                Log.e("SearchScreen", "请求失败 - ${error.message}")
+                Log.e("SearchScreen", "请求失败 - ${error.message}${error.protocolLogSuffixOrEmpty()}")
                 onResult(emptyList(), error.message)
             }
         )
@@ -651,7 +656,9 @@ suspend fun performPlaylistSearch(
 ) {
     scope.launch {
         try {
-            val client = io.ktor.client.HttpClient()
+            val client = HttpClient(OkHttp) {
+                engine { config { preferHttp2AlpnOverHttp1() } }
+            }
             val response = client.post("$baseUrl/api/playlists/search") {
                 headers {
                     append("Content-Type", "application/json")
@@ -666,7 +673,7 @@ suspend fun performPlaylistSearch(
             }
             
             val responseText = response.body<String>()
-            Log.d("SearchScreen", "歌单搜索响应: $responseText")
+            Log.d("SearchScreen", "歌单搜索响应: $responseText${response.protocolLogSuffix()}")
             
             // 简单解析 JSON 响应
             if (responseText.contains("\"success\":true")) {
@@ -701,7 +708,7 @@ suspend fun performPlaylistSearch(
                         )
                     }
                     
-                    Log.d("SearchScreen", "搜索到 ${playlists.size} 个歌单")
+                    Log.d("SearchScreen", "搜索到 ${playlists.size} 个歌单${response.protocolLogSuffix()}")
                     onResult(playlists, null)
                 } else {
                     onResult(emptyList(), context.getString(R.string.no_search_playlist_found))
@@ -710,7 +717,7 @@ suspend fun performPlaylistSearch(
                 onResult(emptyList(), context.getString(R.string.search_failed))
             }
         } catch (e: Exception) {
-            Log.e("SearchScreen", "歌单搜索请求失败 - ${e.message}", e)
+            Log.e("SearchScreen", "歌单搜索请求失败 - ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             onResult(emptyList(), e.message)
         }
     }
@@ -724,7 +731,9 @@ suspend fun performArtistSearch(
 ) {
     scope.launch {
         try {
-            val client = io.ktor.client.HttpClient()
+            val client = HttpClient(OkHttp) {
+                engine { config { preferHttp2AlpnOverHttp1() } }
+            }
             val response = client.post("$baseUrl/api/artists/search") {
                 headers {
                     append("Content-Type", "application/json")
@@ -739,7 +748,7 @@ suspend fun performArtistSearch(
             }
             
             val responseText = response.body<String>()
-            Log.d("SearchScreen", "歌手搜索响应: $responseText")
+            Log.d("SearchScreen", "歌手搜索响应: $responseText${response.protocolLogSuffix()}")
             
             // 解析 JSON 响应 - 新格式返回单个歌手及其音乐列表
             if (responseText.contains("\"success\":true")) {
@@ -765,18 +774,18 @@ suspend fun performArtistSearch(
                     
                     if (musicListMatch != null && musicCount > 0) {
                         val musicListJson = musicListMatch.groupValues[1]
-                        Log.d("SearchScreen", "音乐列表JSON: $musicListJson")
+                        Log.d("SearchScreen", "音乐列表JSON: $musicListJson${response.protocolLogSuffix()}")
                         // 匹配第一首音乐的封面
                         val coverMatch = """"coverPath":\s*"([^"]*)"""".toRegex().find(musicListJson)
                         val extractedCover = coverMatch?.groupValues?.get(1)
-                        Log.d("SearchScreen", "提取到的封面路径: $extractedCover")
+                        Log.d("SearchScreen", "提取到的封面路径: $extractedCover${response.protocolLogSuffix()}")
                         
                         if (!extractedCover.isNullOrEmpty() && extractedCover != "/api/music/cover/" && extractedCover != "/api/music/cover") {
                             coverPath = "$baseUrl$extractedCover"
                         }
                     }
                     
-                    Log.d("SearchScreen", "歌手封面最终路径: $coverPath")
+                    Log.d("SearchScreen", "歌手封面最终路径: $coverPath${response.protocolLogSuffix()}")
                     
                     if (name.isNotEmpty()) {
                         artists.add(
@@ -788,7 +797,7 @@ suspend fun performArtistSearch(
                         )
                     }
                     
-                    Log.d("SearchScreen", "搜索到 ${artists.size} 个歌手: $name")
+                    Log.d("SearchScreen", "搜索到 ${artists.size} 个歌手: $name${response.protocolLogSuffix()}")
                     onResult(artists, null)
                 } else {
                     onResult(emptyList(), context.getString(R.string.no_search_artist_found))
@@ -797,7 +806,7 @@ suspend fun performArtistSearch(
                 onResult(emptyList(), context.getString(R.string.search_failed))
             }
         } catch (e: Exception) {
-            Log.e("SearchScreen", "歌手搜索请求失败 - ${e.message}", e)
+            Log.e("SearchScreen", "歌手搜索请求失败 - ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             onResult(emptyList(), e.message)
         }
     }

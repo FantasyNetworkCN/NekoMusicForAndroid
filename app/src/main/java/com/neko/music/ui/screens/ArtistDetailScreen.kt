@@ -27,11 +27,16 @@ import androidx.compose.ui.res.painterResource
 import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.RoseRed
+import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -66,7 +71,9 @@ fun ArtistDetailScreen(
         scope.launch {
             try {
                 isLoading = true
-                val client = io.ktor.client.HttpClient()
+                val client = HttpClient(OkHttp) {
+                    engine { config { preferHttp2AlpnOverHttp1() } }
+                }
                 val response = client.post("$baseUrl/api/artists/search") {
                     headers {
                         append("Content-Type", "application/json")
@@ -81,7 +88,7 @@ fun ArtistDetailScreen(
                 }
                 
                 val responseText = response.body<String>()
-                Log.d("ArtistDetailScreen", "歌手详情响应: $responseText")
+                Log.d("ArtistDetailScreen", "歌手详情响应: $responseText${response.protocolLogSuffix()}")
                 
                 // 解析 JSON 响应
                 try {
@@ -121,16 +128,16 @@ fun ArtistDetailScreen(
                         
                         musicList = musics
                         isLoading = false
-                        Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲")
+                        Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲${response.protocolLogSuffix()}")
                         musics.forEach { music ->
-                            Log.d("ArtistDetailScreen", "音乐: ${music.title}, 路径: ${music.filePath}, 封面: ${music.coverFilePath}")
+                            Log.d("ArtistDetailScreen", "音乐: ${music.title}, 路径: ${music.filePath}, 封面: ${music.coverFilePath}${response.protocolLogSuffix()}")
                         }
                     } else {
                         isLoading = false
                         errorMessage = noMusicFound
                     }
                 } catch (e: Exception) {
-                    Log.e("ArtistDetailScreen", "JSON解析失败", e)
+                    Log.e("ArtistDetailScreen", "JSON解析失败${e.protocolLogSuffixOrEmpty()}", e)
                     // 降级到正则表达式解析
                     val musicListRegex = """"musicList":\s*\[([^\]]*)\]""".toRegex()
                     val match = musicListRegex.find(responseText)
@@ -169,14 +176,14 @@ fun ArtistDetailScreen(
                         
                         musicList = musics
                         isLoading = false
-                        Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲（正则解析）")
+                        Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲（正则解析）${response.protocolLogSuffix()}")
                     } else {
                         isLoading = false
                         errorMessage = noMusicFound
                     }
                 }
             } catch (e: Exception) {
-                Log.e("ArtistDetailScreen", "加载歌手音乐失败", e)
+                Log.e("ArtistDetailScreen", "加载歌手音乐失败${e.protocolLogSuffixOrEmpty()}", e)
                 isLoading = false
                 errorMessage = e.message
             }

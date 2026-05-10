@@ -2,6 +2,9 @@ package com.neko.music.data.api
 
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -10,6 +13,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -94,6 +98,9 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     private val client = HttpClient(OkHttp) {
         expectSuccess = false
+        engine {
+            config { preferHttp2AlpnOverHttp1() }
+        }
         install(ContentNegotiation) {
             json(json)
         }
@@ -108,8 +115,8 @@ class PlaylistApi(private val token: String?, private val context: android.conte
                 setBody("""{"query":"歌单"}""")
             }
             val responseText = response.body<String>()
-            Log.d("PlaylistApi", "搜索歌单响应: $responseText")
-            val responseBody = response.body<PlaylistListResponse>()
+            Log.d("PlaylistApi", "搜索歌单响应: $responseText${response.protocolLogSuffix()}")
+            val responseBody = json.decodeFromString<PlaylistListResponse>(responseText)
             // 将results字段转换为playlists字段
             return PlaylistListResponse(
                 success = responseBody.success,
@@ -118,7 +125,7 @@ class PlaylistApi(private val token: String?, private val context: android.conte
                 results = null
             )
         } catch (e: Exception) {
-            Log.e("PlaylistApi", "搜索歌单异常: ${e.message}", e)
+            Log.e("PlaylistApi", "搜索歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             PlaylistListResponse(false, "网络错误: ${e.message}", null)
         }
     }
@@ -131,8 +138,8 @@ class PlaylistApi(private val token: String?, private val context: android.conte
                 }
             }
             val responseText = response.body<String>()
-            Log.d("PlaylistApi", "获取歌单列表响应: $responseText")
-            response.body()
+            Log.d("PlaylistApi", "获取歌单列表响应: $responseText${response.protocolLogSuffix()}")
+            json.decodeFromString<PlaylistListResponse>(responseText)
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             PlaylistListResponse(false, "网络错误: ${e.message}", null)
@@ -196,8 +203,9 @@ class PlaylistApi(private val token: String?, private val context: android.conte
     suspend fun getPlaylistDetail(playlistId: Int): PlaylistResponse {
         return try {
             val response = client.get("${UrlConfig.getBaseUrl()}/api/playlist/$playlistId")
-            Log.d("PlaylistApi", "获取歌单详情响应: ${response.body<String>()}")
-            response.body()
+            val detailText = response.body<String>()
+            Log.d("PlaylistApi", "获取歌单详情响应: $detailText${response.protocolLogSuffix()}")
+            json.decodeFromString<PlaylistResponse>(detailText)
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             PlaylistResponse(false, "网络错误: ${e.message}", null)
@@ -222,11 +230,11 @@ class PlaylistApi(private val token: String?, private val context: android.conte
             }
             val status = response.status
             val bodyText = response.body<String>()
-            Log.d("PlaylistApi", "添加到歌单响应: status=$status, body=$bodyText")
-            response.body()
+            Log.d("PlaylistApi", "添加到歌单响应: status=$status, body=$bodyText${response.protocolLogSuffix()}")
+            json.decodeFromString<PlaylistResponse>(bodyText)
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("PlaylistApi", "添加到歌单异常: ${e.message}", e)
+            Log.e("PlaylistApi", "添加到歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             PlaylistResponse(false, "网络错误: ${e.message}", null)
         }
     }
@@ -249,11 +257,11 @@ class PlaylistApi(private val token: String?, private val context: android.conte
             }
             val status = response.status
             val bodyText = response.body<String>()
-            Log.d("PlaylistApi", "移除音乐响应: status=$status, body=$bodyText")
-            response.body()
+            Log.d("PlaylistApi", "移除音乐响应: status=$status, body=$bodyText${response.protocolLogSuffix()}")
+            json.decodeFromString<PlaylistResponse>(bodyText)
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
-            Log.e("PlaylistApi", "移除音乐异常: ${e.message}", e)
+            Log.e("PlaylistApi", "移除音乐异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             PlaylistResponse(false, "网络错误: ${e.message}", null)
         }
     }

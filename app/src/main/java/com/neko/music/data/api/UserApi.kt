@@ -15,11 +15,17 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.preferHttp2AlpnOverHttp1
+import com.neko.music.util.protocolLogSuffix
+import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
 
 class UserApi(private val token: String? = null) {
     private val client = HttpClient(OkHttp) {
+        engine {
+            config { preferHttp2AlpnOverHttp1() }
+        }
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -48,7 +54,7 @@ class UserApi(private val token: String? = null) {
             }
             response.body()
         } catch (e: Exception) {
-            Log.e("UserApi", "登录失败", e)
+            Log.e("UserApi", "登录失败${e.protocolLogSuffixOrEmpty()}", e)
             LoginResponse(success = false, message = "网络错误: ${e.message}", data = null)
         }
     }
@@ -69,7 +75,7 @@ class UserApi(private val token: String? = null) {
             }
             response.body()
         } catch (e: Exception) {
-            Log.e("UserApi", "注册失败", e)
+            Log.e("UserApi", "注册失败${e.protocolLogSuffixOrEmpty()}", e)
             RegisterResponse(success = false, message = "网络错误: ${e.message}", data = null)
         }
     }
@@ -85,7 +91,7 @@ class UserApi(private val token: String? = null) {
             }
             response.body()
         } catch (e: Exception) {
-            Log.e("UserApi", "发送验证码失败", e)
+            Log.e("UserApi", "发送验证码失败${e.protocolLogSuffixOrEmpty()}", e)
             VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
         }
     }
@@ -101,7 +107,7 @@ class UserApi(private val token: String? = null) {
             }
             response.body()
         } catch (e: Exception) {
-            Log.e("UserApi", "发送重置密码验证码失败", e)
+            Log.e("UserApi", "发送重置密码验证码失败${e.protocolLogSuffixOrEmpty()}", e)
             VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
         }
     }
@@ -121,7 +127,7 @@ class UserApi(private val token: String? = null) {
             }
             response.body()
         } catch (e: Exception) {
-            Log.e("UserApi", "重置密码失败", e)
+            Log.e("UserApi", "重置密码失败${e.protocolLogSuffixOrEmpty()}", e)
             ResetPasswordResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -143,7 +149,7 @@ class UserApi(private val token: String? = null) {
             }
             
             val responseText = response.body<String>()
-            Log.d("UserApi", "修改密码响应: $responseText")
+            Log.d("UserApi", "修改密码响应: $responseText${response.protocolLogSuffix()}")
             
             val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
             
@@ -159,7 +165,7 @@ class UserApi(private val token: String? = null) {
             
             UpdatePasswordResponse(success = success, message = message)
         } catch (e: Exception) {
-            Log.e("UserApi", "修改密码失败", e)
+            Log.e("UserApi", "修改密码失败${e.protocolLogSuffixOrEmpty()}", e)
             UpdatePasswordResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -187,8 +193,8 @@ class UserApi(private val token: String? = null) {
             }
 
             val responseText = response.body<String>()
-            Log.d("UserApi", "更换头像响应状态: ${response.status}")
-            Log.d("UserApi", "更换头像响应内容: $responseText")
+            Log.d("UserApi", "更换头像响应状态: ${response.status}${response.protocolLogSuffix()}")
+            Log.d("UserApi", "更换头像响应内容: $responseText${response.protocolLogSuffix()}")
 
             // 如果响应为空，根据状态码判断成功
             if (responseText.isBlank()) {
@@ -212,7 +218,7 @@ class UserApi(private val token: String? = null) {
                 UpdateAvatarResponse(success = success, message = message)
             }
         } catch (e: Exception) {
-            Log.e("UserApi", "更换头像失败", e)
+            Log.e("UserApi", "更换头像失败${e.protocolLogSuffixOrEmpty()}", e)
             UpdateAvatarResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
@@ -233,13 +239,13 @@ class UserApi(private val token: String? = null) {
             // 先尝试自动反序列化
             try {
                 val result = response.body<UploadedMusicResponse>()
-                Log.d("UserApi", "获取上传音乐成功: ${result.success}, 数量: ${result.total}")
+                Log.d("UserApi", "获取上传音乐成功: ${result.success}, 数量: ${result.total}${response.protocolLogSuffix()}")
                 result
             } catch (e: Exception) {
                 // 如果自动反序列化失败，尝试手动解析
-                Log.w("UserApi", "自动反序列化失败，尝试手动解析: ${e.message}")
+                Log.w("UserApi", "自动反序列化失败，尝试手动解析: ${e.message}${response.protocolLogSuffix()}")
                 val responseBody = response.bodyAsText()
-                Log.d("UserApi", "响应内容: $responseBody")
+                Log.d("UserApi", "响应内容: $responseBody${response.protocolLogSuffix()}")
                 
                 // 返回默认值，避免应用崩溃
                 UploadedMusicResponse(
@@ -251,7 +257,7 @@ class UserApi(private val token: String? = null) {
                 )
             }
         } catch (e: Exception) {
-            Log.e("UserApi", "获取上传音乐失败", e)
+            Log.e("UserApi", "获取上传音乐失败${e.protocolLogSuffixOrEmpty()}", e)
             UploadedMusicResponse(
                 success = false,
                 message = "网络错误: ${e.message}",
@@ -325,8 +331,8 @@ class UserApi(private val token: String? = null) {
             }
 
             val responseText = response.body<String>()
-            Log.d("UserApi", "上传音乐响应状态: ${response.status}")
-            Log.d("UserApi", "上传音乐响应内容: $responseText")
+            Log.d("UserApi", "上传音乐响应状态: ${response.status}${response.protocolLogSuffix()}")
+            Log.d("UserApi", "上传音乐响应内容: $responseText${response.protocolLogSuffix()}")
 
             // 如果响应为空，根据状态码判断成功
             if (responseText.isBlank()) {
@@ -354,7 +360,7 @@ class UserApi(private val token: String? = null) {
                 UploadMusicResponse(success = success, message = message)
             }
         } catch (e: Exception) {
-            Log.e("UserApi", "上传音乐失败", e)
+            Log.e("UserApi", "上传音乐失败${e.protocolLogSuffixOrEmpty()}", e)
             UploadMusicResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
