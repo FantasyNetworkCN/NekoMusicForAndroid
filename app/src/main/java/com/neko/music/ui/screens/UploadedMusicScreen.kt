@@ -89,6 +89,7 @@ import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.nio.charset.StandardCharsets
 
@@ -723,10 +724,21 @@ fun UploadMusicDialog(
                 }
                 if (isUploading) {
                     Spacer(modifier = Modifier.height(8.dp))
+                    // 疫苗跳动效果进度条
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = uploadProgress,
+                        animationSpec = spring(
+                            dampingRatio = 0.5f,
+                            stiffness = 300f
+                        )
+                    )
                     LinearProgressIndicator(
-                        progress = { uploadProgress },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = RoseRed
+                        progress = { animatedProgress / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp),
+                        color = RoseRed,
+                        trackColor = RoseRed.copy(alpha = 0.2f)
                     )
                 }
             }
@@ -1330,65 +1342,125 @@ fun UploadMusicDialog(
                             
                             scope.launch {
                                 try {
-                                    // 模拟进度更新 - 读取文件阶段
-                                    launch {
+                                    // 疫苗跳动效果进度更新 - 从0开始
+                                    uploadProgress = 0f
+                                    
+                                    // 第一阶段：读取文件时的真实进度
+                                    val readFileJob = async {
+                                        // 开始读取音频文件
+                                        val audioBytes = context.contentResolver.openInputStream(audioFile!!)?.use { it.readBytes() }
+                                        
+                                        // 读取过程中更新进度到30%
                                         while (isUploading && uploadProgress < 30f) {
-                                            kotlinx.coroutines.delay(50)
-                                            uploadProgress = (uploadProgress + 2f).coerceAtMost(30f)
+                                            kotlinx.coroutines.delay(50) // 真实读取需要时间
+                                            // 根据实际读取进度跳动
+                                            val jump = (1f + (0..2).random()).coerceAtMost(30f - uploadProgress)
+                                            uploadProgress = (uploadProgress + jump).coerceAtMost(30f)
                                         }
-                                    }
-                                    
-                                    // 读取文件
-                                    val audioBytes = context.contentResolver.openInputStream(audioFile!!)?.use { it.readBytes() }
-                                    val lyricsBytes = lyricsFile?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
-                                    val coverBytes = if (coverBitmap != null) {
-                                        // 将Bitmap转换为ByteArray
-                                        val stream = java.io.ByteArrayOutputStream()
-                                        coverBitmap!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
-                                        stream.toByteArray()
-                                    } else {
-                                        // 使用用户手动选择的封面
-                                        coverImage?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
-                                    }
-                                    
-                                    // 模拟进度更新 - 准备上传阶段
-                                    uploadProgress = 30f
-                                    
-                                    // 模拟进度更新 - 上传中阶段
-                                    val uploadJob = launch {
-                                        while (isUploading && uploadProgress < 95f) {
-                                            kotlinx.coroutines.delay(100)
-                                            uploadProgress = (uploadProgress + 5f).coerceAtMost(95f)
+                                        
+                                        // 读取歌词文件（如果有）
+                                        val lyricsBytes = lyricsFile?.let { 
+                                            context.contentResolver.openInputStream(it)?.use { it.readBytes() }
                                         }
+                                        
+                                        // 处理封面图片
+                                        val coverBytes = if (coverBitmap != null) {
+                                            // 将Bitmap转换为ByteArray
+                                            val stream = java.io.ByteArrayOutputStream()
+                                            coverBitmap!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, stream)
+                                            stream.toByteArray()
+                                        } else {
+                                            // 使用用户手动选择的封面
+                                            coverImage?.let { context.contentResolver.openInputStream(it)?.use { it.readBytes() } }
+                                        }
+                                        
+                                        // 文件读取完成，确保进度到达30%
+                                        uploadProgress = 30f
+                                        
+                                        // 返回读取的文件数据
+                                        Triple(audioBytes, lyricsBytes, coverBytes)
                                     }
+                                    
+                                    // 等待文件读取完成
+                                    val (audioBytes, lyricsBytes, coverBytes) = readFileJob.await()
                                     
                                     if (audioBytes != null) {
                                         val userApi = com.neko.music.data.api.UserApi(token)
                                         
-                                        val response = userApi.uploadMusic(
-                                            audioFile = audioBytes,
-                                            audioFileName = audioFileName,
-                                            title = title,
-                                            artist = artist,
-                                            album = album,
-                                            language = languageCodeToChinese[languageCode] ?: languageCode,
-                                            tags = tags,
-                                            duration = durationSeconds,
-                                            uploadUserId = userId,
-                                            lyricsFile = lyricsBytes,
-                                            coverImage = coverBytes
-                                        )
+                                        // 第二阶段：准备上传阶段的跳动到70
+                                        launch {
+                                            while (isUploading && uploadProgress < 70f) {
+                                                kotlinx.coroutines.delay(80) // 准备上传
+                                                val jump = (2f + (0..3).random()).coerceAtMost(70f - uploadProgress)
+                                                uploadProgress = (uploadProgress + jump).coerceAtMost(70f)
+                                            }
+                                        }
                                         
-                                        // API调用完成后，等待模拟进度完成到95%，然后设置为100%
-                                        uploadJob.join()
-                                        uploadProgress = 100f
+                                        // 确保进度到达70%后开始实际上传
+                                        while (isUploading && uploadProgress < 70f) {
+                                            kotlinx.coroutines.delay(10)
+                                        }
                                         
-                                        if (response.success) {
-                                            onUploadSuccess()
-                                        } else {
+                                        // 第三阶段：实际上传过程，进度从70到99
+                                        val response = try {
+                                            // 开始实际上传，同时更新进度
+                                            val uploadJob = launch {
+                                                var currentProgress = 70f
+                                                while (isUploading && currentProgress < 99f) {
+                                                    kotlinx.coroutines.delay(200) // 实际上传需要时间
+                                                    // 根据实际上传进度缓慢跳动
+                                                    val jump = (0.5f + (0..1).random()).coerceAtMost(99f - currentProgress)
+                                                    currentProgress = (currentProgress + jump).coerceAtMost(99f)
+                                                    uploadProgress = currentProgress
+                                                }
+                                            }
+                                            
+                                            // 执行实际上传API调用
+                                            val apiResponse = userApi.uploadMusic(
+                                                audioFile = audioBytes,
+                                                audioFileName = audioFileName,
+                                                title = title,
+                                                artist = artist,
+                                                album = album,
+                                                language = languageCodeToChinese[languageCode] ?: languageCode,
+                                                tags = tags,
+                                                duration = durationSeconds,
+                                                uploadUserId = userId,
+                                                lyricsFile = lyricsBytes,
+                                                coverImage = coverBytes
+                                            )
+                                            
+                                            // 等待上传进度到达99%
+                                            uploadJob.join()
+                                            
+                                            apiResponse
+                                        } catch (e: Exception) {
+                                            // 上传失败，进度保持在当前值
+                                            // 检查是否是413错误（文件过大）
+                                            val errorMessage = when {
+                                                e.message?.contains("413") == true -> "文件过大，无法上传"
+                                                e.message?.contains("Request Entity Too Large") == true -> "文件过大，无法上传"
+                                                else -> "上传失败: ${e.message}"
+                                            }
                                             android.widget.Toast.makeText(
                                                 context,
-                                                response.message,
+                                                errorMessage,
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                            null
+                                        }
+                                        
+                                        if (response?.success == true) {
+                                            // 成功后才显示100%
+                                            uploadProgress = 100f
+                                            kotlinx.coroutines.delay(300) // 短暂显示100%
+                                            onUploadSuccess()
+                                        } else if (response != null) {
+                                            // API返回了响应但失败
+                                            val errorMessage = response.message ?: "上传失败"
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                errorMessage,
                                                 android.widget.Toast.LENGTH_SHORT
                                             ).show()
                                         }
