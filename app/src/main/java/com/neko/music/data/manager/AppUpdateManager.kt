@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.FileProvider
 import io.ktor.client.*
@@ -21,7 +23,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 import com.neko.music.util.UrlConfig
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.Headers
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.discard
 
 /**
  * 版本信息 JSON 数据类
@@ -29,7 +36,7 @@ import com.neko.music.util.UrlConfig
 @Serializable
 data class VersionResponse(
     val ver: String,
-    val updateUrl: String
+    val updateUrl: String,
 )
 
 /**
@@ -39,7 +46,7 @@ data class UpdateInfo(
     val versionName: String,
     val versionCode: Int,
     val updateUrl: String,
-    val isUpdateAvailable: Boolean
+    val isUpdateAvailable: Boolean,
 )
 
 /**
@@ -56,12 +63,24 @@ interface InstallPermissionCallback {
  */
 class AppUpdateManager(private val context: Context) {
     
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private val json = Json { ignoreUnknownKeys = true }
     
     private val client = HttpClient(OkHttp) {
         expectSuccess = false
         install(ContentNegotiation) {
             json(json)
+        }
+    }
+
+    /** 专用于 APK：无 ContentNegotiation，且对 CDN 使用 identity 编码，便于出现 Content-Length */
+    private val downloadClient = HttpClient(OkHttp) {
+        expectSuccess = false
+        engine {
+            config {
+                followRedirects(true)
+            }
         }
     }
     
@@ -121,7 +140,7 @@ class AppUpdateManager(private val context: Context) {
                 versionName = versionName,
                 versionCode = versionCode,
                 updateUrl = updateUrl,
-                isUpdateAvailable = isUpdateAvailable
+                isUpdateAvailable = isUpdateAvailable,
             )
         } catch (e: Exception) {
             Log.e("AppUpdateManager", "检查更新失败", e)
@@ -165,13 +184,106 @@ class AppUpdateManager(private val context: Context) {
         Log.w("AppUpdateManager", "无法从版本名中提取版本号: $versionName")
         return 1
     }
+
+    private fun Headers.contentLengthBytes(): Long =
+        get(HttpHeaders.ContentLength)
+            ?.substringBefore(',')
+            ?.trim()
+            ?.toLongOrNull()
+            ?: 0L
+
+    private fun HttpRequestBuilder.apkStreamHeaders() {
+        accept(ContentType.Application.OctetStream)
+        header(HttpHeaders.AcceptEncoding, "identity")
+        header(HttpHeaders.UserAgent, "NekoMusic-AppUpdate (Android)")
+    }
+
+    private fun resolveApkDownloadUrl(url: String): String = when {
+        url.startsWith("http://", ignoreCase = true) -> url
+        url.startsWith("https://", ignoreCase = true) -> url
+        url.startsWith("/") -> UrlConfig.buildFullUrl(url)
+        else -> UrlConfig.buildFullUrl("/$url")
+    }
+
+    /**
+     * 从 Content-Range（如 bytes 0-0/1234567）解析完整资源总字节。
+     */
+    private fun parseTotalBytesFromContentRange(header: String?): Long {
+        if (header.isNullOrBlank()) return 0L
+        val slash = header.lastIndexOf('/')
+        if (slash < 0 || slash >= header.length - 1) return 0L
+        val token = header.substring(slash + 1).trim()
+        if (token == "*") return 0L
+        return token.toLongOrNull() ?: 0L
+    }
+
+    /**
+     * 当 GET 响应无 Content-Length（如 chunked）时，尝试 HEAD 与 Range 探测总大小。
+     */
+    private suspend fun probeApkContentLengthBytes(url: String): Long {
+        runCatching {
+            val headResponse: HttpResponse = downloadClient.head(url) {
+                apkStreamHeaders()
+            }
+            val fromHead = headResponse.headers.contentLengthBytes()
+            if (fromHead > 0L) {
+                Log.d("AppUpdateManager", "HEAD 探测到 Content-Length: $fromHead")
+                return fromHead
+            }
+        }.onFailure {
+            Log.d("AppUpdateManager", "HEAD 探测不可用: ${it.message}")
+        }
+
+        runCatching {
+            val rangeResponse = downloadClient.prepareGet(url) {
+                apkStreamHeaders()
+                header(HttpHeaders.Range, "bytes=0-0")
+            }.execute()
+            try {
+                when (rangeResponse.status) {
+                    HttpStatusCode.PartialContent -> {
+                        val total = parseTotalBytesFromContentRange(
+                            rangeResponse.headers[HttpHeaders.ContentRange]
+                        )
+                        if (total > 0L) {
+                            Log.d("AppUpdateManager", "Range 206 探测到总大小: $total")
+                        }
+                        val ch = rangeResponse.body<ByteReadChannel>()
+                        ch.discard(Long.MAX_VALUE)
+                        return total
+                    }
+                    HttpStatusCode.OK -> {
+                        val cl = rangeResponse.headers.contentLengthBytes()
+                        runCatching { rangeResponse.body<ByteReadChannel>().cancel(null) }
+                        if (cl > 0L) {
+                            Log.d("AppUpdateManager", "Range 请求返回 200，使用 Content-Length: $cl")
+                            return cl
+                        }
+                    }
+                    else -> {
+                        runCatching { rangeResponse.body<ByteReadChannel>().cancel(null) }
+                    }
+                }
+            } finally {
+                runCatching {
+                    if (!rangeResponse.status.isSuccess()) {
+                        rangeResponse.body<ByteReadChannel>().cancel(null)
+                    }
+                }
+            }
+        }.onFailure {
+            Log.d("AppUpdateManager", "Range 探测失败: ${it.message}")
+        }
+
+        return 0L
+    }
     
     /**
      * 下载 APK 文件
      */
     suspend fun downloadApk(
         url: String,
-        onProgress: (Long, Long) -> Unit
+        onProgress: (Long, Long) -> Unit,
     ): File? = withContext(Dispatchers.IO) {
         return@withContext try {
             // 删除旧的更新文件
@@ -183,23 +295,60 @@ class AppUpdateManager(private val context: Context) {
             
             // 创建临时文件用于下载
             val tempFile = File(context.getExternalFilesDir(null), "update_temp.apk")
-            
-            val httpResponse = client.prepareGet(url) {
-                accept(io.ktor.http.ContentType.Application.OctetStream)
-            }.execute()
-            val contentLength = httpResponse.headers["Content-Length"]?.firstOrNull()?.toLong() ?: 0L
-            
-            if (contentLength > 0) {
-                onProgress(0L, contentLength)
+
+            val resolvedUrl = resolveApkDownloadUrl(url)
+            val probed = probeApkContentLengthBytes(resolvedUrl)
+
+            // IO 上更新 pending；主线程用 Handler 节流刷新。
+            // 注意：若每次 removeCallbacks + postDelayed(50)，在 read 极快时会不断把 Runnable 往后推，导致直到下载结束前从不执行 → 条子“不动”。
+            var pendingDone = 0L
+            var pendingTotal = 0L
+            val coalesceScheduled = AtomicBoolean(false)
+            val flushRunnable = Runnable {
+                onProgress(pendingDone, pendingTotal)
+                coalesceScheduled.set(false)
             }
+            fun scheduleProgress(done: Long, total: Long, immediate: Boolean) {
+                pendingDone = done
+                pendingTotal = total
+                if (immediate) {
+                    mainHandler.removeCallbacks(flushRunnable)
+                    coalesceScheduled.set(false)
+                    mainHandler.post(flushRunnable)
+                } else {
+                    if (coalesceScheduled.compareAndSet(false, true)) {
+                        mainHandler.postDelayed(flushRunnable, 50L)
+                    }
+                }
+            }
+
+            // GET 可能要等很久才返回响应头；先让界面显示探测到的总量
+            if (probed > 0L) {
+                scheduleProgress(0L, probed, immediate = true)
+            }
+
+            val getResponse = downloadClient.prepareGet(resolvedUrl) {
+                apkStreamHeaders()
+            }.execute()
+            val headerCl = getResponse.headers.contentLengthBytes()
+            // 探测（HEAD/Range）常比 GET 经 CDN 后的头更可靠；无探测再用 GET 的 Content-Length
+            val contentLength = when {
+                probed > 0L -> probed
+                headerCl > 0L -> headerCl
+                else -> 0L
+            }
+            Log.d(
+                "AppUpdateManager",
+                "开始下载 APK 总字节=$contentLength (GET Content-Length=$headerCl, 探测=$probed)"
+            )
+
+            val byteReadChannel = getResponse.body<ByteReadChannel>()
+            scheduleProgress(0L, contentLength, immediate = true)
             
-            // 使用ByteReadChannel流式下载
-            val byteReadChannel = httpResponse.body<io.ktor.utils.io.ByteReadChannel>()
             val outputStream = FileOutputStream(tempFile)
             val buffer = java.nio.ByteBuffer.allocate(8192)
             var totalBytes = 0L
-            
-            Log.d("AppUpdateManager", "开始下载，Content-Length: $contentLength")
+            var lastLogDone = 0L
             
             try {
                 while (!byteReadChannel.isClosedForRead) {
@@ -213,20 +362,20 @@ class AppUpdateManager(private val context: Context) {
                     buffer.get(data)
                     outputStream.write(data)
                     totalBytes += bytesRead
-                    
-                    // 每下载8KB更新一次进度
-                    if (totalBytes % 8192 == 0L || (contentLength > 0 && totalBytes == contentLength)) {
+                    scheduleProgress(totalBytes, contentLength, immediate = false)
+                    if (totalBytes - lastLogDone >= 512L * 1024L || totalBytes == contentLength) {
+                        lastLogDone = totalBytes
                         Log.d("AppUpdateManager", "下载进度: $totalBytes / $contentLength")
-                        onProgress(totalBytes, contentLength)
                     }
                 }
             } finally {
+                mainHandler.removeCallbacks(flushRunnable)
+                coalesceScheduled.set(false)
                 outputStream.close()
                 byteReadChannel.cancel(null)
             }
             
-            // 确保最后一次更新进度
-            onProgress(totalBytes, contentLength)
+            scheduleProgress(totalBytes, contentLength, immediate = true)
             
             // 下载完成后重命名为正式文件名
             if (tempFile.exists() && tempFile.length() > 0) {

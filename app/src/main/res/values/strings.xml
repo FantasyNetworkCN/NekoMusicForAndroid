@@ -123,6 +123,9 @@
     <string name="downloading_update_progress">正在下载更新喵</string>
     <string name="downloading_update_failed">下载坏掉了，等会再试喵</string>
     <string name="downloading_update_failed_msg">下载失败喵：%s</string>
+    <string name="update_download_bytes_pair" formatted="false">%1$s / %2$s 喵</string>
+    <string name="update_download_bytes_only" formatted="false">已下载 %1$s 喵</string>
+    <string name="update_download_percent">%d%% 喵</string>
     <string name="new_version_found">发现新猫娘版本喵</string>
     <string name="new_version">新版： %s 喵</string>
     <string name="version_code_display">版本号： %d 喵</string>

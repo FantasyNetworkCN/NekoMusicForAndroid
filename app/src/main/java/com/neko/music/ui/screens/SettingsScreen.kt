@@ -80,7 +80,8 @@ fun SettingsScreen(
     var showUpdateDialog by remember { mutableStateOf(false) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
-    var downloadProgress by remember { mutableStateOf(0f) }
+    var downloadTransferred by remember { mutableStateOf(0L) }
+    var downloadContentLength by remember { mutableStateOf(0L) }
     var showUpdateSuccessDialog by remember { mutableStateOf(false) }
     var showUpdateErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
@@ -177,7 +178,8 @@ fun SettingsScreen(
     val downloadAndInstall = {
         scope.launch {
             isDownloading = true
-            downloadProgress = 0f
+            downloadTransferred = 0L
+            downloadContentLength = 0L
 
             // 清理所有旧的更新文件
             updateManager.cleanupUpdateFiles()
@@ -186,10 +188,9 @@ fun SettingsScreen(
                 val apkFile = updateManager.downloadApk(
                     updateInfo!!.updateUrl,
                     { downloaded, total ->
-                        if (total > 0) {
-                            downloadProgress = downloaded.toFloat() / total.toFloat()
-                        }
-                    }
+                        downloadTransferred = downloaded
+                        downloadContentLength = total
+                    },
                 )
 
                 if (apkFile != null) {
@@ -386,7 +387,8 @@ fun SettingsScreen(
 
             if (isDownloading) {
                 AppUpdateDownloadProgressDialog(
-                    progress = downloadProgress,
+                    transferredBytes = downloadTransferred,
+                    contentLengthBytes = downloadContentLength,
                     onDismiss = { isDownloading = false }
                 )
             }
