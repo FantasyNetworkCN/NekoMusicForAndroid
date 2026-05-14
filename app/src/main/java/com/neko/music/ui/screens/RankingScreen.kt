@@ -51,6 +51,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.list.RankingLiquidBarState
@@ -333,16 +334,18 @@ fun ErrorState(
             color = scheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(20.dp))
+        val retryGlass = LiquidGlassDefaults.rankingRetryButton
         GlassSurface(
             modifier = Modifier
                 .clickable { onRetry() }
                 .padding(horizontal = 24.dp, vertical = 10.dp),
             shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = if (isDark) 0.28f else 0.12f,
-            borderAlpha = if (isDark) 0.18f else 0.14f,
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp,
+            backgroundAlpha = retryGlass.tint.background(isDark),
+            borderAlpha = retryGlass.tint.border(isDark),
+            highlightAlpha = retryGlass.tint.highlight(isDark),
+            liquidBlur = retryGlass.liquid.blur,
+            liquidLensHeight = retryGlass.liquid.lensHeight,
+            liquidLensAmount = retryGlass.liquid.lensAmount,
             borderColor = if (isDark) Color.White else scheme.outline
         ) {
             Box(
@@ -404,30 +407,20 @@ fun RankingItem(
     val subtitleColor = scheme.onSurfaceVariant
     val metaColor = scheme.onSurfaceVariant.copy(alpha = 0.85f)
 
+    val itemGlass = LiquidGlassDefaults.rankingListItem
+    val isTop3 = rank <= 3
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDark) {
-            if (rank <= 3) 0.32f else 0.22f
-        } else {
-            if (rank <= 3) 0.12f else 0.08f
-        },
-        borderAlpha = if (isDark) {
-            if (rank <= 3) 0.2f else 0.14f
-        } else {
-            if (rank <= 3) 0.14f else 0.1f
-        },
-        highlightAlpha = if (isDark) {
-            if (rank <= 3) 0.1f else 0.06f
-        } else {
-            if (rank <= 3) 0.06f else 0.04f
-        },
-        liquidBlur = 4.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 32.dp,
+        backgroundAlpha = itemGlass.backgroundAlpha(isTop3, isDark),
+        borderAlpha = itemGlass.borderAlpha(isTop3, isDark),
+        highlightAlpha = itemGlass.highlightAlpha(isTop3, isDark),
+        liquidBlur = itemGlass.liquid.blur,
+        liquidLensHeight = itemGlass.liquid.lensHeight,
+        liquidLensAmount = itemGlass.liquid.lensAmount,
         borderColor = if (isDark) Color.White else scheme.outline
     ) {
         Row(

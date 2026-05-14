@@ -63,6 +63,7 @@ import com.neko.music.data.model.Playlist
 import com.neko.music.ui.theme.*
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
@@ -531,6 +532,7 @@ fun MyPlaylistsScreen(
                             item {
                                 val isDark = isSystemInDarkTheme()
                                 val rowScheme = MaterialTheme.colorScheme
+                                val rowGlass = LiquidGlassDefaults.myPlaylistsListRow
                                 GlassSurface(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -549,13 +551,13 @@ fun MyPlaylistsScreen(
                                             }
                                         },
                                     shape = RoundedCornerShape(16.dp),
-                                    backgroundAlpha = if (isDark) 0.24f else 0.12f,
-                                    borderAlpha = if (isDark) 0.16f else 0.12f,
-                                    highlightAlpha = if (isDark) 0.09f else 0.06f,
+                                    backgroundAlpha = rowGlass.tint.background(isDark),
+                                    borderAlpha = rowGlass.tint.border(isDark),
+                                    highlightAlpha = rowGlass.tint.highlight(isDark),
                                     borderColor = if (isDark) Color.White else rowScheme.outline,
-                                    liquidBlur = 8.dp,
-                                    liquidLensHeight = 16.dp,
-                                    liquidLensAmount = 26.dp
+                                    liquidBlur = rowGlass.liquid.blur,
+                                    liquidLensHeight = rowGlass.liquid.lensHeight,
+                                    liquidLensAmount = rowGlass.liquid.lensAmount
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
@@ -691,6 +693,7 @@ fun PlaylistItem(
         url
     }
 
+    val rowGlass = LiquidGlassDefaults.myPlaylistsListRow
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -701,13 +704,13 @@ fun PlaylistItem(
             }
             .scale(scale),
         shape = RoundedCornerShape(16.dp),
-        backgroundAlpha = if (isDarkTheme) 0.24f else 0.12f,
-        borderAlpha = if (isDarkTheme) 0.16f else 0.12f,
-        highlightAlpha = if (isDarkTheme) 0.09f else 0.06f,
+        backgroundAlpha = rowGlass.tint.background(isDarkTheme),
+        borderAlpha = rowGlass.tint.border(isDarkTheme),
+        highlightAlpha = rowGlass.tint.highlight(isDarkTheme),
         borderColor = if (isDarkTheme) Color.White else itemScheme.outline,
-        liquidBlur = 8.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 26.dp
+        liquidBlur = rowGlass.liquid.blur,
+        liquidLensHeight = rowGlass.liquid.lensHeight,
+        liquidLensAmount = rowGlass.liquid.lensAmount
     ) {
         Row(
             modifier = Modifier
@@ -928,13 +931,15 @@ fun PlaylistDialog(
 
                     Spacer(modifier = Modifier.width(14.dp))
 
+                    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
                     GlassSurface(
                         modifier = Modifier
                             .height(48.dp)
                             .clickable(enabled = playlistName.isNotBlank()) { onConfirm() },
                         shape = RoundedCornerShape(14.dp),
-                        backgroundAlpha = if (isDarkTheme) 0.32f else 0.12f,
-                        borderAlpha = if (isDarkTheme) 0.18f else 0.12f
+                        backgroundAlpha = confirmGlass.background(isDarkTheme),
+                        borderAlpha = confirmGlass.border(isDarkTheme),
+                        highlightAlpha = confirmGlass.highlight(isDarkTheme)
                     ) {
                         Box(
                             modifier = Modifier.fillMaxSize(),

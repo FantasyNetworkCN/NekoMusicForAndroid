@@ -89,6 +89,7 @@ import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
@@ -448,9 +449,10 @@ fun MusicItem(
         label = "scale"
     )
     val isDarkTheme = isSystemInDarkTheme()
-    val glassBg = if (isDarkTheme) 0.28f else 0.08f
-    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
-    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+    val glassTint = LiquidGlassDefaults.screenListCard
+    val glassBg = glassTint.background(isDarkTheme)
+    val glassBorder = glassTint.border(isDarkTheme)
+    val glassHighlight = glassTint.highlight(isDarkTheme)
 
     GlassSurface(
         modifier = Modifier

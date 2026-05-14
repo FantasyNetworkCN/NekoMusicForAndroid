@@ -17,16 +17,21 @@ fun ShareSheetLiquidSection(
 ) {
     val isDark = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val sectionGlass = LiquidGlassDefaults.shareSheetSection
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        backgroundAlpha = if (isDark) 0.17f else 0.22f,
-        borderAlpha = if (isDark) 0.22f else 0.17f,
-        highlightAlpha = if (isDark) 0.07f else 0.09f,
-        borderColor = if (isDark) SakuraPink.copy(alpha = 0.42f) else scheme.outline,
-        liquidBlur = 9.dp,
-        liquidLensHeight = 12.dp,
-        liquidLensAmount = 22.dp,
+        backgroundAlpha = sectionGlass.tint.background(isDark),
+        borderAlpha = sectionGlass.tint.border(isDark),
+        highlightAlpha = sectionGlass.tint.highlight(isDark),
+        borderColor = if (isDark) {
+            SakuraPink.copy(alpha = LiquidGlassDefaults.shareSheetSectionDarkBorderSakuraAlpha)
+        } else {
+            scheme.outline
+        },
+        liquidBlur = sectionGlass.liquid.blur,
+        liquidLensHeight = sectionGlass.liquid.lensHeight,
+        liquidLensAmount = sectionGlass.liquid.lensAmount,
     ) {
         content()
     }
