@@ -346,6 +346,10 @@
     <string name="playlist_batch_delete">删除所选（%d）</string>
     <string name="playlist_batch_delete_confirm">确定从歌单中移除 %d 首歌？</string>
     <string name="playlist_batch_delete_partial">已移除 %1$d 首，%2$d 首未能移除</string>
+    <string name="playlist_batch_download">下载所选（%d）</string>
+    <string name="playlist_batch_download_all_ok">已开始下载 %d 首</string>
+    <string name="playlist_batch_download_all_fail">%d 首未能开始下载</string>
+    <string name="playlist_batch_download_partial">已开始 %1$d 首，%2$d 首失败</string>
 
     <string name="playback_list">播放列表</string>
     <string name="playlist_empty">播放列表为空</string>

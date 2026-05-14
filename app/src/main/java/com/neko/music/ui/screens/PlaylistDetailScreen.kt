@@ -100,9 +100,13 @@ import com.neko.music.data.api.PlaylistMusic
 import com.neko.music.data.api.PlaylistMusicListResponse
 import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.data.model.Music
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.util.DownloadHelper
 import com.neko.music.util.UrlConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun PlaylistDetailScreen(
@@ -799,24 +803,104 @@ fun PlaylistDetailScreen(
                                             fontSize = 15.sp
                                         )
                                     }
-                                    Button(
-                                        onClick = {
-                                            if (selectedIds.isNotEmpty()) {
-                                                showBatchDeleteConfirm = true
-                                            }
-                                        },
-                                        enabled = selectedIds.isNotEmpty(),
-                                        colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
-                                        shape = RoundedCornerShape(20.dp)
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = stringResource(
-                                                id = R.string.playlist_batch_delete,
-                                                selectedIds.size
+                                        TextButton(
+                                            onClick = {
+                                                if (selectedIds.isEmpty()) return@TextButton
+                                                val targets =
+                                                    musicList.filter { it.id in selectedIds }
+                                                scope.launch {
+                                                    val appCtx = context.applicationContext
+                                                    val (total, fails) = withContext(Dispatchers.IO) {
+                                                        val helper = DownloadHelper(appCtx)
+                                                        var failCount = 0
+                                                        for (pm in targets) {
+                                                            val model = Music(
+                                                                pm.id,
+                                                                pm.title,
+                                                                pm.artist,
+                                                                pm.coverPath ?: "",
+                                                                pm.duration,
+                                                                "",
+                                                                "",
+                                                                0,
+                                                                ""
+                                                            )
+                                                            try {
+                                                                val r =
+                                                                    helper.downloadMusicWithLyrics(model)
+                                                                if (r.isFailure) failCount++
+                                                            } catch (_: Exception) {
+                                                                failCount++
+                                                            }
+                                                        }
+                                                        targets.size to failCount
+                                                    }
+                                                    val msg = when {
+                                                        fails == 0 ->
+                                                            context.getString(
+                                                                R.string.playlist_batch_download_all_ok,
+                                                                total
+                                                            )
+                                                        fails == total ->
+                                                            context.getString(
+                                                                R.string.playlist_batch_download_all_fail,
+                                                                total
+                                                            )
+                                                        else ->
+                                                            context.getString(
+                                                                R.string.playlist_batch_download_partial,
+                                                                total - fails,
+                                                                fails
+                                                            )
+                                                    }
+                                                    Toast.makeText(
+                                                        context,
+                                                        msg,
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            },
+                                            enabled = selectedIds.isNotEmpty(),
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = RoseRed,
+                                                disabledContentColor = RoseRed.copy(alpha = 0.35f)
+                                            )
+                                        ) {
+                                            Text(
+                                                text = stringResource(
+                                                    id = R.string.playlist_batch_download,
+                                                    selectedIds.size
+                                                ),
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        Button(
+                                            onClick = {
+                                                if (selectedIds.isNotEmpty()) {
+                                                    showBatchDeleteConfirm = true
+                                                }
+                                            },
+                                            enabled = selectedIds.isNotEmpty(),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = RoseRed,
+                                                disabledContainerColor = RoseRed.copy(alpha = 0.35f)
                                             ),
-                                            color = Color.White,
-                                            fontSize = 15.sp
-                                        )
+                                            shape = RoundedCornerShape(20.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(
+                                                    id = R.string.playlist_batch_delete,
+                                                    selectedIds.size
+                                                ),
+                                                color = Color.White,
+                                                fontSize = 15.sp
+                                            )
+                                        }
                                     }
                                 }
                             }
