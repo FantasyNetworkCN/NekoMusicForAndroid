@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.neko.music.config.AppConfig
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
@@ -52,7 +54,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit = {},
-    onNavigateToCache: () -> Unit = {}
+    onNavigateToCache: () -> Unit = {},
+    onNavigateToPersonalization: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -99,6 +102,15 @@ fun SettingsScreen(
     val languagePrefs = remember { context.getSharedPreferences("app_settings", Context.MODE_PRIVATE) }
     var currentLanguage by remember { mutableStateOf(languagePrefs.getString("language", "system") ?: "system") }
     var showLanguageDialog by remember { mutableStateOf(false) }
+
+    val themeMode =
+        languagePrefs.getString(AppConfig.PrefConfig.KEY_THEME, AppConfig.PrefConfig.DEFAULT_THEME)
+            ?: AppConfig.PrefConfig.DEFAULT_THEME
+    val themeSubtitle = when (themeMode) {
+        "light" -> stringResource(id = R.string.theme_light)
+        "dark" -> stringResource(id = R.string.theme_dark)
+        else -> stringResource(id = R.string.theme_follow_system)
+    }
     
     // 悬浮窗权限检查
     var hasOverlayPermission by remember {
@@ -330,6 +342,17 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                SettingSection(title = stringResource(id = R.string.personalization_section)) {
+                    SettingItem(
+                        icon = Icons.Filled.Palette,
+                        title = stringResource(id = R.string.personalization),
+                        subtitle = themeSubtitle,
+                        onClick = onNavigateToPersonalization
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 SettingSection(title = stringResource(id = R.string.general)) {
                     SettingSwitchItem(
                         icon = Icons.Default.Info,
@@ -431,10 +454,11 @@ fun SettingsScreen(
 
 @Composable
 fun SettingSection(
-        title: String,
-        content: @Composable ColumnScope.() -> Unit
-    ) {
-        val isDark = isSystemInDarkTheme()
+    title: String,
+    useDarkAppearance: Boolean? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+        val isDark = useDarkAppearance ?: isSystemInDarkTheme()
         val glassTint = LiquidGlassDefaults.screenListCard
         val glassBg = glassTint.background(isDark)
         val glassBorder = glassTint.border(isDark)

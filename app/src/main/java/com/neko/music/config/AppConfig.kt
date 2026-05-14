@@ -102,11 +102,14 @@ object AppConfig {
     object PrefConfig {
         const val KEY_LANGUAGE = "language"
         const val KEY_THEME = "theme"
+        /** 是否使用 Material You 动态取色（Android 12+ 有效） */
+        const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_DESKTOP_LYRIC = "desktop_lyric_enabled"
         const val KEY_CACHE = "cache_enabled"
         const val KEY_FOCUS_LOCK = "focus_lock_enabled"
         
         const val DEFAULT_LANGUAGE = "system"
         const val DEFAULT_THEME = "auto"
+        const val DEFAULT_DYNAMIC_COLOR = true
     }
 }
