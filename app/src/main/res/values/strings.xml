@@ -39,6 +39,12 @@
     <string name="liquid_glass_reset_default">恢复默认喵</string>
     <string name="liquid_glass_save_apply">保存并应用喵</string>
 
+    <string name="lyric_highlight_color_section">播放页歌词高亮喵</string>
+    <string name="lyric_highlight_follow_theme">跟随主题默认喵</string>
+    <string name="lyric_highlight_preview_prev">上一句歌词示意喵</string>
+    <string name="lyric_highlight_preview_current">当前句会像这样高亮喵</string>
+    <string name="lyric_highlight_preview_next">下一句歌词示意喵</string>
+
     <string name="version">版本喵</string>
     <string name="update_available">发现进化机会喵！</string>
     <string name="update_version">新版本：%s 喵</string>
