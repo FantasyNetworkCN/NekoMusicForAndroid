@@ -106,6 +106,22 @@ class PlaylistManager private constructor(context: Context) {
     suspend fun removeFromPlaylist(musicId: Int) {
         dao.removeFromPlaylist(musicId)
     }
+
+    /**
+     * 按 [musicIds] 的顺序重写待播队列（与列表 UI 一致）。
+     */
+    suspend fun applyQueueOrder(musicIds: List<Int>) {
+        val db = dao.getAllPlaylistList()
+        if (musicIds.isEmpty() || db.size != musicIds.size) return
+        if (musicIds.toSet().size != musicIds.size) return
+        if (db.map { it.musicId }.toSet() != musicIds.toSet()) {
+            android.util.Log.w("PlaylistManager", "applyQueueOrder: 与数据库曲目集合不一致，已忽略")
+            return
+        }
+        val map = db.associateBy { it.musicId }
+        val ordered = musicIds.map { map.getValue(it) }
+        dao.replacePlaylistOrdered(ordered.map { it.copy(id = 0L) })
+    }
     
     suspend fun clearPlaylist() {
         dao.clearPlaylist()

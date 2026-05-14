@@ -337,6 +337,8 @@
 
     <string name="playback_list">待会儿播喵</string>
     <string name="playlist_empty">后面没歌了，快加点喵！</string>
+    <string name="playback_queue_remove_from_list">从待播里拿掉喵</string>
+    <string name="content_description_drag_reorder">长按条目左侧并拖动即可调整顺序喵</string>
 
     <string name="no_play_history">欸？主人最近没听过歌喵？</string>
     <string name="no_related_songs">没找到相关的喵~</string>
