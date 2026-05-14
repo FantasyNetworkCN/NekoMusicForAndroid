@@ -118,5 +118,8 @@ object AppConfig {
         const val KEY_LIQUID_GLASS_LENS_HEIGHT = "liquid_glass_lens_h"
         const val KEY_LIQUID_GLASS_LENS_AMOUNT = "liquid_glass_lens_amt"
         const val DEFAULT_LIQUID_GLASS_STRENGTH = 1f
+
+        /** 播放页当前句歌词高亮色（ARGB）。未写入该键时跟随主题默认色。 */
+        const val KEY_LYRIC_HIGHLIGHT_COLOR = "lyric_highlight_color_argb"
     }
 }

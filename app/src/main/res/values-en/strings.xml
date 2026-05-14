@@ -38,6 +38,12 @@
     <string name="liquid_glass_lens_amount">Refraction amount</string>
     <string name="liquid_glass_reset_default">Reset to defaults</string>
     <string name="liquid_glass_save_apply">Save &amp; apply</string>
+
+    <string name="lyric_highlight_color_section">Lyric highlight (player)</string>
+    <string name="lyric_highlight_follow_theme">Theme default</string>
+    <string name="lyric_highlight_preview_prev">Previous line</string>
+    <string name="lyric_highlight_preview_current">Current line is highlighted like this</string>
+    <string name="lyric_highlight_preview_next">Next line</string>
     
     <!-- Version Info -->
     <string name="version">Version</string>

@@ -2,6 +2,7 @@ package com.neko.music.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -72,11 +73,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -107,6 +110,7 @@ import coil3.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.neko.music.config.AppConfig
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
@@ -119,6 +123,7 @@ import com.neko.music.service.PlayMode
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
+import com.neko.music.ui.theme.lyricHighlightColorFromPrefs
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -1752,6 +1757,23 @@ fun LyricsView(
             listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
         ) {
             val isDarkTheme = isSystemInDarkTheme()
+            val context = LocalContext.current
+            val appPrefs = remember(context) {
+                context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+            }
+            var lyricHighlightRev by remember { mutableIntStateOf(0) }
+            DisposableEffect(appPrefs) {
+                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    if (key == AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR) {
+                        lyricHighlightRev++
+                    }
+                }
+                appPrefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { appPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+            val highlightColor = remember(isDarkTheme, lyricHighlightRev) {
+                lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
+            }
             val currentIndex = remember(lyrics, currentProgressSeconds) {
                 lyrics.indexOfLast { it.time <= currentProgressSeconds }
             }
@@ -1817,7 +1839,7 @@ fun LyricsView(
                             items(lyrics.size) { index ->
                                 val line = lyrics[index]
                                 val isCurrentLine = index == currentIndex
-                                val currentLineColor = if (isDarkTheme) SakuraPink else RoseRed
+                                val currentLineColor = highlightColor
                                 val otherLineColor = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else Color.Gray
 
                                 Column(
@@ -1836,7 +1858,9 @@ fun LyricsView(
                                         style = if (isCurrentLine) {
                                             androidx.compose.ui.text.TextStyle(
                                                 shadow = androidx.compose.ui.graphics.Shadow(
-                                                    color = if (isDarkTheme) SakuraPink.copy(alpha = 0.5f) else currentLineColor.copy(alpha = 0.3f),
+                                                    color = highlightColor.copy(
+                                                        alpha = if (isDarkTheme) 0.5f else 0.3f
+                                                    ),
                                                     offset = androidx.compose.ui.geometry.Offset(0f, 0f),
                                                     blurRadius = 14f
                                                 )
@@ -1856,7 +1880,9 @@ fun LyricsView(
                                             style = if (isCurrentLine) {
                                                 androidx.compose.ui.text.TextStyle(
                                                     shadow = androidx.compose.ui.graphics.Shadow(
-                                                        color = if (isDarkTheme) SkyBlue.copy(alpha = 0.4f) else currentLineColor.copy(alpha = 0.25f),
+                                                        color = highlightColor.copy(
+                                                            alpha = if (isDarkTheme) 0.45f else 0.25f
+                                                        ),
                                                         offset = androidx.compose.ui.geometry.Offset(0f, 0f),
                                                         blurRadius = 10f
                                                     )

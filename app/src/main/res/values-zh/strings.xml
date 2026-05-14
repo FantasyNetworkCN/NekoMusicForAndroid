@@ -37,6 +37,12 @@
     <string name="liquid_glass_lens_amount">折射强度</string>
     <string name="liquid_glass_reset_default">恢复默认</string>
     <string name="liquid_glass_save_apply">保存并应用</string>
+
+    <string name="lyric_highlight_color_section">播放页歌词高亮</string>
+    <string name="lyric_highlight_follow_theme">跟随主题默认</string>
+    <string name="lyric_highlight_preview_prev">上一句歌词示意</string>
+    <string name="lyric_highlight_preview_current">当前句会像这样高亮</string>
+    <string name="lyric_highlight_preview_next">下一句歌词示意</string>
     
     <!-- 版本信息 -->
     <string name="version">版本</string>
