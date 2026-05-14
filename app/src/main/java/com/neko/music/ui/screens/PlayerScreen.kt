@@ -120,6 +120,7 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -646,16 +647,17 @@ fun PlayerScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
+                val topChrome = LiquidGlassDefaults.playerTopBar
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(22.dp),
-                    backgroundAlpha = if (isDarkTheme) 0.22f else 0.28f,
-                    borderAlpha = if (isDarkTheme) 0.28f else 0.22f,
-                    highlightAlpha = if (isDarkTheme) 0.12f else 0.14f,
+                    backgroundAlpha = topChrome.tint.background(isDarkTheme),
+                    borderAlpha = topChrome.tint.border(isDarkTheme),
+                    highlightAlpha = topChrome.tint.highlight(isDarkTheme),
                     borderColor = if (isDarkTheme) SakuraPink else colorScheme.outline,
-                    liquidBlur = 14.dp,
-                    liquidLensHeight = 18.dp,
-                    liquidLensAmount = 30.dp
+                    liquidBlur = topChrome.liquid.blur,
+                    liquidLensHeight = topChrome.liquid.lensHeight,
+                    liquidLensAmount = topChrome.liquid.lensAmount
                 ) {
                     TopBar(
                         isDarkTheme = isDarkTheme,
@@ -673,16 +675,17 @@ fun PlayerScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
+                val bottomChrome = LiquidGlassDefaults.playerBottomChrome
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    backgroundAlpha = if (isDarkTheme) 0.24f else 0.32f,
-                    borderAlpha = if (isDarkTheme) 0.28f else 0.22f,
-                    highlightAlpha = if (isDarkTheme) 0.11f else 0.13f,
+                    backgroundAlpha = bottomChrome.tint.background(isDarkTheme),
+                    borderAlpha = bottomChrome.tint.border(isDarkTheme),
+                    highlightAlpha = bottomChrome.tint.highlight(isDarkTheme),
                     borderColor = if (isDarkTheme) SakuraPink else colorScheme.outline,
-                    liquidBlur = 14.dp,
-                    liquidLensHeight = 18.dp,
-                    liquidLensAmount = 32.dp
+                    liquidBlur = bottomChrome.liquid.blur,
+                    liquidLensHeight = bottomChrome.liquid.lensHeight,
+                    liquidLensAmount = bottomChrome.liquid.lensAmount
                 ) {
                     Column(
                         modifier = Modifier
@@ -2150,18 +2153,19 @@ fun ShareDialog(
                 )
         ) {
             val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+            val sharePanel = LiquidGlassDefaults.playerShareBottomSheet
             GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
                 shape = panelShape,
-                backgroundAlpha = if (isDarkTheme) 0.26f else 0.30f,
-                borderAlpha = if (isDarkTheme) 0.26f else 0.20f,
-                highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                backgroundAlpha = sharePanel.tint.background(isDarkTheme),
+                borderAlpha = sharePanel.tint.border(isDarkTheme),
+                highlightAlpha = sharePanel.tint.highlight(isDarkTheme),
                 borderColor = if (isDarkTheme) SakuraPink else scheme.outline,
-                liquidBlur = 11.dp,
-                liquidLensHeight = 16.dp,
-                liquidLensAmount = 28.dp
+                liquidBlur = sharePanel.liquid.blur,
+                liquidLensHeight = sharePanel.liquid.lensHeight,
+                liquidLensAmount = sharePanel.liquid.lensAmount
             ) {
                 ShareDialogContent(
                     isDarkTheme = isDarkTheme,

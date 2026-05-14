@@ -39,6 +39,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
@@ -110,6 +111,7 @@ private fun ListScreenLiquidTopBarOverlay(
             .statusBarsPadding()
             .onSizeChanged { onBarHeightChanged(it.height) }
     ) {
+        val topBarGlass = LiquidGlassDefaults.rankingLatestTopBar
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -117,13 +119,13 @@ private fun ListScreenLiquidTopBarOverlay(
                 .height(52.dp),
             shape = RoundedCornerShape(22.dp),
             sampleBackdrop = backdropForGlass,
-            backgroundAlpha = if (isDark) 0.35f else 0.30f,
-            borderAlpha = if (isDark) 0.18f else 0.20f,
-            highlightAlpha = if (isDark) 0.08f else 0.10f,
+            backgroundAlpha = topBarGlass.tint.background(isDark),
+            borderAlpha = topBarGlass.tint.border(isDark),
+            highlightAlpha = topBarGlass.tint.highlight(isDark),
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            liquidBlur = topBarGlass.liquid.blur,
+            liquidLensHeight = topBarGlass.liquid.lensHeight,
+            liquidLensAmount = topBarGlass.liquid.lensAmount
         ) {
             Row(
                 modifier = Modifier

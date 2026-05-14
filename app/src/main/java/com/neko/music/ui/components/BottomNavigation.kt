@@ -213,18 +213,19 @@ fun BottomNavigationBar(
                 }
             }
 
+            val dockGlass = LiquidGlassDefaults.bottomNavigationDock
             GlassSurface(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer { translationX = panelOffsetPx },
                 shape = RoundedCornerShape(28.dp),
-                backgroundAlpha = if (isDarkBar) 0.32f else 0.26f,
-                borderAlpha = if (isDarkBar) 0.15f else 0.20f,
-                highlightAlpha = if (isDarkBar) 0.08f else 0.12f,
+                backgroundAlpha = dockGlass.tint.background(isDarkBar),
+                borderAlpha = dockGlass.tint.border(isDarkBar),
+                highlightAlpha = dockGlass.tint.highlight(isDarkBar),
                 borderColor = if (isDarkBar) Color.White else colorScheme.outline.copy(alpha = 1f),
-                liquidBlur = 4.dp,
-                liquidLensHeight = 16.dp,
-                liquidLensAmount = 32.dp
+                liquidBlur = dockGlass.liquid.blur,
+                liquidLensHeight = dockGlass.liquid.lensHeight,
+                liquidLensAmount = dockGlass.liquid.lensAmount
             ) {
                 NavigationGlassSlider(
                     modifier = Modifier.fillMaxSize(),
@@ -380,15 +381,17 @@ fun MiniPlayer(
     // 获取当前主题的背景色
     val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
 
+    val miniTint = LiquidGlassDefaults.miniPlayerBar
+    val miniLiq = LiquidGlassDefaults.liquidSoft
     GlassSurface(
         modifier = Modifier.fillMaxWidth().height(68.dp),
         shape = RoundedCornerShape(28.dp),
-        backgroundAlpha = 0.32f,
-        borderAlpha = 0.15f,
-        highlightAlpha = 0.08f,
-        liquidBlur = 4.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 32.dp
+        backgroundAlpha = miniTint.backgroundAlpha,
+        borderAlpha = miniTint.borderAlpha,
+        highlightAlpha = miniTint.highlightAlpha,
+        liquidBlur = miniLiq.blur,
+        liquidLensHeight = miniLiq.lensHeight,
+        liquidLensAmount = miniLiq.lensAmount
     ) {
         Box(
             modifier = Modifier

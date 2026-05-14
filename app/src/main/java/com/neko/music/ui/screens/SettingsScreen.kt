@@ -42,6 +42,7 @@ import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
@@ -221,9 +222,10 @@ fun SettingsScreen(
     val pageBackdrop = rememberLiquidPageBackdrop(
         if (isDarkTheme) Color(0xFF121228) else scheme.background
     )
-    val glassBg = if (isDarkTheme) 0.28f else 0.08f
-    val glassBorder = if (isDarkTheme) 0.14f else 0.08f
-    val glassHighlight = if (isDarkTheme) 0.08f else 0.04f
+    val glassTint = LiquidGlassDefaults.screenListCard
+    val glassBg = glassTint.background(isDarkTheme)
+    val glassBorder = glassTint.border(isDarkTheme)
+    val glassHighlight = glassTint.highlight(isDarkTheme)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -433,9 +435,10 @@ fun SettingSection(
         content: @Composable ColumnScope.() -> Unit
     ) {
         val isDark = isSystemInDarkTheme()
-        val glassBg = if (isDark) 0.28f else 0.08f
-        val glassBorder = if (isDark) 0.14f else 0.08f
-        val glassHighlight = if (isDark) 0.08f else 0.04f
+        val glassTint = LiquidGlassDefaults.screenListCard
+        val glassBg = glassTint.background(isDark)
+        val glassBorder = glassTint.border(isDark)
+        val glassHighlight = glassTint.highlight(isDark)
         Column {
             Text(
                 text = title,

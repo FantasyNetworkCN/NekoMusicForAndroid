@@ -59,6 +59,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchHistory
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
@@ -353,14 +354,15 @@ fun PlaylistItem(
     
     val isDarkTheme = isSystemInDarkTheme()
 
+    val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
-        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
-        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
+        backgroundAlpha = listTint.background(isDarkTheme),
+        borderAlpha = listTint.border(isDarkTheme),
+        highlightAlpha = listTint.highlight(isDarkTheme)
     ) {
         Row(
             modifier = Modifier
@@ -470,15 +472,16 @@ fun MusicItem(
         }
     }
     
+    val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
-        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
-        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
+        backgroundAlpha = listTint.background(isDarkTheme),
+        borderAlpha = listTint.border(isDarkTheme),
+        highlightAlpha = listTint.highlight(isDarkTheme)
     ) {
         Row(
             modifier = Modifier
@@ -598,15 +601,16 @@ fun SearchHistoryList(
             contentPadding = PaddingValues(bottom = 220.dp)
         ) {
             items(history) { item ->
+                val chipTint = LiquidGlassDefaults.searchHistoryRow
                 GlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(40.dp)
                         .clickable { onItemClick(item.query) },
                     shape = RoundedCornerShape(10.dp),
-                    backgroundAlpha = if (isDarkTheme) 0.22f else 0.06f,
-                    borderAlpha = if (isDarkTheme) 0.12f else 0.06f,
-                    highlightAlpha = if (isDarkTheme) 0.06f else 0.03f
+                    backgroundAlpha = chipTint.background(isDarkTheme),
+                    borderAlpha = chipTint.border(isDarkTheme),
+                    highlightAlpha = chipTint.highlight(isDarkTheme)
                 ) {
                     Row(
                         modifier = Modifier
@@ -889,14 +893,15 @@ fun ArtistItem(
     
     val isDarkTheme = isSystemInDarkTheme()
 
+    val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDarkTheme) 0.28f else 0.08f,
-        borderAlpha = if (isDarkTheme) 0.14f else 0.08f,
-        highlightAlpha = if (isDarkTheme) 0.08f else 0.04f
+        backgroundAlpha = listTint.background(isDarkTheme),
+        borderAlpha = listTint.border(isDarkTheme),
+        highlightAlpha = listTint.highlight(isDarkTheme)
     ) {
         Row(
             modifier = Modifier

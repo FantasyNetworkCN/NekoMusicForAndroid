@@ -58,6 +58,7 @@ fun AppUpdatePromptDialog(
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
+    val appUpdateGlass = LiquidGlassDefaults.appUpdateDialog
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
@@ -68,13 +69,13 @@ fun AppUpdatePromptDialog(
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
             sampleBackdrop = appDialogSampleBackdrop(),
-            backgroundAlpha = if (isDark) 0.34f else 0.22f,
-            borderAlpha = if (isDark) 0.18f else 0.12f,
-            highlightAlpha = if (isDark) 0.09f else 0.07f,
-            borderColor = if (isDark) SakuraPink.copy(alpha = 0.48f) else scheme.outline,
-            liquidBlur = 6.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            backgroundAlpha = appUpdateGlass.tint.background(isDark),
+            borderAlpha = appUpdateGlass.tint.border(isDark),
+            highlightAlpha = appUpdateGlass.tint.highlight(isDark),
+            borderColor = if (isDark) SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha) else scheme.outline,
+            liquidBlur = appUpdateGlass.liquid.blur,
+            liquidLensHeight = appUpdateGlass.liquid.lensHeight,
+            liquidLensAmount = appUpdateGlass.liquid.lensAmount
         ) {
             Column(modifier = Modifier.padding(32.dp)) {
                 Box(
@@ -162,6 +163,7 @@ fun AppUpdateDownloadProgressDialog(
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
+    val appUpdateGlass = LiquidGlassDefaults.appUpdateDialog
     Dialog(
         onDismissRequest = { },
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
@@ -172,13 +174,13 @@ fun AppUpdateDownloadProgressDialog(
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
             sampleBackdrop = appDialogSampleBackdrop(),
-            backgroundAlpha = if (isDark) 0.34f else 0.22f,
-            borderAlpha = if (isDark) 0.18f else 0.12f,
-            highlightAlpha = if (isDark) 0.09f else 0.07f,
-            borderColor = if (isDark) SakuraPink.copy(alpha = 0.48f) else scheme.outline,
-            liquidBlur = 6.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            backgroundAlpha = appUpdateGlass.tint.background(isDark),
+            borderAlpha = appUpdateGlass.tint.border(isDark),
+            highlightAlpha = appUpdateGlass.tint.highlight(isDark),
+            borderColor = if (isDark) SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha) else scheme.outline,
+            liquidBlur = appUpdateGlass.liquid.blur,
+            liquidLensHeight = appUpdateGlass.liquid.lensHeight,
+            liquidLensAmount = appUpdateGlass.liquid.lensAmount
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
@@ -282,6 +284,7 @@ fun AppUpdateSuccessDialog(
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     val green = Color(0xFF4CAF50)
+    val appUpdateGlass = LiquidGlassDefaults.appUpdateDialog
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
@@ -292,13 +295,13 @@ fun AppUpdateSuccessDialog(
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
             sampleBackdrop = appDialogSampleBackdrop(),
-            backgroundAlpha = if (isDark) 0.34f else 0.22f,
-            borderAlpha = if (isDark) 0.18f else 0.12f,
-            highlightAlpha = if (isDark) 0.09f else 0.07f,
-            borderColor = if (isDark) green.copy(alpha = 0.35f) else scheme.outline,
-            liquidBlur = 6.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            backgroundAlpha = appUpdateGlass.tint.background(isDark),
+            borderAlpha = appUpdateGlass.tint.border(isDark),
+            highlightAlpha = appUpdateGlass.tint.highlight(isDark),
+            borderColor = if (isDark) green.copy(alpha = LiquidGlassDefaults.appUpdateSuccessDarkBorderGreenAlpha) else scheme.outline,
+            liquidBlur = appUpdateGlass.liquid.blur,
+            liquidLensHeight = appUpdateGlass.liquid.lensHeight,
+            liquidLensAmount = appUpdateGlass.liquid.lensAmount
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
@@ -360,6 +363,7 @@ fun AppUpdateErrorDialog(
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
     val red = Color(0xFFF44336)
+    val appUpdateGlass = LiquidGlassDefaults.appUpdateDialog
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
@@ -370,13 +374,13 @@ fun AppUpdateErrorDialog(
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
             sampleBackdrop = appDialogSampleBackdrop(),
-            backgroundAlpha = if (isDark) 0.34f else 0.22f,
-            borderAlpha = if (isDark) 0.18f else 0.12f,
-            highlightAlpha = if (isDark) 0.09f else 0.07f,
-            borderColor = if (isDark) red.copy(alpha = 0.4f) else scheme.outline,
-            liquidBlur = 6.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            backgroundAlpha = appUpdateGlass.tint.background(isDark),
+            borderAlpha = appUpdateGlass.tint.border(isDark),
+            highlightAlpha = appUpdateGlass.tint.highlight(isDark),
+            borderColor = if (isDark) red.copy(alpha = LiquidGlassDefaults.appUpdateErrorDarkBorderRedAlpha) else scheme.outline,
+            liquidBlur = appUpdateGlass.liquid.blur,
+            liquidLensHeight = appUpdateGlass.liquid.lensHeight,
+            liquidLensAmount = appUpdateGlass.liquid.lensAmount
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),

@@ -57,7 +57,9 @@ import androidx.compose.material3.MaterialTheme
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import androidx.compose.material3.Icon
@@ -360,7 +362,7 @@ fun PlaylistDetailScreen(
     }
 
     val scheme = MaterialTheme.colorScheme
-    val liquidGlass = PlaylistDetailLiquidGlass.defaultParams
+    val liquidGlass = LiquidGlassDefaults.playlistDetail
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val isDarkTheme = isSystemInDarkTheme()
 
@@ -1450,7 +1452,7 @@ fun PlaylistMusicItem(
     onClick: () -> Unit,
     onRemove: () -> Unit,
     showDeleteButton: Boolean = true,
-    liquidGlass: PlaylistDetailLiquidGlassParams = PlaylistDetailLiquidGlass.defaultParams,
+    liquidGlass: PlaylistDetailLiquidGlassParams = LiquidGlassDefaults.playlistDetail,
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme

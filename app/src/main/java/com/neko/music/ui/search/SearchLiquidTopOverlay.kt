@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.screens.SearchTypeButton
 import com.neko.music.ui.theme.RoseRed
@@ -72,6 +73,7 @@ fun SearchLiquidTopOverlay(
             .statusBarsPadding()
             .onSizeChanged { onBarHeightChanged(it.height) }
     ) {
+        val searchFieldGlass = LiquidGlassDefaults.searchTopSearchField
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,13 +81,13 @@ fun SearchLiquidTopOverlay(
                 .height(52.dp),
             shape = RoundedCornerShape(22.dp),
             sampleBackdrop = backdropForGlass,
-            backgroundAlpha = if (isDark) 0.35f else 0.30f,
-            borderAlpha = if (isDark) 0.18f else 0.20f,
-            highlightAlpha = if (isDark) 0.08f else 0.10f,
+            backgroundAlpha = searchFieldGlass.tint.background(isDark),
+            borderAlpha = searchFieldGlass.tint.border(isDark),
+            highlightAlpha = searchFieldGlass.tint.highlight(isDark),
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            liquidBlur = searchFieldGlass.liquid.blur,
+            liquidLensHeight = searchFieldGlass.liquid.lensHeight,
+            liquidLensAmount = searchFieldGlass.liquid.lensAmount
         ) {
             Row(
                 modifier = Modifier
@@ -148,19 +150,20 @@ fun SearchLiquidTopOverlay(
             }
         }
 
+        val typeRowGlass = LiquidGlassDefaults.searchTopTypeRow
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             shape = RoundedCornerShape(20.dp),
             sampleBackdrop = backdropForGlass,
-            backgroundAlpha = if (isDark) 0.32f else 0.28f,
-            borderAlpha = if (isDark) 0.15f else 0.20f,
-            highlightAlpha = if (isDark) 0.08f else 0.11f,
+            backgroundAlpha = typeRowGlass.tint.background(isDark),
+            borderAlpha = typeRowGlass.tint.border(isDark),
+            highlightAlpha = typeRowGlass.tint.highlight(isDark),
             borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            liquidBlur = typeRowGlass.liquid.blur,
+            liquidLensHeight = typeRowGlass.liquid.lensHeight,
+            liquidLensAmount = typeRowGlass.liquid.lensAmount
         ) {
             Row(
                 modifier = Modifier

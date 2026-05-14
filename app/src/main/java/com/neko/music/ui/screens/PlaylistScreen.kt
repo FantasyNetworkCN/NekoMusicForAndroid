@@ -66,6 +66,7 @@ import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.util.UrlConfig
 import java.util.Collections
@@ -108,16 +109,17 @@ fun PlaylistScreen(
                 .clip(panelShape)
                 .clickable(enabled = false) {}
 
+            val modalGlass = LiquidGlassDefaults.playlistModalBottomSheet
             GlassSurface(
                 modifier = panelModifier,
                 shape = panelShape,
-                backgroundAlpha = if (isDark) 0.42f else 0.36f,
-                borderAlpha = if (isDark) 0.26f else 0.22f,
-                highlightAlpha = if (isDark) 0.12f else 0.14f,
+                backgroundAlpha = modalGlass.tint.background(isDark),
+                borderAlpha = modalGlass.tint.border(isDark),
+                highlightAlpha = modalGlass.tint.highlight(isDark),
                 borderColor = if (isDark) SakuraPink else MaterialTheme.colorScheme.outline,
-                liquidBlur = 14.dp,
-                liquidLensHeight = 20.dp,
-                liquidLensAmount = 34.dp
+                liquidBlur = modalGlass.liquid.blur,
+                liquidLensHeight = modalGlass.liquid.lensHeight,
+                liquidLensAmount = modalGlass.liquid.lensAmount
             ) {
                 PlaylistContent(
                     playlist = playlist,
@@ -337,30 +339,20 @@ fun PlaylistItem(
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
+    val rowGlass = LiquidGlassDefaults.playlistQueueRow
 
     GlassSurface(
         modifier = modifier
             .fillMaxWidth()
             .offset { IntOffset(0, dragOffsetY.roundToInt()) },
         shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = when {
-            isPlaying && isDark -> 0.46f
-            isPlaying && !isDark -> 0.36f
-            isDark -> 0.22f
-            else -> 0.20f
-        },
-        borderAlpha = when {
-            isPlaying -> if (isDark) 0.24f else 0.22f
-            else -> if (isDark) 0.12f else 0.16f
-        },
-        highlightAlpha = when {
-            isPlaying -> if (isDark) 0.11f else 0.12f
-            else -> if (isDark) 0.06f else 0.08f
-        },
-        borderColor = if (isDark) SakuraPink.copy(alpha = 0.55f) else scheme.outline,
-        liquidBlur = 8.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 26.dp
+        backgroundAlpha = rowGlass.backgroundAlpha(isPlaying, isDark),
+        borderAlpha = rowGlass.borderAlpha(isPlaying, isDark),
+        highlightAlpha = rowGlass.highlightAlpha(isPlaying, isDark),
+        borderColor = if (isDark) SakuraPink.copy(alpha = rowGlass.darkBorderSakuraAlpha) else scheme.outline,
+        liquidBlur = rowGlass.liquid.blur,
+        liquidLensHeight = rowGlass.liquid.lensHeight,
+        liquidLensAmount = rowGlass.liquid.lensAmount
     ) {
         Row(
             modifier = Modifier

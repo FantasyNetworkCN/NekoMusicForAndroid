@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.screens.LatestMusicCard
@@ -74,6 +75,7 @@ fun HomeLiquidHeroOverlay(
             .statusBarsPadding()
             .onSizeChanged { onHeroHeightChanged(it.height) }
     ) {
+        val heroSearch = LiquidGlassDefaults.homeHeroSearchBar
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -81,14 +83,18 @@ fun HomeLiquidHeroOverlay(
                 .height(48.dp),
             sampleBackdrop = liquidBackdrop,
             shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = if (isDarkHome) 0.35f else 0.30f,
-            borderAlpha = if (isDarkHome) 0.20f else 0.20f,
-            highlightAlpha = if (isDarkHome) 0.09f else 0.11f,
-            borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.55f) else colorScheme.outline,
+            backgroundAlpha = heroSearch.tint.background(isDarkHome),
+            borderAlpha = heroSearch.tint.border(isDarkHome),
+            highlightAlpha = heroSearch.tint.highlight(isDarkHome),
+            borderColor = if (isDarkHome) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
+            } else {
+                colorScheme.outline
+            },
             // 与 Kyant Glass Bottom Bar 教程同量级，便于看出 vibrancy + blur + lens
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            liquidBlur = heroSearch.liquid.blur,
+            liquidLensHeight = heroSearch.liquid.lensHeight,
+            liquidLensAmount = heroSearch.liquid.lensAmount
         ) {
             Row(
                 modifier = Modifier
@@ -126,19 +132,24 @@ fun HomeLiquidHeroOverlay(
             }
         }
 
+        val heroShortcut = LiquidGlassDefaults.homeHeroShortcutCard
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             sampleBackdrop = liquidBackdrop,
             shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = if (isDarkHome) 0.34f else 0.30f,
-            borderAlpha = if (isDarkHome) 0.18f else 0.20f,
-            highlightAlpha = if (isDarkHome) 0.09f else 0.12f,
-            borderColor = if (isDarkHome) SakuraPink.copy(alpha = 0.48f) else colorScheme.outline,
-            liquidBlur = 4.dp,
-            liquidLensHeight = 16.dp,
-            liquidLensAmount = 32.dp
+            backgroundAlpha = heroShortcut.tint.background(isDarkHome),
+            borderAlpha = heroShortcut.tint.border(isDarkHome),
+            highlightAlpha = heroShortcut.tint.highlight(isDarkHome),
+            borderColor = if (isDarkHome) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroShortcutCardDarkBorderSakuraAlpha)
+            } else {
+                colorScheme.outline
+            },
+            liquidBlur = heroShortcut.liquid.blur,
+            liquidLensHeight = heroShortcut.liquid.lensHeight,
+            liquidLensAmount = heroShortcut.liquid.lensAmount
         ) {
             Column(
                 modifier = Modifier
