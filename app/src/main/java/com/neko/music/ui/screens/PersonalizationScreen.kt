@@ -50,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -61,14 +60,10 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.config.AppConfig
-import com.neko.music.ui.components.GlassSurface
-import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LiquidGlassUiScale
-import com.neko.music.ui.components.LocalLiquidGlassUiScale
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
-import com.neko.music.ui.theme.SkyBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,19 +180,23 @@ fun PersonalizationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(pageBg)
         ) {
+            // 与排行榜页一致：录屏层只铺纯色底；玻璃在兄弟层用 LocalLiquidLayerBackdrop 采样才是真液态。
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .layerBackdrop(pageBackdrop)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
+                Box(modifier = Modifier.fillMaxSize().background(pageBg))
+            }
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     SettingSection(
@@ -266,71 +265,12 @@ fun PersonalizationScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    val previewGlassTint = LiquidGlassDefaults.screenListCard
-                    val previewBg = previewGlassTint.background(isDarkChrome)
-                    val previewBd = previewGlassTint.border(isDarkChrome)
-                    val previewHi = previewGlassTint.highlight(isDarkChrome)
-                    val liquidMed = LiquidGlassDefaults.liquidMedium
-                    val previewLiq = LiquidGlassUiScale(liqTint, liqBlur, liqLensH, liqLensA)
                     val liqRange = LiquidGlassUiScale.StrengthMin..LiquidGlassUiScale.StrengthMax
 
                     SettingSection(
                         title = stringResource(id = R.string.liquid_glass_section),
                         useDarkAppearance = isDarkChrome
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                                .height(148.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            listOf(RoseRed, SkyBlue, Lilac)
-                                        )
-                                    )
-                            )
-                            CompositionLocalProvider(LocalLiquidGlassUiScale provides previewLiq) {
-                                GlassSurface(
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 18.dp)
-                                        .height(92.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    backgroundAlpha = previewBg,
-                                    borderAlpha = previewBd,
-                                    highlightAlpha = previewHi,
-                                    borderColor = if (isDarkChrome) Color.White else scheme.outline,
-                                    liquidBlur = liquidMed.blur,
-                                    liquidLensHeight = liquidMed.lensHeight,
-                                    liquidLensAmount = liquidMed.lensAmount,
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(12.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = stringResource(id = R.string.liquid_glass_preview_hint),
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (isDarkChrome) {
-                                                Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_tint),
                             value = liqTint,
@@ -409,6 +349,7 @@ fun PersonalizationScreen(
                 }
             }
         }
+    }
     }
 }
 
