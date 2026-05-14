@@ -342,6 +342,10 @@
     <string name="playlist_batch_delete">删掉选中的 %d 首喵</string>
     <string name="playlist_batch_delete_confirm">真的要从本本里踢掉 %d 首歌喵？</string>
     <string name="playlist_batch_delete_partial">踢掉了 %1$d 首，还有 %2$d 首踢不动喵</string>
+    <string name="playlist_batch_download">抓选中的 %d 首喵</string>
+    <string name="playlist_batch_download_all_ok">%d 首都开始抓啦喵</string>
+    <string name="playlist_batch_download_all_fail">%d 首一个都没抓起来喵</string>
+    <string name="playlist_batch_download_partial">抓稳了 %1$d 首，%2$d 首没抓稳喵</string>
 
     <string name="playback_list">待会儿播喵</string>
     <string name="playlist_empty">后面没歌了，快加点喵！</string>

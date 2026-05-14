@@ -352,6 +352,10 @@
     <string name="playlist_batch_delete">Remove selected (%d)</string>
     <string name="playlist_batch_delete_confirm">Remove %d songs from this playlist?</string>
     <string name="playlist_batch_delete_partial">Removed %1$d, failed to remove %2$d</string>
+    <string name="playlist_batch_download">Download selected (%d)</string>
+    <string name="playlist_batch_download_all_ok">Started download for %d songs</string>
+    <string name="playlist_batch_download_all_fail">Could not start download for %d songs</string>
+    <string name="playlist_batch_download_partial">Started %1$d, failed %2$d</string>
 
     <string name="playback_list">Playlist</string>
     <string name="playlist_empty">Playlist is empty</string>
