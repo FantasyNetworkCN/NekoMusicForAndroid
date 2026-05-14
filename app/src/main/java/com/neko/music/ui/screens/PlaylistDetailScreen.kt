@@ -360,6 +360,7 @@ fun PlaylistDetailScreen(
     }
 
     val scheme = MaterialTheme.colorScheme
+    val liquidGlass = PlaylistDetailLiquidGlass.defaultParams
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val isDarkTheme = isSystemInDarkTheme()
 
@@ -764,29 +765,44 @@ fun PlaylistDetailScreen(
                                             )
                                         },
                                         onRemove = { removeMusic(music) },
-                                        showDeleteButton = isOwner && !batchMode
+                                        showDeleteButton = isOwner && !batchMode,
+                                        liquidGlass = liquidGlass,
                                     )
                                 }
                             }
                             if (isOwnPlaylist && batchMode) {
-                                val batchBarShape =
-                                    RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                                val batchBarShape = RoundedCornerShape(
+                                    topStart = liquidGlass.batchDockTopCornerDp,
+                                    topEnd = liquidGlass.batchDockTopCornerDp,
+                                )
                                 GlassSurface(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .windowInsetsPadding(WindowInsets.navigationBars),
                                     shape = batchBarShape,
-                                    backgroundAlpha = if (isDarkTheme) 0.34f else 0.30f,
-                                    borderAlpha = if (isDarkTheme) 0.24f else 0.20f,
-                                    highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                                    backgroundAlpha = if (isDarkTheme) {
+                                        liquidGlass.batchDockBackgroundAlphaDark
+                                    } else {
+                                        liquidGlass.batchDockBackgroundAlphaLight
+                                    },
+                                    borderAlpha = if (isDarkTheme) {
+                                        liquidGlass.batchDockBorderAlphaDark
+                                    } else {
+                                        liquidGlass.batchDockBorderAlphaLight
+                                    },
+                                    highlightAlpha = if (isDarkTheme) {
+                                        liquidGlass.batchDockHighlightAlphaDark
+                                    } else {
+                                        liquidGlass.batchDockHighlightAlphaLight
+                                    },
                                     borderColor = if (isDarkTheme) {
-                                        SakuraPink.copy(alpha = 0.55f)
+                                        SakuraPink.copy(alpha = liquidGlass.batchDockDarkBorderSakuraAlpha)
                                     } else {
                                         scheme.outline
                                     },
-                                    liquidBlur = 12.dp,
-                                    liquidLensHeight = 18.dp,
-                                    liquidLensAmount = 30.dp,
+                                    liquidBlur = liquidGlass.batchDockLiquidBlur,
+                                    liquidLensHeight = liquidGlass.batchDockLiquidLensHeight,
+                                    liquidLensAmount = liquidGlass.batchDockLiquidLensAmount,
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -933,6 +949,7 @@ fun PlaylistDetailScreen(
                 playlistName = playlistName,
                 playlistId = playlistId,
                 liquidBackdrop = pageBackdrop,
+                liquidGlass = liquidGlass,
                 onDismiss = { showShareDialog = false },
             )
         }
@@ -941,6 +958,7 @@ fun PlaylistDetailScreen(
             PlaylistBatchDeleteGlassDialog(
                 selectedCount = selectedIds.size,
                 pageBackdrop = pageBackdrop,
+                liquidGlass = liquidGlass,
                 onDismiss = { showBatchDeleteConfirm = false },
                 onConfirm = { performBatchRemove() },
             )
@@ -1070,6 +1088,7 @@ fun PlaylistDetailScreen(
 private fun PlaylistBatchDeleteGlassDialog(
     selectedCount: Int,
     pageBackdrop: LayerBackdrop,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
@@ -1089,7 +1108,7 @@ private fun PlaylistBatchDeleteGlassDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.42f))
+                        .background(Color.Black.copy(alpha = liquidGlass.batchDialogScrimAlpha))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -1110,18 +1129,30 @@ private fun PlaylistBatchDeleteGlassDialog(
                                 indication = null,
                                 onClick = {},
                             ),
-                        shape = RoundedCornerShape(22.dp),
-                        backgroundAlpha = if (isDarkTheme) 0.34f else 0.30f,
-                        borderAlpha = if (isDarkTheme) 0.24f else 0.20f,
-                        highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                        shape = RoundedCornerShape(liquidGlass.batchDialogCornerDp),
+                        backgroundAlpha = if (isDarkTheme) {
+                            liquidGlass.batchDockBackgroundAlphaDark
+                        } else {
+                            liquidGlass.batchDockBackgroundAlphaLight
+                        },
+                        borderAlpha = if (isDarkTheme) {
+                            liquidGlass.batchDockBorderAlphaDark
+                        } else {
+                            liquidGlass.batchDockBorderAlphaLight
+                        },
+                        highlightAlpha = if (isDarkTheme) {
+                            liquidGlass.batchDockHighlightAlphaDark
+                        } else {
+                            liquidGlass.batchDockHighlightAlphaLight
+                        },
                         borderColor = if (isDarkTheme) {
-                            SakuraPink.copy(alpha = 0.55f)
+                            SakuraPink.copy(alpha = liquidGlass.batchDockDarkBorderSakuraAlpha)
                         } else {
                             scheme.outline
                         },
-                        liquidBlur = 12.dp,
-                        liquidLensHeight = 18.dp,
-                        liquidLensAmount = 30.dp,
+                        liquidBlur = liquidGlass.batchDockLiquidBlur,
+                        liquidLensHeight = liquidGlass.batchDockLiquidLensHeight,
+                        liquidLensAmount = liquidGlass.batchDockLiquidLensAmount,
                     ) {
                         Column(
                             modifier = Modifier
@@ -1190,6 +1221,7 @@ private fun PlaylistShareSheet(
     playlistName: String,
     playlistId: Int,
     liquidBackdrop: LayerBackdrop,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -1253,19 +1285,38 @@ private fun PlaylistShareSheet(
                             onClick = {},
                         ),
                 ) {
-                    val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+                    val panelShape = RoundedCornerShape(
+                        topStart = liquidGlass.sharePanelTopCornerDp,
+                        topEnd = liquidGlass.sharePanelTopCornerDp,
+                    )
                     GlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .windowInsetsPadding(WindowInsets.navigationBars),
                         shape = panelShape,
-                        backgroundAlpha = if (isDarkTheme) 0.26f else 0.30f,
-                        borderAlpha = if (isDarkTheme) 0.26f else 0.20f,
-                        highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
-                        borderColor = if (isDarkTheme) RoseRed.copy(alpha = 0.55f) else scheme.outline,
-                        liquidBlur = 11.dp,
-                        liquidLensHeight = 16.dp,
-                        liquidLensAmount = 28.dp,
+                        backgroundAlpha = if (isDarkTheme) {
+                            liquidGlass.sharePanelBackgroundAlphaDark
+                        } else {
+                            liquidGlass.sharePanelBackgroundAlphaLight
+                        },
+                        borderAlpha = if (isDarkTheme) {
+                            liquidGlass.sharePanelBorderAlphaDark
+                        } else {
+                            liquidGlass.sharePanelBorderAlphaLight
+                        },
+                        highlightAlpha = if (isDarkTheme) {
+                            liquidGlass.sharePanelHighlightAlphaDark
+                        } else {
+                            liquidGlass.sharePanelHighlightAlphaLight
+                        },
+                        borderColor = if (isDarkTheme) {
+                            RoseRed.copy(alpha = liquidGlass.sharePanelDarkBorderRoseAlpha)
+                        } else {
+                            scheme.outline
+                        },
+                        liquidBlur = liquidGlass.sharePanelLiquidBlur,
+                        liquidLensHeight = liquidGlass.sharePanelLiquidLensHeight,
+                        liquidLensAmount = liquidGlass.sharePanelLiquidLensAmount,
                     ) {
                         Column(
                             modifier = Modifier
@@ -1398,7 +1449,8 @@ fun PlaylistMusicItem(
     onToggleSelect: () -> Unit = {},
     onClick: () -> Unit,
     onRemove: () -> Unit,
-    showDeleteButton: Boolean = true
+    showDeleteButton: Boolean = true,
+    liquidGlass: PlaylistDetailLiquidGlassParams = PlaylistDetailLiquidGlass.defaultParams,
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
@@ -1420,14 +1472,26 @@ fun PlaylistMusicItem(
                 indication = ripple(),
                 onClick = rowClick
             ),
-        shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = if (isDarkTheme) 0.24f else 0.12f,
-        borderAlpha = if (isDarkTheme) 0.16f else 0.12f,
-        highlightAlpha = if (isDarkTheme) 0.09f else 0.06f,
+        shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
+        backgroundAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBackgroundAlphaDark
+        } else {
+            liquidGlass.musicRowBackgroundAlphaLight
+        },
+        borderAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBorderAlphaDark
+        } else {
+            liquidGlass.musicRowBorderAlphaLight
+        },
+        highlightAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowHighlightAlphaDark
+        } else {
+            liquidGlass.musicRowHighlightAlphaLight
+        },
         borderColor = if (isDarkTheme) Color.White else scheme.outline,
-        liquidBlur = 8.dp,
-        liquidLensHeight = 16.dp,
-        liquidLensAmount = 26.dp
+        liquidBlur = liquidGlass.musicRowLiquidBlur,
+        liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+        liquidLensAmount = liquidGlass.musicRowLiquidLensAmount
     ) {
         Row(
             modifier = Modifier
