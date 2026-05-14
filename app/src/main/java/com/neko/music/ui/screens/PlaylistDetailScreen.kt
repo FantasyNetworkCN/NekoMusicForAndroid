@@ -102,6 +102,7 @@ import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.data.model.Music
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.util.DownloadHelper
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.Dispatchers
@@ -768,138 +769,155 @@ fun PlaylistDetailScreen(
                                 }
                             }
                             if (isOwnPlaylist && batchMode) {
-                                Row(
+                                val batchBarShape =
+                                    RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                                GlassSurface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .windowInsetsPadding(WindowInsets.navigationBars)
-                                        .background(
-                                            if (isDarkTheme) {
-                                                Color(0xFF1A1A2E).copy(alpha = 0.94f)
-                                            } else {
-                                                Color(0xFFF8F8FA).copy(alpha = 0.98f)
-                                            }
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .windowInsetsPadding(WindowInsets.navigationBars),
+                                    shape = batchBarShape,
+                                    backgroundAlpha = if (isDarkTheme) 0.34f else 0.30f,
+                                    borderAlpha = if (isDarkTheme) 0.24f else 0.20f,
+                                    highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                                    borderColor = if (isDarkTheme) {
+                                        SakuraPink.copy(alpha = 0.55f)
+                                    } else {
+                                        scheme.outline
+                                    },
+                                    liquidBlur = 12.dp,
+                                    liquidLensHeight = 18.dp,
+                                    liquidLensAmount = 30.dp,
                                 ) {
-                                    TextButton(
-                                        onClick = {
-                                            selectedIds =
-                                                if (selectedIds.size == musicList.size) {
-                                                    emptySet()
-                                                } else {
-                                                    musicList.map { it.id }.toSet()
-                                                }
-                                        }
-                                    ) {
-                                        Text(
-                                            text = if (selectedIds.size == musicList.size) {
-                                                stringResource(id = R.string.playlist_batch_clear_selection)
-                                            } else {
-                                                stringResource(id = R.string.playlist_batch_select_all)
-                                            },
-                                            color = RoseRed,
-                                            fontSize = 15.sp
-                                        )
-                                    }
                                     Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         TextButton(
                                             onClick = {
-                                                if (selectedIds.isEmpty()) return@TextButton
-                                                val targets =
-                                                    musicList.filter { it.id in selectedIds }
-                                                scope.launch {
-                                                    val appCtx = context.applicationContext
-                                                    val (total, fails) = withContext(Dispatchers.IO) {
-                                                        val helper = DownloadHelper(appCtx)
-                                                        var failCount = 0
-                                                        for (pm in targets) {
-                                                            val model = Music(
-                                                                pm.id,
-                                                                pm.title,
-                                                                pm.artist,
-                                                                pm.coverPath ?: "",
-                                                                pm.duration,
-                                                                "",
-                                                                "",
-                                                                0,
-                                                                ""
-                                                            )
-                                                            try {
-                                                                val r =
-                                                                    helper.downloadMusicWithLyrics(model)
-                                                                if (r.isFailure) failCount++
-                                                            } catch (_: Exception) {
-                                                                failCount++
-                                                            }
-                                                        }
-                                                        targets.size to failCount
+                                                selectedIds =
+                                                    if (selectedIds.size == musicList.size) {
+                                                        emptySet()
+                                                    } else {
+                                                        musicList.map { it.id }.toSet()
                                                     }
-                                                    val msg = when {
-                                                        fails == 0 ->
-                                                            context.getString(
-                                                                R.string.playlist_batch_download_all_ok,
-                                                                total
-                                                            )
-                                                        fails == total ->
-                                                            context.getString(
-                                                                R.string.playlist_batch_download_all_fail,
-                                                                total
-                                                            )
-                                                        else ->
-                                                            context.getString(
-                                                                R.string.playlist_batch_download_partial,
-                                                                total - fails,
-                                                                fails
-                                                            )
-                                                    }
-                                                    Toast.makeText(
-                                                        context,
-                                                        msg,
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
                                             },
-                                            enabled = selectedIds.isNotEmpty(),
                                             colors = ButtonDefaults.textButtonColors(
-                                                contentColor = RoseRed,
-                                                disabledContentColor = RoseRed.copy(alpha = 0.35f)
+                                                containerColor = Color.Transparent,
+                                                contentColor = RoseRed
                                             )
                                         ) {
                                             Text(
-                                                text = stringResource(
-                                                    id = R.string.playlist_batch_download,
-                                                    selectedIds.size
-                                                ),
+                                                text = if (selectedIds.size == musicList.size) {
+                                                    stringResource(id = R.string.playlist_batch_clear_selection)
+                                                } else {
+                                                    stringResource(id = R.string.playlist_batch_select_all)
+                                                },
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
-                                        Button(
-                                            onClick = {
-                                                if (selectedIds.isNotEmpty()) {
-                                                    showBatchDeleteConfirm = true
-                                                }
-                                            },
-                                            enabled = selectedIds.isNotEmpty(),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = RoseRed,
-                                                disabledContainerColor = RoseRed.copy(alpha = 0.35f)
-                                            ),
-                                            shape = RoundedCornerShape(20.dp)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = stringResource(
-                                                    id = R.string.playlist_batch_delete,
-                                                    selectedIds.size
+                                            TextButton(
+                                                onClick = {
+                                                    if (selectedIds.isEmpty()) return@TextButton
+                                                    val targets =
+                                                        musicList.filter { it.id in selectedIds }
+                                                    scope.launch {
+                                                        val appCtx = context.applicationContext
+                                                        val (total, fails) = withContext(Dispatchers.IO) {
+                                                            val helper = DownloadHelper(appCtx)
+                                                            var failCount = 0
+                                                            for (pm in targets) {
+                                                                val model = Music(
+                                                                    pm.id,
+                                                                    pm.title,
+                                                                    pm.artist,
+                                                                    pm.coverPath ?: "",
+                                                                    pm.duration,
+                                                                    "",
+                                                                    "",
+                                                                    0,
+                                                                    ""
+                                                                )
+                                                                try {
+                                                                    val r =
+                                                                        helper.downloadMusicWithLyrics(model)
+                                                                    if (r.isFailure) failCount++
+                                                                } catch (_: Exception) {
+                                                                    failCount++
+                                                                }
+                                                            }
+                                                            targets.size to failCount
+                                                        }
+                                                        val msg = when {
+                                                            fails == 0 ->
+                                                                context.getString(
+                                                                    R.string.playlist_batch_download_all_ok,
+                                                                    total
+                                                                )
+                                                            fails == total ->
+                                                                context.getString(
+                                                                    R.string.playlist_batch_download_all_fail,
+                                                                    total
+                                                                )
+                                                            else ->
+                                                                context.getString(
+                                                                    R.string.playlist_batch_download_partial,
+                                                                    total - fails,
+                                                                    fails
+                                                                )
+                                                        }
+                                                        Toast.makeText(
+                                                            context,
+                                                            msg,
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+                                                },
+                                                enabled = selectedIds.isNotEmpty(),
+                                                colors = ButtonDefaults.textButtonColors(
+                                                    containerColor = Color.Transparent,
+                                                    contentColor = RoseRed,
+                                                    disabledContentColor = RoseRed.copy(alpha = 0.35f)
+                                                )
+                                            ) {
+                                                Text(
+                                                    text = stringResource(
+                                                        id = R.string.playlist_batch_download,
+                                                        selectedIds.size
+                                                    ),
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    if (selectedIds.isNotEmpty()) {
+                                                        showBatchDeleteConfirm = true
+                                                    }
+                                                },
+                                                enabled = selectedIds.isNotEmpty(),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = RoseRed,
+                                                    disabledContainerColor = RoseRed.copy(alpha = 0.35f)
                                                 ),
-                                                color = Color.White,
-                                                fontSize = 15.sp
-                                            )
+                                                shape = RoundedCornerShape(20.dp)
+                                            ) {
+                                                Text(
+                                                    text = stringResource(
+                                                        id = R.string.playlist_batch_delete,
+                                                        selectedIds.size
+                                                    ),
+                                                    color = Color.White,
+                                                    fontSize = 15.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -920,44 +938,11 @@ fun PlaylistDetailScreen(
         }
 
         if (showBatchDeleteConfirm) {
-            AlertDialog(
-                onDismissRequest = { showBatchDeleteConfirm = false },
-                title = {
-                    Text(
-                        text = stringResource(
-                            id = R.string.playlist_batch_delete_confirm,
-                            selectedIds.size
-                        ),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) {
-                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                        } else {
-                            Color.Black
-                        }
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { performBatchRemove() }) {
-                        Text(
-                            text = stringResource(id = R.string.confirm),
-                            color = RoseRed,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showBatchDeleteConfirm = false }) {
-                        Text(
-                            text = stringResource(id = R.string.cancel),
-                            color = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.9f)
-                            } else {
-                                Color.Gray
-                            }
-                        )
-                    }
-                }
+            PlaylistBatchDeleteGlassDialog(
+                selectedCount = selectedIds.size,
+                pageBackdrop = pageBackdrop,
+                onDismiss = { showBatchDeleteConfirm = false },
+                onConfirm = { performBatchRemove() },
             )
         }
 
@@ -1077,6 +1062,125 @@ fun PlaylistDetailScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun PlaylistBatchDeleteGlassDialog(
+    selectedCount: Int,
+    pageBackdrop: LayerBackdrop,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    BackHandler(onBack = onDismiss)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+        ),
+    ) {
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.42f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onDismiss,
+                        ),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {},
+                            ),
+                        shape = RoundedCornerShape(22.dp),
+                        backgroundAlpha = if (isDarkTheme) 0.34f else 0.30f,
+                        borderAlpha = if (isDarkTheme) 0.24f else 0.20f,
+                        highlightAlpha = if (isDarkTheme) 0.10f else 0.12f,
+                        borderColor = if (isDarkTheme) {
+                            SakuraPink.copy(alpha = 0.55f)
+                        } else {
+                            scheme.outline
+                        },
+                        liquidBlur = 12.dp,
+                        liquidLensHeight = 18.dp,
+                        liquidLensAmount = 30.dp,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 18.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    id = R.string.playlist_batch_delete_confirm,
+                                    selectedCount,
+                                ),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) {
+                                    Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                                } else {
+                                    scheme.onSurface
+                                },
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    onClick = onDismiss,
+                                    colors = ButtonDefaults.textButtonColors(
+                                        containerColor = Color.Transparent,
+                                    ),
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.cancel),
+                                        color = if (isDarkTheme) {
+                                            Color(0xFFB8B8D1).copy(alpha = 0.9f)
+                                        } else {
+                                            scheme.onSurfaceVariant
+                                        },
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = onConfirm,
+                                    colors = ButtonDefaults.textButtonColors(
+                                        containerColor = Color.Transparent,
+                                        contentColor = RoseRed,
+                                    ),
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.confirm),
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
