@@ -335,6 +335,14 @@
     <string name="loading_hot_music">正在看谁最火喵...</string>
     <string name="no_hot_music">大家最近都好安静喵</string>
 
+    <string name="playlist_batch_mode">批量喵</string>
+    <string name="playlist_batch_done">好啦喵</string>
+    <string name="playlist_batch_select_all">全选喵</string>
+    <string name="playlist_batch_clear_selection">不选啦喵</string>
+    <string name="playlist_batch_delete">删掉选中的 %d 首喵</string>
+    <string name="playlist_batch_delete_confirm">真的要从本本里踢掉 %d 首歌喵？</string>
+    <string name="playlist_batch_delete_partial">踢掉了 %1$d 首，还有 %2$d 首踢不动喵</string>
+
     <string name="playback_list">待会儿播喵</string>
     <string name="playlist_empty">后面没歌了，快加点喵！</string>
     <string name="playback_queue_remove_from_list">从待播里拿掉喵</string>

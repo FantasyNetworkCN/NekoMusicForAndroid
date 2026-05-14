@@ -339,6 +339,14 @@
     <string name="no_hot_music">暂无热门音乐</string>
 
     <!-- 播放列表 -->
+    <string name="playlist_batch_mode">批量</string>
+    <string name="playlist_batch_done">完成</string>
+    <string name="playlist_batch_select_all">全选</string>
+    <string name="playlist_batch_clear_selection">清空选择</string>
+    <string name="playlist_batch_delete">删除所选（%d）</string>
+    <string name="playlist_batch_delete_confirm">确定从歌单中移除 %d 首歌？</string>
+    <string name="playlist_batch_delete_partial">已移除 %1$d 首，%2$d 首未能移除</string>
+
     <string name="playback_list">播放列表</string>
     <string name="playlist_empty">播放列表为空</string>
     <string name="playback_queue_remove_from_list">移除</string>

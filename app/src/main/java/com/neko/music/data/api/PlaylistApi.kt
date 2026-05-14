@@ -89,6 +89,20 @@ data class DeletePlaylistRequest(
     val id: Int
 )
 
+@Serializable
+data class RemovePlaylistMusicsRequest(
+    val playlistId: Int,
+    val musicIds: List<Int>
+)
+
+@Serializable
+data class PlaylistRemoveMusicResponse(
+    val success: Boolean,
+    val message: String = "",
+    val removedCount: Int? = null,
+    val failedMusicIds: List<Int>? = null
+)
+
 class PlaylistApi(private val token: String?, private val context: android.content.Context) {
 
     private val json = Json {
@@ -239,30 +253,30 @@ class PlaylistApi(private val token: String?, private val context: android.conte
         }
     }
 
-    suspend fun removeMusicFromPlaylist(playlistId: Int, musicId: Int): PlaylistResponse {
+    /**
+     * 从歌单批量移除音乐（单次 POST，body 使用 [musicIds] 数组，避免多次请求触发 429）。
+     */
+    suspend fun removeMusicsFromPlaylist(playlistId: Int, musicIds: List<Int>): PlaylistRemoveMusicResponse {
+        val distinctIds = musicIds.distinct()
+        if (distinctIds.isEmpty()) {
+            return PlaylistRemoveMusicResponse(false, message = "musicIds 为空")
+        }
         return try {
             val response = client.post("${UrlConfig.getBaseUrl()}/api/user/playlist/music/remove") {
                 headers {
                     token?.let { append("Authorization", it) }
                     append("Content-Type", "application/json")
                 }
-                setBody(
-                    """
-                        {
-                            "playlistId": $playlistId,
-                            "musicId": $musicId
-                        }
-                        """.trimIndent()
-                )
+                setBody(RemovePlaylistMusicsRequest(playlistId, distinctIds))
             }
             val status = response.status
             val bodyText = response.body<String>()
             Log.d("PlaylistApi", "移除音乐响应: status=$status, body=$bodyText${response.protocolLogSuffix()}")
-            json.decodeFromString<PlaylistResponse>(bodyText)
+            json.decodeFromString<PlaylistRemoveMusicResponse>(bodyText)
         } catch (e: Exception) {
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             Log.e("PlaylistApi", "移除音乐异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
-            PlaylistResponse(false, "网络错误: ${e.message}", null)
+            PlaylistRemoveMusicResponse(false, message = "网络错误: ${e.message}")
         }
     }
 }

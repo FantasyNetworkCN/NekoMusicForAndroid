@@ -17,6 +17,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -43,6 +44,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -64,6 +66,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -112,7 +115,9 @@ fun PlaylistDetailScreen(
     isOwner: Boolean = true,
     onBackClick: () -> Unit,
     onMusicClick: (com.neko.music.data.model.Music) -> Unit,
-    onPlayAll: (List<PlaylistMusic>) -> Unit
+    onPlayAll: (List<PlaylistMusic>) -> Unit,
+    /** 歌单批量编辑时请求宿主暂时隐藏底部迷你播放器与底栏，避免遮挡 */
+    onPlaylistBatchModeChange: (inBatchEdit: Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -135,7 +140,13 @@ fun PlaylistDetailScreen(
     var isFavorited by remember { mutableStateOf(false) }
     var isCheckingFavorite by remember { mutableStateOf(true) }
 
+    var batchMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+
     LaunchedEffect(playlistId) {
+        batchMode = false
+        selectedIds = emptySet()
         try {
             isLoading = true
             isCheckingFavorite = true
@@ -196,6 +207,15 @@ fun PlaylistDetailScreen(
     // 判断是否是自己的歌单
     val isOwnPlaylist = tokenManager.getUserId() == actualCreatorUserId
 
+    BackHandler(enabled = batchMode) {
+        batchMode = false
+        selectedIds = emptySet()
+    }
+
+    LaunchedEffect(batchMode, isOwnPlaylist) {
+        onPlaylistBatchModeChange(batchMode && isOwnPlaylist)
+    }
+
     // 收藏/取消收藏歌单的函数
     val toggleFavorite: () -> Unit = {
         scope.launch {
@@ -233,20 +253,30 @@ fun PlaylistDetailScreen(
         }
     }
 
-    // 移除音乐的函数
+    // 移除音乐（单次请求，musicIds 仅含一首）
     val removeMusic: (PlaylistMusic) -> Unit = { music ->
         scope.launch {
             try {
                 val token = tokenManager.getToken()
                 if (token != null) {
-                    val response = playlistApi.removeMusicFromPlaylist(playlistId, music.id)
-                    if (response.success) {
+                    val response = playlistApi.removeMusicsFromPlaylist(playlistId, listOf(music.id))
+                    val removedCount = response.removedCount ?: 0
+                    val anyRemoved = response.success || removedCount > 0
+                    if (anyRemoved) {
+                        val failed = response.failedMusicIds?.size ?: 0
+                        val toastText = when {
+                            response.success && failed == 0 ->
+                                context.getString(R.string.removed_from_playlist_success)
+                            removedCount > 0 && failed > 0 ->
+                                context.getString(R.string.playlist_batch_delete_partial, removedCount, failed)
+                            response.message.isNotBlank() -> response.message
+                            else -> context.getString(R.string.removed_from_playlist_success)
+                        }
                         android.widget.Toast.makeText(
                             context,
-                            context.getString(R.string.removed_from_playlist_success),
+                            toastText,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
-                        // 重新加载歌单音乐列表
                         val newResponse: PlaylistMusicListResponse = playlistApi.getPlaylistMusic(playlistId)
                         if (newResponse.success) {
                             musicList = newResponse.musicList ?: emptyList()
@@ -254,7 +284,7 @@ fun PlaylistDetailScreen(
                     } else {
                         android.widget.Toast.makeText(
                             context,
-                            response.message,
+                            response.message.ifBlank { context.getString(R.string.remove_from_playlist_failed, "") },
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -265,6 +295,61 @@ fun PlaylistDetailScreen(
                     context.getString(R.string.remove_from_playlist_failed, e.message ?: ""),
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+    }
+
+    val performBatchRemove: () -> Unit = removeBatchLabel@{
+        if (selectedIds.isEmpty()) return@removeBatchLabel
+        scope.launch {
+            try {
+                val token = tokenManager.getToken()
+                if (token != null) {
+                    val ids = selectedIds.toList()
+                    val response = playlistApi.removeMusicsFromPlaylist(playlistId, ids)
+                    val removedCount = response.removedCount ?: 0
+                    val failed = response.failedMusicIds?.size ?: 0
+                    val anyRemoved = response.success || removedCount > 0
+                    if (anyRemoved) {
+                        val newResponse: PlaylistMusicListResponse = playlistApi.getPlaylistMusic(playlistId)
+                        if (newResponse.success) {
+                            musicList = newResponse.musicList ?: emptyList()
+                        }
+                        val toastText = when {
+                            response.success && failed == 0 ->
+                                context.getString(R.string.removed_from_playlist_success)
+                            removedCount > 0 && failed > 0 ->
+                                context.getString(R.string.playlist_batch_delete_partial, removedCount, failed)
+                            response.message.isNotBlank() -> response.message
+                            else -> context.getString(R.string.removed_from_playlist_success)
+                        }
+                        android.widget.Toast.makeText(
+                            context,
+                            toastText,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        android.widget.Toast.makeText(
+                            context,
+                            response.message.ifBlank { context.getString(R.string.remove_from_playlist_failed, "") },
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    batchMode = false
+                    selectedIds = emptySet()
+                    showBatchDeleteConfirm = false
+                } else {
+                    showBatchDeleteConfirm = false
+                }
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.remove_from_playlist_failed, e.message ?: ""),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                batchMode = false
+                selectedIds = emptySet()
+                showBatchDeleteConfirm = false
             }
         }
     }
@@ -354,8 +439,34 @@ fun PlaylistDetailScreen(
 
                         Row(
                             modifier = Modifier.align(Alignment.CenterEnd),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            if (isOwnPlaylist) {
+                                TextButton(
+                                    onClick = {
+                                        batchMode = !batchMode
+                                        if (!batchMode) selectedIds = emptySet()
+                                    },
+                                    modifier = Modifier.padding(end = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (batchMode) {
+                                            stringResource(id = R.string.playlist_batch_done)
+                                        } else {
+                                            stringResource(id = R.string.playlist_batch_mode)
+                                        },
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isDarkTheme) {
+                                            Color(0xFFB8B8D1).copy(alpha = 0.95f)
+                                        } else {
+                                            Color(0xFF2C2C2C)
+                                        }
+                                    )
+                                }
+                            }
+
                             if (!isOwnPlaylist && !isCheckingFavorite) {
                                 IconButton(
                                     onClick = toggleFavorite,
@@ -604,41 +715,110 @@ fun PlaylistDetailScreen(
                             )
                         }
                     } else {
-                        LazyColumn(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 16.dp,
-                                bottom = 150.dp
-                            )
                         ) {
-                            itemsIndexed(musicList) { index, music ->
-                                PlaylistMusicItem(
-                                    music = music,
-                                    position = index + 1,
-                                    onClick = {
-                                        onMusicClick(
-                                            com.neko.music.data.model.Music(
-                                                music.id,
-                                                music.title,
-                                                music.artist,
-                                                music.coverPath ?: "",
-                                                music.duration,
-                                                "",
-                                                "",
-                                                0,
-                                                ""
-                                            )
-                                        )
-                                    },
-                                    onRemove = { removeMusic(music) },
-                                    showDeleteButton = isOwner
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 16.dp,
+                                    bottom = if (isOwnPlaylist && batchMode) 108.dp else 150.dp
                                 )
+                            ) {
+                                itemsIndexed(musicList) { index, music ->
+                                    PlaylistMusicItem(
+                                        music = music,
+                                        position = index + 1,
+                                        selectionMode = batchMode && isOwnPlaylist,
+                                        selected = selectedIds.contains(music.id),
+                                        onToggleSelect = {
+                                            selectedIds =
+                                                if (music.id in selectedIds) selectedIds - music.id
+                                                else selectedIds + music.id
+                                        },
+                                        onClick = {
+                                            onMusicClick(
+                                                com.neko.music.data.model.Music(
+                                                    music.id,
+                                                    music.title,
+                                                    music.artist,
+                                                    music.coverPath ?: "",
+                                                    music.duration,
+                                                    "",
+                                                    "",
+                                                    0,
+                                                    ""
+                                                )
+                                            )
+                                        },
+                                        onRemove = { removeMusic(music) },
+                                        showDeleteButton = isOwner && !batchMode
+                                    )
+                                }
+                            }
+                            if (isOwnPlaylist && batchMode) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .windowInsetsPadding(WindowInsets.navigationBars)
+                                        .background(
+                                            if (isDarkTheme) {
+                                                Color(0xFF1A1A2E).copy(alpha = 0.94f)
+                                            } else {
+                                                Color(0xFFF8F8FA).copy(alpha = 0.98f)
+                                            }
+                                        )
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            selectedIds =
+                                                if (selectedIds.size == musicList.size) {
+                                                    emptySet()
+                                                } else {
+                                                    musicList.map { it.id }.toSet()
+                                                }
+                                        }
+                                    ) {
+                                        Text(
+                                            text = if (selectedIds.size == musicList.size) {
+                                                stringResource(id = R.string.playlist_batch_clear_selection)
+                                            } else {
+                                                stringResource(id = R.string.playlist_batch_select_all)
+                                            },
+                                            color = RoseRed,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                    Button(
+                                        onClick = {
+                                            if (selectedIds.isNotEmpty()) {
+                                                showBatchDeleteConfirm = true
+                                            }
+                                        },
+                                        enabled = selectedIds.isNotEmpty(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(
+                                                id = R.string.playlist_batch_delete,
+                                                selectedIds.size
+                                            ),
+                                            color = Color.White,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -652,6 +832,48 @@ fun PlaylistDetailScreen(
                 playlistId = playlistId,
                 liquidBackdrop = pageBackdrop,
                 onDismiss = { showShareDialog = false },
+            )
+        }
+
+        if (showBatchDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showBatchDeleteConfirm = false },
+                title = {
+                    Text(
+                        text = stringResource(
+                            id = R.string.playlist_batch_delete_confirm,
+                            selectedIds.size
+                        ),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDarkTheme) {
+                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                        } else {
+                            Color.Black
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { performBatchRemove() }) {
+                        Text(
+                            text = stringResource(id = R.string.confirm),
+                            color = RoseRed,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchDeleteConfirm = false }) {
+                        Text(
+                            text = stringResource(id = R.string.cancel),
+                            color = if (isDarkTheme) {
+                                Color(0xFFB8B8D1).copy(alpha = 0.9f)
+                            } else {
+                                Color.Gray
+                            }
+                        )
+                    }
+                }
             )
         }
 
@@ -983,6 +1205,9 @@ private fun PlaylistShareSheet(
 fun PlaylistMusicItem(
     music: PlaylistMusic,
     position: Int,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onToggleSelect: () -> Unit = {},
     onClick: () -> Unit,
     onRemove: () -> Unit,
     showDeleteButton: Boolean = true
@@ -994,11 +1219,19 @@ fun PlaylistMusicItem(
         UrlConfig.getMusicCoverUrl(music.id)
     }
 
+    val rowClick = {
+        if (selectionMode) onToggleSelect() else onClick()
+    }
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = remember(music.id, selectionMode) { MutableInteractionSource() },
+                indication = ripple(),
+                onClick = rowClick
+            ),
         shape = RoundedCornerShape(12.dp),
         backgroundAlpha = if (isDarkTheme) 0.24f else 0.12f,
         borderAlpha = if (isDarkTheme) 0.16f else 0.12f,
@@ -1013,8 +1246,34 @@ fun PlaylistMusicItem(
                 .fillMaxSize()
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (selectionMode) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .border(
+                            width = 2.dp,
+                            color = RoseRed,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .background(
+                            if (selected) RoseRed.copy(alpha = 0.28f) else Color.Transparent
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = RoseRed,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+
             Text(
                 text = "$position",
                 fontSize = 14.sp,
