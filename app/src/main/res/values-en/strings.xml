@@ -20,6 +20,16 @@
     <string name="language_zh">简体中文</string>
     <string name="language_nya">喵语中文</string>
     <string name="language_en">English</string>
+
+    <string name="personalization_section">Appearance</string>
+    <string name="personalization">Personalization</string>
+    <string name="theme_mode">Theme</string>
+    <string name="theme_follow_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color">Dynamic color</string>
+    <string name="dynamic_color_subtitle">Use wallpaper colors (Material You, Android 12+)</string>
+    <string name="dynamic_color_unavailable">Dynamic color requires Android 12 or later</string>
     
     <!-- Version Info -->
     <string name="version">Version</string>

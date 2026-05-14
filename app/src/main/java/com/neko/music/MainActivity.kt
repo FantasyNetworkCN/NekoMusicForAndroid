@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.offset
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,6 +83,7 @@ import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
 import com.neko.music.ui.screens.SettingsScreen
+import com.neko.music.ui.screens.PersonalizationScreen
 import com.neko.music.ui.screens.CacheManagementScreen
 import com.neko.music.ui.screens.AccountInfoScreen
 import com.neko.music.ui.screens.MyPlaylistsScreen
@@ -88,6 +91,7 @@ import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
 import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
+import com.neko.music.config.AppConfig
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko云音乐Theme
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -152,7 +156,7 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
-            Neko云音乐Theme {
+            AppThemeWrapper {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Transparent
@@ -902,7 +906,15 @@ fun MainScreen() {
                     },
                     onNavigateToCache = {
                         navController.navigate("cache_management")
+                    },
+                    onNavigateToPersonalization = {
+                        navController.navigate("personalization")
                     }
+                )
+            }
+            composable("personalization") {
+                PersonalizationScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
             composable("cache_management") {
@@ -1764,3 +1776,24 @@ fun LoadingDots(alpha: Float) {
     }
 }
 
+@Composable
+private fun AppThemeWrapper(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember {
+        context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+    }
+    val systemDark = isSystemInDarkTheme()
+    val themeMode =
+        prefs.getString(AppConfig.PrefConfig.KEY_THEME, AppConfig.PrefConfig.DEFAULT_THEME)
+            ?: AppConfig.PrefConfig.DEFAULT_THEME
+    val dynamicColor = prefs.getBoolean(
+        AppConfig.PrefConfig.KEY_DYNAMIC_COLOR,
+        AppConfig.PrefConfig.DEFAULT_DYNAMIC_COLOR
+    )
+    val darkTheme = when (themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> systemDark
+    }
+    Neko云音乐Theme(darkTheme = darkTheme, dynamicColor = dynamicColor, content = content)
+}

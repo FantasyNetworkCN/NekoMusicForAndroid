@@ -21,6 +21,16 @@
     <string name="language_nya">喵语中文喵</string>
     <string name="language_en">English</string>
 
+    <string name="personalization_section">外观与个性化喵</string>
+    <string name="personalization">个性化喵</string>
+    <string name="theme_mode">主题模式喵</string>
+    <string name="theme_follow_system">跟随系统喵</string>
+    <string name="theme_light">浅色喵</string>
+    <string name="theme_dark">深色喵</string>
+    <string name="dynamic_color">动态取色喵</string>
+    <string name="dynamic_color_subtitle">用壁纸色调画界面（Android 12+）喵</string>
+    <string name="dynamic_color_unavailable">当前系统版本不支持动态取色喵</string>
+
     <string name="version">版本喵</string>
     <string name="update_available">发现进化机会喵！</string>
     <string name="update_version">新版本：%s 喵</string>
