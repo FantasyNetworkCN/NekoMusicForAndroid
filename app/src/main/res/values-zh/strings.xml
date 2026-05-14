@@ -62,7 +62,7 @@
     <string name="remove_favorite">取消收藏</string>
     
     <!-- 页脚 -->
-    <string name="footer_icp">蜀ICP备2025177767号-1 如有侵权请联系support@cnmsb.xin</string>
+    <string name="footer_icp">黔ICP备2026007098号 如有侵权请联系support@cnmsb.xin</string>
     <string name="footer_copyright">© 2025-2026 Fantasy Network「梦幻网络」 保留所有权利.</string>
     <string name="api_docs">API文档</string>
     <string name="github_repo">GitHub仓库</string>
@@ -300,7 +300,7 @@
     <string name="local_database">本地数据库</string>
     <string name="image_loading">图片加载</string>
     <string name="copyright_info">版权信息</string>
-    <string name="icp_license">蜀ICP备2025177767号-1</string>
+    <string name="icp_license">黔ICP备2026007098号</string>
     <string name="copyright_contact">如有侵权请联系 support@cnmsb.xin</string>
     <string name="copyright_text">© 2025-2026 Fantasy Network「梦幻网络」</string>
     <string name="all_rights_reserved">保留所有权利</string>
