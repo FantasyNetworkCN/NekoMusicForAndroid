@@ -319,6 +319,14 @@ fun MainScreen() {
 
     // 底部控件可见性状态
     var showBottomControls by androidx.compose.runtime.remember { mutableStateOf(true) }
+    /** 歌单详情「批量」编辑时，暂时隐藏迷你播放器与底栏（由 [PlaylistDetailScreen] 驱动） */
+    var playlistBatchHidingChrome by androidx.compose.runtime.remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(currentRoute) {
+        if (currentRoute?.startsWith("playlist_detail") != true) {
+            playlistBatchHidingChrome = false
+        }
+    }
 
     // 登录和注册页面显示状态
     var showLoginScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -874,6 +882,9 @@ fun MainScreen() {
                                 ).show()
                             }
                         }
+                    },
+                    onPlaylistBatchModeChange = { inBatch ->
+                        playlistBatchHidingChrome = inBatch
                     }
                 )
             }
@@ -1151,7 +1162,7 @@ fun MainScreen() {
 
         // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部
 
-        if (!isPlayerScreen && showBottomControls) {
+        if (!isPlayerScreen && showBottomControls && !playlistBatchHidingChrome) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
 
                     // MiniPlayer - 悬浮在底部
