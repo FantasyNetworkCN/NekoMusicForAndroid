@@ -72,18 +72,25 @@ fun GlassSurface(
 ) {
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val density = LocalDensity.current
+    val ui = LocalLiquidGlassUiScale.current
+    val bgAlpha = (backgroundAlpha * ui.tintStrength).coerceIn(0.02f, 1f)
+    val bdAlpha = (borderAlpha * ui.tintStrength).coerceIn(0.02f, 1f)
+    val hiAlpha = (highlightAlpha * ui.tintStrength).coerceIn(0.02f, 1f)
+    val liqBlur = liquidBlur.scaledBy(ui.blurStrength)
+    val liqLensH = liquidLensHeight.scaledBy(ui.lensHeightStrength)
+    val liqLensAmt = liquidLensAmount.scaledBy(ui.lensAmountStrength)
     val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (useLiquid) {
-        val blurPx = with(density) { liquidBlur.toPx() }
-        val lensH = with(density) { liquidLensHeight.toPx() }
-        val lensAmt = with(density) { liquidLensAmount.toPx() }
+        val blurPx = with(density) { liqBlur.toPx() }
+        val lensH = with(density) { liqLensH.toPx() }
+        val lensAmt = with(density) { liqLensAmt.toPx() }
         // 教程 onDrawSurface 约半透明白；过厚会盖住 vibrancy/blur/lens。
-        val frostTop = (highlightAlpha * 0.75f).coerceIn(0.04f, 0.11f)
-        val frostBase = (backgroundAlpha * 0.16f).coerceIn(0.05f, 0.13f)
-        val darkFrostBase = (backgroundAlpha * 0.12f).coerceIn(0.04f, 0.11f)
-        val darkFrostTop = (highlightAlpha * 0.55f).coerceIn(0.03f, 0.08f)
+        val frostTop = (hiAlpha * 0.75f).coerceIn(0.04f, 0.11f)
+        val frostBase = (bgAlpha * 0.16f).coerceIn(0.05f, 0.13f)
+        val darkFrostBase = (bgAlpha * 0.12f).coerceIn(0.04f, 0.11f)
+        val darkFrostTop = (hiAlpha * 0.55f).coerceIn(0.03f, 0.08f)
         val opacitySample = liquidBackdropOpacity.coerceIn(0f, 1f)
         Box(
             modifier = modifier
@@ -127,7 +134,7 @@ fun GlassSurface(
                 )
                 .border(
                     width = 0.5.dp,
-                    color = borderColor.copy(alpha = borderAlpha),
+                    color = borderColor.copy(alpha = bdAlpha),
                     shape = shape
                 )
         ) {
@@ -135,18 +142,18 @@ fun GlassSurface(
         }
     } else {
         val fallbackFill =
-            if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = backgroundAlpha)
-            else MaterialTheme.colorScheme.surface.copy(alpha = (backgroundAlpha * 1.15f).coerceIn(0.35f, 0.92f))
+            if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = bgAlpha)
+            else MaterialTheme.colorScheme.surface.copy(alpha = (bgAlpha * 1.15f).coerceIn(0.35f, 0.92f))
         val fallbackSheenTop =
-            if (isDarkTheme) Color.White.copy(alpha = highlightAlpha * 0.55f)
-            else Color.White.copy(alpha = highlightAlpha)
+            if (isDarkTheme) Color.White.copy(alpha = hiAlpha * 0.55f)
+            else Color.White.copy(alpha = hiAlpha)
         Box(
             modifier = modifier
                 .clip(shape)
                 .background(fallbackFill)
                 .border(
                     width = 0.5.dp,
-                    color = borderColor.copy(alpha = borderAlpha),
+                    color = borderColor.copy(alpha = bdAlpha),
                     shape = shape
                 )
         ) {

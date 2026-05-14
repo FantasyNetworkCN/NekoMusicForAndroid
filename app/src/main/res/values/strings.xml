@@ -31,6 +31,15 @@
     <string name="dynamic_color_subtitle">用壁纸色调画界面（Android 12+）喵</string>
     <string name="dynamic_color_unavailable">当前系统版本不支持动态取色喵</string>
 
+    <string name="liquid_glass_section">液态玻璃喵</string>
+    <string name="liquid_glass_preview_hint">这里是预览，下面滑块会实时变喵</string>
+    <string name="liquid_glass_tint">叠色强度喵</string>
+    <string name="liquid_glass_blur">模糊强度喵</string>
+    <string name="liquid_glass_lens_height">折射高度喵</string>
+    <string name="liquid_glass_lens_amount">折射强度喵</string>
+    <string name="liquid_glass_reset_default">恢复默认喵</string>
+    <string name="liquid_glass_save_apply">保存并应用喵</string>
+
     <string name="version">版本喵</string>
     <string name="update_available">发现进化机会喵！</string>
     <string name="update_version">新版本：%s 喵</string>

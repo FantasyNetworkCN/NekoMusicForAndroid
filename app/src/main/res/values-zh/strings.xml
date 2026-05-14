@@ -29,6 +29,15 @@
     <string name="dynamic_color">动态取色</string>
     <string name="dynamic_color_subtitle">使用壁纸色调（Material You，Android 12+）</string>
     <string name="dynamic_color_unavailable">当前系统版本不支持动态取色</string>
+
+    <string name="liquid_glass_section">液态玻璃</string>
+    <string name="liquid_glass_preview_hint">预览效果，拖动下方滑块实时变化</string>
+    <string name="liquid_glass_tint">叠色强度</string>
+    <string name="liquid_glass_blur">模糊强度</string>
+    <string name="liquid_glass_lens_height">折射高度</string>
+    <string name="liquid_glass_lens_amount">折射强度</string>
+    <string name="liquid_glass_reset_default">恢复默认</string>
+    <string name="liquid_glass_save_apply">保存并应用</string>
     
     <!-- 版本信息 -->
     <string name="version">版本</string>
