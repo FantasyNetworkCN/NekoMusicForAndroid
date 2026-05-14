@@ -111,5 +111,12 @@ object AppConfig {
         const val DEFAULT_LANGUAGE = "system"
         const val DEFAULT_THEME = "auto"
         const val DEFAULT_DYNAMIC_COLOR = true
+
+        /** 液态玻璃：叠色/描边/高光强度倍率（乘在传入 GlassSurface 的 alpha 上） */
+        const val KEY_LIQUID_GLASS_TINT = "liquid_glass_tint"
+        const val KEY_LIQUID_GLASS_BLUR = "liquid_glass_blur"
+        const val KEY_LIQUID_GLASS_LENS_HEIGHT = "liquid_glass_lens_h"
+        const val KEY_LIQUID_GLASS_LENS_AMOUNT = "liquid_glass_lens_amt"
+        const val DEFAULT_LIQUID_GLASS_STRENGTH = 1f
     }
 }

@@ -107,6 +107,7 @@ fun NavigationGlassSlider(
     val combinedBackdrop = rememberCombinedBackdrop(mainBackdrop, trackBackdrop)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val liquidUi = LocalLiquidGlassUiScale.current
         val horizontalInset = 4.dp
         val thumbW = navTabThumbWidth(maxWidth, safeCount)
         val verticalInset = 4.dp
@@ -132,11 +133,11 @@ fun NavigationGlassSlider(
                     effects = {
                         opacity(0.94f)
                         vibrancy()
-                        blur(with(density) { lerp(4f, 6f, p).dp.toPx() })
+                        blur(with(density) { (lerp(4f, 6f, p).dp * liquidUi.blurStrength).toPx() })
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             lens(
-                                refractionHeight = with(density) { lerp(10f, 16f, p).dp.toPx() },
-                                refractionAmount = with(density) { lerp(12f, 20f, p).dp.toPx() },
+                                refractionHeight = with(density) { (lerp(10f, 16f, p).dp * liquidUi.lensHeightStrength).toPx() },
+                                refractionAmount = with(density) { (lerp(12f, 20f, p).dp * liquidUi.lensAmountStrength).toPx() },
                                 chromaticAberration = true
                             )
                         }

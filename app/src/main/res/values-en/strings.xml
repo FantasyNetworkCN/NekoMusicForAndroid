@@ -30,6 +30,15 @@
     <string name="dynamic_color">Dynamic color</string>
     <string name="dynamic_color_subtitle">Use wallpaper colors (Material You, Android 12+)</string>
     <string name="dynamic_color_unavailable">Dynamic color requires Android 12 or later</string>
+
+    <string name="liquid_glass_section">Liquid glass</string>
+    <string name="liquid_glass_preview_hint">Preview — adjust sliders below</string>
+    <string name="liquid_glass_tint">Frost / tint strength</string>
+    <string name="liquid_glass_blur">Blur strength</string>
+    <string name="liquid_glass_lens_height">Refraction height</string>
+    <string name="liquid_glass_lens_amount">Refraction amount</string>
+    <string name="liquid_glass_reset_default">Reset to defaults</string>
+    <string name="liquid_glass_save_apply">Save &amp; apply</string>
     
     <!-- Version Info -->
     <string name="version">Version</string>
