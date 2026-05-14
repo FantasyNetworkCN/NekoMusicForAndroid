@@ -39,6 +39,10 @@
     <string name="liquid_glass_reset_default">Reset to defaults</string>
     <string name="liquid_glass_save_apply">Save &amp; apply</string>
 
+    <string name="liquid_glass_hardware_effects">Hardware liquid glass</string>
+    <string name="liquid_glass_hardware_effects_subtitle">Backdrop blur and lens refraction (Android 12+). When off, frosted cards only, easier on GPU.</string>
+    <string name="liquid_glass_hardware_effects_unavailable">Hardware liquid needs Android 12+. Frosted cards are used.</string>
+
     <string name="lyric_highlight_color_section">Lyric highlight (player)</string>
     <string name="lyric_highlight_follow_theme">Theme default</string>
     <string name="lyric_highlight_preview_prev">Previous line</string>

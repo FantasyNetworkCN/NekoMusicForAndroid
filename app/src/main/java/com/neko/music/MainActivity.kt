@@ -94,6 +94,7 @@ import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.config.AppConfig
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko云音乐Theme
+import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidGlassUiScale
 import com.neko.music.ui.components.readLiquidGlassUiScale
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -1799,7 +1800,14 @@ private fun AppThemeWrapper(content: @Composable () -> Unit) {
     }
     Neko云音乐Theme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
         val liquidScale = remember(prefs) { prefs.readLiquidGlassUiScale() }
-        CompositionLocalProvider(LocalLiquidGlassUiScale provides liquidScale) {
+        val liquidHardware = prefs.getBoolean(
+            AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
+            AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS
+        )
+        CompositionLocalProvider(
+            LocalLiquidGlassUiScale provides liquidScale,
+            LocalLiquidGlassHardwareEffectsEnabled provides liquidHardware,
+        ) {
             content()
         }
     }

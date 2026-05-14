@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
@@ -98,6 +99,15 @@ fun PersonalizationScreen(
             prefs.getBoolean(
                 AppConfig.PrefConfig.KEY_DYNAMIC_COLOR,
                 AppConfig.PrefConfig.DEFAULT_DYNAMIC_COLOR
+            )
+        )
+    }
+
+    var liquidHardwareEffects by remember {
+        mutableStateOf(
+            prefs.getBoolean(
+                AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
+                AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS
             )
         )
     }
@@ -424,6 +434,39 @@ fun PersonalizationScreen(
                         title = stringResource(id = R.string.liquid_glass_section),
                         useDarkAppearance = isDarkChrome
                     ) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            SettingSwitchItem(
+                                icon = Icons.Default.BlurOn,
+                                title = stringResource(id = R.string.liquid_glass_hardware_effects),
+                                subtitle = stringResource(id = R.string.liquid_glass_hardware_effects_subtitle),
+                                checked = liquidHardwareEffects,
+                                onCheckedChange = { enabled ->
+                                    liquidHardwareEffects = enabled
+                                    prefs.edit()
+                                        .putBoolean(
+                                            AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
+                                            enabled
+                                        )
+                                        .apply()
+                                    (context as? Activity)?.recreate()
+                                }
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(id = R.string.liquid_glass_hardware_effects_unavailable),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                fontSize = 13.sp,
+                                color = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
+                            )
+                        }
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_tint),
                             value = liqTint,
@@ -462,6 +505,7 @@ fun PersonalizationScreen(
                                         .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_BLUR)
                                         .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_HEIGHT)
                                         .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_AMOUNT)
+                                        .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS)
                                         .apply()
                                     (context as? Activity)?.recreate()
                                 },
