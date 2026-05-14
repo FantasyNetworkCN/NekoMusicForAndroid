@@ -38,6 +38,10 @@
     <string name="liquid_glass_reset_default">恢复默认</string>
     <string name="liquid_glass_save_apply">保存并应用</string>
 
+    <string name="liquid_glass_hardware_effects">硬件液态玻璃</string>
+    <string name="liquid_glass_hardware_effects_subtitle">使用录屏折射（Android 12+）。关闭后全局为磨砂卡片，更省电</string>
+    <string name="liquid_glass_hardware_effects_unavailable">硬件液态需 Android 12+，当前为磨砂卡片</string>
+
     <string name="lyric_highlight_color_section">播放页歌词高亮</string>
     <string name="lyric_highlight_follow_theme">跟随主题默认</string>
     <string name="lyric_highlight_preview_prev">上一句歌词示意</string>

@@ -91,8 +91,9 @@ fun NavigationGlassSlider(
 ) {
     val density = LocalDensity.current
     val safeCount = tabCount.coerceAtLeast(1)
+    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
 
-    if (mainBackdrop == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+    if (!hardwareLiquid || mainBackdrop == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
         NavigationGlassSliderFallback(
             tabCount = safeCount,
             thumbLeftDp = thumbLeftDp,

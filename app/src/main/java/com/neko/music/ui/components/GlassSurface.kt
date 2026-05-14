@@ -79,7 +79,9 @@ fun GlassSurface(
     val liqBlur = liquidBlur.scaledBy(ui.blurStrength)
     val liqLensH = liquidLensHeight.scaledBy(ui.lensHeightStrength)
     val liqLensAmt = liquidLensAmount.scaledBy(ui.lensAmountStrength)
-    val useLiquid = backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
+    val useLiquid =
+        hardwareLiquid && backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (useLiquid) {
