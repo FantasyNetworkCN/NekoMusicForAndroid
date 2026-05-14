@@ -5,50 +5,72 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import com.neko.music.ui.theme.SakuraPink
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.activity.compose.BackHandler
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.activity.compose.BackHandler
 import coil3.compose.AsyncImage
 import com.neko.music.R
-import com.neko.music.util.UrlConfig
+import com.neko.music.data.api.MusicApi
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.model.Music
+import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.util.UrlConfig
+import java.util.Collections
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun PlaylistScreen(
@@ -57,7 +79,7 @@ fun PlaylistScreen(
     onBackClick: () -> Unit,
     onMusicClick: (Music) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val playlistManager = PlaylistManager.getInstance(context)
     val playlist by playlistManager.playlist.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
@@ -120,6 +142,51 @@ fun PlaylistContent(
     scope: kotlinx.coroutines.CoroutineScope
 ) {
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val itemHeightPx = with(density) { (64.dp + 8.dp).toPx() }
+
+    val ordered = remember { mutableStateListOf<Music>() }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(playlist, draggingIndex) {
+        if (draggingIndex == null) {
+            ordered.clear()
+            ordered.addAll(playlist)
+        }
+    }
+
+    fun removeFromQueue(music: Music) {
+        scope.launch {
+            val wasCurrent = music.id == currentMusicId
+            val nextBeforeRemove = if (wasCurrent) playlistManager.getNextMusic(music.id) else null
+            playlistManager.removeFromPlaylist(music.id)
+            if (wasCurrent) {
+                val player = MusicPlayerManager.getInstance(context)
+                val api = MusicApi(context)
+                val target = nextBeforeRemove ?: playlistManager.getFirstMusic()
+                if (target != null && target.id != music.id) {
+                    val url = api.getMusicFileUrl(target)
+                    val fullCoverUrl = if (!target.coverFilePath.isNullOrEmpty()) {
+                        UrlConfig.buildFullUrl(target.coverFilePath)
+                    } else {
+                        UrlConfig.getMusicCoverUrl(target.id)
+                    }
+                    player.playMusic(
+                        url,
+                        target.id,
+                        target.title,
+                        target.artist,
+                        target.coverFilePath ?: "",
+                        fullCoverUrl
+                    )
+                } else {
+                    player.pause()
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -175,6 +242,15 @@ fun PlaylistContent(
             color = scheme.outline.copy(alpha = 0.35f)
         )
 
+        Text(
+            text = stringResource(id = R.string.content_description_drag_reorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            color = scheme.onSurfaceVariant.copy(alpha = 0.85f)
+        )
+
         if (playlist.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -193,14 +269,51 @@ fun PlaylistContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(playlist) { music ->
+                itemsIndexed(ordered, key = { _, m -> m.id }) { index, music ->
                     PlaylistItem(
                         music = music,
                         isPlaying = music.id == currentMusicId,
-                        onClick = { onMusicClick(music) }
+                        isDragging = draggingIndex == index,
+                        dragOffsetY = if (draggingIndex == index) dragOffsetY else 0f,
+                        modifier = Modifier.zIndex(if (draggingIndex == index) 1f else 0f),
+                        onPlayClick = { onMusicClick(music) },
+                        onRemoveClick = { removeFromQueue(music) },
+                        onReorderDragStart = {
+                            draggingIndex = index
+                            dragOffsetY = 0f
+                        },
+                        onReorderDrag = { dy ->
+                            dragOffsetY += dy
+                            while (true) {
+                                val i = draggingIndex ?: break
+                                if (dragOffsetY > itemHeightPx / 2f && i < ordered.lastIndex) {
+                                    Collections.swap(ordered, i, i + 1)
+                                    draggingIndex = i + 1
+                                    dragOffsetY -= itemHeightPx
+                                } else if (dragOffsetY < -itemHeightPx / 2f && i > 0) {
+                                    Collections.swap(ordered, i, i - 1)
+                                    draggingIndex = i - 1
+                                    dragOffsetY += itemHeightPx
+                                } else {
+                                    break
+                                }
+                            }
+                        },
+                        onReorderDragEnd = {
+                            val ids = ordered.map { it.id }
+                            scope.launch {
+                                playlistManager.applyQueueOrder(ids)
+                                draggingIndex = null
+                                dragOffsetY = 0f
+                            }
+                        },
+                        onReorderDragCancel = {
+                            draggingIndex = null
+                            dragOffsetY = 0f
+                        }
                     )
                 }
             }
@@ -212,15 +325,23 @@ fun PlaylistContent(
 fun PlaylistItem(
     music: Music,
     isPlaying: Boolean,
-    onClick: () -> Unit
+    isDragging: Boolean,
+    dragOffsetY: Float,
+    modifier: Modifier = Modifier,
+    onPlayClick: () -> Unit,
+    onRemoveClick: () -> Unit,
+    onReorderDragStart: () -> Unit,
+    onReorderDrag: (dy: Float) -> Unit,
+    onReorderDragEnd: () -> Unit,
+    onReorderDragCancel: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
 
     GlassSurface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .offset { IntOffset(0, dragOffsetY.roundToInt()) },
         shape = RoundedCornerShape(12.dp),
         backgroundAlpha = when {
             isPlaying && isDark -> 0.46f
@@ -241,11 +362,66 @@ fun PlaylistItem(
         liquidLensHeight = 16.dp,
         liquidLensAmount = 26.dp
     ) {
-        PlaylistItemRow(
-            music = music,
-            isPlaying = isPlaying,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val dragTint = scheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.95f else 0.55f)
+            Box(
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(52.dp)
+                    .pointerInput(music.id) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onReorderDragStart() },
+                            onDrag = { _, dragAmount -> onReorderDrag(dragAmount.y) },
+                            onDragEnd = { onReorderDragEnd() },
+                            onDragCancel = { onReorderDragCancel() }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = stringResource(id = R.string.content_description_drag_reorder),
+                    tint = dragTint,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember(music.id) { MutableInteractionSource() },
+                        indication = ripple(bounded = true),
+                        onClick = onPlayClick
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PlaylistItemRow(
+                    music = music,
+                    isPlaying = isPlaying,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            IconButton(
+                onClick = onRemoveClick,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(id = R.string.playback_queue_remove_from_list),
+                    tint = scheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
     }
 }
 
@@ -258,7 +434,7 @@ private fun PlaylistItemRow(
     val scheme = MaterialTheme.colorScheme
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

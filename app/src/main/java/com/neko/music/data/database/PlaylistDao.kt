@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -46,4 +47,12 @@ interface PlaylistDao {
     
     @Query("SELECT * FROM playlist ORDER BY id DESC LIMIT 1")
     suspend fun getLastMusic(): PlaylistEntity?
+
+    @Transaction
+    suspend fun replacePlaylistOrdered(entities: List<PlaylistEntity>) {
+        clearPlaylist()
+        for (entity in entities) {
+            addToPlaylist(entity.copy(id = 0L))
+        }
+    }
 }

@@ -347,6 +347,8 @@
     <!-- Playlist -->
     <string name="playback_list">Playlist</string>
     <string name="playlist_empty">Playlist is empty</string>
+    <string name="playback_queue_remove_from_list">Remove</string>
+    <string name="content_description_drag_reorder">Long press the left side of a row and drag to reorder</string>
 
     <!-- Recent Play -->
     <string name="no_play_history">Hmm? No play history yet</string>
