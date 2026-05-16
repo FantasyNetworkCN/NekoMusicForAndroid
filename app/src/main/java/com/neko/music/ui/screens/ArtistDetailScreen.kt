@@ -208,9 +208,7 @@ fun ArtistDetailScreen(
 
     val isDarkTheme = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
@@ -218,76 +216,67 @@ fun ArtistDetailScreen(
     val listBottomInset = LiquidGlassDefaults.vipCenterListBottomInsetDp
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.playlist_background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    scheme.background.copy(
-                        alpha = if (isDarkTheme) 0.55f else 0.88f
-                    )
-                )
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+                .layerBackdrop(pageBackdrop)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(id = R.string.back),
-                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = stringResource(id = R.string.artist_detail),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                )
-            }
-
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
+                    .background(
+                        scheme.background.copy(
+                            alpha = if (isDarkTheme) 0.55f else 0.88f
+                        )
+                    )
+            )
+        }
+
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .layerBackdrop(pageBackdrop)
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                if (isDarkTheme) Color(0xFF121228).copy(alpha = 0.35f)
-                                else Color.White.copy(alpha = 0.25f)
-                            )
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(id = R.string.back),
+                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = stringResource(id = R.string.artist_detail),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                     )
                 }
 
-                CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
                     when {
                         isLoading -> {
                             Box(
