@@ -558,7 +558,7 @@
     <string name="video_render_start_label">成片起始喵</string>
     <string name="video_render_range_value" formatted="false">%1$s → %2$s</string>
     <string name="video_render_vip_hint">会员：从所选位置渲染至歌曲结束，可选水印喵</string>
-    <string name="video_render_free_hint">免费：15 秒横屏成片（含水印），每日 10 次喵</string>
+    <string name="video_render_free_hint">免费：30 秒横屏成片（含水印），每日 10 次喵</string>
     <string name="video_render_vip_duration_hint">约 %1$s 成片喵</string>
     <string name="video_render_free_duration_hint">固定 %1$d 秒成片喵</string>
     <string name="video_render_non_vip_watermark_required">非会员须开启水印喵</string>

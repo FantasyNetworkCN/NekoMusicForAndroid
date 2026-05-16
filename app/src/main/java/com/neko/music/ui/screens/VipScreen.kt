@@ -1,6 +1,6 @@
 package com.neko.music.ui.screens
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,9 +40,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,7 +61,6 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.RoseRed
-import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.util.PayLauncher
 import kotlinx.coroutines.launch
 
@@ -86,10 +86,7 @@ fun VipScreen(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
-    val pageBg = if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA)
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val heroGlass = LiquidGlassDefaults.vipCenterHero
     val pricingGlass = LiquidGlassDefaults.vipCenterPricingCard
     val listBottomInset = LiquidGlassDefaults.vipCenterListBottomInsetDp
@@ -117,9 +114,22 @@ fun VipScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = pageBg,
+            containerColor = Color.Transparent,
             contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
             topBar = {
                 CenterAlignedTopAppBar(
@@ -148,8 +158,8 @@ fun VipScreen(
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = pageBg,
-                        scrolledContainerColor = pageBg
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
                     )
                 )
             }
@@ -158,20 +168,7 @@ fun VipScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .background(pageBg)
             ) {
-                // 仅背景进 layerBackdrop；列表在兄弟层采样，避免 LazyColumn 多行共享 export 导致 SIGSEGV。
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .layerBackdrop(pageBackdrop)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(pageBg)
-                    )
-                }
                 CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                     when {
                         loading -> {
@@ -329,20 +326,6 @@ private fun VipStatusHeroCard(
 ) {
     val shape = RoundedCornerShape(20.dp)
     val scheme = MaterialTheme.colorScheme
-    val heroBrush = Brush.linearGradient(
-        colors = if (isVip) {
-            listOf(
-                Color(0xFFFFF8E1).copy(alpha = if (isDarkTheme) 0.22f else 0.85f),
-                Color(0xFFFFECB3).copy(alpha = if (isDarkTheme) 0.18f else 0.75f),
-                SakuraPink.copy(alpha = if (isDarkTheme) 0.12f else 0.35f)
-            )
-        } else {
-            listOf(
-                scheme.surfaceVariant.copy(alpha = if (isDarkTheme) 0.15f else 0.5f),
-                RoseRed.copy(alpha = if (isDarkTheme) 0.10f else 0.08f)
-            )
-        }
-    )
 
     GlassSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -362,7 +345,6 @@ private fun VipStatusHeroCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(heroBrush)
                 .padding(20.dp)
         ) {
             Row(
