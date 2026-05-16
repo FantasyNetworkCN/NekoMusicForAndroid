@@ -528,4 +528,23 @@
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
     <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>
+
+    <string name="vip_center_title">会员中心喵</string>
+    <string name="vip_menu_entry">会员中心喵</string>
+    <string name="vip_status_active">尊贵 VIP 喵</string>
+    <string name="vip_status_expires">到期：%1$s 喵</string>
+    <string name="vip_open_membership">开通会员喵</string>
+    <string name="vip_open_hint">点击右上角 VIP 开通会员喵</string>
+    <string name="vip_pricing_load_failed">价目表加载失败喵</string>
+    <string name="vip_pay_no_url">没有拿到支付链接喵</string>
+    <string name="vip_pay_create_failed">下单失败喵</string>
+    <string name="vip_months_suffix">个月</string>
+    <string name="vip_days_suffix">天</string>
+    <string name="vip_plan_default">会员套餐喵</string>
+    <string name="vip_price_yuan">¥ %1$.2f 喵</string>
+    <string name="vip_pay_alipay">支付宝喵</string>
+    <string name="vip_pay_wechat">微信喵</string>
+    <string name="vip_choose_plan">选择套餐喵</string>
+    <string name="vip_member_benefits">尊享更长视频、无水印等权益喵</string>
+    <string name="vip_non_member_benefits">开通后解锁更长分享视频、去水印等喵</string>
 </resources>

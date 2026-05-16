@@ -273,7 +273,9 @@ fun LoginScreen(
                                         token = response.data.token,
                                         userId = response.data.user.id,
                                         username = response.data.user.username,
-                                        email = response.data.user.email
+                                        email = response.data.user.email,
+                                        isVip = response.data.user.isVip,
+                                        vipExpiresAt = response.data.user.vipExpiresAt
                                     )
                                     onLoginSuccess()
                                 } else {

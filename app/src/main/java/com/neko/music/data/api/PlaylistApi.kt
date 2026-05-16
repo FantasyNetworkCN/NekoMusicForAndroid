@@ -21,7 +21,10 @@ data class PlaylistListResponse(
     val success: Boolean,
     val message: String = "",
     val playlists: List<PlaylistInfo>? = null,
-    val results: List<PlaylistInfo>? = null
+    val results: List<PlaylistInfo>? = null,
+    /** 与 Web 端一致：根级附带当前用户 VIP（便于客户端刷新） */
+    val isVip: Boolean = false,
+    val vipExpiresAt: String? = null
 )
 
 @Serializable
@@ -136,7 +139,9 @@ class PlaylistApi(private val token: String?, private val context: android.conte
                 success = responseBody.success,
                 message = responseBody.message,
                 playlists = responseBody.results,
-                results = null
+                results = null,
+                isVip = responseBody.isVip,
+                vipExpiresAt = responseBody.vipExpiresAt
             )
         } catch (e: Exception) {
             Log.e("PlaylistApi", "搜索歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)

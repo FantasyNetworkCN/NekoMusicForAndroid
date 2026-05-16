@@ -67,6 +67,9 @@ fun AccountInfoScreen(
     userId: Int = -1,
     username: String = "",
     email: String = "",
+    isVip: Boolean = false,
+    vipExpiresAt: String? = null,
+    onVipCenterClick: () -> Unit = {},
     onAvatarUpdate: (ByteArray) -> Unit = {},
     onPasswordUpdate: suspend (oldPassword: String, newPassword: String) -> Boolean = { _, _ -> false },
     onShowBottomControls: (Boolean) -> Unit = {}
@@ -205,6 +208,26 @@ fun AccountInfoScreen(
                 title = stringResource(id = R.string.email),
                 value = email,
                 showArrow = false
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            InfoCard(
+                icon = R.drawable.ic_vip_star,
+                title = stringResource(id = R.string.vip_center_title),
+                value = if (isVip) {
+                    val exp = vipExpiresAt?.take(10)
+                    if (exp != null) {
+                        stringResource(R.string.vip_status_expires, exp)
+                    } else {
+                        stringResource(R.string.vip_status_active)
+                    }
+                } else {
+                    stringResource(R.string.vip_open_membership)
+                },
+                showArrow = true,
+                onClick = onVipCenterClick,
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFFB300))
             )
 
             Spacer(modifier = Modifier.height(16.dp))

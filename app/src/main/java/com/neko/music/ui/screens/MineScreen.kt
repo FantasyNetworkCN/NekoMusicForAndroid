@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -38,6 +39,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
@@ -52,9 +54,12 @@ fun MineScreen(
     onNavigateToSettings: () -> Unit = {},
     onAccountInfoClick: () -> Unit = {},
     onUploadClick: () -> Unit = {},
+    onVipCenterClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     username: String? = null,
     userId: Int = -1,
+    isVip: Boolean = false,
+    vipExpiresAt: String? = null,
     onLoginSuccess: () -> Unit = {},
     token: String? = null
 ) {
@@ -125,6 +130,9 @@ fun MineScreen(
                         isLoggedIn = isLoggedIn,
                         username = username,
                         userId = userId,
+                        isVip = isVip,
+                        vipExpiresAt = vipExpiresAt,
+                        onVipEntryClick = onVipCenterClick,
                         onLogoutClick = onLogoutClick,
                         onAccountInfoClick = onAccountInfoClick,
                         bubble1Y = bubble1Y,
@@ -166,6 +174,10 @@ fun MineScreen(
                             MineMenu(
                                 onRecentPlayClick = onRecentPlayClick,
                                 onFavoriteClick = onFavoriteClick,
+                                onVipCenterClick = onVipCenterClick,
+                                isLoggedIn = isLoggedIn,
+                                onLogoutClick = onLogoutClick,
+                                onLoginClick = onLoginClick,
                                 useElevatedMenuItems = false,
                                 contentHorizontalPadding = 0.dp
                             )
@@ -209,6 +221,9 @@ fun MineHeader(
     isLoggedIn: Boolean = false,
     username: String? = null,
     userId: Int = -1,
+    isVip: Boolean = false,
+    vipExpiresAt: String? = null,
+    onVipEntryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onAccountInfoClick: () -> Unit = {},
     bubble1Y: Float = 0f,
@@ -228,7 +243,7 @@ fun MineHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(240.dp)
+            .height(268.dp)
     ) {
         Image(
             painter = painterResource(id = R.drawable.background),
@@ -287,28 +302,45 @@ fun MineHeader(
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // 头像容器
+            // 头像容器（会员金色描边，与 Web 资料页 VIP 感一致）
+            val avatarShape = RoundedCornerShape(24.dp)
+            val vipRingBrush = Brush.linearGradient(
+                colors = listOf(Color(0xFFFFE082), Color(0xFFFFB300), Color(0xFFFFA000))
+            )
+            val avatarOuter = if (isLoggedIn && isVip) 96.dp else 90.dp
+            val avatarInner = if (isLoggedIn && isVip) 88.dp else 90.dp
             Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .shadow(
-                        elevation = 8.dp,
-                        spotColor = RoseRed.copy(alpha = 0.4f),
-                        ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                    )
-                    .clickable {
-                        if (isLoggedIn) {
-                            onAccountInfoClick()
-                        } else {
-                            onLoginClick()
-                        }
-                    },
+                modifier = Modifier.size(avatarOuter),
                 contentAlignment = Alignment.Center
             ) {
+                if (isLoggedIn && isVip) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(width = 2.5.dp, brush = vipRingBrush, shape = avatarShape)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(avatarInner)
+                        .clip(avatarShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .shadow(
+                            elevation = 8.dp,
+                            spotColor = if (isVip) Color(0xFFFFB300).copy(alpha = 0.45f) else RoseRed.copy(alpha = 0.4f),
+                            ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                        )
+                        .clickable {
+                            if (isLoggedIn) {
+                                onAccountInfoClick()
+                            } else {
+                                onLoginClick()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
                 if (isLoggedIn && userId != -1) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
@@ -332,26 +364,27 @@ fun MineHeader(
                         contentScale = ContentScale.Crop
                     )
                 }
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = if (isLoggedIn && username != null) username else stringResource(id = R.string.not_logged_in),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFFF6B6B)
+                color = Color(0xFFFF6B6B),
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
-            
-            Spacer(modifier = Modifier.height(6.dp))
 
-            // 名字下方的内容
-//            Text(
-//                text = if (isLoggedIn) "已登录" else "点击登录",
-//                fontSize = 14.sp,
-//                color = Color.White.copy(alpha = 0.8f),
-//                fontWeight = FontWeight.Medium
-//            )
+            if (isLoggedIn) {
+                Spacer(modifier = Modifier.height(10.dp))
+                VipPill(
+                    isVip = isVip,
+                    onClick = onVipEntryClick
+                )
+            }
         }
     }
 }
@@ -519,6 +552,7 @@ fun NekoMemberBanner() {
 fun MineMenu(
     onRecentPlayClick: () -> Unit = {},
     onFavoriteClick: () -> Unit = {},
+    onVipCenterClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     onLogoutClick: () -> Unit = {},
     onLoginClick: () -> Unit = {},
@@ -545,6 +579,15 @@ fun MineMenu(
             R.drawable.ic_favorite_filled,
             SakuraPink,
             onClick = onFavoriteClick,
+            useElevatedSurface = useElevatedMenuItems
+        )
+        MenuItem(
+            stringResource(id = R.string.vip_menu_entry),
+            R.drawable.ic_vip_star,
+            Color(0xFFFFB300),
+            onClick = {
+                if (isLoggedIn) onVipCenterClick() else onLoginClick()
+            },
             useElevatedSurface = useElevatedMenuItems
         )
         MenuItem(
