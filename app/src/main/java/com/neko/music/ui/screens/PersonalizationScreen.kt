@@ -3,6 +3,7 @@ package com.neko.music.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,6 +57,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -162,10 +165,7 @@ fun PersonalizationScreen(
         else -> systemDark
     }
     val scheme = MaterialTheme.colorScheme
-    val pageBg = if (isDarkChrome) Color(0xFF121228) else Color(0xFFFAFAFA)
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkChrome) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
     fun applyTheme(mode: String) {
         if (mode == themeMode) return
@@ -181,9 +181,23 @@ fun PersonalizationScreen(
         (context as? Activity)?.recreate()
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = pageBg,
+        containerColor = Color.Transparent,
         contentColor = if (isDarkChrome) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
             TopAppBar(
@@ -203,8 +217,8 @@ fun PersonalizationScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = pageBg,
-                    scrolledContainerColor = pageBg
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 )
             )
         }
@@ -214,14 +228,6 @@ fun PersonalizationScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // 与排行榜页一致：录屏层只铺纯色底；玻璃在兄弟层用 LocalLiquidLayerBackdrop 采样才是真液态。
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .layerBackdrop(pageBackdrop)
-            ) {
-                Box(modifier = Modifier.fillMaxSize().background(pageBg))
-            }
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Column(
@@ -546,6 +552,7 @@ fun PersonalizationScreen(
                 }
             }
         }
+    }
     }
     }
 }
