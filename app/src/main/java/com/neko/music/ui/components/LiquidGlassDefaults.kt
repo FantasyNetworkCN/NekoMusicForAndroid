@@ -385,6 +385,11 @@ object LiquidGlassDefaults {
         liquid = liquidAppUpdate,
     )
 
+    /** 创建/编辑歌单弹窗（面板与 [appUpdateDialog] 同档液态参数） */
+    val myPlaylistsDialog: LiquidGlassPanel get() = appUpdateDialog
+
+    val myPlaylistsDialogInput: LiquidGlassPanel get() = searchTopSearchField
+
     val shareSheetSectionDarkBorderSakuraAlpha: Float = 0.42f
 
     val shareSheetSection: LiquidGlassPanel = LiquidGlassPanel(
