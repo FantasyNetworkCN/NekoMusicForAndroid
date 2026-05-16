@@ -870,7 +870,7 @@ fun ArtistList(
             start = 16.dp,
             top = 16.dp,
             end = 16.dp,
-            bottom = 96.dp
+            bottom = 160.dp
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
