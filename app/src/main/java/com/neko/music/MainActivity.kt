@@ -9,13 +9,17 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
@@ -46,7 +50,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
@@ -325,7 +332,7 @@ fun MainScreen() {
     // 播放列表显示状态
     var showPlaylist by androidx.compose.runtime.remember { mutableStateOf(false) }
 
-    // 底部控件可见性状态
+    // 底部控件可见性（账号页等可置 false）；播放页用 [isPlayerScreen] 驱动进出场动画，不再延迟 500ms
     var showBottomControls by androidx.compose.runtime.remember { mutableStateOf(true) }
     /** 歌单详情「批量」编辑时，暂时隐藏迷你播放器与底栏（由 [PlaylistDetailScreen] 驱动） */
     var playlistBatchHidingChrome by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -381,9 +388,6 @@ fun MainScreen() {
         } catch (_: Exception) {
         }
     }
-
-    // 跟踪是否从播放页面返回
-    var returningFromPlayer by androidx.compose.runtime.remember { mutableStateOf(false) }
 
     // 监听 Deep Link 事件并导航
     androidx.compose.runtime.LaunchedEffect(navController) {
@@ -497,20 +501,6 @@ fun MainScreen() {
 
             // 检查收藏状态
             playerManager.checkFavoriteStatus()
-        }
-    }
-
-    // 监听是否在播放页面，从播放页面返回时延迟显示底部控件
-    androidx.compose.runtime.LaunchedEffect(isPlayerScreen) {
-        if (isPlayerScreen) {
-            // 进入播放页面，立即隐藏底部控件（无动画）
-            showBottomControls = false
-            returningFromPlayer = true
-        } else if (returningFromPlayer) {
-            // 从播放页面返回，延迟0.5秒后显示带动画
-            kotlinx.coroutines.delay(500)
-            showBottomControls = true
-            returningFromPlayer = false
         }
     }
 
@@ -1218,143 +1208,70 @@ fun MainScreen() {
 
         // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
 
-        // 只在非播放页面显示迷你播放器和底部导航栏 - 悬浮在底部
+        // 迷你播放器 + 底栏：底部对齐后整体做 AnimatedVisibility，避免自定义 Layout 把内容画在测量区域外导致动画被裁切
+        val bottomChromeVisible = showBottomControls && !isPlayerScreen && !playlistBatchHidingChrome
+        val bottomChromeEnter = remember {
+            slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+            ) + fadeIn(animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing))
+        }
+        val bottomChromeExit = remember {
+            slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+            ) + fadeOut(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing))
+        }
 
-        if (!isPlayerScreen && showBottomControls && !playlistBatchHidingChrome) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(8f),
+        ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-
-                    // MiniPlayer - 悬浮在底部
-
-                    androidx.compose.animation.AnimatedVisibility(
-
-                        visible = true,
-
-                        enter = if (returningFromPlayer) {
-
-                            androidx.compose.animation.slideInVertically(
-
-                                initialOffsetY = { fullHeight -> fullHeight },
-
-                                animationSpec = tween(
-
-                                    durationMillis = 200,
-
-                                    easing = androidx.compose.animation.core.FastOutSlowInEasing
-
-                                )
-
-                            )
-
-                        } else {
-
-                            androidx.compose.animation.fadeIn(animationSpec = tween(durationMillis = 0))
-
-                        },
-
-                        label = "miniPlayer"
-
+                AnimatedVisibility(
+                    visible = bottomChromeVisible,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                    enter = bottomChromeEnter,
+                    exit = bottomChromeExit,
+                    label = "bottomChrome",
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        val density = LocalDensity.current
-                        val bottomNavHeight = WindowInsets.navigationBars.getBottom(density)
-
-                        androidx.compose.ui.layout.Layout(
-                            content = {
-                                MiniPlayer(
-                                    isPlaying = isPlaying,
-                                    songTitle = currentMusicTitle ?: "暂无播放",
-                                    artist = currentMusicArtist ?: "",
-                                    coverUrl = currentMusicCover,
-                                    progress = progress.floatValue,
-                                    onPlayPauseClick = {
-                                        playerManager.togglePlayPause()
-                                    },
-                                    onPlayerClick = {
-                                        val id = currentMusicId ?: 0
-                                        val encodedTitle = java.net.URLEncoder.encode(
-                                            currentMusicTitle ?: "未知歌曲", "UTF-8"
-                                        )
-                                        val encodedArtist = java.net.URLEncoder.encode(
-                                            currentMusicArtist ?: "未知歌手", "UTF-8"
-                                        )
-                                        navController.navigate("player/$id/$encodedTitle/$encodedArtist")
-                                    },
-                                    onPlaylistClick = {
-                                        showPlaylist = true
-                                    }
-                                )
+                        MiniPlayer(
+                            isPlaying = isPlaying,
+                            songTitle = currentMusicTitle ?: "暂无播放",
+                            artist = currentMusicArtist ?: "",
+                            coverUrl = currentMusicCover,
+                            progress = progress.floatValue,
+                            onPlayPauseClick = {
+                                playerManager.togglePlayPause()
                             },
-                            measurePolicy = { measurables, constraints ->
-                                val placeable = measurables.first().measure(
-                                    constraints.copy(
-                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx()
-                                    )
+                            onPlayerClick = {
+                                val id = currentMusicId ?: 0
+                                val encodedTitle = java.net.URLEncoder.encode(
+                                    currentMusicTitle ?: "未知歌曲", "UTF-8"
                                 )
-                                layout(placeable.width, placeable.height) {
-                                    placeable.place(
-                                        16.dp.roundToPx(),
-                                        constraints.maxHeight - placeable.height - 72.dp.roundToPx() - bottomNavHeight
-                                    )
-                                }
-                            }
-                        )
-                    }
-
-        
-
-                    // BottomNavigationBar - 悬浮在底部
-
-                    androidx.compose.animation.AnimatedVisibility(
-
-                        visible = true,
-
-                        enter = if (returningFromPlayer) {
-
-                            androidx.compose.animation.slideInVertically(
-
-                                initialOffsetY = { fullHeight -> fullHeight },
-
-                                animationSpec = tween(
-
-                                    durationMillis = 200,
-
-                                    easing = androidx.compose.animation.core.FastOutSlowInEasing
-
+                                val encodedArtist = java.net.URLEncoder.encode(
+                                    currentMusicArtist ?: "未知歌手", "UTF-8"
                                 )
-
-                            )
-
-                        } else {
-
-                            androidx.compose.animation.fadeIn(animationSpec = tween(durationMillis = 0))
-
-                        },
-
-                        label = "bottomNavigation"
-
-                    ) {
-                        val density = LocalDensity.current
-                        val bottomNavHeight = WindowInsets.navigationBars.getBottom(density)
-
-                        androidx.compose.ui.layout.Layout(
-                            content = {
-                                BottomNavigationBar(navController = navController)
+                                navController.navigate("player/$id/$encodedTitle/$encodedArtist")
                             },
-                            measurePolicy = { measurables, constraints ->
-                                val placeable = measurables.first().measure(
-                                    constraints.copy(
-                                        maxWidth = constraints.maxWidth - 32.dp.roundToPx()
-                                    )
-                                )
-                                layout(placeable.width, placeable.height) {
-                                    placeable.place(
-                                        16.dp.roundToPx(),
-                                        constraints.maxHeight - placeable.height - 16.dp.roundToPx() - bottomNavHeight
-                                    )
-                                }
-                            }
+                            onPlaylistClick = {
+                                showPlaylist = true
+                            },
                         )
+                        BottomNavigationBar(navController = navController)
                     }
-
+                }
             }
         }
 
