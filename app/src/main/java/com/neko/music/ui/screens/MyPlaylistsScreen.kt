@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,9 +32,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import coil3.compose.rememberAsyncImagePainter
 import coil3.compose.AsyncImage
 import com.neko.music.R
@@ -65,6 +72,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 
@@ -821,134 +829,180 @@ fun PlaylistDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    // Preload strings
     val playlistNameText = stringResource(id = R.string.playlist_name)
     val cancelText = stringResource(id = R.string.cancel)
     val confirmText = stringResource(id = R.string.confirm)
-    
-    val isDarkTheme = isSystemInDarkTheme()
-    
+
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = scheme.background.luminance() < 0.5f
+    val sampleBackdrop =
+        LocalNavHostRecordingBackdrop.current ?: LocalLiquidLayerBackdrop.current
+    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
+    val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
+    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
+    val titleColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+    val inputTextColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val placeholderColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
+
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true,
+            usePlatformDefaultWidth = false,
+        ),
     ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = if (isDarkTheme) {
-                Color(0xFF1A1A2E).copy(alpha = 0.95f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .shadow(
-                    elevation = 12.dp,
-                    spotColor = Color.Black.copy(alpha = 0.2f),
-                    ambientColor = if (isDarkTheme) {
-                        Color(0xFFB8B8D1).copy(alpha = 0.18f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
-                    }
-                )
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setDimAmount(0f)
+        }
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
         ) {
-            Column(
-                modifier = Modifier.padding(32.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+            GlassSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                sampleBackdrop = sampleBackdrop,
+                backgroundAlpha = dialogGlass.tint.background(isDarkTheme),
+                borderAlpha = dialogGlass.tint.border(isDarkTheme),
+                highlightAlpha = dialogGlass.tint.highlight(isDarkTheme),
+                borderColor = if (isDarkTheme) {
+                    SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+                } else {
+                    scheme.outline
+                },
+                liquidBlur = dialogGlass.liquid.blur,
+                liquidLensHeight = dialogGlass.liquid.lensHeight,
+                liquidLensAmount = dialogGlass.liquid.lensAmount,
             ) {
-                Text(
-                    text = title,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.95f) else Color.Black,
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                OutlinedTextField(
-                    value = playlistName,
-                    onValueChange = onNameChange,
-                    label = { Text(playlistNameText) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.5f),
-                        unfocusedBorderColor = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.5f)
-                        } else {
-                            Color.Gray
-                        },
-                        cursorColor = if (isDarkTheme) Color.White else Color.Black,
-                        focusedTextColor = if (isDarkTheme) {
-                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                        } else {
-                            Color.Black
-                        },
-                        unfocusedTextColor = if (isDarkTheme) {
-                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                        } else {
-                            Color.Black
-                        },
-                        focusedPlaceholderColor = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.6f)
-                        } else {
-                            Color.Gray
-                        },
-                        unfocusedPlaceholderColor = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.6f)
-                        } else {
-                            Color.Gray
-                        }
+                Column(modifier = Modifier.padding(32.dp)) {
+                    Text(
+                        text = title,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = titleColor,
+                        letterSpacing = 0.3.sp,
                     )
-                )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(
-                            text = cancelText,
-                            fontSize = 17.sp,
-                            color = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
+                    Text(
+                        text = playlistNameText,
+                        fontSize = 14.sp,
+                        color = mutedColor,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     GlassSurface(
                         modifier = Modifier
-                            .height(48.dp)
-                            .clickable(enabled = playlistName.isNotBlank()) { onConfirm() },
+                            .fillMaxWidth()
+                            .height(52.dp),
                         shape = RoundedCornerShape(14.dp),
-                        backgroundAlpha = confirmGlass.background(isDarkTheme),
-                        borderAlpha = confirmGlass.border(isDarkTheme),
-                        highlightAlpha = confirmGlass.highlight(isDarkTheme)
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = inputGlass.tint.background(isDarkTheme),
+                        borderAlpha = inputGlass.tint.border(isDarkTheme),
+                        highlightAlpha = inputGlass.tint.highlight(isDarkTheme),
+                        borderColor = if (isDarkTheme) Color.White.copy(alpha = 0.22f) else scheme.outline,
+                        liquidBlur = inputGlass.liquid.blur,
+                        liquidLensHeight = inputGlass.liquid.lensHeight,
+                        liquidLensAmount = inputGlass.liquid.lensAmount,
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.CenterStart,
                         ) {
-                            Text(
-                                text = confirmText,
-                                fontSize = 17.sp,
-                                color = if (isDarkTheme) {
-                                    Color.White.copy(alpha = if (playlistName.isNotBlank()) 0.95f else 0.4f)
-                                } else {
-                                    if (playlistName.isNotBlank()) Color.Black else Color.Gray
-                                },
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 20.dp)
+                            if (playlistName.isEmpty()) {
+                                Text(
+                                    text = playlistNameText,
+                                    fontSize = 16.sp,
+                                    color = placeholderColor,
+                                )
+                            }
+                            BasicTextField(
+                                value = playlistName,
+                                onValueChange = onNameChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(
+                                    color = inputTextColor,
+                                    fontSize = 16.sp,
+                                ),
+                                singleLine = true,
+                                cursorBrush = SolidColor(RoseRed),
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(
+                                text = cancelText,
+                                fontSize = 17.sp,
+                                color = mutedColor,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        GlassSurface(
+                            modifier = Modifier
+                                .height(48.dp)
+                                .clickable(
+                                    enabled = playlistName.isNotBlank(),
+                                    onClick = onConfirm,
+                                ),
+                            shape = RoundedCornerShape(14.dp),
+                            sampleBackdrop = sampleBackdrop,
+                            backgroundAlpha = confirmGlass.background(isDarkTheme),
+                            borderAlpha = confirmGlass.border(isDarkTheme),
+                            highlightAlpha = confirmGlass.highlight(isDarkTheme),
+                            liquidBlur = dialogGlass.liquid.blur,
+                            liquidLensHeight = dialogGlass.liquid.lensHeight,
+                            liquidLensAmount = dialogGlass.liquid.lensAmount,
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = confirmText,
+                                    fontSize = 17.sp,
+                                    color = if (isDarkTheme) {
+                                        Color.White.copy(
+                                            alpha = if (playlistName.isNotBlank()) 0.95f else 0.4f,
+                                        )
+                                    } else {
+                                        if (playlistName.isNotBlank()) scheme.onSurface else Color.Gray
+                                    },
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 20.dp),
+                                )
+                            }
                         }
                     }
                 }
