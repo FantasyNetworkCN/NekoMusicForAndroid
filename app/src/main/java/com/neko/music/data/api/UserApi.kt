@@ -355,7 +355,24 @@ class UserApi(private val token: String? = null) {
             }
         } catch (e: Exception) {
             Log.e("UserApi", "上传音乐失败", e)
-            UploadMusicResponse(success = false, message = "网络错误: ${e.message}")
+            // 检查是否是HTTP异常，获取状态码
+            val errorMessage = when {
+                e is io.ktor.client.call.HttpClientCallException -> {
+                    when (e.response.status.value) {
+                        413 -> "文件过大，无法上传（413 Request Entity Too Large）"
+                        400 -> "请求格式错误（400 Bad Request）"
+                        401 -> "未授权，请重新登录（401 Unauthorized）"
+                        403 -> "权限不足（403 Forbidden）"
+                        404 -> "资源未找到（404 Not Found）"
+                        500 -> "服务器内部错误（500 Internal Server Error）"
+                        else -> "网络错误: ${e.message}"
+                    }
+                }
+                e is java.net.SocketTimeoutException -> "连接超时，请检查网络"
+                e is java.net.UnknownHostException -> "网络连接失败，请检查网络设置"
+                else -> "上传失败: ${e.message}"
+            }
+            UploadMusicResponse(success = false, message = errorMessage)
         }
     }
 }
