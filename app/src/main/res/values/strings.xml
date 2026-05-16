@@ -537,6 +537,9 @@
     <string name="vip_open_hint">点击右上角 VIP 开通会员喵</string>
     <string name="vip_pricing_load_failed">价目表加载失败喵</string>
     <string name="vip_pay_no_url">没有拿到支付链接喵</string>
+    <string name="vip_wechat_not_installed">请先安装微信喵</string>
+    <string name="vip_pay_launch_failed">无法拉起支付，请确认已安装对应 App 喵</string>
+    <string name="vip_pay_web_title">收银台喵</string>
     <string name="vip_pay_create_failed">下单失败喵</string>
     <string name="vip_months_suffix">个月</string>
     <string name="vip_days_suffix">天</string>

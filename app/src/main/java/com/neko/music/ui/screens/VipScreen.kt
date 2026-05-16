@@ -1,7 +1,5 @@
 package com.neko.music.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +52,7 @@ import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.VipApi
 import com.neko.music.data.api.VipPricingItem
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.util.PayLauncher
 import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -77,6 +76,7 @@ fun VipScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isVip by remember { mutableStateOf(tokenManager.isVip()) }
     var vipExpiresAt by remember { mutableStateOf(tokenManager.getVipExpiresAt()) }
+    var payWeb by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     LaunchedEffect(token) {
         loading = true
@@ -100,6 +100,7 @@ fun VipScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -194,18 +195,31 @@ fun VipScreen(
                                     val res = vipApi.createPayOrder(item.id, payType)
                                     payingId = null
                                     if (res.success && res.data != null) {
-                                        val url = res.data.payUrl?.takeIf { it.isNotBlank() }
-                                            ?: res.data.payUrl2?.takeIf { it.isNotBlank() }
-                                        if (!url.isNullOrBlank()) {
-                                            context.startActivity(
-                                                Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                            )
-                                        } else {
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                context.getString(R.string.vip_pay_no_url),
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
+                                        when (val outcome = PayLauncher.launch(context, payType, res.data)) {
+                                            is PayLauncher.PayLaunchOutcome.Ok -> { }
+                                            is PayLauncher.PayLaunchOutcome.OpenWeb -> {
+                                                val title = if (payType == "wxpay") {
+                                                    context.getString(R.string.vip_pay_wechat)
+                                                } else {
+                                                    context.getString(R.string.vip_pay_alipay)
+                                                }
+                                                payWeb = outcome.url to title
+                                            }
+                                            is PayLauncher.PayLaunchOutcome.Fail -> {
+                                                val msg = when (outcome.reason) {
+                                                    "wechat_missing" ->
+                                                        context.getString(R.string.vip_wechat_not_installed)
+                                                    "wechat_failed", "alipay_failed" ->
+                                                        context.getString(R.string.vip_pay_launch_failed)
+                                                    "empty" -> context.getString(R.string.vip_pay_no_url)
+                                                    else -> context.getString(R.string.vip_pay_launch_failed)
+                                                }
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    msg,
+                                                    android.widget.Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
                                     } else {
                                         android.widget.Toast.makeText(
@@ -220,6 +234,16 @@ fun VipScreen(
                     }
                 }
             }
+        }
+    }
+
+        payWeb?.let { (webUrl, webTitle) ->
+            VipPayWebScreen(
+                url = webUrl,
+                title = webTitle,
+                onClose = { payWeb = null },
+                onPaymentAppLaunched = { payWeb = null }
+            )
         }
     }
 }

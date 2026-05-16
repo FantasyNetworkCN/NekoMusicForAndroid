@@ -1,5 +1,6 @@
 package com.neko.music.data.api
 
+import android.os.Build
 import android.util.Log
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.preferHttp2AlpnOverHttp1
@@ -98,6 +99,10 @@ class VipApi(private val bearerToken: String) {
             val response = client.post("$baseUrl/api/vip/pay/create") {
                 contentType(ContentType.Application.Json)
                 header("Authorization", authHeader())
+                header(
+                    "User-Agent",
+                    "NekoMusic-Android/1.0 (Linux; Android ${Build.VERSION.RELEASE}) Mobile"
+                )
                 setBody(VipPayCreateRequest(pricingId = pricingId, payType = payType))
             }
             val text = response.bodyAsText()
