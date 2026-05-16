@@ -4,36 +4,64 @@ import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
 import coil3.compose.AsyncImage
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
+import com.neko.music.data.api.MusicApi
+import com.neko.music.data.model.Music
+import com.neko.music.service.MusicPlayerManager
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
-import com.neko.music.data.api.MusicApi
-import com.neko.music.data.model.Music
-import com.neko.music.service.MusicPlayerManager
-import com.neko.music.ui.theme.RoseRed
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -58,15 +86,13 @@ fun ArtistDetailScreen(
     val musicApi = remember { MusicApi(context) }
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
     val scope = rememberCoroutineScope()
-    
+
     var musicList by remember { mutableStateOf<List<Music>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // 预加载字符串资源
     val noMusicFound = stringResource(id = R.string.no_music_found)
 
-    // 加载歌手的音乐列表
     LaunchedEffect(artistName) {
         scope.launch {
             try {
@@ -86,19 +112,18 @@ fun ArtistDetailScreen(
                             """.trimIndent()
                     )
                 }
-                
+
                 val responseText = response.body<String>()
                 Log.d("ArtistDetailScreen", "歌手详情响应: $responseText${response.protocolLogSuffix()}")
-                
-                // 解析 JSON 响应
+
                 try {
                     val jsonObject = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
                     val artistObj = jsonObject.jsonObject["artist"]?.jsonObject
                     val musicListArray = artistObj?.get("musicList")?.jsonArray
-                    
+
                     if (musicListArray != null) {
                         val musics = mutableListOf<Music>()
-                        
+
                         musicListArray.forEach { element ->
                             val musicJson = element.jsonObject
                             val id = musicJson["id"]?.jsonPrimitive?.int ?: 0
@@ -106,11 +131,7 @@ fun ArtistDetailScreen(
                             val artist = musicJson["artist"]?.jsonPrimitive?.content ?: ""
                             val album = musicJson["album"]?.jsonPrimitive?.content ?: ""
                             val duration = musicJson["duration"]?.jsonPrimitive?.int ?: 0
-                            val coverPath = musicJson["coverPath"]?.jsonPrimitive?.content ?: ""
-                            val filePath = musicJson["filePath"]?.jsonPrimitive?.content ?: ""
-                            val fileFormat = musicJson["fileFormat"]?.jsonPrimitive?.content ?: ""
-                            val language = musicJson["language"]?.jsonPrimitive?.content ?: ""
-                            
+
                             musics.add(
                                 Music(
                                     id = id,
@@ -125,40 +146,32 @@ fun ArtistDetailScreen(
                                 )
                             )
                         }
-                        
+
                         musicList = musics
                         isLoading = false
                         Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲${response.protocolLogSuffix()}")
-                        musics.forEach { music ->
-                            Log.d("ArtistDetailScreen", "音乐: ${music.title}, 路径: ${music.filePath}, 封面: ${music.coverFilePath}${response.protocolLogSuffix()}")
-                        }
                     } else {
                         isLoading = false
                         errorMessage = noMusicFound
                     }
                 } catch (e: Exception) {
                     Log.e("ArtistDetailScreen", "JSON解析失败${e.protocolLogSuffixOrEmpty()}", e)
-                    // 降级到正则表达式解析
                     val musicListRegex = """"musicList":\s*\[([^\]]*)\]""".toRegex()
                     val match = musicListRegex.find(responseText)
-                    
+
                     if (match != null) {
                         val musicListJson = match.groupValues[1]
                         val musics = mutableListOf<Music>()
-                        
-                        // 匹配音乐信息
-                        val musicRegex = """"id":\s*(\d+),\s*"title":\s*"([^"]*)",\s*"artist":\s*"([^"]*)",\s*"album":\s*"([^"]*)",\s*"duration":\s*(\d+),\s*"coverPath":\s*"([^"]*)",\s*"filePath":\s*"([^"]*)",\s*"fileFormat":\s*"([^"]*)",\s*"language":\s*"([^"]*)"""".toRegex()
+
+                        val musicRegex =
+                            """"id":\s*(\d+),\s*"title":\s*"([^"]*)",\s*"artist":\s*"([^"]*)",\s*"album":\s*"([^"]*)",\s*"duration":\s*(\d+),\s*"coverPath":\s*"([^"]*)",\s*"filePath":\s*"([^"]*)",\s*"fileFormat":\s*"([^"]*)",\s*"language":\s*"([^"]*)"""".toRegex()
                         musicRegex.findAll(musicListJson).forEach { matchResult ->
                             val id = matchResult.groupValues[1].toIntOrNull() ?: 0
                             val title = matchResult.groupValues[2]
                             val artist = matchResult.groupValues[3]
                             val album = matchResult.groupValues[4]
                             val duration = matchResult.groupValues[5].toIntOrNull() ?: 0
-                            val coverPath = matchResult.groupValues[6]
-                            val filePath = matchResult.groupValues[7]
-                            val fileFormat = matchResult.groupValues[8]
-                            val language = matchResult.groupValues[9]
-                            
+
                             musics.add(
                                 Music(
                                     id = id,
@@ -173,10 +186,13 @@ fun ArtistDetailScreen(
                                 )
                             )
                         }
-                        
+
                         musicList = musics
                         isLoading = false
-                        Log.d("ArtistDetailScreen", "加载到 ${musics.size} 首歌曲（正则解析）${response.protocolLogSuffix()}")
+                        Log.d(
+                            "ArtistDetailScreen",
+                            "加载到 ${musics.size} 首歌曲（正则解析）${response.protocolLogSuffix()}"
+                        )
                     } else {
                         isLoading = false
                         errorMessage = noMusicFound
@@ -189,196 +205,266 @@ fun ArtistDetailScreen(
             }
         }
     }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-    ) {
-        // 顶部导航栏
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = stringResource(id = R.string.back),
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
 
-            Spacer(modifier = Modifier.width(8.dp))
+    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(
+        if (isDarkTheme) Color(0xFF121228) else scheme.background
+    )
+    val glassTint = LiquidGlassDefaults.screenListCard
+    val glassBg = glassTint.background(isDarkTheme)
+    val glassBorder = glassTint.border(isDarkTheme)
+    val glassHighlight = glassTint.highlight(isDarkTheme)
+    val listBottomInset = LiquidGlassDefaults.vipCenterListBottomInsetDp
 
-            Text(
-                text = stringResource(id = R.string.artist_detail),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-        
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color(0xFFE0E0E0))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.playlist_background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
-        
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .weight(1f)
+                .background(
+                    scheme.background.copy(
+                        alpha = if (isDarkTheme) 0.55f else 0.88f
+                    )
+                )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
         ) {
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = RoseRed)
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = stringResource(id = R.string.back),
+                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                    )
                 }
-                errorMessage != null -> {
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = stringResource(id = R.string.artist_detail),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .layerBackdrop(pageBackdrop)
+                ) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = errorMessage ?: context.getString(R.string.loading_failed_format, ""),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 16.sp
-                        )
-                    }
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (isDarkTheme) Color(0xFF121228).copy(alpha = 0.35f)
+                                else Color.White.copy(alpha = 0.25f)
+                            )
+                    )
                 }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // 歌手信息头部
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+
+                CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                    when {
+                        isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    // 歌手信息
-                                    Text(
-                                        text = artistName,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = stringResource(id = R.string.songs_count_suffix, musicCount),
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                CircularProgressIndicator(color = RoseRed)
+                            }
+                        }
+
+                        errorMessage != null -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = errorMessage
+                                        ?: context.getString(R.string.loading_failed_format, ""),
+                                    color = if (isDarkTheme) {
+                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                    } else {
+                                        scheme.onSurfaceVariant
+                                    },
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                    bottom = listBottomInset
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                item {
+                                    GlassSurface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        backgroundAlpha = glassBg,
+                                        borderAlpha = glassBorder,
+                                        highlightAlpha = glassHighlight
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = artistName,
+                                                fontSize = 24.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isDarkTheme) {
+                                                    Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                                                } else {
+                                                    scheme.onSurface
+                                                }
+                                            )
+                                            Text(
+                                                text = stringResource(
+                                                    id = R.string.songs_count_suffix,
+                                                    musicCount
+                                                ),
+                                                fontSize = 14.sp,
+                                                color = if (isDarkTheme) {
+                                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                                } else {
+                                                    scheme.onSurfaceVariant
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    GlassSurface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                scope.launch {
+                                                    try {
+                                                        val playlistManager =
+                                                            com.neko.music.data.manager.PlaylistManager.getInstance(
+                                                                context
+                                                            )
+
+                                                        playlistManager.clearPlaylist()
+
+                                                        musicList.forEach { music ->
+                                                            val url = musicApi.getMusicFileUrl(music)
+                                                            playlistManager.addToPlaylist(
+                                                                Music(
+                                                                    music.id,
+                                                                    music.title,
+                                                                    music.artist,
+                                                                    "",
+                                                                    music.duration,
+                                                                    url,
+                                                                    "",
+                                                                    0,
+                                                                    ""
+                                                                )
+                                                            )
+                                                        }
+
+                                                        if (musicList.isNotEmpty()) {
+                                                            val firstMusic = musicList[0]
+                                                            val url = musicApi.getMusicFileUrl(firstMusic)
+                                                            val fullCoverUrl =
+                                                                UrlConfig.getMusicCoverUrl(firstMusic.id)
+                                                            playerManager.playMusic(
+                                                                url,
+                                                                firstMusic.id,
+                                                                firstMusic.title,
+                                                                firstMusic.artist,
+                                                                firstMusic.coverFilePath ?: "",
+                                                                fullCoverUrl
+                                                            )
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Log.e("ArtistDetailScreen", "播放全部失败", e)
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            context.getString(
+                                                                R.string.play_failed,
+                                                                e.message ?: ""
+                                                            ),
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(24.dp),
+                                        backgroundAlpha = glassBg,
+                                        borderAlpha = glassBorder,
+                                        highlightAlpha = glassHighlight
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp)
+                                                .padding(horizontal = 16.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = stringResource(id = R.string.play_all),
+                                                tint = RoseRed,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = stringResource(id = R.string.play_all),
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = RoseRed
+                                            )
+                                        }
+                                    }
+                                }
+
+                                items(musicList) { music ->
+                                    ArtistMusicItem(
+                                        music = music,
+                                        onClick = { onMusicClick(music) },
+                                        glassBg = glassBg,
+                                        glassBorder = glassBorder,
+                                        glassHighlight = glassHighlight
                                     )
                                 }
                             }
-                        }
-                        
-                        // 播放全部按钮
-                        item {
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        try {
-                                            val playlistManager = com.neko.music.data.manager.PlaylistManager.getInstance(context)
-                                            
-                                            // 清空当前播放列表
-                                            playlistManager.clearPlaylist()
-                                            
-                                            // 按顺序添加音乐到播放列表
-                                            musicList.forEach { music ->
-                                                val url = musicApi.getMusicFileUrl(music)
-                                                Log.d("ArtistDetailScreen", "添加到播放列表: ${music.title}, id=${music.id}, url=$url")
-                                                playlistManager.addToPlaylist(
-                                                    Music(
-                                                        music.id,
-                                                        music.title,
-                                                        music.artist,
-                                                        "",
-                                                        music.duration,
-                                                        url,
-                                                        "",
-                                                        0,
-                                                        ""
-                                                    )
-                                                )
-                                            }
-                                            
-                                            Log.d("ArtistDetailScreen", "总共添加了 ${musicList.size} 首歌曲到播放列表")
-                                            
-                                            // 播放第一首
-                                            if (musicList.isNotEmpty()) {
-                                                val firstMusic = musicList[0]
-                                                val url = musicApi.getMusicFileUrl(firstMusic)
-                                                val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                                Log.d("ArtistDetailScreen", "播放第一首: ${firstMusic.title}, id=${firstMusic.id}, url=$url, cover=$fullCoverUrl")
-                                                playerManager.playMusic(
-                                                    url,
-                                                    firstMusic.id,
-                                                    firstMusic.title,
-                                                    firstMusic.artist,
-                                                    firstMusic.coverFilePath ?: "",
-                                                    fullCoverUrl
-                                                )
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("ArtistDetailScreen", "播放全部失败", e)
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                context.getString(R.string.play_failed, e.message ?: ""),
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RoseRed
-                                ),
-                                shape = RoundedCornerShape(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(id = R.string.play_all),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(id = R.string.play_all),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        
-                        // 音乐列表
-                        items(musicList) { music ->
-                            ArtistMusicItem(
-                                music = music,
-                                onClick = { onMusicClick(music) }
-                            )
                         }
                     }
                 }
@@ -390,71 +476,85 @@ fun ArtistDetailScreen(
 @Composable
 fun ArtistMusicItem(
     music: Music,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    glassBg: Float,
+    glassBorder: Float,
+    glassHighlight: Float
 ) {
     val coverUrl = music.coverFilePath?.takeIf { it.isNotEmpty() }
-    
-    Row(
+    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(
-                color = if (isSystemInDarkTheme()) {
-                    Color.White.copy(alpha = 0.05f)
-                } else {
-                    Color.White
-                },
-                shape = RoundedCornerShape(8.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        backgroundAlpha = glassBg,
+        borderAlpha = glassBorder,
+        highlightAlpha = glassHighlight
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(44.dp)
-                .background(
-                    color = RoseRed.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!coverUrl.isNullOrEmpty()) {
-                coil3.compose.AsyncImage(
-                    model = coverUrl,
-                    contentDescription = stringResource(id = R.string.cover),
-                    modifier = Modifier.size(44.dp),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        color = RoseRed.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!coverUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = coverUrl,
+                        contentDescription = stringResource(id = R.string.cover),
+                        modifier = Modifier.size(44.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.music),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = music.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDarkTheme) {
+                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                    } else {
+                        scheme.onSurface
+                    },
+                    maxLines = 1
                 )
-            } else {
-                Image(
-                    painter = painterResource(R.drawable.music),
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = music.album,
+                    fontSize = 13.sp,
+                    color = if (isDarkTheme) {
+                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                    } else {
+                        scheme.onSurfaceVariant
+                    },
+                    maxLines = 1
                 )
             }
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = music.title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = music.album,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
         }
     }
 }

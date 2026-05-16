@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
 
@@ -357,7 +358,7 @@ class UserApi(private val token: String? = null) {
             Log.e("UserApi", "上传音乐失败", e)
             // 检查是否是HTTP异常，获取状态码
             val errorMessage = when {
-                e is io.ktor.client.call.HttpClientCallException -> {
+                e is ResponseException -> {
                     when (e.response.status.value) {
                         413 -> "文件过大，无法上传（413 Request Entity Too Large）"
                         400 -> "请求格式错误（400 Bad Request）"
@@ -416,7 +417,9 @@ data class UserData(
     val id: Int,
     val username: String,
     val email: String,
-    val createdAt: String
+    val createdAt: String,
+    val isVip: Boolean = false,
+    val vipExpiresAt: String? = null
 )
 
 @Serializable
