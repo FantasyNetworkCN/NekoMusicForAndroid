@@ -18,8 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +29,7 @@ import androidx.core.view.WindowCompat
 import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.verticalScroll
@@ -91,24 +92,27 @@ fun AboutScreen(
     )
 
     val scheme = MaterialTheme.colorScheme
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA))
-            .statusBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 150.dp)
         ) {
@@ -311,17 +315,14 @@ fun TechStackCard(scale: Float) {
 @Composable
 fun TechItem(tech: String, desc: String, modifier: Modifier = Modifier) {
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-    
+    val scheme = MaterialTheme.colorScheme
+
     Box(
         modifier = modifier
             .padding(horizontal = 4.dp)
             .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        RoseRed.copy(alpha = 0.15f),
-                        SakuraPink.copy(alpha = 0.15f)
-                    )
-                ),
+                if (isDarkTheme) Color.White.copy(alpha = 0.06f)
+                else scheme.surfaceVariant.copy(alpha = 0.45f),
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(12.dp),

@@ -50,7 +50,9 @@ import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.model.Music
@@ -69,9 +71,7 @@ fun RecentPlayScreen(
     val scope = rememberCoroutineScope()
     val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
@@ -102,22 +102,20 @@ fun RecentPlayScreen(
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.playlist_background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    scheme.background.copy(
-                        alpha = if (isDarkTheme) 0.55f else 0.88f
-                    )
-                )
-        )
+                .layerBackdrop(pageBackdrop)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
 
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -171,11 +169,6 @@ fun RecentPlayScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .layerBackdrop(pageBackdrop)
-                ) {
                     when {
                         isLoading -> {
                             Box(
@@ -228,8 +221,8 @@ fun RecentPlayScreen(
                             }
                         }
                     }
-                }
             }
+        }
         }
     }
 }
