@@ -568,6 +568,7 @@
     <string name="not_required_for_instrumental">纯音乐不需要歌词文件</string>
     <string name="desktop_lyric">桌面歌词</string>
 
+    <string name="vip_non_member_benefits">开通后解锁更长分享视频、去水印等</string>
     <string name="video_render_button">生成分享视频</string>
     <string name="video_render_button_busy">生成中…</string>
     <string name="video_render_dialog_title">生成分享视频</string>
@@ -590,4 +591,24 @@
     <string name="video_render_download_started">已开始下载到 Download/NekoMusic</string>
     <string name="video_render_failed">视频渲染失败：%1$s</string>
     <string name="video_render_create_failed">创建任务失败</string>
+    <string name="vip_center_title">会员中心</string>
+    <string name="vip_menu_entry">会员中心</string>
+    <string name="vip_status_active">尊贵 VIP</string>
+    <string name="vip_status_expires">到期：%1$s</string>
+    <string name="vip_open_membership">开通会员</string>
+    <string name="vip_open_hint">点击右上角 VIP 开通会员</string>
+    <string name="vip_pricing_load_failed">价目表加载失败</string>
+    <string name="vip_pay_no_url">没有获取到支付链接</string>
+    <string name="vip_wechat_not_installed">请先安装微信</string>
+    <string name="vip_pay_launch_failed">无法拉起支付，请确认已安装对应 App</string>
+    <string name="vip_pay_web_title">收银台</string>
+    <string name="vip_pay_create_failed">下单失败</string>
+    <string name="vip_months_suffix">个月</string>
+    <string name="vip_days_suffix">天</string>
+    <string name="vip_plan_default">会员套餐</string>
+    <string name="vip_price_yuan">¥ %1$.2f</string>
+    <string name="vip_pay_alipay">支付宝</string>
+    <string name="vip_pay_wechat">微信</string>
+    <string name="vip_choose_plan">选择套餐</string>
+    <string name="vip_member_benefits">尊享更长视频、无水印等权益</string>
 </resources>
