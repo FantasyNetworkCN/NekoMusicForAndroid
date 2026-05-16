@@ -989,6 +989,7 @@ fun PlayerScreen(
                     trackDurationSec = trackDurationSec,
                     isVip = tokenManager.isVip(),
                     busy = videoRenderBusy,
+                    sampleBackdrop = pageBackdrop,
                     onDismiss = {
                         if (!videoRenderBusy) showVideoRenderDialog = false
                     },
@@ -1024,6 +1025,67 @@ fun PlayerScreen(
                     }
                 )
             }
+            if (showCreateDialog) {
+                PlaylistDialog(
+                    title = stringResource(id = R.string.create_playlist),
+                    playlistName = dialogPlaylistName,
+                    sampleBackdrop = pageBackdrop,
+                    onNameChange = { dialogPlaylistName = it },
+                    onConfirm = {
+                        scope.launch {
+                            try {
+                                val token = tokenManager.getToken()
+                                if (token != null) {
+                                    val playlistApi = PlaylistApi(token, context)
+                                    val response = playlistApi.createPlaylist(dialogPlaylistName)
+
+                                    if (response.success) {
+                                        Toast.makeText(context, createSuccess, Toast.LENGTH_SHORT).show()
+                                        showCreateDialog = false
+                                        dialogPlaylistName = ""
+
+                                        val newResponse = playlistApi.getMyPlaylists()
+                                        if (newResponse.success) {
+                                            val newPlaylists = newResponse.playlists ?: emptyList()
+                                            playlists = newPlaylists
+
+                                            val newPlaylistId = response.playlist?.id
+                                            if (newPlaylistId != null) {
+                                                scope.launch {
+                                                    try {
+                                                        val musicResponse = playlistApi.getPlaylistMusic(newPlaylistId)
+                                                        if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
+                                                            val firstMusic = musicResponse.musicList[0]
+                                                            val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
+                                                            val newCovers = playlistFirstMusicCovers.toMutableMap()
+                                                            newCovers[newPlaylistId] = coverUrl
+                                                            playlistFirstMusicCovers = newCovers
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Log.e("PlayerScreen", "加载歌单封面失败", e)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Log.e("PlayerScreen", "创建歌单失败", e)
+                                val errorMsg = e.message ?: "Unknown error"
+                                Toast.makeText(context, context.getString(R.string.create_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onDismiss = {
+                        showCreateDialog = false
+                        dialogPlaylistName = ""
+                    }
+                )
+            }
         }
     }
     
@@ -1037,70 +1099,6 @@ fun PlayerScreen(
             }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    // 创建歌单对话框
-    if (showCreateDialog) {
-        PlaylistDialog(
-            title = stringResource(id = R.string.create_playlist),
-            playlistName = dialogPlaylistName,
-            onNameChange = { dialogPlaylistName = it },
-            onConfirm = {
-                scope.launch {
-                    try {
-                        val token = tokenManager.getToken()
-                        if (token != null) {
-                            val playlistApi = PlaylistApi(token, context)
-                            val response = playlistApi.createPlaylist(dialogPlaylistName)
-
-                            if (response.success) {
-                                Toast.makeText(context, createSuccess, Toast.LENGTH_SHORT).show()
-                                showCreateDialog = false
-                                dialogPlaylistName = ""
-
-                                // 重新加载歌单列表
-                                val newResponse = playlistApi.getMyPlaylists()
-                                if (newResponse.success) {
-                                    val newPlaylists = newResponse.playlists ?: emptyList()
-                                    playlists = newPlaylists
-
-                                    // 为新歌单加载第一首音乐封面
-                                    val newPlaylistId = response.playlist?.id
-                                    if (newPlaylistId != null) {
-                                        scope.launch {
-                                            try {
-                                                val musicResponse = playlistApi.getPlaylistMusic(newPlaylistId)
-                                                if (musicResponse.success && musicResponse.musicList?.isNotEmpty() == true) {
-                                                    val firstMusic = musicResponse.musicList[0]
-                                                    val coverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                                    val newCovers = playlistFirstMusicCovers.toMutableMap()
-                                                    newCovers[newPlaylistId] = coverUrl
-                                                    playlistFirstMusicCovers = newCovers
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e("PlayerScreen", "加载歌单封面失败", e)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                Toast.makeText(context, response.message, Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) {
-                        Log.e("PlayerScreen", "创建歌单失败", e)
-                        val errorMsg = e.message ?: "Unknown error"
-                        Toast.makeText(context, context.getString(R.string.create_playlist_failed, errorMsg), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onDismiss = {
-                showCreateDialog = false
-                dialogPlaylistName = ""
-            }
-        )
     }
 
     // 通知权限请求对话框

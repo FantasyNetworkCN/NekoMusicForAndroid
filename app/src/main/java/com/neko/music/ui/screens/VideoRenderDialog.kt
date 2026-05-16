@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,7 +29,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,21 +38,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.data.api.VideoRenderApi
 import com.neko.music.data.model.Music
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
-import com.neko.music.ui.components.LocalLiquidLayerBackdrop
-import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import kotlin.math.max
@@ -65,6 +61,7 @@ fun VideoRenderDialog(
     trackDurationSec: Int,
     isVip: Boolean,
     busy: Boolean,
+    sampleBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     onConfirm: (startSec: Double, watermarked: Boolean) -> Unit
 ) {
@@ -87,41 +84,32 @@ fun VideoRenderDialog(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = scheme.background.luminance() < 0.5f
-    val sampleBackdrop =
-        LocalNavHostRecordingBackdrop.current ?: LocalLiquidLayerBackdrop.current
     val dialogGlass = LiquidGlassDefaults.videoRenderDialog
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
     val titleColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
     val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
     val bodyColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.9f) else scheme.onSurface
 
-    Dialog(
-        onDismissRequest = { if (!busy) onDismiss() },
-        properties = DialogProperties(
-            dismissOnBackPress = !busy,
-            dismissOnClickOutside = !busy,
-            usePlatformDefaultWidth = false,
-        ),
-    ) {
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.setDimAmount(0f)
-        }
+  // 与分享面板一致：同层浮层 + 显式 pageBackdrop，避免 Dialog 独立窗口无法 Kyant 采样
+    BackHandler(enabled = !busy) {
+        if (!busy) onDismiss()
+    }
 
+    Box(modifier = Modifier.fillMaxSize().zIndex(45f)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    enabled = !busy,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { if (!busy) onDismiss() },
+                ),
+        )
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        enabled = !busy,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { if (!busy) onDismiss() },
-                    ),
-            )
             GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
