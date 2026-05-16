@@ -90,7 +90,7 @@ fun VideoRenderDialog(
     val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
     val bodyColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.9f) else scheme.onSurface
 
-  // 与分享面板一致：同层浮层 + 显式 pageBackdrop，避免 Dialog 独立窗口无法 Kyant 采样
+    // 与分享面板一致：同层浮层 + 显式 pageBackdrop，避免 Dialog 独立窗口无法 Kyant 采样
     BackHandler(enabled = !busy) {
         if (!busy) onDismiss()
     }
