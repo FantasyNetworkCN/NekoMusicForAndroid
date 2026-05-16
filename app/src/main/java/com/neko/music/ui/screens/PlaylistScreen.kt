@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -357,14 +356,13 @@ fun PlaylistItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val dragTint = scheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.95f else 0.55f)
-            Box(
+            Row(
                 modifier = Modifier
-                    .width(56.dp)
-                    .height(52.dp)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
                     .pointerInput(music.id) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = { onReorderDragStart() },
@@ -372,21 +370,7 @@ fun PlaylistItem(
                             onDragEnd = { onReorderDragEnd() },
                             onDragCancel = { onReorderDragCancel() }
                         )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DragHandle,
-                    contentDescription = stringResource(id = R.string.content_description_drag_reorder),
-                    tint = dragTint,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
+                    }
                     .clickable(
                         interactionSource = remember(music.id) { MutableInteractionSource() },
                         indication = ripple(bounded = true),
