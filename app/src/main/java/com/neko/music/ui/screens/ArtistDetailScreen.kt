@@ -227,15 +227,6 @@ fun ArtistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        scheme.background.copy(
-                            alpha = if (isDarkTheme) 0.55f else 0.88f
-                        )
-                    )
-            )
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {

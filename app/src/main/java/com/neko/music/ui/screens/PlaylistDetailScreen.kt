@@ -378,24 +378,6 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            if (isDarkTheme) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f))
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        if (isDarkTheme) {
-                            Color(0xFF121228).copy(alpha = 0.4f)
-                        } else {
-                            Color.White.copy(alpha = 0.5f)
-                        }
-                    )
-            )
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
