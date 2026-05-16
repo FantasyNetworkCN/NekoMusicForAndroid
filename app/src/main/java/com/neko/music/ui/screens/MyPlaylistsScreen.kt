@@ -587,7 +587,14 @@ fun MyPlaylistsScreen(
         }
 
         // 创建/编辑歌单对话框
-        if (showCreateDialog) {
+        AnimatedVisibility(
+            visible = showCreateDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(45f),
+        ) {
             PlaylistDialog(
                 title = if (editingPlaylist != null) stringResource(id = R.string.edit_playlist) else stringResource(id = R.string.create_playlist_dialog),
                 playlistName = dialogPlaylistName,
@@ -844,7 +851,7 @@ fun PlaylistDialog(
 
     BackHandler(onBack = onDismiss)
 
-    Box(modifier = Modifier.fillMaxSize().zIndex(45f)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

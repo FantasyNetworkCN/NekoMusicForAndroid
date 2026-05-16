@@ -1,6 +1,12 @@
 package com.neko.music.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +59,22 @@ import com.neko.music.ui.theme.SakuraPink
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/** 居中液态弹窗：缩放 + 淡入淡出（与分享面板时长接近） */
+object LiquidCenterModalTransitions {
+    val Enter =
+        fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+            scaleIn(
+                initialScale = 0.92f,
+                animationSpec = tween(280, easing = FastOutSlowInEasing),
+            )
+    val Exit =
+        fadeOut(tween(180, easing = FastOutSlowInEasing)) +
+            scaleOut(
+                targetScale = 0.92f,
+                animationSpec = tween(220, easing = FastOutSlowInEasing),
+            )
+}
 
 @Composable
 fun VideoRenderDialog(
@@ -95,7 +116,7 @@ fun VideoRenderDialog(
         if (!busy) onDismiss()
     }
 
-    Box(modifier = Modifier.fillMaxSize().zIndex(45f)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
