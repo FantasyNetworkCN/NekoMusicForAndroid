@@ -46,9 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
+import androidx.activity.compose.BackHandler
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import coil3.compose.rememberAsyncImagePainter
 import coil3.compose.AsyncImage
 import com.neko.music.R
@@ -72,7 +71,6 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
-import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 
@@ -594,6 +592,7 @@ fun MyPlaylistsScreen(
             PlaylistDialog(
                 title = if (editingPlaylist != null) stringResource(id = R.string.edit_playlist) else stringResource(id = R.string.create_playlist_dialog),
                 playlistName = dialogPlaylistName,
+                sampleBackdrop = pageBackdrop,
                 onNameChange = { dialogPlaylistName = it },
                 onConfirm = { createOrUpdatePlaylist() },
                 onDismiss = { 
@@ -825,6 +824,7 @@ fun PlaylistItem(
 fun PlaylistDialog(
     title: String,
     playlistName: String,
+    sampleBackdrop: LayerBackdrop,
     onNameChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -835,8 +835,6 @@ fun PlaylistDialog(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = scheme.background.luminance() < 0.5f
-    val sampleBackdrop =
-        LocalNavHostRecordingBackdrop.current ?: LocalLiquidLayerBackdrop.current
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
@@ -845,32 +843,22 @@ fun PlaylistDialog(
     val inputTextColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
     val placeholderColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            usePlatformDefaultWidth = false,
-        ),
-    ) {
-        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect {
-            dialogWindow?.setDimAmount(0f)
-        }
+    BackHandler(onBack = onDismiss)
 
+    Box(modifier = Modifier.fillMaxSize().zIndex(45f)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        )
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onDismiss,
-                    ),
-            )
             GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
