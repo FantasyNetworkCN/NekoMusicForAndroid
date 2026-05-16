@@ -398,6 +398,33 @@ object LiquidGlassDefaults {
         ),
         liquid = liquidShareSection,
     )
+
+    /** 会员中心列表底部留白（底栏/迷你播放器） */
+    val vipCenterListBottomInsetDp: Dp = 160.dp
+
+    val vipCenterHero: LiquidGlassPanel = LiquidGlassPanel(
+        tint = LiquidGlassTint6(
+            backgroundDark = 0.34f,
+            backgroundLight = 0.14f,
+            borderDark = 0.20f,
+            borderLight = 0.12f,
+            highlightDark = 0.10f,
+            highlightLight = 0.06f,
+        ),
+        liquid = liquidMedium,
+    )
+
+    val vipCenterPricingCard: LiquidGlassPanel = LiquidGlassPanel(
+        tint = LiquidGlassTint6(
+            backgroundDark = 0.28f,
+            backgroundLight = 0.10f,
+            borderDark = 0.16f,
+            borderLight = 0.10f,
+            highlightDark = 0.09f,
+            highlightLight = 0.05f,
+        ),
+        liquid = liquidMedium,
+    )
 }
 
 /** @see LiquidGlassDefaults.playlistDetail */
