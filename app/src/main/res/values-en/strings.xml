@@ -555,4 +555,27 @@
     <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
     <string name="not_required_for_instrumental">Lyrics not required for instrumental music</string>
     <string name="desktop_lyric">Desktop lyric</string>
+
+    <string name="video_render_button">Create share video</string>
+    <string name="video_render_button_busy">Rendering…</string>
+    <string name="video_render_dialog_title">Create share video</string>
+    <string name="video_render_watermark">Add platform watermark</string>
+    <string name="video_render_start_label">Clip start</string>
+    <string name="video_render_range_value" formatted="false">%1$s → %2$s</string>
+    <string name="video_render_vip_hint">VIP: render from selection to end of track; optional watermark</string>
+    <string name="video_render_free_hint">Free: 15s landscape clip with watermark, 10 per day</string>
+    <string name="video_render_vip_duration_hint">About %1$s clip</string>
+    <string name="video_render_free_duration_hint">Fixed %1$d second clip</string>
+    <string name="video_render_non_vip_watermark_required">Non-VIP must use watermark</string>
+    <string name="video_render_email_notice">Renders in background; email with download link when done</string>
+    <string name="video_render_submit">Start</string>
+    <string name="video_render_submitting">Submitting…</string>
+    <string name="video_render_submitted">Job submitted; you will be emailed when ready</string>
+    <string name="video_render_remaining_today">Free renders left today: %1$d</string>
+    <string name="video_render_status_processing">Video rendering…</string>
+    <string name="video_render_status_done">Share video is ready</string>
+    <string name="video_render_download">Download MP4</string>
+    <string name="video_render_download_started">Download started to Download/NekoMusic</string>
+    <string name="video_render_failed">Render failed: %1$s</string>
+    <string name="video_render_create_failed">Failed to create job</string>
 </resources>

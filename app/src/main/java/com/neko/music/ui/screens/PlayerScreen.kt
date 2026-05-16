@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import com.neko.music.data.api.VideoRenderApi
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -284,6 +285,14 @@ fun PlayerScreen(
     // 分享对话框
     var showShareDialog by remember { mutableStateOf(false) }
 
+    // 分享视频渲染
+    var showVideoRenderDialog by remember { mutableStateOf(false) }
+    var videoRenderBusy by remember { mutableStateOf(false) }
+    var videoRenderJobId by remember { mutableStateOf<String?>(null) }
+    var videoRenderJobStatus by remember { mutableStateOf<String?>(null) }
+    var videoRenderError by remember { mutableStateOf<String?>(null) }
+    var videoRenderRemainingToday by remember { mutableStateOf<Int?>(null) }
+
     // 添加到歌单
     var playlists by remember { mutableStateOf<List<com.neko.music.data.api.PlaylistInfo>>(emptyList()) }
     var selectedPlaylistId by remember { mutableStateOf<Int?>(null) }
@@ -303,6 +312,9 @@ fun PlayerScreen(
     val linkCopied = stringResource(id = R.string.link_copied)
     val copyFailed = stringResource(id = R.string.copy_failed)
     val shareFailed = stringResource(id = R.string.share_failed)
+    val videoRenderSubmitted = stringResource(id = R.string.video_render_submitted)
+    val videoRenderCreateFailed = stringResource(id = R.string.video_render_create_failed)
+    val videoRenderDownloadStarted = stringResource(id = R.string.video_render_download_started)
 
     // 从播放器获取当前音乐信息
     val currentMusic = remember(currentMusicId) {
@@ -366,6 +378,33 @@ fun PlayerScreen(
         } catch (e: Exception) {
             Log.e("PlayerScreen", "加载歌单失败", e)
             playlists = emptyList()
+        }
+    }
+
+    LaunchedEffect(currentMusic.id) {
+        videoRenderJobId = null
+        videoRenderJobStatus = null
+        videoRenderError = null
+        videoRenderRemainingToday = null
+    }
+
+    LaunchedEffect(videoRenderJobId, isLoggedIn) {
+        val jobId = videoRenderJobId ?: return@LaunchedEffect
+        if (!isLoggedIn) return@LaunchedEffect
+        while (true) {
+            val token = tokenManager.getToken() ?: break
+            val res = VideoRenderApi(token).fetchStatus(jobId)
+            if (res.success && res.data != null) {
+                videoRenderJobStatus = res.data.status
+                when (res.data.status) {
+                    "done" -> break
+                    "failed" -> {
+                        videoRenderError = res.data.error
+                        break
+                    }
+                }
+            }
+            delay(8_000)
         }
     }
 
@@ -590,13 +629,55 @@ fun PlayerScreen(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         CoverImage(
                             music = currentMusic,
                             onClick = { showLyrics = true }
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        VideoRenderPlayerEntry(
+                            isBusy = videoRenderBusy,
+                            jobStatus = videoRenderJobStatus,
+                            remainingToday = videoRenderRemainingToday,
+                            errorMessage = videoRenderError,
+                            onOpenDialog = {
+                                if (!isLoggedIn) {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    if (videoRenderJobStatus == "failed") {
+                                        videoRenderJobId = null
+                                        videoRenderJobStatus = null
+                                        videoRenderError = null
+                                        videoRenderRemainingToday = null
+                                    }
+                                    showVideoRenderDialog = true
+                                }
+                            },
+                            onDownload = {
+                                val jobId = videoRenderJobId ?: return@VideoRenderPlayerEntry
+                                val name = "${currentMusic.title}.mp4"
+                                VideoRenderApi.enqueueDownload(context, jobId, name).fold(
+                                    onSuccess = {
+                                        Toast.makeText(
+                                            context,
+                                            videoRenderDownloadStarted,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onFailure = { e ->
+                                        Toast.makeText(
+                                            context,
+                                            e.message ?: videoRenderCreateFailed,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            },
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         )
                     }
                 }
@@ -894,6 +975,55 @@ fun PlayerScreen(
                             showCreateDialog = true
                         } else {
                             Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            }
+            if (showVideoRenderDialog) {
+                val trackDurationSec = remember(currentMusic.id, duration) {
+                    val d = if (currentMusic.duration > 0) {
+                        currentMusic.duration
+                    } else {
+                        (duration / 1000).toInt()
+                    }
+                    d.coerceAtLeast(1)
+                }
+                VideoRenderDialog(
+                    music = currentMusic,
+                    trackDurationSec = trackDurationSec,
+                    isVip = tokenManager.isVip(),
+                    busy = videoRenderBusy,
+                    onDismiss = {
+                        if (!videoRenderBusy) showVideoRenderDialog = false
+                    },
+                    onConfirm = { startSec, watermarked ->
+                        scope.launch {
+                            val token = tokenManager.getToken()
+                            if (token.isNullOrBlank()) {
+                                Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            videoRenderBusy = true
+                            val res = VideoRenderApi(token).createJob(
+                                currentMusic.id,
+                                startSec,
+                                watermarked
+                            )
+                            videoRenderBusy = false
+                            if (res.success && res.data != null && res.data.jobId.isNotBlank()) {
+                                videoRenderJobId = res.data.jobId
+                                videoRenderJobStatus = res.data.status.ifBlank { "pending" }
+                                videoRenderRemainingToday = res.data.remainingToday
+                                videoRenderError = null
+                                showVideoRenderDialog = false
+                                Toast.makeText(context, videoRenderSubmitted, Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    res.message.ifBlank { videoRenderCreateFailed },
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     }
                 )

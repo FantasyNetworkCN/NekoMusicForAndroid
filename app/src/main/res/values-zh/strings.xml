@@ -567,4 +567,27 @@
     <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
     <string name="not_required_for_instrumental">纯音乐不需要歌词文件</string>
     <string name="desktop_lyric">桌面歌词</string>
+
+    <string name="video_render_button">生成分享视频</string>
+    <string name="video_render_button_busy">生成中…</string>
+    <string name="video_render_dialog_title">生成分享视频</string>
+    <string name="video_render_watermark">添加平台水印</string>
+    <string name="video_render_start_label">成片起始</string>
+    <string name="video_render_range_value" formatted="false">%1$s → %2$s</string>
+    <string name="video_render_vip_hint">会员：从所选位置渲染至歌曲结束，可选水印</string>
+    <string name="video_render_free_hint">免费：15 秒横屏成片（含水印），每日 10 次</string>
+    <string name="video_render_vip_duration_hint">约 %1$s 成片</string>
+    <string name="video_render_free_duration_hint">固定 %1$d 秒成片</string>
+    <string name="video_render_non_vip_watermark_required">非会员须开启水印</string>
+    <string name="video_render_email_notice">提交后后台渲染，完成后将邮件通知并附下载链接</string>
+    <string name="video_render_submit">开始生成</string>
+    <string name="video_render_submitting">提交中…</string>
+    <string name="video_render_submitted">已提交渲染，完成后将邮件通知</string>
+    <string name="video_render_remaining_today">今日剩余免费次数：%1$d</string>
+    <string name="video_render_status_processing">视频渲染中…</string>
+    <string name="video_render_status_done">分享视频已生成</string>
+    <string name="video_render_download">下载 MP4</string>
+    <string name="video_render_download_started">已开始下载到 Download/NekoMusic</string>
+    <string name="video_render_failed">视频渲染失败：%1$s</string>
+    <string name="video_render_create_failed">创建任务失败</string>
 </resources>
