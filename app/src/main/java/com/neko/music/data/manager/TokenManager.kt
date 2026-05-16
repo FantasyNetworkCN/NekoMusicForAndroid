@@ -12,18 +12,47 @@ class TokenManager(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USERNAME = "username"
         private const val KEY_EMAIL = "email"
+        private const val KEY_IS_VIP = "is_vip"
+        private const val KEY_VIP_EXPIRES_AT = "vip_expires_at"
     }
 
     /**
      * 保存 Token 和用户信息
      */
-    fun saveToken(token: String, userId: Int, username: String, email: String) {
+    fun saveToken(
+        token: String,
+        userId: Int,
+        username: String,
+        email: String,
+        isVip: Boolean = false,
+        vipExpiresAt: String? = null
+    ) {
         editor.putString(KEY_TOKEN, token)
         editor.putInt(KEY_USER_ID, userId)
         editor.putString(KEY_USERNAME, username)
         editor.putString(KEY_EMAIL, email)
+        editor.putBoolean(KEY_IS_VIP, isVip)
+        if (vipExpiresAt.isNullOrBlank()) {
+            editor.remove(KEY_VIP_EXPIRES_AT)
+        } else {
+            editor.putString(KEY_VIP_EXPIRES_AT, vipExpiresAt)
+        }
         editor.apply()
     }
+
+    fun updateVipStatus(isVip: Boolean, vipExpiresAt: String?) {
+        editor.putBoolean(KEY_IS_VIP, isVip)
+        if (vipExpiresAt.isNullOrBlank()) {
+            editor.remove(KEY_VIP_EXPIRES_AT)
+        } else {
+            editor.putString(KEY_VIP_EXPIRES_AT, vipExpiresAt)
+        }
+        editor.apply()
+    }
+
+    fun isVip(): Boolean = sharedPref.getBoolean(KEY_IS_VIP, false)
+
+    fun getVipExpiresAt(): String? = sharedPref.getString(KEY_VIP_EXPIRES_AT, null)
 
     /**
      * 获取 Token

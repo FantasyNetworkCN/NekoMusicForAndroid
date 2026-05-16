@@ -405,7 +405,9 @@ data class UserData(
     val id: Int,
     val username: String,
     val email: String,
-    val createdAt: String
+    val createdAt: String,
+    val isVip: Boolean = false,
+    val vipExpiresAt: String? = null
 )
 
 @Serializable

@@ -86,6 +86,7 @@ import com.neko.music.ui.screens.SettingsScreen
 import com.neko.music.ui.screens.PersonalizationScreen
 import com.neko.music.ui.screens.CacheManagementScreen
 import com.neko.music.ui.screens.AccountInfoScreen
+import com.neko.music.ui.screens.VipScreen
 import com.neko.music.ui.screens.MyPlaylistsScreen
 import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
@@ -346,17 +347,39 @@ fun MainScreen() {
     var currentUsername by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
     var currentUserId by androidx.compose.runtime.remember { mutableStateOf(-1) }
     var currentUserToken by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
+    var currentUserIsVip by androidx.compose.runtime.remember { mutableStateOf(false) }
+    var currentVipExpiresAt by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
 
-    // 初始化登录状态
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    fun refreshUserSessionFromDisk() {
         val tokenManager = com.neko.music.data.manager.TokenManager(context)
         isLoggedIn = tokenManager.isLoggedIn()
         currentUsername = tokenManager.getUsername()
         currentUserId = tokenManager.getUserId()
         currentUserToken = tokenManager.getToken()
+        currentUserIsVip = tokenManager.isVip()
+        currentVipExpiresAt = tokenManager.getVipExpiresAt()
+    }
+
+    // 初始化登录状态
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        refreshUserSessionFromDisk()
 
         // 初始化收藏管理器
         playerManager.initializeFavoriteManager()
+    }
+
+    // 已登录时从歌单接口刷新 VIP（与 Web 一致）
+    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken) {
+        val t = currentUserToken
+        if (!isLoggedIn || t.isNullOrBlank()) return@LaunchedEffect
+        try {
+            val pl = com.neko.music.data.api.PlaylistApi(t, context).getMyPlaylists()
+            if (pl.success) {
+                com.neko.music.data.manager.TokenManager(context).updateVipStatus(pl.isVip, pl.vipExpiresAt)
+                refreshUserSessionFromDisk()
+            }
+        } catch (_: Exception) {
+        }
     }
 
     // 跟踪是否从播放页面返回
@@ -653,17 +676,19 @@ fun MainScreen() {
                             showLoginScreen = true
                         }
                     },
+                    onVipCenterClick = {
+                        if (isLoggedIn) {
+                            navController.navigate("vip")
+                        } else {
+                            showLoginScreen = true
+                        }
+                    },
                     isLoggedIn = isLoggedIn,
                     username = currentUsername,
                     userId = currentUserId,
-                    onLoginSuccess = {
-                        // 登录成功后更新状态
-                        val tokenManager = com.neko.music.data.manager.TokenManager(context)
-                        isLoggedIn = tokenManager.isLoggedIn()
-                        currentUsername = tokenManager.getUsername()
-                        currentUserId = tokenManager.getUserId()
-                        currentUserToken = tokenManager.getToken()
-                    },
+                    isVip = currentUserIsVip,
+                    vipExpiresAt = currentVipExpiresAt,
+                    onLoginSuccess = { refreshUserSessionFromDisk() },
                     token = currentUserToken
                 )
             }
@@ -927,6 +952,21 @@ fun MainScreen() {
                     }
                 )
             }
+            composable("vip") {
+                val token = currentUserToken
+                if (token.isNullOrBlank()) {
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                        showLoginScreen = true
+                    }
+                } else {
+                    VipScreen(
+                        token = token,
+                        onBackClick = { navController.popBackStack() },
+                        onVipStatusUpdated = { refreshUserSessionFromDisk() }
+                    )
+                }
+            }
             composable("account_info") {
                 AccountInfoScreen(
                     onBackClick = {
@@ -936,6 +976,9 @@ fun MainScreen() {
                     username = currentUsername ?: "",
                     email = com.neko.music.data.manager.TokenManager(context).getEmail()
                         ?: "",
+                    isVip = currentUserIsVip,
+                    vipExpiresAt = currentVipExpiresAt,
+                    onVipCenterClick = { navController.navigate("vip") },
                     onShowBottomControls = { show ->
                         showBottomControls = show
                     },
@@ -1365,12 +1408,7 @@ fun MainScreen() {
                     LoginScreen(
                         onLoginSuccess = {
                             showLoginScreen = false
-                            // 更新登录状态
-                            val tokenManager = com.neko.music.data.manager.TokenManager(context)
-                            isLoggedIn = tokenManager.isLoggedIn()
-                            currentUsername = tokenManager.getUsername()
-                            currentUserId = tokenManager.getUserId()
-                            currentUserToken = tokenManager.getToken()
+                            refreshUserSessionFromDisk()
                         },
                         onBackClick = {
                             showLoginScreen = false
@@ -1454,10 +1492,7 @@ fun MainScreen() {
                                 // 清除登录状态
                                 val tokenManager = com.neko.music.data.manager.TokenManager(context)
                                 tokenManager.clearToken()
-                                // 更新UI状态
-                                isLoggedIn = false
-                                currentUsername = null
-                                currentUserId = -1
+                                refreshUserSessionFromDisk()
                                 showLogoutDialog = false
                             }
                         ) {
