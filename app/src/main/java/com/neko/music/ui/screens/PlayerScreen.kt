@@ -142,6 +142,24 @@ fun formatTime(milliseconds: Long): String {
     return String.format("%d:%02d", minutes, seconds)
 }
 
+/**
+ * 分享视频剪辑用的曲目总长（秒）。
+ * 优先用 ExoPlayer 的 [playerDurationMs]（毫秒）；部分曲目的 [musicDurationMeta] 误存为毫秒却被当秒用，
+ * 会导致区间显示成「0:00 → 4817:30」这类异常值。
+ */
+fun resolveTrackDurationSeconds(musicDurationMeta: Int, playerDurationMs: Long): Int {
+    if (playerDurationMs > 0) {
+        return (playerDurationMs / 1000).toInt().coerceAtLeast(1)
+    }
+    if (musicDurationMeta <= 0) return 1
+    // 元数据约定为秒；单轨超过 10 小时极罕见，更可能是毫秒
+    return if (musicDurationMeta > 36_000) {
+        (musicDurationMeta / 1000).coerceAtLeast(1)
+    } else {
+        musicDurationMeta.coerceAtLeast(1)
+    }
+}
+
 // LRC歌词行数据类
 data class LrcLine(
     val time: Float, // 时间（秒）
@@ -983,13 +1001,8 @@ fun PlayerScreen(
                     .fillMaxSize()
                     .zIndex(45f),
             ) {
-                val trackDurationSec = remember(currentMusic.id, duration) {
-                    val d = if (currentMusic.duration > 0) {
-                        currentMusic.duration
-                    } else {
-                        (duration / 1000).toInt()
-                    }
-                    d.coerceAtLeast(1)
+                val trackDurationSec = remember(currentMusic.id, duration, currentMusic.duration) {
+                    resolveTrackDurationSeconds(currentMusic.duration, duration)
                 }
                 VideoRenderDialog(
                     music = currentMusic,
