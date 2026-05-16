@@ -130,6 +130,21 @@
     <string name="password_mismatch">Passwords do not match</string>
     <string name="email_format_error">Email format is incorrect</string>
     <string name="please_enter_email_first">Please enter email first</string>
+
+    <!-- Forgot Password -->
+    <string name="forgot_password">Forgot password</string>
+    <string name="reset_password">Reset password</string>
+    <string name="enter_email_to_reset">Enter your email and we will send a verification code</string>
+    <string name="enter_code_to_reset">Enter the verification code and your new password</string>
+    <string name="send_reset_code">Send verification code</string>
+    <string name="reset_password_now">Reset now</string>
+    <string name="reset_password_success">Password reset successfully. Please sign in with your new password</string>
+    <string name="reset_password_failed">Failed to reset password: %s</string>
+    <string name="send_reset_code_failed">Failed to send verification code: %s</string>
+    <string name="please_enter_email_for_reset">Please enter email</string>
+    <string name="please_enter_code_for_reset">Please enter verification code</string>
+    <string name="new_password_length_error_reset">New password must be 6–30 characters</string>
+
     <string name="email">Email</string>
     <string name="password">Password</string>
     <string name="username">Username</string>
@@ -556,6 +571,29 @@
     <string name="not_required_for_instrumental">Lyrics not required for instrumental music</string>
     <string name="desktop_lyric">Desktop lyric</string>
 
+    <!-- VIP -->
+    <string name="vip_non_member_benefits">Unlock longer share videos, optional watermark removal, and more</string>
+    <string name="vip_center_title">VIP Center</string>
+    <string name="vip_menu_entry">VIP Center</string>
+    <string name="vip_status_active">VIP member</string>
+    <string name="vip_status_expires">Expires: %1$s</string>
+    <string name="vip_open_membership">Subscribe</string>
+    <string name="vip_open_hint">Tap VIP in the top-right corner to subscribe</string>
+    <string name="vip_pricing_load_failed">Failed to load pricing</string>
+    <string name="vip_pay_no_url">No payment URL received</string>
+    <string name="vip_wechat_not_installed">Please install WeChat first</string>
+    <string name="vip_pay_launch_failed">Unable to open payment app. Please make sure it is installed</string>
+    <string name="vip_pay_web_title">Checkout</string>
+    <string name="vip_pay_create_failed">Failed to create order</string>
+    <string name="vip_months_suffix"> months</string>
+    <string name="vip_days_suffix"> days</string>
+    <string name="vip_plan_default">VIP plan</string>
+    <string name="vip_price_yuan">¥ %1$.2f</string>
+    <string name="vip_pay_alipay">Alipay</string>
+    <string name="vip_pay_wechat">WeChat Pay</string>
+    <string name="vip_choose_plan">Choose a plan</string>
+    <string name="vip_member_benefits">Longer videos, optional watermark removal, and more</string>
+
     <string name="video_render_button">Create share video</string>
     <string name="video_render_button_busy">Rendering…</string>
     <string name="video_render_dialog_title">Create share video</string>
@@ -563,7 +601,7 @@
     <string name="video_render_start_label">Clip start</string>
     <string name="video_render_range_value" formatted="false">%1$s → %2$s</string>
     <string name="video_render_vip_hint">VIP: render from selection to end of track; optional watermark</string>
-    <string name="video_render_free_hint">Free: 15s landscape clip with watermark, 10 per day</string>
+    <string name="video_render_free_hint">Free: 30s landscape clip with watermark, 10 per day</string>
     <string name="video_render_vip_duration_hint">About %1$s clip</string>
     <string name="video_render_free_duration_hint">Fixed %1$d second clip</string>
     <string name="video_render_non_vip_watermark_required">Non-VIP must use watermark</string>
