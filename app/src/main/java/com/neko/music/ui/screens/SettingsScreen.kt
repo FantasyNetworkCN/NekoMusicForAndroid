@@ -30,6 +30,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,6 +46,7 @@ import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
@@ -229,19 +231,29 @@ fun SettingsScreen(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
-    // 与内容区一致，避免 Scaffold / 顶栏透明时露出窗口默认浅色（状态栏、手势导航条一带白块）
-    val pageBg = if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA)
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
     val glassHighlight = glassTint.highlight(isDarkTheme)
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = pageBg,
+        containerColor = Color.Transparent,
         contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
             TopAppBar(
@@ -261,8 +273,8 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = pageBg,
-                    scrolledContainerColor = pageBg
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 )
             )
         }
@@ -271,13 +283,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(pageBg)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .layerBackdrop(pageBackdrop)
-            ) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -448,7 +455,8 @@ fun SettingsScreen(
             }
 
             }
-            }
+        }
+    }
     }
 }
 

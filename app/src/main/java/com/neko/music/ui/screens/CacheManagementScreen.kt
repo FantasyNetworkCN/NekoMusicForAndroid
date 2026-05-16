@@ -22,7 +22,10 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.layout.ContentScale
 import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -40,10 +43,7 @@ fun CacheManagementScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val isDarkTheme = isSystemInDarkTheme()
     val scheme = MaterialTheme.colorScheme
-    val pageBg = if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA)
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
@@ -74,9 +74,23 @@ fun CacheManagementScreen(
         }
     }
     
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = pageBg,
+        containerColor = Color.Transparent,
         contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
             TopAppBar(
@@ -96,8 +110,8 @@ fun CacheManagementScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = pageBg,
-                    scrolledContainerColor = pageBg
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
                 ),
                 actions = {
                     // 播放全部按钮
@@ -205,13 +219,8 @@ fun CacheManagementScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(pageBg)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .layerBackdrop(pageBackdrop)
-            ) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             if (cachedItems.isEmpty()) {
                 // 空状态
                 Column(
@@ -326,6 +335,7 @@ fun CacheManagementScreen(
             }
             }
         }
+    }
     }
     
     // 清空全部缓存对话框
