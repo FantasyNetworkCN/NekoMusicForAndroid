@@ -975,7 +975,14 @@ fun PlayerScreen(
                     }
                 )
             }
-            if (showVideoRenderDialog) {
+            AnimatedVisibility(
+                visible = showVideoRenderDialog,
+                enter = LiquidCenterModalTransitions.Enter,
+                exit = LiquidCenterModalTransitions.Exit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(45f),
+            ) {
                 val trackDurationSec = remember(currentMusic.id, duration) {
                     val d = if (currentMusic.duration > 0) {
                         currentMusic.duration
@@ -1025,7 +1032,14 @@ fun PlayerScreen(
                     }
                 )
             }
-            if (showCreateDialog) {
+            AnimatedVisibility(
+                visible = showCreateDialog,
+                enter = LiquidCenterModalTransitions.Enter,
+                exit = LiquidCenterModalTransitions.Exit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(45f),
+            ) {
                 PlaylistDialog(
                     title = stringResource(id = R.string.create_playlist),
                     playlistName = dialogPlaylistName,
