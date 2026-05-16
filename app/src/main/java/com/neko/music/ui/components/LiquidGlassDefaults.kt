@@ -390,6 +390,9 @@ object LiquidGlassDefaults {
 
     val myPlaylistsDialogInput: LiquidGlassPanel get() = searchTopSearchField
 
+    /** 分享视频渲染弹窗 */
+    val videoRenderDialog: LiquidGlassPanel get() = appUpdateDialog
+
     val shareSheetSectionDarkBorderSakuraAlpha: Float = 0.42f
 
     val shareSheetSection: LiquidGlassPanel = LiquidGlassPanel(

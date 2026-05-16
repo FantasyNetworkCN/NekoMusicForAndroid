@@ -552,26 +552,23 @@ fun PlayerScreen(
     }
 
     val colorScheme = MaterialTheme.colorScheme
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else colorScheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(colorScheme.background)
     // 底部液态面板实际高度约 168–188dp，略加余量避免与封面区重叠
     val bottomGlassReserve = 188.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
-        // 底层：专辑封面全屏背景（放大模拟模糊感）
+        // 底层：专辑封面 + 轻量叠色（保留氛围，避免压暗过重）
         AsyncImage(
             model = coverUrl,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .scale(1.4f),
+                .scale(1.25f),
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            alpha = if (isDarkTheme) 0.35f else 0.22f
+            alpha = if (isDarkTheme) 0.52f else 0.42f,
         )
 
-        // 暗色遮罩层：纯色+底部加深，保证文字可读
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -579,28 +576,27 @@ fun PlayerScreen(
                     if (isDarkTheme) {
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF121228).copy(alpha = 0.75f),
-                                Color(0xFF121228).copy(alpha = 0.85f),
-                                Color(0xFF121228).copy(alpha = 0.92f)
+                                Color(0xFF121228).copy(alpha = 0.28f),
+                                Color(0xFF121228).copy(alpha = 0.38f),
+                                Color(0xFF121228).copy(alpha = 0.48f),
                             ),
                             startY = 0f,
-                            endY = 1400f
+                            endY = 1400f,
                         )
                     } else {
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFFFFFFF).copy(alpha = 0.78f),
-                                Color(0xFFFFFFFF).copy(alpha = 0.88f),
-                                Color(0xFFFFFFFF).copy(alpha = 0.94f)
+                                Color.White.copy(alpha = 0.36f),
+                                Color.White.copy(alpha = 0.46f),
+                                Color.White.copy(alpha = 0.56f),
                             ),
                             startY = 0f,
-                            endY = 1400f
+                            endY = 1400f,
                         )
-                    }
-                )
+                    },
+                ),
         )
 
-        // 装饰性浮动光斑
         if (isDarkTheme) {
             DecorativeOrbs()
         } else {
@@ -3094,50 +3090,48 @@ fun PlaylistChip(
 }
 
 @Composable
-fun DecorativeOrbs() {
+private fun DecorativeOrbs() {
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbs")
     val orb1Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 20f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             animation = androidx.compose.animation.core.tween(4000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
         ),
-        label = "orb1"
+        label = "orb1",
     )
     val orb2Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = -15f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
         ),
-        label = "orb2"
+        label = "orb2",
     )
     val orb3Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 25f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             animation = androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
         ),
-        label = "orb3"
+        label = "orb3",
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 左上粉紫光斑
         Box(
             modifier = Modifier
                 .size(180.dp)
                 .offset(x = (-40f).dp, y = ((60f + orb1Offset)).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(SakuraPink.copy(alpha = 0.15f), Color.Transparent)
+                        colors = listOf(SakuraPink.copy(alpha = 0.08f), Color.Transparent),
                     ),
-                    CircleShape
-                )
+                    CircleShape,
+                ),
         )
-        // 右中天蓝光斑
         Box(
             modifier = Modifier
                 .size(150.dp)
@@ -3145,12 +3139,11 @@ fun DecorativeOrbs() {
                 .offset(x = 30.dp, y = ((120f + orb2Offset)).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(SkyBlue.copy(alpha = 0.12f), Color.Transparent)
+                        colors = listOf(SkyBlue.copy(alpha = 0.07f), Color.Transparent),
                     ),
-                    CircleShape
-                )
+                    CircleShape,
+                ),
         )
-        // 左下淡紫光斑
         Box(
             modifier = Modifier
                 .size(200.dp)
@@ -3158,34 +3151,34 @@ fun DecorativeOrbs() {
                 .offset(x = (-50f).dp, y = ((-100f + orb3Offset)).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color(0xFFDDA0DD).copy(alpha = 0.1f), Color.Transparent)
+                        colors = listOf(Color(0xFFDDA0DD).copy(alpha = 0.06f), Color.Transparent),
                     ),
-                    CircleShape
-                )
+                    CircleShape,
+                ),
         )
     }
 }
 
 @Composable
-fun DecorativeOrbsLight() {
+private fun DecorativeOrbsLight() {
     val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "orbsLight")
     val orb1Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 15f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
         ),
-        label = "orb1L"
+        label = "orb1L",
     )
     val orb2Offset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = -12f,
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(
             animation = androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.EaseInOutSine),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
         ),
-        label = "orb2L"
+        label = "orb2L",
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -3195,10 +3188,10 @@ fun DecorativeOrbsLight() {
                 .offset(x = (-30f).dp, y = ((80f + orb1Offset)).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(SakuraPink.copy(alpha = 0.12f), Color.Transparent)
+                        colors = listOf(SakuraPink.copy(alpha = 0.07f), Color.Transparent),
                     ),
-                    CircleShape
-                )
+                    CircleShape,
+                ),
         )
         Box(
             modifier = Modifier
@@ -3207,10 +3200,10 @@ fun DecorativeOrbsLight() {
                 .offset(x = 20.dp, y = ((150f + orb2Offset)).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(SkyBlue.copy(alpha = 0.1f), Color.Transparent)
+                        colors = listOf(SkyBlue.copy(alpha = 0.06f), Color.Transparent),
                     ),
-                    CircleShape
-                )
+                    CircleShape,
+                ),
         )
     }
 }
