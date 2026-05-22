@@ -280,7 +280,8 @@ fun RegisterScreen(
                         unfocusedContainerColor = Color(0xFF1A1A2E)
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
 
@@ -413,7 +414,12 @@ fun RegisterScreen(
                         isLoading = true
                         scope.launch {
                             try {
-                                val response = userApi.register(username, password, email, verificationCode)
+                                val response = userApi.register(
+                                    username.trim(),
+                                    password,
+                                    email.trim(),
+                                    verificationCode.trim(),
+                                )
                                 isLoading = false
 
                                 if (response.success) {

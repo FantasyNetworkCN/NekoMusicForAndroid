@@ -78,12 +78,22 @@
     public *;
 }
 
-# Remove logging
+# Remove logging（保留 w/e，便于线上排查注册/验证码等问题）
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int d(...);
     public static int i(...);
+}
+
+# kotlinx.serialization（Release R8 须保留序列化器，避免注册等接口 JSON 字段丢失/解析失败）
+-keepattributes *Annotation*, InnerClasses, EnclosingMethod
+-keep,includedescriptorclasses class com.neko.music.data.api.**$$serializer { *; }
+-keepclassmembers class com.neko.music.data.api.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.neko.music.data.api.** {
+    kotlinx.serialization.KSerializer serializer(...);
 }
 
 # Keep native methods

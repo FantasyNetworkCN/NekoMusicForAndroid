@@ -136,6 +136,11 @@
     <string name="captcha_cancel">取消</string>
     <string name="captcha_retry">重试</string>
     <string name="captcha_image_decode_error">拼图图片解码失败，请重试或换一张。</string>
+    <string name="captcha_reloading">正在换新拼图…</string>
+    <string name="captcha_verify_failed_hint">未对齐或已失效，稍后会自动换题</string>
+    <string name="captcha_verifying">校验中…</string>
+    <string name="captcha_sending_email">正在向邮箱发送验证码…</string>
+    <string name="captcha_sent_ok_fallback">验证码已发送到邮箱</string>
 
     <!-- 忘记密码 -->
     <string name="forgot_password">忘记密码</string>
