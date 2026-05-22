@@ -4,13 +4,21 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.PowerManager
+import java.io.File
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import coil3.ImageLoader
+import coil3.disk.DiskCache
+import coil3.memory.MemoryCache
+import coil3.network.ktor2.KtorNetworkFetcherFactory
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.asDrawable
+import com.neko.music.data.cache.MusicCacheManager
+import okio.Path.Companion.toPath
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import androidx.core.graphics.drawable.toBitmap
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -23,10 +31,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class PlayMode {
     LIST_LOOP,    // 列表循环
@@ -38,9 +48,27 @@ class MusicPlayerManager private constructor(context: Context) {
     
     private val playlistManager = PlaylistManager.getInstance(context)
     private val appContext = context.applicationContext
+
+    /** Coil 3 自定义 ImageLoader 必须注册网络 Fetcher，否则 https 封面无法解码（已缓存的本地文件不依赖网络故能显示）。 */
+    private val playerCoverHttpClient by lazy {
+        HttpClient(OkHttp) {}
+    }
+
     private val imageLoader = ImageLoader.Builder(appContext)
-        .diskCache(null)
-        .memoryCache(null)
+        .components {
+            add(KtorNetworkFetcherFactory(httpClient = { playerCoverHttpClient }))
+        }
+        .diskCache {
+            DiskCache.Builder()
+                .directory(File(appContext.cacheDir, "neko_player_coil_disk").absolutePath.toPath())
+                .maxSizeBytes(PLAYER_COIL_DISK_MAX_BYTES)
+                .build()
+        }
+        .memoryCache {
+            MemoryCache.Builder()
+                .maxSizeBytes(PLAYER_COIL_MEMORY_MAX_BYTES)
+                .build()
+        }
         .build()
     
     // SharedPreferences 用于持久化播放模式
@@ -73,6 +101,10 @@ class MusicPlayerManager private constructor(context: Context) {
     private var preloadedNextMusic: com.neko.music.data.model.Music? = null
     private var preloadedNextMusicUrl: String? = null
     private var preloadedNextMusicFullCoverUrl: String? = null
+    /** 预加载的下一首封面位图（与 [preloadedNextMusic] 对应），切歌时可立刻写入 MediaSession */
+    private var preloadedSessionCoverBitmap: Bitmap? = null
+    private var preloadedSessionCoverUrl: String? = null
+    private var preloadedSessionCoverMusicId: Int? = null
 
     // 重试计数器 - 用于跟踪当前音乐的重试次数
     private var retryCount = 0
@@ -535,7 +567,12 @@ class MusicPlayerManager private constructor(context: Context) {
     
     private var updateJob: Job? = null
     private var fadeJob: Job? = null
+    /** 为 MediaSession 拉取封面；勿在每次 updatePlaybackState 时无条件 cancel，否则系统媒体永远等不到位图 */
+    private var albumArtLoadJob: Job? = null
+    private var albumArtLoadTargetUrl: String? = null
     private var coverBitmap: Bitmap? = null
+    /** 与 [coverBitmap] 对应的封面 URL，用于判断缓存位图是否仍适用于当前歌曲 */
+    private var coverBitmapSourceUrl: String? = null
 
     init {
         // 设置 MediaSession 回调（如果 MediaSession 已初始化）
@@ -702,11 +739,24 @@ class MusicPlayerManager private constructor(context: Context) {
         }
     }
 
-    private suspend fun loadCoverBitmap(url: String?): Bitmap? {
-        if (url == null) return null
+    /**
+     * 为 MediaSession 加载封面位图：优先已缓存的本地文件（与 UI 侧缓存一致），否则走网络 URL（需已注册 [KtorNetworkFetcherFactory]）。
+     */
+    private suspend fun loadCoverBitmap(coverUrl: String?, musicId: Int?): Bitmap? {
+        val cacheManager = MusicCacheManager.getInstance(appContext)
+        val cachedFile = musicId?.let { id ->
+            cacheManager.getCachedCoverFile(id)?.takeIf { it.exists() && it.length() > 0L }
+        }
+        val data: Any = when {
+            cachedFile != null -> cachedFile
+            !coverUrl.isNullOrEmpty() -> coverUrl
+            else -> return null
+        }
         return try {
             val request = ImageRequest.Builder(appContext)
-                .data(url)
+                .data(data)
+                // 锁屏/通知栏尺寸较小，缩小采样以加快下载与解码，缩短「无封面」空窗
+                .size(480, 480)
                 .build()
             val result = imageLoader.execute(request)
             if (result is SuccessResult) {
@@ -715,7 +765,64 @@ class MusicPlayerManager private constructor(context: Context) {
                 null
             }
         } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "封面加载失败: $data", e)
             null
+        }
+    }
+
+    private fun buildSessionMetadataCompat(
+        title: String,
+        artist: String,
+        cover: String?,
+        durationMs: Long,
+        bitmap: Bitmap?,
+    ): android.support.v4.media.MediaMetadataCompat {
+        val b = android.support.v4.media.MediaMetadataCompat.Builder()
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, durationMs)
+        if (!cover.isNullOrEmpty()) {
+            b.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, cover)
+        }
+        if (bitmap != null) {
+            b.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+        }
+        return b.build()
+    }
+
+    /**
+     * 异步拉取当前曲封面并写回 MediaSession。可在 [playMusic] 里尽早调用以与 ExoPlayer prepare 并行。
+     * 若 [coverBitmapSourceUrl] 已与当前封面 URL 一致且有位图，则不再重复请求。
+     */
+    private fun scheduleAlbumSessionArtLoad() {
+        if (mediaSession == null) return
+        val coverUrl = _currentMusicCover.value?.takeIf { it.isNotEmpty() } ?: run {
+            albumArtLoadJob?.cancel()
+            albumArtLoadTargetUrl = null
+            return
+        }
+        if (coverBitmapSourceUrl == coverUrl && coverBitmap != null) return
+        val alreadyLoadingSame =
+            albumArtLoadJob?.isActive == true && albumArtLoadTargetUrl == coverUrl
+        if (alreadyLoadingSame) return
+        albumArtLoadJob?.cancel()
+        albumArtLoadTargetUrl = coverUrl
+        albumArtLoadJob = scope.launch {
+            val target = coverUrl
+            val musicIdForArt = _currentMusicId.value
+            val bitmap = withContext(Dispatchers.IO) {
+                loadCoverBitmap(target, musicIdForArt)
+            }
+            if (!isActive) return@launch
+            if (_currentMusicCover.value != target) return@launch
+            coverBitmap = bitmap
+            coverBitmapSourceUrl = target
+            val t2 = _currentMusicTitle.value ?: ""
+            val a2 = _currentMusicArtist.value ?: ""
+            val d2 = player.duration.takeIf { it > 0 } ?: 0L
+            mediaSession?.setMetadata(
+                buildSessionMetadataCompat(t2, a2, target, d2, bitmap)
+            )
         }
     }
 
@@ -756,28 +863,22 @@ class MusicPlayerManager private constructor(context: Context) {
 
         mediaSession?.setPlaybackState(stateBuilder.build())
 
-        // 更新媒体元数据
+        // MediaSession：先同步标题/时长/封面 URI；位图仅在已解码且与当前封面 URL 一致时附带。
+        // 多数系统只认 METADATA_KEY_ALBUM_ART，位图需异步下载解码，故会短暂无图；通过 [scheduleAlbumSessionArtLoad] 尽早并行拉取与预加载下一首可缩短空窗。
         val title = _currentMusicTitle.value ?: ""
         val artist = _currentMusicArtist.value ?: ""
         val coverUrl = _currentMusicCover.value
 
         if (title.isNotEmpty() || artist.isNotEmpty()) {
-            scope.launch {
-                val bitmap = coverBitmap ?: loadCoverBitmap(coverUrl)
-                coverBitmap = bitmap
+            val durationMs = player.duration.takeIf { it > 0 } ?: 0L
 
-                val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
-                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
-                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-                    .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUrl)
-                    .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, player.duration)
+            val bitmapForCover =
+                if (!coverUrl.isNullOrEmpty() && coverBitmapSourceUrl == coverUrl) coverBitmap else null
+            mediaSession?.setMetadata(
+                buildSessionMetadataCompat(title, artist, coverUrl, durationMs, bitmapForCover)
+            )
 
-                if (bitmap != null) {
-                    metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-                }
-
-                mediaSession?.setMetadata(metadataBuilder.build())
-            }
+            scheduleAlbumSessionArtLoad()
         }
     }
     
@@ -875,6 +976,9 @@ class MusicPlayerManager private constructor(context: Context) {
         // 重置重试计数器
         retryCount = 0
 
+        val preloadedMusicSnapshot = preloadedNextMusic
+        val preloadedCoverUrlSnapshot = preloadedNextMusicFullCoverUrl
+
         // 清空预加载缓存（因为要播放新音乐了）
         preloadedNextMusic = null
         preloadedNextMusicUrl = null
@@ -891,8 +995,33 @@ class MusicPlayerManager private constructor(context: Context) {
             _currentMusicId.value = id
             _currentMusicTitle.value = title
             _currentMusicArtist.value = artist
-            _currentMusicCover.value = fullCoverUrl ?: cover
-            coverBitmap = null
+            val coverVal = fullCoverUrl ?: cover
+            _currentMusicCover.value = coverVal
+
+            val canReusePreload = id != null &&
+                preloadedMusicSnapshot?.id == id &&
+                preloadedCoverUrlSnapshot != null &&
+                preloadedCoverUrlSnapshot == coverVal &&
+                preloadedSessionCoverMusicId == id &&
+                preloadedSessionCoverUrl == coverVal &&
+                preloadedSessionCoverBitmap != null
+
+            if (canReusePreload) {
+                coverBitmap = preloadedSessionCoverBitmap
+                coverBitmapSourceUrl = coverVal
+                albumArtLoadJob?.cancel()
+                albumArtLoadTargetUrl = coverVal
+            } else {
+                coverBitmap = null
+                coverBitmapSourceUrl = null
+                albumArtLoadJob?.cancel()
+                albumArtLoadTargetUrl = null
+            }
+            preloadedSessionCoverBitmap = null
+            preloadedSessionCoverUrl = null
+            preloadedSessionCoverMusicId = null
+
+            scheduleAlbumSessionArtLoad()
 
             // 优先使用缓存文件
             val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(context)
@@ -1054,6 +1183,19 @@ class MusicPlayerManager private constructor(context: Context) {
                     preloadedNextMusicUrl = nextUrl
                     preloadedNextMusicFullCoverUrl = fullCoverUrl
 
+                    val nextId = nextMusic.id
+                    val nextCover = fullCoverUrl
+                    launch(Dispatchers.IO) {
+                        val bmp = loadCoverBitmap(nextCover, nextId)
+                        withContext(Dispatchers.Main) {
+                            if (preloadedNextMusic?.id == nextId && preloadedNextMusicFullCoverUrl == nextCover) {
+                                preloadedSessionCoverBitmap = bmp
+                                preloadedSessionCoverUrl = nextCover
+                                preloadedSessionCoverMusicId = nextId
+                            }
+                        }
+                    }
+
                     Log.d("MusicPlayerManager", "预加载下一首音乐: ${nextMusic.title}")
                 }
             } catch (e: Exception) {
@@ -1079,6 +1221,11 @@ class MusicPlayerManager private constructor(context: Context) {
             _currentMusicArtist.value = music.artist
             _currentMusicCover.value = fullCoverUrl
             coverBitmap = null
+            coverBitmapSourceUrl = null
+            albumArtLoadJob?.cancel()
+            albumArtLoadTargetUrl = null
+
+            scheduleAlbumSessionArtLoad()
             
             // 准备但不自动播放
             val mediaItem = MediaItem.fromUri(url)
@@ -1101,6 +1248,11 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     companion object {
+        /** 播放器专用 Coil 磁盘缓存上限（系统媒体封面等） */
+        private const val PLAYER_COIL_DISK_MAX_BYTES = 100L * 1024 * 1024
+        /** 解码后位图内存缓存，与磁盘上限分开计量 */
+        private const val PLAYER_COIL_MEMORY_MAX_BYTES = 32L * 1024 * 1024
+
         @Volatile
         private var instance: MusicPlayerManager? = null
         
