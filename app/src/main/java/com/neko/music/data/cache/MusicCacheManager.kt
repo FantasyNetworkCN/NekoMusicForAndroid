@@ -114,6 +114,15 @@ private fun ensureCacheDirs() {
     }
 
     /**
+     * 与 [getCachedCoverFile] 相同的磁盘路径（`cache/music_cache/cover/cover_{id}.jpg`），
+     * 若文件已存在则返回，**不**检查 [isCacheEnabled]；用于播放器等在「缓存开关关闭」后仍读取历史已下载封面。
+     */
+    fun getExistingCoverCacheFile(musicId: Int): File? {
+        val file = File(coverDir, "cover_$musicId.jpg")
+        return if (file.exists() && file.length() > 0L) file else null
+    }
+
+    /**
      * 获取歌词缓存路径
      */
     fun getCachedLyricsFile(musicId: Int): File? {

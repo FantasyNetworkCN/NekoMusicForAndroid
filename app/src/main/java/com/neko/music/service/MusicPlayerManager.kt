@@ -4,19 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.PowerManager
-import java.io.File
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import coil3.ImageLoader
-import coil3.disk.DiskCache
-import coil3.memory.MemoryCache
 import coil3.network.ktor2.KtorNetworkFetcherFactory
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.asDrawable
 import com.neko.music.data.cache.MusicCacheManager
-import okio.Path.Companion.toPath
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import androidx.core.graphics.drawable.toBitmap
@@ -58,17 +54,9 @@ class MusicPlayerManager private constructor(context: Context) {
         .components {
             add(KtorNetworkFetcherFactory(httpClient = { playerCoverHttpClient }))
         }
-        .diskCache {
-            DiskCache.Builder()
-                .directory(File(appContext.cacheDir, "neko_player_coil_disk").absolutePath.toPath())
-                .maxSizeBytes(PLAYER_COIL_DISK_MAX_BYTES)
-                .build()
-        }
-        .memoryCache {
-            MemoryCache.Builder()
-                .maxSizeBytes(PLAYER_COIL_MEMORY_MAX_BYTES)
-                .build()
-        }
+        // 关闭 Coil 磁盘/内存缓存：设置里 MusicCacheManager 已负责音乐与封面持久化，此处仅用 Coil 做网络拉取与解码
+        .diskCache(null)
+        .memoryCache(null)
         .build()
     
     // SharedPreferences 用于持久化播放模式
@@ -740,12 +728,13 @@ class MusicPlayerManager private constructor(context: Context) {
     }
 
     /**
-     * 为 MediaSession 加载封面位图：优先已缓存的本地文件（与 UI 侧缓存一致），否则走网络 URL（需已注册 [KtorNetworkFetcherFactory]）。
+     * 为 MediaSession 加载封面位图：优先 [MusicCacheManager.getExistingCoverCacheFile]（与设置里缓存封面相同路径），
+     * 否则走网络 URL（需已注册 [KtorNetworkFetcherFactory]）。
      */
     private suspend fun loadCoverBitmap(coverUrl: String?, musicId: Int?): Bitmap? {
         val cacheManager = MusicCacheManager.getInstance(appContext)
         val cachedFile = musicId?.let { id ->
-            cacheManager.getCachedCoverFile(id)?.takeIf { it.exists() && it.length() > 0L }
+            cacheManager.getExistingCoverCacheFile(id)
         }
         val data: Any = when {
             cachedFile != null -> cachedFile
@@ -1248,11 +1237,6 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     companion object {
-        /** 播放器专用 Coil 磁盘缓存上限（系统媒体封面等） */
-        private const val PLAYER_COIL_DISK_MAX_BYTES = 100L * 1024 * 1024
-        /** 解码后位图内存缓存，与磁盘上限分开计量 */
-        private const val PLAYER_COIL_MEMORY_MAX_BYTES = 32L * 1024 * 1024
-
         @Volatile
         private var instance: MusicPlayerManager? = null
         
