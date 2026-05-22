@@ -18,8 +18,15 @@ import com.neko.music.util.UrlConfig
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 
 class UserApi(private val token: String? = null) {
+    private val sliderCaptchaJson = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
+
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
@@ -68,7 +75,11 @@ class UserApi(private val token: String? = null) {
                     verificationCode = verificationCode
                 ))
             }
-            response.body()
+            val body = response.body<RegisterResponse>()
+            if (!body.success) {
+                Log.w("UserApi", "注册未通过: ${body.message}")
+            }
+            body
         } catch (e: Exception) {
             Log.e("UserApi", "注册失败", e)
             RegisterResponse(success = false, message = "网络错误: ${e.message}", data = null)
@@ -112,15 +123,21 @@ class UserApi(private val token: String? = null) {
                 contentType(ContentType.Application.Json)
                 setBody(SliderVerifyRequest(captchaToken = captchaToken, captchaOffsetX = captchaOffsetX))
             }
-            val env = response.body<SliderVerifyEnvelope>()
+            val raw = response.bodyAsText()
+            Log.w(
+                "UserApi",
+                "滑块校验 HTTP ${response.status.value} offsetX=$captchaOffsetX body=$raw",
+            )
+            val env = sliderCaptchaJson.decodeFromString<SliderVerifyEnvelope>(raw)
             val pass = env.data?.captchaPassToken
             if (env.success && !pass.isNullOrBlank()) {
                 SliderCaptchaVerifyResult.Ok(pass)
             } else {
-                SliderCaptchaVerifyResult.Err(env.message.ifBlank { "验证失败" })
+                val msg = env.message.ifBlank { "验证失败" }
+                SliderCaptchaVerifyResult.Err(msg)
             }
         } catch (e: Exception) {
-            Log.e("UserApi", "滑块校验失败", e)
+            Log.e("UserApi", "滑块校验异常 offsetX=$captchaOffsetX", e)
             SliderCaptchaVerifyResult.Err("网络错误: ${e.message}")
         }
     }
@@ -515,7 +532,8 @@ data class RegisterResponse(
 data class VerificationResponse(
     val success: Boolean,
     val message: String,
-    val data: String?
+    /** 成功时多为 null；限流(429) 时为对象，如 `{"retryAfterSec":37}` */
+    val data: JsonElement? = null,
 )
 
 @Serializable

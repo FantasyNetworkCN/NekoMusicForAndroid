@@ -137,6 +137,11 @@
     <string name="captcha_cancel">Cancel</string>
     <string name="captcha_retry">Retry</string>
     <string name="captcha_image_decode_error">Could not decode puzzle images. Tap Retry or New image.</string>
+    <string name="captcha_reloading">Loading a new puzzle…</string>
+    <string name="captcha_verify_failed_hint">Incorrect or expired; a new image will load shortly</string>
+    <string name="captcha_verifying">Verifying…</string>
+    <string name="captcha_sending_email">Sending code to your email…</string>
+    <string name="captcha_sent_ok_fallback">Verification code sent to your email</string>
 
     <!-- Forgot Password -->
     <string name="forgot_password">Forgot password</string>
