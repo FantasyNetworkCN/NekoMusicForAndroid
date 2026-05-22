@@ -76,18 +76,52 @@ class UserApi(private val token: String? = null) {
     }
 
     /**
-     * 发送验证码
+     * 发送注册用邮箱验证码（须先完成滑块并取得 captchaPassToken）
      */
-    suspend fun sendVerificationCode(email: String, username: String): VerificationResponse {
+    suspend fun sendVerificationCode(email: String, username: String, captchaPassToken: String): VerificationResponse {
         return try {
             val response = client.post("$baseUrl/api/user/send-verification") {
                 contentType(ContentType.Application.Json)
-                setBody(VerificationRequest(email = email, username = username))
+                setBody(VerificationRequest(email = email, username = username, captchaPassToken = captchaPassToken))
             }
             response.body()
         } catch (e: Exception) {
             Log.e("UserApi", "发送验证码失败", e)
             VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
+        }
+    }
+
+    suspend fun getSliderCaptchaChallenge(): SliderCaptchaLoadResult {
+        return try {
+            val response = client.get("$baseUrl/api/captcha/slider")
+            val env = response.body<SliderCaptchaEnvelope>()
+            if (env.success && env.data != null) {
+                SliderCaptchaLoadResult.Ok(env.data)
+            } else {
+                SliderCaptchaLoadResult.Err(env.message.ifBlank { "加载失败" })
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "滑块挑战失败", e)
+            SliderCaptchaLoadResult.Err("网络错误: ${e.message}")
+        }
+    }
+
+    suspend fun verifySliderCaptcha(captchaToken: String, captchaOffsetX: Int): SliderCaptchaVerifyResult {
+        return try {
+            val response = client.post("$baseUrl/api/captcha/slider/verify") {
+                contentType(ContentType.Application.Json)
+                setBody(SliderVerifyRequest(captchaToken = captchaToken, captchaOffsetX = captchaOffsetX))
+            }
+            val env = response.body<SliderVerifyEnvelope>()
+            val pass = env.data?.captchaPassToken
+            if (env.success && !pass.isNullOrBlank()) {
+                SliderCaptchaVerifyResult.Ok(pass)
+            } else {
+                SliderCaptchaVerifyResult.Err(env.message.ifBlank { "验证失败" })
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "滑块校验失败", e)
+            SliderCaptchaVerifyResult.Err("网络错误: ${e.message}")
         }
     }
 
@@ -396,8 +430,56 @@ data class RegisterRequest(
 @Serializable
 data class VerificationRequest(
     val email: String,
-    val username: String
+    val username: String,
+    val captchaPassToken: String
 )
+
+@Serializable
+data class SliderCaptchaEnvelope(
+    val success: Boolean = false,
+    val message: String = "",
+    val data: SliderCaptchaChallengeDto? = null,
+)
+
+@Serializable
+data class SliderCaptchaChallengeDto(
+    val captchaToken: String,
+    val bgImage: String,
+    val sliderImage: String,
+    val puzzleY: Int = 0,
+    val bgWidth: Int = 300,
+    val bgHeight: Int = 180,
+    val sliderWidth: Int = 52,
+    val sliderHeight: Int = 52,
+)
+
+@Serializable
+data class SliderVerifyRequest(
+    val captchaToken: String,
+    val captchaOffsetX: Int,
+)
+
+@Serializable
+data class SliderVerifyEnvelope(
+    val success: Boolean = false,
+    val message: String = "",
+    val data: SliderPassData? = null,
+)
+
+@Serializable
+data class SliderPassData(
+    val captchaPassToken: String,
+)
+
+sealed interface SliderCaptchaLoadResult {
+    data class Ok(val data: SliderCaptchaChallengeDto) : SliderCaptchaLoadResult
+    data class Err(val message: String) : SliderCaptchaLoadResult
+}
+
+sealed interface SliderCaptchaVerifyResult {
+    data class Ok(val captchaPassToken: String) : SliderCaptchaVerifyResult
+    data class Err(val message: String) : SliderCaptchaVerifyResult
+}
 
 @Serializable
 data class LoginResponse(

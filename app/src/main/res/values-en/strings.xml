@@ -130,6 +130,13 @@
     <string name="password_mismatch">Passwords do not match</string>
     <string name="email_format_error">Email format is incorrect</string>
     <string name="please_enter_email_first">Please enter email first</string>
+    <string name="captcha_security_title">Security check</string>
+    <string name="captcha_security_desc">Drag the slider to align the puzzle; release to verify and send the code.</string>
+    <string name="captcha_refresh">New image</string>
+    <string name="captcha_confirm">Confirm</string>
+    <string name="captcha_cancel">Cancel</string>
+    <string name="captcha_retry">Retry</string>
+    <string name="captcha_image_decode_error">Could not decode puzzle images. Tap Retry or New image.</string>
 
     <!-- Forgot Password -->
     <string name="forgot_password">Forgot password</string>

@@ -22,9 +22,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,9 +46,9 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var verificationCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var isSendingCode by remember { mutableStateOf(false) }
     var countdown by remember { mutableIntStateOf(0) }
     var errorMessage by remember { mutableStateOf("") }
+    var showCaptchaDialog by remember { mutableStateOf(false) }
 
     // 动画状态
     var isVisible by remember { mutableStateOf(false) }
@@ -81,7 +78,6 @@ fun RegisterScreen(
     val emailFormatError = stringResource(id = R.string.email_format_error)
     val registerFailed = stringResource(id = R.string.register_failed)
     val pleaseEnterEmailFirst = stringResource(id = R.string.please_enter_email_first)
-    val sendVerificationCodeFailed = stringResource(id = R.string.send_verification_code_failed)
 
     // 倒计时
     LaunchedEffect(countdown) {
@@ -104,9 +100,13 @@ fun RegisterScreen(
             )
             .windowInsetsPadding(WindowInsets(0.dp))
     ) {
-        // 处理返回键
+        // 处理返回键：弹窗打开时先关弹窗
         BackHandler {
-            onBackClick()
+            if (showCaptchaDialog) {
+                showCaptchaDialog = false
+            } else {
+                onBackClick()
+            }
         }
         // 返回按钮
         AnimatedVisibility(
@@ -254,39 +254,21 @@ fun RegisterScreen(
                                     errorMessage = pleaseEnterEmailFirst
                                     return@TextButton
                                 }
-                                if (countdown > 0) return@TextButton
-
-                                isSendingCode = true
-                                scope.launch {
-                                    try {
-                                        val response = userApi.sendVerificationCode(email, username)
-                                        isSendingCode = false
-
-                                        if (response.success) {
-                                            countdown = 60
-                                        } else {
-                                            errorMessage = response.message
-                                        }
-                                    } catch (e: Exception) {
-                                        isSendingCode = false
-                                        errorMessage = sendVerificationCodeFailed.format(e.message ?: "")
-                                    }
+                                if (!email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"))) {
+                                    errorMessage = emailFormatError
+                                    return@TextButton
                                 }
+                                if (countdown > 0 || showCaptchaDialog) return@TextButton
+                                errorMessage = ""
+                                showCaptchaDialog = true
                             },
-                            enabled = !isSendingCode && countdown == 0
+                            enabled = !showCaptchaDialog && countdown == 0
                         ) {
-                            if (isSendingCode) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Color(0xFFE94560)
-                                )
-                            } else {
-                                Text(
-                                    text = if (countdown > 0) stringResource(id = R.string.retry_after_seconds, countdown) else stringResource(id = R.string.send_verification_code),
-                                    color = if (countdown > 0) Color.Gray else Color(0xFFE94560),
-                                    fontSize = 12.sp
-                                )
-                            }
+                            Text(
+                                text = if (countdown > 0) stringResource(id = R.string.retry_after_seconds, countdown) else stringResource(id = R.string.send_verification_code),
+                                color = if (countdown > 0) Color.Gray else Color(0xFFE94560),
+                                fontSize = 12.sp
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -498,5 +480,17 @@ fun RegisterScreen(
                 }
             }
         }
+
+        RegisterSliderCaptchaDialog(
+            visible = showCaptchaDialog,
+            userApi = userApi,
+            email = email.trim(),
+            username = username.trim().ifBlank { "用户" },
+            onDismiss = { showCaptchaDialog = false },
+            onCodeSent = {
+                showCaptchaDialog = false
+                countdown = 60
+            },
+        )
     }
 }

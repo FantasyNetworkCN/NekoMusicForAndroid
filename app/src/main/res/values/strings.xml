@@ -124,6 +124,13 @@
     <string name="password_mismatch">两次暗号对不上喵！</string>
     <string name="email_format_error">邮箱地址不对劲喵</string>
     <string name="please_enter_email_first">先告诉人家邮箱喵</string>
+    <string name="captcha_security_title">安全验证喵</string>
+    <string name="captcha_security_desc">拖动下方滑块对齐缺口，松手后自动校验并发送验证码喵</string>
+    <string name="captcha_refresh">换一张喵</string>
+    <string name="captcha_confirm">确认喵</string>
+    <string name="captcha_cancel">取消喵</string>
+    <string name="captcha_retry">重试喵</string>
+    <string name="captcha_image_decode_error">拼图图片解码失败喵，请点重试或换一张喵</string>
 
     <!-- 忘记密码 -->
     <string name="forgot_password">忘记密码喵</string>
