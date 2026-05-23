@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -61,7 +62,24 @@ android {
     }
 
     signingConfigs {
-        create("release") {
+        create("neko") {
+            val jks = rootProject.file("neko_key.jks")
+            check(jks.exists()) {
+                "未找到 neko_key.jks，请放在项目根目录：${rootProject.projectDir}/neko_key.jks"
+            }
+            val propsFile = rootProject.file("keystore.properties")
+            check(propsFile.exists()) {
+                "未找到 keystore.properties。请复制 keystore.properties.example 为 keystore.properties 并填写 storePassword、keyPassword、keyAlias"
+            }
+            val p = Properties()
+            propsFile.inputStream().use { p.load(it) }
+            storeFile = jks
+            storePassword = p.getProperty("storePassword")?.trim()?.takeIf { it.isNotEmpty() }
+                ?: error("keystore.properties 缺少或为空: storePassword")
+            keyAlias = p.getProperty("keyAlias")?.trim()?.takeIf { it.isNotEmpty() }
+                ?: error("keystore.properties 缺少或为空: keyAlias")
+            keyPassword = p.getProperty("keyPassword")?.trim()?.takeIf { it.isNotEmpty() }
+                ?: error("keystore.properties 缺少或为空: keyPassword")
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
@@ -70,6 +88,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("neko")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -77,7 +98,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("neko")
             isDebuggable = false
         }
     }
