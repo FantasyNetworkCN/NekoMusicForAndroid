@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +73,7 @@ fun RankingScreen(
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
     val listState = rememberLazyListState()
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
-    
+
     var musicList by remember { mutableStateOf<List<Music>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var refreshing by remember { mutableStateOf(false) }
@@ -126,56 +127,35 @@ fun RankingScreen(
         loadData()
     }
 
-    // 顶栏在本页独立 layerBackdrop 外采样同一页 backdrop；此处同步列表供「播放全部」与占位高度。
+    // 同步列表供顶栏「播放全部」与占位高度。
     SideEffect {
         liquidBarState.musicList = musicList
         liquidBarState.loading = loading
         liquidBarState.loadError = loadError
     }
 
-    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     var barInsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val topBarInsetDp = remember(barInsetPx, density) {
         if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 88.dp
     }
-    val pageGradientBrush = remember(isDark, scheme) {
-        Brush.verticalGradient(
-            colors = if (isDark) {
-                listOf(
-                    scheme.background,
-                    scheme.surface.copy(alpha = 0.5f),
-                    scheme.surface.copy(alpha = 0.35f)
-                )
-            } else {
-                listOf(
-                    scheme.background,
-                    scheme.surfaceVariant.copy(alpha = 0.35f),
-                    scheme.surface.copy(alpha = 0.55f)
-                )
-            }
-        )
-    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(scheme.background)
-    ) {
-        // 仅渐变进 layerBackdrop；列表与顶栏在兄弟层 drawBackdrop，避免多行共享录屏 export（与我的歌单页一致）。
+    // 顶栏在外采样 pageBackdrop；底图+列表画进同一 layerBackdrop，顶栏玻璃随滚动取色。行内禁用 Kyant 液态（避免同实例 drawBackdrop SIGSEGV）。
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(pageGradientBrush)
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
-        }
-        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides null) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when {
                         loading && musicList.isEmpty() -> {
@@ -270,21 +250,21 @@ fun RankingScreen(
                         }
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .zIndex(2f)
-                ) {
-                    RankingLiquidTopBarOverlay(
-                        state = liquidBarState,
-                        onBackClick = onBackClick,
-                        onBarHeightChanged = { barInsetPx = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        sampleBackdrop = pageBackdrop
-                    )
-                }
             }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .zIndex(2f)
+        ) {
+            RankingLiquidTopBarOverlay(
+                state = liquidBarState,
+                onBackClick = onBackClick,
+                onBarHeightChanged = { barInsetPx = it },
+                modifier = Modifier.fillMaxWidth(),
+                sampleBackdrop = pageBackdrop
+            )
         }
     }
 }
