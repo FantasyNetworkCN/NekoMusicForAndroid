@@ -8,6 +8,7 @@ app/build
 app/release
 
 local.properties
+keystore.properties
 
 # 上游 AndroidLiquidGlass 完整克隆（含 .git）；backdrop 源码已 vendored 到 backdrop-port/src/main
 AndroidLiquidGlass/
