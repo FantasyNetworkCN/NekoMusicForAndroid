@@ -3,6 +3,10 @@ package com.neko.music
 import android.app.Application
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -12,6 +16,7 @@ import java.util.Locale
 class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
     private lateinit var prefs: SharedPreferences
+    private val appLinksLogHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
@@ -31,6 +36,51 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
         // Android 15+：小组件选择器依赖 setWidgetPreview，仅靠 XML previewLayout 不会显示
         MusicWidgetPreviewRegistrar.register(this)
+
+        logAppLinksDomainVerificationState("onCreate")
+        appLinksLogHandler.postDelayed(
+            { logAppLinksDomainVerificationState("after_45s") },
+            45_000L
+        )
+    }
+
+    /**
+     * AOSP DomainVerificationUserState 常见取值：
+     * 0 NONE、1 SELECTED、2 VERIFIED、3 FIRST_PARTY。
+     * 一加/ColorOS 等可能长期保持 0，但链接仍可通过「打开支持的链接」里设为「总是」使用。
+     */
+    private fun appLinkDomainStateLabel(code: Int): String = when (code) {
+        0 -> "NONE(未自动验证且未设为默认)"
+        1 -> "SELECTED(用户已指定本应用)"
+        2 -> "VERIFIED(系统自动验证通过)"
+        3 -> "FIRST_PARTY"
+        else -> "UNKNOWN($code)"
+    }
+
+    private fun logAppLinksDomainVerificationState(reason: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            @Suppress("DEPRECATION")
+            val dvm = getSystemService("domain_verification") ?: run {
+                Log.i("NekoMusic", "AppLinks[$reason]: domain_verification service null")
+                return
+            }
+            val m = dvm.javaClass.getMethod("getDomainVerificationUserState", String::class.java)
+            val state = m.invoke(dvm, packageName) ?: run {
+                Log.i("NekoMusic", "AppLinks[$reason]: DomainVerificationUserState=null")
+                return
+            }
+            @Suppress("UNCHECKED_CAST")
+            val rawMap = state.javaClass.getMethod("getHostToStateMap").invoke(state) as? Map<*, *>
+                ?: emptyMap<Any, Any>()
+            val decoded = rawMap.entries.joinToString(", ") { (host, codeAny) ->
+                val code = (codeAny as? Number)?.toInt() ?: -1
+                "$host=${appLinkDomainStateLabel(code)}"
+            }
+            Log.i("NekoMusic", "AppLinks[$reason]: $decoded  (raw=$rawMap)")
+        } catch (e: Exception) {
+            Log.w("NekoMusic", "AppLinks[$reason]: read failed", e)
+        }
     }
 
     /**
