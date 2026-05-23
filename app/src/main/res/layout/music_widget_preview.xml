@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小部件选择器预览（API 31+ previewLayout）；控件类型与 id 须与 music_widget 一致 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?android:attr/colorBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:id="@+id/widget_song_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_preview_title"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textAlignment="center" />
+
+        <TextView
+            android:id="@+id/widget_artist_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_preview_artist"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginTop="4dp"
+            android:textAlignment="center" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:id="@+id/widget_current_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1:23"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginEnd="8dp" />
+
+        <ProgressBar
+            android:id="@+id/widget_progress_bar"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="8dp"
+            android:max="100"
+            android:progress="42" />
+
+        <TextView
+            android:id="@+id/widget_total_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4:56"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageButton
+            android:id="@+id/widget_previous"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/previous_song"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_previous_desc"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:tint="?android:attr/colorControlNormal" />
+
+        <ImageButton
+            android:id="@+id/widget_play_pause"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:src="@drawable/play"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_play_pause_desc"
+            android:scaleType="centerInside"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:padding="12dp"
+            android:tint="?android:attr/colorControlActivated" />
+
+        <ImageButton
+            android:id="@+id/widget_next"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/next_song"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_next_desc"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:tint="?android:attr/colorControlNormal" />
+    </LinearLayout>
+</LinearLayout>

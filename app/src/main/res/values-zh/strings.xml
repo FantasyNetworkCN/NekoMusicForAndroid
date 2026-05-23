@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">Neko云音乐</string>
     <string name="widget_description">Neko云音乐桌面播放器</string>
+    <string name="widget_previous_desc">上一曲</string>
+    <string name="widget_play_pause_desc">播放或暂停</string>
+    <string name="widget_next_desc">下一曲</string>
+    <string name="widget_preview_title">夏色セッション</string>
+    <string name="widget_preview_artist">Neko Studio</string>
     
     <!-- 设置页面 -->
     <string name="settings">设置</string>

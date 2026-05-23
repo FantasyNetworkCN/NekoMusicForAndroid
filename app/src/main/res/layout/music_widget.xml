@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 尽量用系统主题属性 + 框架 Material 横条；不确定进度时由 Provider 打开 indeterminate（系统流动动画） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_background"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="?android:attr/colorBackground">
 
-    <!-- 歌曲信息 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -19,8 +20,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Neko云音乐"
-            android:textSize="16sp"
-            android:textColor="#FFFFFF"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="?android:attr/textColorPrimary"
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end"
@@ -31,15 +32,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="暂无播放"
-            android:textSize="13sp"
-            android:textColor="#E0E0E0"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
             android:maxLines="1"
             android:ellipsize="end"
             android:layout_marginTop="4dp"
             android:textAlignment="center" />
     </LinearLayout>
 
-    <!-- 进度条 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -52,71 +52,69 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0:00"
-            android:textSize="11sp"
-            android:textColor="#E0E0E0"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
             android:layout_marginEnd="8dp" />
 
         <ProgressBar
             android:id="@+id/widget_progress_bar"
-            style="?android:attr/progressBarStyleHorizontal"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
             android:layout_width="0dp"
-            android:layout_height="3dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:progress="0"
+            android:minHeight="8dp"
             android:max="100"
-            android:progressTint="#FFFFFF"
-            android:progressBackgroundTint="#60FFFFFF" />
+            android:progress="0" />
 
         <TextView
             android:id="@+id/widget_total_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0:00"
-            android:textSize="11sp"
-            android:textColor="#E0E0E0"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?android:attr/textColorSecondary"
             android:layout_marginStart="8dp" />
     </LinearLayout>
 
-    <!-- 播放控制按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
 
-        <!-- 上一曲 -->
         <ImageButton
             android:id="@+id/widget_previous"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:src="@drawable/previous_song"
-            android:background="@android:color/transparent"
-            android:contentDescription="上一曲"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_previous_desc"
             android:scaleType="centerInside"
-            android:padding="10dp" />
+            android:padding="10dp"
+            android:tint="?android:attr/colorControlNormal" />
 
-        <!-- 播放/暂停 -->
         <ImageButton
             android:id="@+id/widget_play_pause"
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:src="@drawable/play"
-            android:background="@android:color/transparent"
-            android:contentDescription="播放/暂停"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_play_pause_desc"
             android:scaleType="centerInside"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
-            android:padding="12dp" />
+            android:padding="12dp"
+            android:tint="?android:attr/colorControlActivated" />
 
-        <!-- 下一曲 -->
         <ImageButton
             android:id="@+id/widget_next"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:src="@drawable/next_song"
-            android:background="@android:color/transparent"
-            android:contentDescription="下一曲"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_next_desc"
             android:scaleType="centerInside"
-            android:padding="10dp" />
+            android:padding="10dp"
+            android:tint="?android:attr/colorControlNormal" />
     </LinearLayout>
 </LinearLayout>

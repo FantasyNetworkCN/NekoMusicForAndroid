@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">Neko Music</string>
     <string name="widget_description">Neko Music Desktop Player</string>
+    <string name="widget_previous_desc">Previous track</string>
+    <string name="widget_play_pause_desc">Play or pause</string>
+    <string name="widget_next_desc">Next track</string>
+    <string name="widget_preview_title">Summer Session</string>
+    <string name="widget_preview_artist">Neko Studio</string>
     
     <!-- Settings -->
     <string name="settings">Settings</string>

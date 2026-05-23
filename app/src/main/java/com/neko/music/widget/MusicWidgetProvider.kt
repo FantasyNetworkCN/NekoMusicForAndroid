@@ -92,7 +92,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
         }
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
-        // 更新进度条
+        // 进度条：有总时长用系统 Material 横条 determinate；正在播放但无时长（如部分流）用 indeterminate，即系统自带流动/波浪动画
         val currentPosition = playerManager.currentPosition.value
         val duration = playerManager.duration.value
         if (duration > 0) {
@@ -101,7 +101,8 @@ class MusicWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_current_time, formatTime(currentPosition))
             views.setTextViewText(R.id.widget_total_time, formatTime(duration))
         } else {
-            views.setProgressBar(R.id.widget_progress_bar, 100, 0, false)
+            val indeterminate = playerManager.isPlaying.value
+            views.setProgressBar(R.id.widget_progress_bar, 100, 0, indeterminate)
             views.setTextViewText(R.id.widget_current_time, "0:00")
             views.setTextViewText(R.id.widget_total_time, "0:00")
         }

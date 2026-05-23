@@ -2,6 +2,11 @@
 <resources>
     <string name="app_name">Neko云音乐</string>
     <string name="widget_description">Neko云音乐桌面播放器喵</string>
+    <string name="widget_previous_desc">上一曲喵</string>
+    <string name="widget_play_pause_desc">播放或暂停喵</string>
+    <string name="widget_next_desc">下一曲喵</string>
+    <string name="widget_preview_title">夏色セッション喵</string>
+    <string name="widget_preview_artist">Neko Studio喵</string>
 
     <string name="settings">设置喵</string>
     <string name="general">通用喵</string>
