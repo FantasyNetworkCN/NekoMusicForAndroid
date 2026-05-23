@@ -1,3 +1,5 @@
+import java.io.StringReader
+import java.nio.charset.StandardCharsets
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -71,8 +73,10 @@ android {
             check(propsFile.exists()) {
                 "未找到 keystore.properties。请复制 keystore.properties.example 为 keystore.properties 并填写 storePassword、keyPassword、keyAlias"
             }
+            // load(InputStream) 固定按 ISO-8859-1 解析，含中文等密码会读错 → validateSigningRelease 报密钥错误
             val p = Properties()
-            propsFile.inputStream().use { p.load(it) }
+            val propsText = propsFile.readText(StandardCharsets.UTF_8).removePrefix("\uFEFF")
+            StringReader(propsText).use { p.load(it) }
             storeFile = jks
             storePassword = p.getProperty("storePassword")?.trim()?.takeIf { it.isNotEmpty() }
                 ?: error("keystore.properties 缺少或为空: storePassword")
