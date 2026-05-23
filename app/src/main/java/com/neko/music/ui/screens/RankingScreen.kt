@@ -22,7 +22,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,7 +37,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,7 +55,6 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.list.RankingLiquidBarState
-import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
@@ -134,13 +131,12 @@ fun RankingScreen(
         liquidBarState.loadError = loadError
     }
 
-    var barInsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val topBarInsetDp = remember(barInsetPx, density) {
-        if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 88.dp
+    val topBarInsetDp = remember(liquidBarState.barInsetPx, density) {
+        if (liquidBarState.barInsetPx > 0) with(density) { liquidBarState.barInsetPx.toDp() } else 88.dp
     }
 
-    // 顶栏在外采样 pageBackdrop；底图+列表画进同一 layerBackdrop，顶栏玻璃随滚动取色。行内禁用 Kyant 液态（避免同实例 drawBackdrop SIGSEGV）。
+    // 仅底图进 pageBackdrop；列表在兄弟层可 Kyant 液态。顶栏在 MainActivity 与 NavHost 同级，采主 liquidBackdrop 以随滚动取色。
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -155,116 +151,102 @@ fun RankingScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides null) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    when {
-                        loading && musicList.isEmpty() -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = topBarInsetDp + 20.dp)
-                            ) {
-                                LoadingState()
-                            }
+        }
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    loading && musicList.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = topBarInsetDp + 20.dp)
+                        ) {
+                            LoadingState()
                         }
-                        loadError && musicList.isEmpty() -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = topBarInsetDp + 20.dp)
-                            ) {
-                                ErrorState(onRetry = { loadData() })
-                            }
+                    }
+                    loadError && musicList.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = topBarInsetDp + 20.dp)
+                        ) {
+                            ErrorState(onRetry = { loadData() })
                         }
-                        musicList.isEmpty() -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(top = topBarInsetDp + 20.dp)
-                            ) {
-                                EmptyState()
-                            }
+                    }
+                    musicList.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = topBarInsetDp + 20.dp)
+                        ) {
+                            EmptyState()
                         }
-                        else -> {
-                            val pullRefreshState =
-                                rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
+                    }
+                    else -> {
+                        val pullRefreshState =
+                            rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .pullRefresh(pullRefreshState)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pullRefresh(pullRefreshState)
+                        ) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = topBarInsetDp + 48.dp,
+                                    bottom = 240.dp
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(
-                                        start = 16.dp,
-                                        end = 16.dp,
-                                        top = topBarInsetDp + 48.dp,
-                                        bottom = 240.dp
-                                    ),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    itemsIndexed(
-                                        items = musicList,
-                                        key = { _, music -> music.id }
-                                    ) { index, music ->
-                                        RankingItem(
-                                            music = music,
-                                            rank = index + 1,
-                                            onClick = {
-                                                Log.d("RankingScreen", "点击歌曲: ${music.title}")
-                                                scope.launch {
-                                                    try {
-                                                        val url = musicApi.getMusicFileUrl(music)
-                                                        val fullCoverUrl =
-                                                            UrlConfig.getMusicCoverUrl(music.id)
-                                                        playerManager.playMusic(
-                                                            url,
-                                                            music.id,
-                                                            music.title,
-                                                            music.artist,
-                                                            music.coverFilePath ?: "",
-                                                            fullCoverUrl
-                                                        )
-                                                        onNavigateToPlayer(music)
-                                                    } catch (e: Exception) {
-                                                        Log.e("RankingScreen", "播放失败", e)
-                                                    }
+                                itemsIndexed(
+                                    items = musicList,
+                                    key = { _, music -> music.id }
+                                ) { index, music ->
+                                    RankingItem(
+                                        music = music,
+                                        rank = index + 1,
+                                        onClick = {
+                                            Log.d("RankingScreen", "点击歌曲: ${music.title}")
+                                            scope.launch {
+                                                try {
+                                                    val url = musicApi.getMusicFileUrl(music)
+                                                    val fullCoverUrl =
+                                                        UrlConfig.getMusicCoverUrl(music.id)
+                                                    playerManager.playMusic(
+                                                        url,
+                                                        music.id,
+                                                        music.title,
+                                                        music.artist,
+                                                        music.coverFilePath ?: "",
+                                                        fullCoverUrl
+                                                    )
+                                                    onNavigateToPlayer(music)
+                                                } catch (e: Exception) {
+                                                    Log.e("RankingScreen", "播放失败", e)
                                                 }
                                             }
-                                        )
-                                    }
+                                        }
+                                    )
                                 }
-
-                                PullRefreshIndicator(
-                                    refreshing = refreshing,
-                                    state = pullRefreshState,
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = topBarInsetDp + 36.dp),
-                                    backgroundColor = scheme.surface,
-                                    contentColor = scheme.primary
-                                )
                             }
+
+                            PullRefreshIndicator(
+                                refreshing = refreshing,
+                                state = pullRefreshState,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = topBarInsetDp + 36.dp),
+                                backgroundColor = scheme.surface,
+                                contentColor = scheme.primary
+                            )
                         }
                     }
                 }
             }
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .zIndex(2f)
-        ) {
-            RankingLiquidTopBarOverlay(
-                state = liquidBarState,
-                onBackClick = onBackClick,
-                onBarHeightChanged = { barInsetPx = it },
-                modifier = Modifier.fillMaxWidth(),
-                sampleBackdrop = pageBackdrop
-            )
         }
     }
 }

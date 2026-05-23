@@ -75,7 +75,9 @@ import com.neko.music.ui.components.MiniPlayer
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
+import com.neko.music.ui.list.LatestLiquidTopBarOverlay
 import com.neko.music.ui.list.RankingLiquidBarState
+import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.ui.screens.LoginScreen
@@ -1203,6 +1205,40 @@ fun MainScreen() {
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
+        }
+
+        // 热门/最新顶栏：与首页 Hero 一致，在 NavHost 外采主 liquidBackdrop，玻璃随列表滚动取色；列表行仍在页内采 pageBackdrop 以保留 Kyant 液态。
+        if (currentRoute == "ranking" && !isPlayerScreen) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .zIndex(1f)
+            ) {
+                RankingLiquidTopBarOverlay(
+                    state = rankingLiquidBarState,
+                    onBackClick = { navController.popBackStack() },
+                    onBarHeightChanged = { h -> rankingLiquidBarState.barInsetPx = h },
+                    modifier = Modifier.fillMaxWidth(),
+                    sampleBackdrop = liquidBackdrop
+                )
+            }
+        }
+        if (currentRoute == "latest" && !isPlayerScreen) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .zIndex(1f)
+            ) {
+                LatestLiquidTopBarOverlay(
+                    state = latestLiquidBarState,
+                    onBackClick = { navController.popBackStack() },
+                    onBarHeightChanged = { h -> latestLiquidBarState.barInsetPx = h },
+                    modifier = Modifier.fillMaxWidth(),
+                    sampleBackdrop = liquidBackdrop
+                )
             }
         }
 
