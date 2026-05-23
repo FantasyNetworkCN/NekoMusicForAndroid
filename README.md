@@ -1,6 +1,18 @@
 # Neko云音乐安卓版
 ![](https://count.getloli.com/get/@:NekoMusicAndroid?theme=moebooru)
 
+## Release 打包签名
+
+1. 将 `neko_key.jks` 放在**仓库根目录**（与 `settings.gradle.kts` 同级）。
+2. 复制 `keystore.properties.example` 为 `keystore.properties`，填写 `storePassword`、`keyPassword`、`keyAlias`。
+3. `keyAlias` 须与 `keytool -list -keystore neko_key.jks` 里 **Alias name** 完全一致（区分大小写）。
+
+若 `./gradlew :app:assembleRelease` 在 **`validateSigningRelease`** 失败，常见原因：
+
+- **密码或别名错误**（会表现为无法从 keystore 读出私钥）；
+- **`keystore.properties` 编码**：请用 **UTF-8** 保存；若仍异常，去掉文件首行前的 **BOM**；
+- 根目录缺少 **`neko_key.jks`** 或未创建 **`keystore.properties`**（配置阶段会给出中文错误提示）。
+
 > [!TIP]
 > 🐾 **pc端入口**：[点击这里查看 Neko云音乐 pc版仓库](https://github.com/MinecraftNekoServer/NekoMusicForPc)
 
