@@ -60,6 +60,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,6 +78,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -90,6 +92,7 @@ import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
@@ -123,9 +126,7 @@ fun UploadedMusicScreen(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
     // 刷新数据的函数
     val refreshData = suspend {
@@ -178,101 +179,114 @@ fun UploadedMusicScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(id = R.string.my_uploads),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                actions = {
-                    if (!isLoading && !showError) {
-                        IconButton(
-                            onClick = { showUploadDialog = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.UploadFile,
-                                contentDescription = stringResource(id = R.string.upload_music),
-                                tint = RoseRed
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { paddingValues ->
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
+                .layerBackdrop(pageBackdrop)
         ) {
-            when {
-                isLoading -> {
-                    LoadingView()
-                }
-                showError -> {
-                    ErrorView(
-                        message = errorMessage,
-                        onRetry = {
-                            showError = false
-                            isLoading = true
-                            scope.launch {
-                                try {
-                                    val userApi = com.neko.music.data.api.UserApi(token)
-                                    val response = userApi.getUploadedMusic()
-                                    if (response.success) {
-                                        musicList = response.musicList
-                                    } else {
-                                        showError = true
-                                        errorMessage = response.message
-                                    }
-                                } catch (e: Exception) {
-                                    showError = true
-                                    errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
-                                } finally {
-                                    isLoading = false
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Scaffold(
+                containerColor = Color.Transparent,
+                contentColor = scheme.onBackground,
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                stringResource(id = R.string.my_uploads),
+                                color = if (isDarkTheme) Color.White else scheme.onSurface,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = stringResource(id = R.string.back),
+                                    tint = if (isDarkTheme) Color.White else scheme.onSurface
+                                )
+                            }
+                        },
+                        actions = {
+                            if (!isLoading && !showError) {
+                                IconButton(
+                                    onClick = { showUploadDialog = true }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.UploadFile,
+                                        contentDescription = stringResource(id = R.string.upload_music),
+                                        tint = RoseRed
+                                    )
                                 }
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent
+                        )
                     )
                 }
-                musicList.isEmpty() -> {
-                    EmptyView()
-                }
-                else -> {
-                    val pullRefreshState = rememberPullToRefreshState()
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .layerBackdrop(pageBackdrop)
-                    ) {
-                        PullToRefreshBox(
-                            isRefreshing = isRefreshing,
-                            onRefresh = { scope.launch { refreshData() } },
-                            state = pullRefreshState,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            MusicList(
-                                musicList = musicList,
-                                onMusicClick = onMusicClick
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    when {
+                        isLoading -> {
+                            LoadingView(isDarkTheme = isDarkTheme)
+                        }
+                        showError -> {
+                            ErrorView(
+                                message = errorMessage,
+                                isDarkTheme = isDarkTheme,
+                                onRetry = {
+                                    showError = false
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            val userApi = com.neko.music.data.api.UserApi(token)
+                                            val response = userApi.getUploadedMusic()
+                                            if (response.success) {
+                                                musicList = response.musicList
+                                            } else {
+                                                showError = true
+                                                errorMessage = response.message
+                                            }
+                                        } catch (e: Exception) {
+                                            showError = true
+                                            errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                }
                             )
+                        }
+                        musicList.isEmpty() -> {
+                            EmptyView(isDarkTheme = isDarkTheme)
+                        }
+                        else -> {
+                            val pullRefreshState = rememberPullToRefreshState()
+
+                            PullToRefreshBox(
+                                isRefreshing = isRefreshing,
+                                onRefresh = { scope.launch { refreshData() } },
+                                state = pullRefreshState,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                MusicList(
+                                    musicList = musicList,
+                                    onMusicClick = onMusicClick
+                                )
+                            }
                         }
                     }
                 }
@@ -313,7 +327,8 @@ fun UploadedMusicScreen(
 }
 
 @Composable
-fun LoadingView() {
+fun LoadingView(isDarkTheme: Boolean = isSystemInDarkTheme()) {
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -323,13 +338,13 @@ fun LoadingView() {
             verticalArrangement = Arrangement.Center
         ) {
             CircularProgressIndicator(
-                color = RoseRed,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else RoseRed,
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(id = R.string.loading),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.75f) else scheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         }
@@ -339,8 +354,10 @@ fun LoadingView() {
 @Composable
 fun ErrorView(
     message: String,
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
     onRetry: () -> Unit
 ) {
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -353,13 +370,13 @@ fun ErrorView(
             Icon(
                 imageVector = Icons.Default.Error,
                 contentDescription = stringResource(id = R.string.error),
-                tint = MaterialTheme.colorScheme.error,
+                tint = if (isDarkTheme) Color(0xFFFFB4AB) else scheme.error,
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = message,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else scheme.onSurfaceVariant,
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center
             )
@@ -377,7 +394,8 @@ fun ErrorView(
 }
 
 @Composable
-fun EmptyView() {
+fun EmptyView(isDarkTheme: Boolean = isSystemInDarkTheme()) {
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -390,19 +408,19 @@ fun EmptyView() {
             Icon(
                 imageVector = Icons.Default.UploadFile,
                 contentDescription = stringResource(id = R.string.empty),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                tint = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else scheme.onSurfaceVariant.copy(alpha = 0.3f),
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(id = R.string.no_uploaded_music),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else scheme.onSurfaceVariant,
                 fontSize = 16.sp
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = stringResource(id = R.string.uploaded_music_pending),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                color = if (isDarkTheme) Color.White.copy(alpha = 0.55f) else scheme.onSurfaceVariant.copy(alpha = 0.6f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
