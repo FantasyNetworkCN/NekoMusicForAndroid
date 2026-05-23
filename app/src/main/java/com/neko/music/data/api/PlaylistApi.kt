@@ -15,6 +15,8 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class PlaylistListResponse(
@@ -125,11 +127,20 @@ class PlaylistApi(private val token: String?, private val context: android.conte
 
     private val baseUrl = "${UrlConfig.getBaseUrl()}/api/user/playlist"
 
-    suspend fun searchPlaylists(): PlaylistListResponse {
+    /**
+     * 调用 `/api/playlists/search`。
+     *
+     * **首页「推荐歌单」**须使用 [query] 默认空串：历史上曾硬编码「歌单」，会命中用户自建歌单名
+     * 「日常歌单」等（名称含「歌单」），与 Web/PC 行为不一致；空串由服务端返回与 Web 一致的推荐列表。
+     *
+     * @param query 搜索关键词；用户主动搜索时传入真实关键词。
+     */
+    suspend fun searchPlaylists(query: String = ""): PlaylistListResponse {
         return try {
+            val payload = buildJsonObject { put("query", query) }
             val response = client.post("${UrlConfig.getBaseUrl()}/api/playlists/search") {
                 contentType(ContentType.Application.Json)
-                setBody("""{"query":"歌单"}""")
+                setBody(payload.toString())
             }
             val responseText = response.body<String>()
             Log.d("PlaylistApi", "搜索歌单响应: $responseText${response.protocolLogSuffix()}")

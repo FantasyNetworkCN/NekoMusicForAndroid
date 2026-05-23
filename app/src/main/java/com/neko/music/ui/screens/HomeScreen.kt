@@ -114,7 +114,7 @@ fun HomeScreen(
         scope.launch {
             try {
                 val playlistsDeferred = async {
-                    Log.d("HomeScreen", "开始加载推荐歌单...")
+                    Log.d("HomeScreen", "开始加载推荐歌单（search query 空串，与 Web 一致）...")
                     val playlistApi = PlaylistApi(null, context)
                     playlistApi.searchPlaylists()
                 }
