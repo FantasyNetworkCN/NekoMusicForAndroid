@@ -3,6 +3,7 @@ package com.neko.music
 import android.app.Application
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -27,6 +28,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
         // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
         checkAndCleanupUpdateFiles()
+
+        // Android 15+：小组件选择器依赖 setWidgetPreview，仅靠 XML previewLayout 不会显示
+        MusicWidgetPreviewRegistrar.register(this)
     }
 
     /**

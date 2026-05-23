@@ -20,6 +20,11 @@ class MusicWidgetProvider : AppWidgetProvider() {
         const val ACTION_OPEN_PLAYER = "com.neko.music.action.OPEN_PLAYER"
     }
 
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        MusicWidgetPreviewRegistrar.register(context)
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)

@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小部件选择器预览（API 31+ previewLayout）；控件类型与 id 须与 music_widget 一致 -->
+<!--
+  小组件选择器预览：控件类型与 id 须与 music_widget 一致。
+  选择器里 inflation 常无完整应用主题，避免仅用 ?attr 导致整卡透明/空白（尤其 Android 12–14）。
+  Android 15+ 另由 MusicWidgetPreviewRegistrar 调用 setWidgetPreview 提交同一布局。
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="?android:attr/colorBackground">
+    android:background="#FF121212">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -20,8 +24,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/widget_preview_title"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="16sp"
+            android:textColor="#FFFFFFFF"
             android:textStyle="bold"
             android:maxLines="1"
             android:ellipsize="end"
@@ -32,8 +36,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/widget_preview_artist"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp"
+            android:textColor="#B3FFFFFF"
             android:maxLines="1"
             android:ellipsize="end"
             android:layout_marginTop="4dp"
@@ -52,27 +56,29 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="1:23"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp"
+            android:textColor="#B3FFFFFF"
             android:layout_marginEnd="8dp" />
 
         <ProgressBar
             android:id="@+id/widget_progress_bar"
-            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:minHeight="8dp"
             android:max="100"
-            android:progress="42" />
+            android:progress="42"
+            android:progressTint="#BB86FC"
+            android:progressBackgroundTint="#33FFFFFF" />
 
         <TextView
             android:id="@+id/widget_total_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="4:56"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp"
+            android:textColor="#B3FFFFFF"
             android:layout_marginStart="8dp" />
     </LinearLayout>
 
@@ -87,34 +93,34 @@
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:src="@drawable/previous_song"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent"
             android:contentDescription="@string/widget_previous_desc"
             android:scaleType="centerInside"
             android:padding="10dp"
-            android:tint="?android:attr/colorControlNormal" />
+            android:tint="#E0E0E0" />
 
         <ImageButton
             android:id="@+id/widget_play_pause"
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:src="@drawable/play"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent"
             android:contentDescription="@string/widget_play_pause_desc"
             android:scaleType="centerInside"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:padding="12dp"
-            android:tint="?android:attr/colorControlActivated" />
+            android:tint="#BB86FC" />
 
         <ImageButton
             android:id="@+id/widget_next"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:src="@drawable/next_song"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent"
             android:contentDescription="@string/widget_next_desc"
             android:scaleType="centerInside"
             android:padding="10dp"
-            android:tint="?android:attr/colorControlNormal" />
+            android:tint="#E0E0E0" />
     </LinearLayout>
 </LinearLayout>
