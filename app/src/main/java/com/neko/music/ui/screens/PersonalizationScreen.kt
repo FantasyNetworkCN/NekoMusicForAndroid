@@ -285,7 +285,8 @@ fun PersonalizationScreen(
                                 title = stringResource(id = R.string.dynamic_color),
                                 subtitle = stringResource(id = R.string.dynamic_color_subtitle),
                                 checked = useDynamicColor,
-                                onCheckedChange = { applyDynamicColor(it) }
+                                onCheckedChange = { applyDynamicColor(it) },
+                                useDarkAppearance = isDarkChrome
                             )
                         }
                     } else {
@@ -446,6 +447,7 @@ fun PersonalizationScreen(
                                 title = stringResource(id = R.string.liquid_glass_hardware_effects),
                                 subtitle = stringResource(id = R.string.liquid_glass_hardware_effects_subtitle),
                                 checked = liquidHardwareEffects,
+                                useDarkAppearance = isDarkChrome,
                                 onCheckedChange = { enabled ->
                                     liquidHardwareEffects = enabled
                                     prefs.edit()
