@@ -425,6 +425,9 @@
     <string name="import_netease_match_failed">匹配失败：%1$s</string>
     <string name="import_netease_match_no_tracks">没有可匹配的曲目</string>
     <string name="import_netease_match_busy">服务繁忙，请稍后再试</string>
+    <string name="import_netease_match_failed_dialog_title">以下音乐未能匹配</string>
+    <string name="import_netease_match_failed_dialog_summary">共 %1$d 首在曲库中未找到</string>
+    <string name="import_netease_match_failed_unknown_artist">未知歌手</string>
     <string name="import_destination_label">导入到</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新歌单名称</string>

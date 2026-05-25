@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -64,6 +65,7 @@ import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.model.Playlist
+import com.neko.music.data.model.SearchItem
 import com.neko.music.ui.theme.*
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassDialogOverlay
@@ -330,6 +332,8 @@ fun MyPlaylistsScreen(
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
+    var showImportMatchFailedDialog by remember { mutableStateOf(false) }
+    var importMatchFailedItems by remember { mutableStateOf<List<SearchItem>>(emptyList()) }
     val importNeteaseMatching = stringResource(R.string.import_netease_matching)
     val qqMusicNotSupported = stringResource(R.string.not_supported)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
@@ -760,6 +764,10 @@ fun MyPlaylistsScreen(
                                                 neteasePlaylistId = ""
                                                 importDestination = null
                                                 importNewPlaylistName = ""
+                                                if (stats.failedItems.isNotEmpty()) {
+                                                    importMatchFailedItems = stats.failedItems
+                                                    showImportMatchFailedDialog = true
+                                                }
                                             },
                                             onFailure = { error ->
                                                 val toastText = when {
@@ -804,6 +812,24 @@ fun MyPlaylistsScreen(
                     neteasePlaylistId = ""
                     importDestination = null
                     importNewPlaylistName = ""
+                },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showImportMatchFailedDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(48f),
+        ) {
+            ImportMatchFailedDialog(
+                failedItems = importMatchFailedItems,
+                sampleBackdrop = pageBackdrop,
+                onDismiss = {
+                    showImportMatchFailedDialog = false
+                    importMatchFailedItems = emptyList()
                 },
             )
         }
@@ -1405,6 +1431,113 @@ private fun NeteasePlaylistIdDialog(
                                 fontSize = 15.sp,
                                 color = titleColor,
                                 fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportMatchFailedDialog(
+    failedItems: List<SearchItem>,
+    sampleBackdrop: LayerBackdrop,
+    onDismiss: () -> Unit,
+) {
+    val title = stringResource(R.string.import_netease_match_failed_dialog_title)
+    val summary = stringResource(
+        R.string.import_netease_match_failed_dialog_summary,
+        failedItems.size,
+    )
+    val unknownArtist = stringResource(R.string.import_netease_match_failed_unknown_artist)
+    val confirmText = stringResource(R.string.confirm)
+
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
+    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
+    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 520.dp),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(modifier = Modifier.padding(28.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = summary,
+                    fontSize = 14.sp,
+                    color = mutedColor,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    itemsIndexed(failedItems, key = { index, _ -> index }) { _, item ->
+                        val artistLabel = item.artist.ifBlank { unknownArtist }
+                        Text(
+                            text = "${item.title} — $artistLabel",
+                            fontSize = 15.sp,
+                            color = titleColor,
+                            lineHeight = 20.sp,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(48.dp)
+                            .clickable(onClick = onDismiss),
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = confirmGlass.background(isDark),
+                        borderAlpha = confirmGlass.border(isDark),
+                        highlightAlpha = confirmGlass.highlight(isDark),
+                        liquidBlur = dialogGlass.liquid.blur,
+                        liquidLensHeight = dialogGlass.liquid.lensHeight,
+                        liquidLensAmount = dialogGlass.liquid.lensAmount,
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = confirmText,
+                                fontSize = 17.sp,
+                                color = if (isDark) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp),
                             )
                         }
                     }
