@@ -53,7 +53,7 @@ import kotlinx.coroutines.launch
  * 避免 [androidx.compose.ui.window.Dialog] 与 NavHost 录屏坐标系不一致导致取色错位。
  */
 @Composable
-private fun AccountGlassDialogOverlay(
+fun GlassDialogOverlay(
     sampleBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
@@ -101,7 +101,7 @@ fun ChangeAvatarGlassDialog(
     val dialogGlass = LiquidGlassDefaults.appUpdateDialog
     val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
 
-    AccountGlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -227,7 +227,7 @@ fun ChangePasswordGlassDialog(
         }
     }
 
-    AccountGlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),

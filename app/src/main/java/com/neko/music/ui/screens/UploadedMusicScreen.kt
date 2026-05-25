@@ -1,9 +1,13 @@
 package com.neko.music.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.zIndex
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.neko.music.ui.components.GlassDialogOverlay
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,6 +78,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -194,6 +199,7 @@ fun UploadedMusicScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 containerColor = Color.Transparent,
                 contentColor = scheme.onBackground,
@@ -291,38 +297,48 @@ fun UploadedMusicScreen(
                     }
                 }
             }
-        }
-    }
 
-    // 上传对话框
-    if (showUploadDialog) {
-        UploadMusicDialog(
-            onDismiss = { showUploadDialog = false },
-            onUploadSuccess = {
-                showUploadDialog = false
-                // 重新加载音乐列表
-                isLoading = true
-                scope.launch {
-                    try {
-                        val userApi = com.neko.music.data.api.UserApi(token)
-                        val response = userApi.getUploadedMusic()
-                        if (response.success) {
-                            musicList = response.musicList
-                        } else {
-                            showError = true
-                            errorMessage = response.message
+            AnimatedVisibility(
+                visible = showUploadDialog,
+                enter = LiquidCenterModalTransitions.Enter,
+                exit = LiquidCenterModalTransitions.Exit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(45f),
+            ) {
+                UploadMusicDialog(
+                    sampleBackdrop = pageBackdrop,
+                    onDismiss = { showUploadDialog = false },
+                    onUploadSuccess = {
+                        showUploadDialog = false
+                        isLoading = true
+                        scope.launch {
+                            try {
+                                val userApi = com.neko.music.data.api.UserApi(token)
+                                val response = userApi.getUploadedMusic()
+                                if (response.success) {
+                                    musicList = response.musicList
+                                } else {
+                                    showError = true
+                                    errorMessage = response.message
+                                }
+                            } catch (e: Exception) {
+                                showError = true
+                                errorMessage = context.getString(
+                                    R.string.get_data_failed,
+                                    e.message ?: "Unknown error"
+                                )
+                            } finally {
+                                isLoading = false
+                            }
                         }
-                    } catch (e: Exception) {
-                        showError = true
-                        errorMessage = context.getString(R.string.get_data_failed, e.message ?: "Unknown error")
-                    } finally {
-                        isLoading = false
-                    }
-                }
-            },
-            token = token,
-            userId = userId
-        )
+                    },
+                    token = token,
+                    userId = userId
+                )
+            }
+            }
+        }
     }
 }
 
@@ -570,11 +586,16 @@ private fun formatDuration(seconds: Int): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadMusicDialog(
+    sampleBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     onUploadSuccess: () -> Unit,
     token: String?,
     userId: Int = -1
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val isDarkChrome = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.appUpdateDialog
+    val mutedColor = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -736,43 +757,61 @@ fun UploadMusicDialog(
         coverBitmap = null
     }
     
-    AlertDialog(
-        onDismissRequest = { if (!isUploading) onDismiss() },
-        title = {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    GlassDialogOverlay(
+        sampleBackdrop = sampleBackdrop,
+        onDismiss = { if (!isUploading) onDismiss() },
+    ) {
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 560.dp),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDarkChrome),
+            borderAlpha = dialogGlass.tint.border(isDarkChrome),
+            highlightAlpha = dialogGlass.tint.highlight(isDarkChrome),
+            borderColor = if (isDarkChrome) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (isUploading) stringResource(id = R.string.uploading_progress, uploadProgress.toInt())
-                            else stringResource(id = R.string.upload_music_dialog_title),
-                        fontWeight = FontWeight.Bold
+                        text = if (isUploading) {
+                            stringResource(id = R.string.uploading_progress, uploadProgress.toInt())
+                        } else {
+                            stringResource(id = R.string.upload_music_dialog_title)
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = RoseRed,
                     )
                     if (isParsing) {
                         Spacer(modifier = Modifier.width(8.dp))
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = RoseRed,
                         )
                     }
                 }
                 if (isUploading) {
-                    Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { uploadProgress },
                         modifier = Modifier.fillMaxWidth(),
-                        color = RoseRed
+                        color = RoseRed,
                     )
                 }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
                 // 音频文件选择
                 OutlinedButton(
                     onClick = { audioFileLauncher.launch("audio/*") },
@@ -1021,68 +1060,67 @@ fun UploadMusicDialog(
                     singleLine = true,
                     enabled = !isUploading
                 )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    // 验证必填字段
-                    if (title.isBlank() || artist.isBlank() || audioFile == null) {
-                        android.widget.Toast.makeText(
-                            context,
-                            pleaseFillRequiredFields,
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                        return@Button
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isUploading,
+                    ) {
+                        Text(
+                            text = stringResource(id = android.R.string.cancel),
+                            color = mutedColor,
+                        )
                     }
-                    
-                    // 验证语言选择
-                    if (languageCode.isEmpty()) {
-                        android.widget.Toast.makeText(
-                            context,
-                            pleaseSelectLanguage,
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                        return@Button
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (title.isBlank() || artist.isBlank() || audioFile == null) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    pleaseFillRequiredFields,
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                return@Button
+                            }
+                            if (languageCode.isEmpty()) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    pleaseSelectLanguage,
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                return@Button
+                            }
+                            missingLyrics = (lyricsFile == null && languageCode != "instrumental")
+                            missingCover = (coverImage == null && coverBitmap == null)
+                            if (missingLyrics || missingCover) {
+                                showMissingInfoDialog = true
+                            } else {
+                                showPreviewDialog = true
+                            }
+                        },
+                        enabled = !isUploading && !isParsing,
+                        colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        if (isUploading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(stringResource(id = R.string.upload_music))
+                        }
                     }
-                    
-                    // 检查是否缺失歌词或封面
-                    missingLyrics = (lyricsFile == null && languageCode != "instrumental")
-                    missingCover = (coverImage == null && coverBitmap == null)
-                    
-                    if (missingLyrics || missingCover) {
-                        // 显示缺失信息确认对话框
-                        showMissingInfoDialog = true
-                    } else {
-                        // 直接显示预览对话框
-                        showPreviewDialog = true
-                    }
-                },
-                enabled = !isUploading && !isParsing,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RoseRed
-                )
-            ) {
-                if (isUploading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(stringResource(id = R.string.upload_music))
                 }
             }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isUploading
-            ) {
-                Text(stringResource(id = android.R.string.cancel))
-            }
         }
-    )
+    }
     
     // 完整歌词对话框
     if (showFullLyricsDialog) {
