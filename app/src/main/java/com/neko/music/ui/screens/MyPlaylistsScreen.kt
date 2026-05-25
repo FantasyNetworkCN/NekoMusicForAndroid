@@ -56,6 +56,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import coil3.request.error
 import coil3.request.placeholder
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.data.api.BatchAddMusicResponse
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.MusicSearchBusyException
 import com.neko.music.data.api.NeteasePlaylistApi
@@ -334,7 +335,7 @@ fun MyPlaylistsScreen(
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
     var showImportMatchFailedDialog by remember { mutableStateOf(false) }
     var importMatchFailedItems by remember { mutableStateOf<List<SearchItem>>(emptyList()) }
-    val importNeteaseMatching = stringResource(R.string.import_netease_matching)
+    val importNeteaseProcessing = stringResource(R.string.import_netease_processing)
     val qqMusicNotSupported = stringResource(R.string.not_supported)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
@@ -714,7 +715,7 @@ fun MyPlaylistsScreen(
                 selectedDestination = importDestination,
                 newPlaylistName = importNewPlaylistName,
                 isLoading = isNeteaseImportLoading,
-                loadingText = importNeteaseMatching,
+                loadingText = importNeteaseProcessing,
                 sampleBackdrop = pageBackdrop,
                 onIdChange = { neteasePlaylistId = it },
                 onDestinationChange = { importDestination = it },
@@ -744,6 +745,8 @@ fun MyPlaylistsScreen(
                                         ).show()
                                     } else {
                                         val playlist = response.playlist
+                                        val destination = importDestination
+                                        val newName = importNewPlaylistName.trim()
                                         neteasePlaylistApi.logPlaylistTracks(playlist)
                                         val matchResult = neteasePlaylistApi.matchTracksInLibrary(
                                             playlist,
@@ -760,6 +763,34 @@ fun MyPlaylistsScreen(
                                                     ),
                                                     Toast.LENGTH_LONG,
                                                 ).show()
+                                                if (stats.matchedMusicIds.isNotEmpty() && destination != null) {
+                                                    val token = tokenManager.getToken()
+                                                    if (token != null) {
+                                                        val importResponse = importMatchedMusicToDestination(
+                                                            destination = destination,
+                                                            musicIds = stats.matchedMusicIds,
+                                                            newPlaylistName = newName,
+                                                            token = token,
+                                                            playlistApi = playlistApi,
+                                                            favoriteApi = favoriteApi,
+                                                            context = context,
+                                                        )
+                                                        showNeteaseImportResultToast(context, importResponse)
+                                                        if (importResponse.success ||
+                                                            (importResponse.addedCount ?: 0) > 0
+                                                        ) {
+                                                            refreshData()
+                                                        }
+                                                    }
+                                                } else if (stats.matchedMusicIds.isEmpty()) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(
+                                                            R.string.import_netease_no_matched_to_import,
+                                                        ),
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                }
                                                 showNeteasePlaylistIdDialog = false
                                                 neteasePlaylistId = ""
                                                 importDestination = null
@@ -1785,6 +1816,65 @@ fun PlaylistDialog(
             }
         }
     }
+}
+
+private suspend fun importMatchedMusicToDestination(
+    destination: ImportDestination,
+    musicIds: List<Int>,
+    newPlaylistName: String,
+    token: String,
+    playlistApi: PlaylistApi,
+    favoriteApi: FavoriteApi,
+    context: android.content.Context,
+): BatchAddMusicResponse {
+    return when (destination) {
+        is ImportDestination.Favorites -> favoriteApi.addFavorites(token, musicIds)
+        is ImportDestination.UserPlaylist ->
+            playlistApi.addMusicsToPlaylist(destination.id, musicIds)
+        is ImportDestination.FavoritePlaylist ->
+            BatchAddMusicResponse(
+                success = false,
+                message = context.getString(R.string.import_netease_favorite_playlist_not_supported),
+            )
+        is ImportDestination.NewPlaylist -> {
+            val createResponse = playlistApi.createPlaylist(newPlaylistName)
+            val playlistId = createResponse.playlist?.id
+            if (!createResponse.success || playlistId == null) {
+                BatchAddMusicResponse(
+                    success = false,
+                    message = createResponse.message.ifBlank {
+                        context.getString(R.string.import_netease_fetch_failed)
+                    },
+                )
+            } else {
+                playlistApi.addMusicsToPlaylist(playlistId, musicIds)
+            }
+        }
+    }
+}
+
+private fun showNeteaseImportResultToast(
+    context: android.content.Context,
+    response: BatchAddMusicResponse,
+) {
+    val added = response.addedCount ?: 0
+    val failedCount = response.failedMusicIds?.size ?: 0
+    val text = when {
+        !response.success && added > 0 ->
+            context.getString(R.string.import_netease_import_partial, added, failedCount)
+        response.success ->
+            response.message.ifBlank {
+                context.getString(R.string.import_netease_import_success, added)
+            }
+        else ->
+            context.getString(
+                R.string.import_netease_import_failed,
+                response.message.ifBlank {
+                    context.getString(R.string.import_netease_fetch_failed)
+                },
+            )
+    }
+    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 }
 
 private fun isNeteaseMatchBusy(error: Throwable): Boolean {

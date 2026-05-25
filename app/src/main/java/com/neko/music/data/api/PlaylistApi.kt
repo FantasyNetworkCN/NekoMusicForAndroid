@@ -97,7 +97,21 @@ data class DeletePlaylistRequest(
 @Serializable
 data class RemovePlaylistMusicsRequest(
     val playlistId: Int,
-    val musicIds: List<Int>
+    val musicIds: List<Int>,
+)
+
+@Serializable
+data class AddMusicsToPlaylistRequest(
+    val playlistId: Int,
+    val musicIds: List<Int>,
+)
+
+@Serializable
+data class BatchAddMusicResponse(
+    val success: Boolean,
+    val message: String = "",
+    val addedCount: Int? = null,
+    val failedMusicIds: List<Int>? = null,
 )
 
 @Serializable
@@ -266,6 +280,32 @@ class PlaylistApi(private val token: String?, private val context: android.conte
             com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             Log.e("PlaylistApi", "添加到歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             PlaylistResponse(false, "网络错误: ${e.message}", null)
+        }
+    }
+
+    /**
+     * 批量添加音乐到歌单（POST /api/user/playlist/music/add，body 使用 [musicIds]）。
+     */
+    suspend fun addMusicsToPlaylist(playlistId: Int, musicIds: List<Int>): BatchAddMusicResponse {
+        val distinctIds = musicIds.distinct()
+        if (distinctIds.isEmpty()) {
+            return BatchAddMusicResponse(success = false, message = "musicIds 为空")
+        }
+        return try {
+            val response = client.post("${UrlConfig.getBaseUrl()}/api/user/playlist/music/add") {
+                headers {
+                    token?.let { append("Authorization", it) }
+                    append("Content-Type", "application/json")
+                }
+                setBody(AddMusicsToPlaylistRequest(playlistId, distinctIds))
+            }
+            val bodyText = response.body<String>()
+            Log.d("PlaylistApi", "批量添加到歌单响应: status=${response.status}, body=$bodyText${response.protocolLogSuffix()}")
+            json.decodeFromString<BatchAddMusicResponse>(bodyText)
+        } catch (e: Exception) {
+            com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
+            Log.e("PlaylistApi", "批量添加到歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
+            BatchAddMusicResponse(success = false, message = "网络错误: ${e.message}")
         }
     }
 

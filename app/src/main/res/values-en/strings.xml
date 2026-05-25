@@ -442,6 +442,7 @@
     <string name="import_netease_playlist_id_invalid">Playlist ID must be numeric</string>
     <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
     <string name="import_netease_matching">Matching tracks in library…</string>
+    <string name="import_netease_processing">Matching and importing…</string>
     <string name="import_netease_match_success">Done: %1$d matched, %2$d not found</string>
     <string name="import_netease_match_failed">Match failed: %1$s</string>
     <string name="import_netease_match_no_tracks">No tracks to match</string>
@@ -449,6 +450,12 @@
     <string name="import_netease_match_failed_dialog_title">Tracks not matched</string>
     <string name="import_netease_match_failed_dialog_summary">%1$d track(s) were not found in the library</string>
     <string name="import_netease_match_failed_unknown_artist">Unknown artist</string>
+    <string name="import_netease_importing">Importing…</string>
+    <string name="import_netease_import_success">Imported %1$d track(s)</string>
+    <string name="import_netease_import_partial">Imported %1$d, %2$d could not be added</string>
+    <string name="import_netease_import_failed">Import failed: %1$s</string>
+    <string name="import_netease_favorite_playlist_not_supported">Cannot import into a favorited playlist. Choose your own playlist or Favorites.</string>
+    <string name="import_netease_no_matched_to_import">No matched tracks to import</string>
     <string name="import_destination_label">Import to</string>
     <string name="import_destination_new_playlist">New playlist</string>
     <string name="import_new_playlist_name">New playlist name</string>
