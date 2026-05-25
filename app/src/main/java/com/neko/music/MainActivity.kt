@@ -95,6 +95,8 @@ import com.neko.music.ui.screens.SettingsScreen
 import com.neko.music.ui.screens.PersonalizationScreen
 import com.neko.music.ui.screens.CacheManagementScreen
 import com.neko.music.ui.screens.AccountInfoScreen
+import com.neko.music.ui.screens.LiquidCenterModalTransitions
+import com.neko.music.ui.components.LogoutGlassDialog
 import com.neko.music.ui.screens.VipScreen
 import com.neko.music.ui.screens.MyPlaylistsScreen
 import com.neko.music.ui.screens.PlaylistDetailScreen
@@ -350,6 +352,10 @@ fun MainScreen() {
     var showRegisterScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
     var showForgotPasswordScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(showLogoutDialog) {
+        showBottomControls = !showLogoutDialog
+    }
 
     // 登录状态，用于触发界面更新
     var isLoggedIn by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -1436,32 +1442,23 @@ fun MainScreen() {
                 }
             }
 
-            // 退出登录确认对话框
-            if (showLogoutDialog) {
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showLogoutDialog = false },
-                    title = { Text("退出登录") },
-                    text = { Text("确定要退出登录吗？") },
-                    confirmButton = {
-                        androidx.compose.material3.TextButton(
-                            onClick = {
-                                // 清除登录状态
-                                val tokenManager = com.neko.music.data.manager.TokenManager(context)
-                                tokenManager.clearToken()
-                                refreshUserSessionFromDisk()
-                                showLogoutDialog = false
-                            }
-                        ) {
-                            Text("确定")
-                        }
+            AnimatedVisibility(
+                visible = showLogoutDialog,
+                enter = LiquidCenterModalTransitions.Enter,
+                exit = LiquidCenterModalTransitions.Exit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(46f),
+            ) {
+                LogoutGlassDialog(
+                    sampleBackdrop = liquidBackdrop,
+                    onDismiss = { showLogoutDialog = false },
+                    onConfirm = {
+                        val tokenManager = com.neko.music.data.manager.TokenManager(context)
+                        tokenManager.clearToken()
+                        refreshUserSessionFromDisk()
+                        showLogoutDialog = false
                     },
-                    dismissButton = {
-                        androidx.compose.material3.TextButton(
-                            onClick = { showLogoutDialog = false }
-                        ) {
-                            Text("取消")
-                        }
-                    }
                 )
             }
     }

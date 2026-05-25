@@ -75,6 +75,7 @@
     <string name="settings_title">设置</string>
     <string name="about_us">关于我们</string>
     <string name="logout">退出登录</string>
+    <string name="logout_confirm_message">确定要退出登录吗？</string>
     <string name="login">登录</string>
     <string name="please_login_first">请先登录</string>
     <string name="login_after_view">登录后可以查看和管理您的收藏</string>
