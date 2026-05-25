@@ -419,6 +419,9 @@
     <string name="import_netease_match_failed">匹配失败喵：%1$s</string>
     <string name="import_netease_match_no_tracks">没有可匹配的曲目喵</string>
     <string name="import_netease_match_busy">服务繁忙，请稍后再试喵</string>
+    <string name="import_netease_match_failed_dialog_title">这些曲子没匹配上喵</string>
+    <string name="import_netease_match_failed_dialog_summary">共 %1$d 首在曲库里找不到</string>
+    <string name="import_netease_match_failed_unknown_artist">未知歌手</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新本本名称</string>

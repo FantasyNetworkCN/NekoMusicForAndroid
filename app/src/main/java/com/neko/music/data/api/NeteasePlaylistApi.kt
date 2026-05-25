@@ -78,6 +78,7 @@ class NeteasePlaylistApi {
         val successCount: Int,
         val failCount: Int,
         val apiMessage: String,
+        val failedItems: List<SearchItem>,
     )
 
     suspend fun matchTracksInLibrary(
@@ -106,8 +107,13 @@ class NeteasePlaylistApi {
     ): MatchTracksResult {
         val paired = items.indices.map { index -> items[index] to results.getOrNull(index) }
         val successCount = paired.count { it.second != null }
-        val failCount = paired.size - successCount
-        return MatchTracksResult(successCount, failCount, apiMessage)
+        val failedItems = paired.mapNotNull { (item, music) -> item.takeIf { music == null } }
+        return MatchTracksResult(
+            successCount = successCount,
+            failCount = failedItems.size,
+            apiMessage = apiMessage,
+            failedItems = failedItems,
+        )
     }
 
     private fun trackToSearchItem(track: NeteaseTrack): SearchItem? {

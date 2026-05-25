@@ -446,6 +446,9 @@
     <string name="import_netease_match_failed">Match failed: %1$s</string>
     <string name="import_netease_match_no_tracks">No tracks to match</string>
     <string name="import_netease_match_busy">Server is busy. Please try again later.</string>
+    <string name="import_netease_match_failed_dialog_title">Tracks not matched</string>
+    <string name="import_netease_match_failed_dialog_summary">%1$d track(s) were not found in the library</string>
+    <string name="import_netease_match_failed_unknown_artist">Unknown artist</string>
     <string name="import_destination_label">Import to</string>
     <string name="import_destination_new_playlist">New playlist</string>
     <string name="import_new_playlist_name">New playlist name</string>
