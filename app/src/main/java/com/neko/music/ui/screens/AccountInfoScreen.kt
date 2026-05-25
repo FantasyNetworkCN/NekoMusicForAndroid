@@ -20,8 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,8 +42,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +55,8 @@ import coil3.size.Size
 import coil3.asDrawable
 import androidx.core.graphics.drawable.toBitmap
 import com.neko.music.R
+import com.neko.music.ui.components.ChangeAvatarGlassDialog
+import com.neko.music.ui.components.ChangePasswordGlassDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -309,44 +307,18 @@ fun AccountInfoScreen(
             }
         }
 
-        // 更换头像对话框
         if (showAvatarDialog) {
-            AlertDialog(
-                onDismissRequest = { showAvatarDialog = false },
-                title = {
-                    Text(
-                        stringResource(id = R.string.change_avatar),
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-                    )
-                },
-                text = {
-                    Text(
-                        stringResource(id = R.string.change_avatar_confirm),
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showAvatarDialog = false
-                            imagePickerLauncher.launch("image/*")
-                        }
-                    ) {
-                        Text(stringResource(id = R.string.confirm))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showAvatarDialog = false }) {
-                        Text(stringResource(id = R.string.cancel))
-                    }
-                },
-                containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
+            ChangeAvatarGlassDialog(
+                onDismiss = { showAvatarDialog = false },
+                onConfirm = {
+                    showAvatarDialog = false
+                    imagePickerLauncher.launch("image/*")
+                }
             )
         }
-        
-        // 修改密码对话框
+
         if (showPasswordDialog) {
-            ChangePasswordDialog(
+            ChangePasswordGlassDialog(
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = onPasswordUpdate
             )
@@ -523,161 +495,6 @@ fun InfoCard(
             isPressed = false
         }
     }
-}
-
-@Composable
-fun ChangePasswordDialog(
-    onDismiss: () -> Unit,
-    onConfirm: suspend (oldPassword: String, newPassword: String) -> Boolean
-) {
-    val context = LocalContext.current
-    val isDarkTheme = isSystemInDarkTheme()
-    var oldPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var showOldPassword by remember { mutableStateOf(false) }
-    var showNewPassword by remember { mutableStateOf(false) }
-    var showConfirmPassword by remember { mutableStateOf(false) }
-    
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isUpdating by remember { mutableStateOf(false) }
-    
-    suspend fun validateAndConfirm() {
-        when {
-            oldPassword.isEmpty() -> errorMessage = context.getString(R.string.please_enter_old_password)
-            newPassword.isEmpty() -> errorMessage = context.getString(R.string.please_enter_new_password)
-            confirmPassword.isEmpty() -> errorMessage = context.getString(R.string.please_confirm_new_password)
-            newPassword != confirmPassword -> errorMessage = context.getString(R.string.password_mismatch)
-            newPassword.length < 6 -> errorMessage = context.getString(R.string.new_password_length_error)
-            else -> {
-                isUpdating = true
-                val success = onConfirm(oldPassword, newPassword)
-                isUpdating = false
-                if (!success) {
-                    // 失败时不关闭对话框，错误消息由 onConfirm 处理
-                } else {
-                    onDismiss()
-                }
-            }
-        }
-    }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(id = R.string.modify_password),
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
-                // 原密码
-                OutlinedTextField(
-                    value = oldPassword,
-                    onValueChange = {
-                        oldPassword = it
-                        errorMessage = null
-                    },
-                    label = { Text(stringResource(id = R.string.old_password)) },
-                    singleLine = true,
-                    visualTransformation = if (showOldPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showOldPassword = !showOldPassword }) {
-                            Icon(
-                                imageVector = if (showOldPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showOldPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
-                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // 新密码
-                OutlinedTextField(
-                    value = newPassword,
-                    onValueChange = {
-                        newPassword = it
-                        errorMessage = null
-                    },
-                    label = { Text(stringResource(id = R.string.new_password)) },
-                    singleLine = true,
-                    visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showNewPassword = !showNewPassword }) {
-                            Icon(
-                                imageVector = if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showNewPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
-                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // 确认新密码
-                OutlinedTextField(
-                    value = confirmPassword,
-                    onValueChange = {
-                        confirmPassword = it
-                        errorMessage = null
-                    },
-                    label = { Text(stringResource(id = R.string.confirm_new_password)) },
-                    singleLine = true,
-                    visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                            Icon(
-                                imageVector = if (showConfirmPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (showConfirmPassword) stringResource(id = R.string.hide_password) else stringResource(id = R.string.show_password),
-                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = confirmPassword.isNotEmpty() && newPassword != confirmPassword
-                )
-                
-                // 错误提示
-                if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage!!,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            var scope by remember { mutableStateOf<kotlinx.coroutines.CoroutineScope?>(null) }
-            scope = rememberCoroutineScope()
-            
-            TextButton(
-                onClick = {
-                    scope?.launch { validateAndConfirm() }
-                },
-                enabled = !isUpdating
-            ) {
-                Text(if (isUpdating) stringResource(id = R.string.modifying) else stringResource(id = R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(id = R.string.cancel))
-            }
-        },
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-    )
 }
 
 /**
