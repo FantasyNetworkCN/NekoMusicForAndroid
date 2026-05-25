@@ -80,14 +80,15 @@ import com.neko.music.ui.list.RankingLiquidBarState
 import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.screens.HomeScreen
+import com.neko.music.navigation.AuthRoutes
 import com.neko.music.ui.screens.LoginScreen
+import com.neko.music.ui.screens.RegisterScreen
+import com.neko.music.ui.screens.ForgotPasswordScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
 import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.RecentPlayScreen
-import com.neko.music.ui.screens.RegisterScreen
-import com.neko.music.ui.screens.ForgotPasswordScreen
 import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
@@ -311,6 +312,7 @@ fun MainScreen() {
 
     // 检查是否在播放页面
     val isPlayerScreen = currentRoute?.startsWith("player") == true
+    val isAuthScreen = AuthRoutes.isAuthRoute(currentRoute)
 
     // 获取播放器状态
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -347,14 +349,10 @@ fun MainScreen() {
         }
     }
 
-    // 登录和注册页面显示状态
-    var showLoginScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
-    var showRegisterScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
-    var showForgotPasswordScreen by androidx.compose.runtime.remember { mutableStateOf(false) }
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
 
-    androidx.compose.runtime.LaunchedEffect(showLogoutDialog) {
-        showBottomControls = !showLogoutDialog
+    androidx.compose.runtime.LaunchedEffect(isAuthScreen, showLogoutDialog) {
+        showBottomControls = !isAuthScreen && !showLogoutDialog
     }
 
     // 登录状态，用于触发界面更新
@@ -650,7 +648,7 @@ fun MainScreen() {
                         navController.navigate("recent_play")
                     },
                     onLoginClick = {
-                        showLoginScreen = true
+                        navController.navigate(AuthRoutes.LOGIN)
                     },
                     onLogoutClick = {
                         showLogoutDialog = true
@@ -671,14 +669,14 @@ fun MainScreen() {
                         if (isLoggedIn) {
                             navController.navigate("uploaded_music")
                         } else {
-                            showLoginScreen = true
+                            navController.navigate(AuthRoutes.LOGIN)
                         }
                     },
                     onVipCenterClick = {
                         if (isLoggedIn) {
                             navController.navigate("vip")
                         } else {
-                            showLoginScreen = true
+                            navController.navigate(AuthRoutes.LOGIN)
                         }
                     },
                     isLoggedIn = isLoggedIn,
@@ -921,6 +919,39 @@ fun MainScreen() {
                     }
                 )
             }
+            composable(AuthRoutes.LOGIN) {
+                LoginScreen(
+                    onLoginSuccess = {
+                        navController.popBackStack()
+                        refreshUserSessionFromDisk()
+                    },
+                    onBackClick = { navController.popBackStack() },
+                    onRegisterClick = { navController.navigate(AuthRoutes.REGISTER) },
+                    onForgotPasswordClick = { navController.navigate(AuthRoutes.FORGOT_PASSWORD) },
+                )
+            }
+            composable(AuthRoutes.REGISTER) {
+                RegisterScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onLoginClick = {
+                        navController.popBackStack(
+                            route = AuthRoutes.LOGIN,
+                            inclusive = false,
+                        )
+                    },
+                )
+            }
+            composable(AuthRoutes.FORGOT_PASSWORD) {
+                ForgotPasswordScreen(
+                    onResetSuccess = {
+                        navController.popBackStack(
+                            route = AuthRoutes.LOGIN,
+                            inclusive = false,
+                        )
+                    },
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
             composable("about") {
                 AboutScreen(
                     onBackClick = {
@@ -957,8 +988,9 @@ fun MainScreen() {
                 val token = currentUserToken
                 if (token.isNullOrBlank()) {
                     androidx.compose.runtime.LaunchedEffect(Unit) {
-                        navController.popBackStack()
-                        showLoginScreen = true
+                        navController.navigate(AuthRoutes.LOGIN) {
+                            popUpTo("vip") { inclusive = true }
+                        }
                     }
                 } else {
                     VipScreen(
@@ -1254,7 +1286,7 @@ fun MainScreen() {
         // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
 
         // 迷你播放器 + 底栏：底部对齐后整体做 AnimatedVisibility，避免自定义 Layout 把内容画在测量区域外导致动画被裁切
-        val bottomChromeVisible = showBottomControls && !isPlayerScreen && !playlistBatchHidingChrome
+        val bottomChromeVisible = showBottomControls && !isPlayerScreen && !isAuthScreen && !playlistBatchHidingChrome
         val bottomChromeEnter = remember {
             slideInVertically(
                 initialOffsetY = { it },
@@ -1353,95 +1385,6 @@ fun MainScreen() {
                     )
                     }
                 }                        
-        // 登录和注册页面（在最顶层显示）
-        AnimatedVisibility(
-                visible = showLoginScreen,
-                enter = slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
-                modifier = Modifier.zIndex(Float.MAX_VALUE)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    LoginScreen(
-                        onLoginSuccess = {
-                            showLoginScreen = false
-                            refreshUserSessionFromDisk()
-                        },
-                        onBackClick = {
-                            showLoginScreen = false
-                        },
-                        onRegisterClick = {
-                            showLoginScreen = false
-                            showRegisterScreen = true
-                        },
-                        onForgotPasswordClick = {
-                            showLoginScreen = false
-                            showForgotPasswordScreen = true
-                        }
-                    )
-                }
-            }
-
-            AnimatedVisibility(
-                visible = showRegisterScreen,
-                enter = slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
-                modifier = Modifier.zIndex(Float.MAX_VALUE)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    RegisterScreen(
-                        onRegisterSuccess = {
-                            showRegisterScreen = false
-                        },
-                        onBackClick = {
-                            showRegisterScreen = false
-                        },
-                        onLoginClick = {
-                            showRegisterScreen = false
-                            showLoginScreen = true
-                        }
-                    )
-                }
-            }
-
-            // 忘记密码页面
-            AnimatedVisibility(
-                visible = showForgotPasswordScreen,
-                enter = slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(durationMillis = 150)
-                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
-                modifier = Modifier.zIndex(Float.MAX_VALUE)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    ForgotPasswordScreen(
-                        onResetSuccess = {
-                            showForgotPasswordScreen = false
-                            showLoginScreen = true
-                        },
-                        onBackClick = {
-                            showForgotPasswordScreen = false
-                            showLoginScreen = true
-                        }
-                    )
-                }
-            }
-
             AnimatedVisibility(
                 visible = showLogoutDialog,
                 enter = LiquidCenterModalTransitions.Enter,

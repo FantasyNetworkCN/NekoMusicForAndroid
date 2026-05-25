@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -52,9 +50,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
+import com.neko.music.ui.components.GlassDialogOverlay
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.data.api.SliderCaptchaChallengeDto
 import com.neko.music.data.api.SliderCaptchaLoadResult
 import com.neko.music.data.api.SliderCaptchaVerifyResult
@@ -103,6 +107,7 @@ private fun decodePngDataUrlToImageBitmap(dataUrl: String): ImageBitmap? {
 @Composable
 fun RegisterSliderCaptchaDialog(
     visible: Boolean,
+    sampleBackdrop: LayerBackdrop,
     userApi: UserApi,
     email: String,
     username: String,
@@ -112,6 +117,11 @@ fun RegisterSliderCaptchaDialog(
     if (!visible) return
 
     val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.appUpdateDialog
+    val dialogLiquid = dialogGlass.liquid
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
     val density = LocalDensity.current
     val verifyingText = stringResource(R.string.captcha_verifying)
     val sendingEmailText = stringResource(R.string.captcha_sending_email)
@@ -245,14 +255,27 @@ fun RegisterSliderCaptchaDialog(
         }
     }
 
-    Dialog(onDismissRequest = { if (!busy && !reloadingChallenge && !holdOutcomeUi) onDismiss() }) {
-        Card(
+    val canDismiss = !busy && !reloadingChallenge && !holdOutcomeUi
+
+    GlassDialogOverlay(
+        sampleBackdrop = sampleBackdrop,
+        onDismiss = { if (canDismiss) onDismiss() },
+    ) {
+        GlassSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF1A1A2E),
-                contentColor = Color.White,
-            ),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogLiquid.blur,
+            liquidLensHeight = dialogLiquid.lensHeight,
+            liquidLensAmount = dialogLiquid.lensAmount,
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -261,11 +284,12 @@ fun RegisterSliderCaptchaDialog(
                 Text(
                     text = stringResource(R.string.captcha_security_title),
                     style = MaterialTheme.typography.titleMedium,
+                    color = if (isDark) Color(0xFFF0F0F5) else scheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.captcha_security_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = mutedColor,
                 )
 
                 when {
@@ -276,11 +300,11 @@ fun RegisterSliderCaptchaDialog(
                                 .padding(24.dp),
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            CircularProgressIndicator(color = Color(0xFFE94560))
+                            CircularProgressIndicator(color = RoseRed)
                         }
                     }
                     loadError != null -> {
-                        Text(loadError!!, color = Color(0xFFE94560))
+                        Text(loadError!!, color = RoseRed)
                         OutlinedButton(
                             onClick = {
                                 scope.launch { reloadChallengeInitial() }
@@ -303,7 +327,7 @@ fun RegisterSliderCaptchaDialog(
                         if (bgBitmap == null || pieceBitmap == null) {
                             Text(
                                 text = stringResource(R.string.captcha_image_decode_error),
-                                color = Color(0xFFE94560),
+                                color = RoseRed,
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             OutlinedButton(onClick = { scope.launch { reloadChallengeInitial() } }) {
@@ -447,7 +471,7 @@ fun RegisterSliderCaptchaDialog(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(22.dp),
-                                        color = Color(0xFFE94560),
+                                        color = RoseRed,
                                         strokeWidth = 2.dp,
                                     )
                                     Spacer(Modifier.width(8.dp))
@@ -465,7 +489,7 @@ fun RegisterSliderCaptchaDialog(
                             if (status.isNotEmpty() && !busy && !reloadingChallenge) {
                                 Text(
                                     text = status,
-                                    color = if (statusPositive) Color(0xFF4CAF50) else Color(0xFFE94560),
+                                    color = if (statusPositive) Color(0xFF4CAF50) else RoseRed,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
@@ -484,8 +508,8 @@ fun RegisterSliderCaptchaDialog(
                             }
                         }
                     }
+                }
             }
         }
     }
-}
 }
