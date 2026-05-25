@@ -431,6 +431,18 @@
     <!-- My Playlists -->
     <string name="no_playlists_yet">No playlists yet</string>
     <string name="create_new_playlist">Create New Playlist</string>
+    <string name="import_playlist_from_external">Import from external</string>
+    <string name="import_playlist_source_title">Import source</string>
+    <string name="import_source_netease">NetEase Cloud Music</string>
+    <string name="import_source_qq">QQ Music</string>
+    <string name="qq_music_import_not_supported">Not supported yet</string>
+    <string name="import_netease_playlist_title">Import NetEase playlist</string>
+    <string name="import_netease_playlist_id">Playlist ID</string>
+    <string name="import_netease_playlist_id_hint">Enter NetEase playlist ID</string>
+    <string name="import_destination_label">Import to</string>
+    <string name="import_destination_new_playlist">New playlist</string>
+    <string name="import_new_playlist_name">New playlist name</string>
+    <string name="import_new_playlist_name_hint">Enter a name for the new playlist</string>
     <string name="edit_playlist">Edit Playlist</string>
     <string name="create_playlist_dialog">Create Playlist</string>
     <string name="loading_failed">Load failed: %s</string>
