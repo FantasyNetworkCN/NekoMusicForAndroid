@@ -10,12 +10,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Visibility
@@ -57,7 +59,12 @@ import coil3.size.Size
 import coil3.asDrawable
 import androidx.core.graphics.drawable.toBitmap
 import com.neko.music.R
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.*
+import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +83,15 @@ fun AccountInfoScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val glassTint = LiquidGlassDefaults.screenListCard
+    val glassBg = glassTint.background(isDarkTheme)
+    val glassBorder = glassTint.border(isDarkTheme)
+    val glassHighlight = glassTint.highlight(isDarkTheme)
+    val dividerColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
     
     // 头像更新时间戳，用于绕过缓存
     var avatarUpdateTime by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -121,139 +136,179 @@ fun AccountInfoScreen(
     val avatarUploadSuccess = stringResource(id = R.string.avatar_upload_success)
     val avatarUpdateSuccess = stringResource(id = R.string.avatar_update_success)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(if (isDarkTheme) Color(0xFF121228) else Color(0xFFFAFAFA))
-    ) {
-        Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .layerBackdrop(pageBackdrop)
         ) {
-            // 顶部导航栏
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.account_info),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else Color.Black
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
-                )
-            )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // 头像区域
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(RoseRed, SakuraPink)
-                            )
-                        )
-                        .clickable { showAvatarDialog = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data("$baseUrl/api/user/avatar/$userId")
-                            .memoryCacheKey("avatar_${userId}_$avatarUpdateTime")
-                            .diskCacheKey("avatar_${userId}_$avatarUpdateTime")
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = stringResource(id = R.string.user_avatar),
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(30.dp))
-            
-            // 用户信息卡片
-            InfoCard(
-                icon = R.drawable.user,
-                title = stringResource(id = R.string.username),
-                value = username,
-                showArrow = false,
-                colorFilter = ColorFilter.tint(RoseRed)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            InfoCard(
-                icon = R.drawable.email,
-                title = stringResource(id = R.string.email),
-                value = email,
-                showArrow = false
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            InfoCard(
-                icon = R.drawable.ic_vip_star,
-                title = stringResource(id = R.string.vip_center_title),
-                value = if (isVip) {
-                    val exp = vipExpiresAt?.take(10)
-                    if (exp != null) {
-                        stringResource(R.string.vip_status_expires, exp)
-                    } else {
-                        stringResource(R.string.vip_status_active)
-                    }
-                } else {
-                    stringResource(R.string.vip_open_membership)
-                },
-                showArrow = true,
-                onClick = onVipCenterClick,
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color(0xFFFFB300))
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            InfoCard(
-                icon = R.drawable.password,
-                title = stringResource(id = R.string.password),
-                value = stringResource(id = R.string.modify_password),
-                showArrow = true,
-                onClick = { showPasswordDialog = true },
-                colorFilter = ColorFilter.tint(RoseRed)
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // 提示信息
-            Text(
-                text = stringResource(id = R.string.click_avatar_to_change),
-                fontSize = 13.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else Color.Gray,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
         }
-        
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.account_info),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = stringResource(id = R.string.back),
+                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    )
+                )
+            }
+        ) { paddingValues ->
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    GlassSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(RoseRed, SakuraPink)
+                                        )
+                                    )
+                                    .clickable { showAvatarDialog = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data("$baseUrl/api/user/avatar/$userId")
+                                        .memoryCacheKey("avatar_${userId}_$avatarUpdateTime")
+                                        .diskCacheKey("avatar_${userId}_$avatarUpdateTime")
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = stringResource(id = R.string.user_avatar),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = stringResource(id = R.string.click_avatar_to_change),
+                                fontSize = 13.sp,
+                                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.75f) else scheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    GlassSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        backgroundAlpha = glassBg,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight
+                    ) {
+                        Column {
+                            InfoCard(
+                                icon = R.drawable.user,
+                                title = stringResource(id = R.string.username),
+                                value = username,
+                                showArrow = false,
+                                colorFilter = ColorFilter.tint(RoseRed),
+                                isDarkTheme = isDarkTheme
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = dividerColor
+                            )
+                            InfoCard(
+                                icon = R.drawable.email,
+                                title = stringResource(id = R.string.email),
+                                value = email,
+                                showArrow = false,
+                                isDarkTheme = isDarkTheme
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = dividerColor
+                            )
+                            InfoCard(
+                                icon = R.drawable.ic_vip_star,
+                                title = stringResource(id = R.string.vip_center_title),
+                                value = if (isVip) {
+                                    val exp = vipExpiresAt?.take(10)
+                                    if (exp != null) {
+                                        stringResource(R.string.vip_status_expires, exp)
+                                    } else {
+                                        stringResource(R.string.vip_status_active)
+                                    }
+                                } else {
+                                    stringResource(R.string.vip_open_membership)
+                                },
+                                showArrow = true,
+                                onClick = onVipCenterClick,
+                                colorFilter = ColorFilter.tint(Color(0xFFFFB300)),
+                                isDarkTheme = isDarkTheme
+                            )
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = dividerColor
+                            )
+                            InfoCard(
+                                icon = R.drawable.password,
+                                title = stringResource(id = R.string.password),
+                                value = stringResource(id = R.string.modify_password),
+                                showArrow = true,
+                                onClick = { showPasswordDialog = true },
+                                colorFilter = ColorFilter.tint(RoseRed),
+                                isDarkTheme = isDarkTheme
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(160.dp))
+                }
+            }
+        }
+
         // 更换头像对话框
         if (showAvatarDialog) {
             AlertDialog(
@@ -316,8 +371,6 @@ fun AccountInfoScreen(
             exit = fadeOut() + scaleOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
-            
             Box(
                 modifier = Modifier
                     .background(
@@ -390,72 +443,84 @@ fun InfoCard(
     value: String,
     showArrow: Boolean = false,
     onClick: () -> Unit = {},
-    colorFilter: ColorFilter? = null
+    colorFilter: ColorFilter? = null,
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
 ) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-    
-    Row(
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .background(
-                color = if (isDarkTheme) Color(0xFF252545).copy(alpha = 0.6f) else Color.White,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(20.dp)
-            .shadow(
-                elevation = 2.dp,
-                spotColor = RoseRed.copy(alpha = 0.15f),
-                ambientColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.08f) else Color.Gray.copy(alpha = 0.08f)
-            )
-            .scale(scale)
-            .clickable(enabled = showArrow) {
-                isPressed = true
-                onClick()
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Image(
-            painter = painterResource(icon),
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            colorFilter = colorFilter
-        )
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                fontSize = 16.sp,
-                color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
-                fontWeight = FontWeight.Bold
-            )
+            .then(
+                if (showArrow) {
+                    Modifier.clickable {
+                        isPressed = true
+                        onClick()
+                    }
+                } else {
+                    Modifier
+                }
+            ),
+        color = if (isPressed) {
+            if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color(0xFFF5F5F5)
+        } else {
+            Color.Transparent
         }
-        
-        if (showArrow) {
-            Text(
-                text = "›",
-                fontSize = 20.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else Color.Gray.copy(alpha = 0.6f)
-            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(RoseRed.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    colorFilter = colorFilter
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = value,
+                    fontSize = 16.sp,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            if (showArrow) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = stringResource(id = R.string.more),
+                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            kotlinx.coroutines.delay(100)
+            isPressed = false
         }
     }
 }
@@ -466,7 +531,7 @@ fun ChangePasswordDialog(
     onConfirm: suspend (oldPassword: String, newPassword: String) -> Boolean
 ) {
     val context = LocalContext.current
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isSystemInDarkTheme()
     var oldPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
