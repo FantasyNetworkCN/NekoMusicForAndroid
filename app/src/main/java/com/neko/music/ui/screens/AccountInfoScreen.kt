@@ -148,6 +148,8 @@ fun AccountInfoScreen(
             )
         }
 
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+        Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
@@ -178,7 +180,6 @@ fun AccountInfoScreen(
                 )
             }
         ) { paddingValues ->
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -304,11 +305,18 @@ fun AccountInfoScreen(
 
                     Spacer(modifier = Modifier.height(160.dp))
                 }
-            }
         }
 
-        if (showAvatarDialog) {
+        AnimatedVisibility(
+            visible = showAvatarDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(45f),
+        ) {
             ChangeAvatarGlassDialog(
+                sampleBackdrop = pageBackdrop,
                 onDismiss = { showAvatarDialog = false },
                 onConfirm = {
                     showAvatarDialog = false
@@ -317,13 +325,21 @@ fun AccountInfoScreen(
             )
         }
 
-        if (showPasswordDialog) {
+        AnimatedVisibility(
+            visible = showPasswordDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(45f),
+        ) {
             ChangePasswordGlassDialog(
+                sampleBackdrop = pageBackdrop,
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = onPasswordUpdate
             )
         }
-        
+
         // 加载中提示
         if (isLoading) {
             Box(
@@ -379,8 +395,10 @@ fun AccountInfoScreen(
                 showSuccess = false
             }
         }
+        }
+        }
     }
-    
+
     // 裁剪对话框（在最顶层显示，覆盖整个屏幕）
     if (showCropDialog && selectedImageUri != null) {
         AvatarCropDialog(
