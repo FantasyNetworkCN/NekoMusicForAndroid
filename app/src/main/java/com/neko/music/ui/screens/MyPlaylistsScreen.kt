@@ -14,12 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -34,24 +31,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import com.kyant.backdrop.backdrops.LayerBackdrop
-import coil3.compose.rememberAsyncImagePainter
 import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
@@ -62,8 +55,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import coil3.request.error
 import coil3.request.placeholder
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.data.api.NeteasePlaylistApi
 import com.neko.music.data.api.PlaylistApi
-import com.neko.music.data.api.PlaylistMusic
 import com.neko.music.data.api.PlaylistMusicListResponse
 import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.api.PlaylistResponse
@@ -89,6 +82,7 @@ fun MyPlaylistsScreen(
     val tokenManager = remember { TokenManager(context) }
     val playlistApi = remember { PlaylistApi(tokenManager.getToken(), context) }
     val favoriteApi = remember { FavoriteApi(context) }
+    val neteasePlaylistApi = remember { NeteasePlaylistApi() }
     
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
@@ -329,7 +323,7 @@ fun MyPlaylistsScreen(
     var neteasePlaylistId by remember { mutableStateOf("") }
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
-    val qqMusicNotSupported = stringResource(R.string.qq_music_import_not_supported)
+    val qqMusicNotSupported = stringResource(R.string.not_supported)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
     val importDestinationOptions = remember(playlists, favoritePlaylists, myFavoritesLabel, importNewPlaylistLabel) {
@@ -712,10 +706,43 @@ fun MyPlaylistsScreen(
                 onDestinationChange = { importDestination = it },
                 onNewPlaylistNameChange = { importNewPlaylistName = it },
                 onConfirm = {
-                    showNeteasePlaylistIdDialog = false
-                    neteasePlaylistId = ""
-                    importDestination = null
-                    importNewPlaylistName = ""
+                    val sourceId = neteasePlaylistId.trim()
+                    val playlistIdLong = sourceId.toLongOrNull()
+                    if (playlistIdLong == null || sourceId.any { !it.isDigit() }) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_netease_playlist_id_invalid),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@NeteasePlaylistIdDialog
+                    }
+                    scope.launch {
+                        val responseResult = neteasePlaylistApi.fetchPlaylistDetail(playlistIdLong)
+                        responseResult.fold(
+                            onSuccess = { response ->
+                                if (response.code != 200 || response.playlist == null) {
+                                    Toast.makeText(
+                                        context,
+                                        neteasePlaylistApi.errorMessage(response),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                } else {
+                                    neteasePlaylistApi.logPlaylistTracks(response.playlist)
+                                    showNeteasePlaylistIdDialog = false
+                                    neteasePlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                }
+                            },
+                            onFailure = {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.import_netease_fetch_failed),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        )
+                    }
                 },
                 onDismiss = {
                     showNeteasePlaylistIdDialog = false
@@ -1095,8 +1122,8 @@ private fun NeteasePlaylistIdDialog(
     onDismiss: () -> Unit,
 ) {
     val title = stringResource(R.string.import_netease_playlist_title)
-    val idLabel = stringResource(R.string.import_netease_playlist_id)
-    val idHint = stringResource(R.string.import_netease_playlist_id_hint)
+    val idLabel = stringResource(R.string.playlist_id)
+    val idHint = stringResource(R.string.netease_playlist_id_hint)
     val destinationLabel = stringResource(R.string.import_destination_label)
     val newNameLabel = stringResource(R.string.import_new_playlist_name)
     val newNameHint = stringResource(R.string.import_new_playlist_name_hint)

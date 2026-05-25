@@ -435,10 +435,12 @@
     <string name="import_playlist_source_title">Import source</string>
     <string name="import_source_netease">NetEase Cloud Music</string>
     <string name="import_source_qq">QQ Music</string>
-    <string name="qq_music_import_not_supported">Not supported yet</string>
+    <string name="not_supported">Not supported yet</string>
     <string name="import_netease_playlist_title">Import NetEase playlist</string>
-    <string name="import_netease_playlist_id">Playlist ID</string>
-    <string name="import_netease_playlist_id_hint">Enter NetEase playlist ID</string>
+    <string name="playlist_id">Playlist ID</string>
+    <string name="netease_playlist_id_hint">Enter NetEase playlist ID</string>
+    <string name="import_netease_playlist_id_invalid">Playlist ID must be numeric</string>
+    <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
     <string name="import_destination_label">Import to</string>
     <string name="import_destination_new_playlist">New playlist</string>
     <string name="import_new_playlist_name">New playlist name</string>
