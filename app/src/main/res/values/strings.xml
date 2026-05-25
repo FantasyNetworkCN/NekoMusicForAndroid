@@ -408,10 +408,12 @@
     <string name="import_playlist_source_title">导入源喵</string>
     <string name="import_source_netease">网易云音乐</string>
     <string name="import_source_qq">QQ音乐</string>
-    <string name="qq_music_import_not_supported">暂不支持喵</string>
+    <string name="not_supported">暂不支持喵</string>
     <string name="import_netease_playlist_title">导入网易云歌单喵</string>
-    <string name="import_netease_playlist_id">歌单 ID</string>
-    <string name="import_netease_playlist_id_hint">请输入网易云歌单 ID</string>
+    <string name="playlist_id">歌单 ID</string>
+    <string name="netease_playlist_id_hint">请输入网易云歌单 ID</string>
+    <string name="import_netease_playlist_id_invalid">歌单 ID 要是纯数字喵</string>
+    <string name="import_netease_fetch_failed">拉歌单失败，稍后再试喵</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新本本名称</string>
