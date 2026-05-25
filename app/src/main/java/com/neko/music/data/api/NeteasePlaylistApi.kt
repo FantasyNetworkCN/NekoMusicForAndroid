@@ -74,16 +74,14 @@ class NeteasePlaylistApi {
 
     fun logPlaylistTracks(playlist: NeteasePlaylist) {
         val tracks = playlist.tracks.orEmpty()
-        Log.d(TAG, "========== 网易云歌单: ${playlist.name} (id=${playlist.id}, ${tracks.size} 首) ==========")
+        Log.d(TAG, "网易云歌单: ${playlist.name} (id=${playlist.id})")
+        Log.d(TAG, "共找到 ${tracks.size} 首音乐")
+        if (playlist.trackCount > 0 && playlist.trackCount != tracks.size) {
+            Log.d(TAG, "歌单标注曲目数: ${playlist.trackCount}")
+        }
         if (tracks.isEmpty()) {
             Log.d(TAG, "(无曲目)")
-            return
         }
-        tracks.forEachIndexed { index, track ->
-            val artists = track.ar?.joinToString(" / ") { it.name }?.ifBlank { "未知歌手" } ?: "未知歌手"
-            Log.d(TAG, "${index + 1}. ${track.name} — $artists")
-        }
-        Log.d(TAG, "========== 共 ${tracks.size} 首 ==========")
     }
 
     fun errorMessage(response: NeteasePlaylistDetailResponse): String {
