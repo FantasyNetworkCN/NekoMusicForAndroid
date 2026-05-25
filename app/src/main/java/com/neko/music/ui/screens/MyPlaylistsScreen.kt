@@ -55,6 +55,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import coil3.request.error
 import coil3.request.placeholder
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.data.api.MusicApi
+import com.neko.music.data.api.MusicSearchBusyException
 import com.neko.music.data.api.NeteasePlaylistApi
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistMusicListResponse
@@ -69,7 +71,10 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException as KtorSocketTimeoutException
 import kotlinx.coroutines.launch
+import java.net.SocketTimeoutException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +88,7 @@ fun MyPlaylistsScreen(
     val playlistApi = remember { PlaylistApi(tokenManager.getToken(), context) }
     val favoriteApi = remember { FavoriteApi(context) }
     val neteasePlaylistApi = remember { NeteasePlaylistApi() }
+    val musicApi = remember { MusicApi(context) }
     
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
@@ -323,6 +329,8 @@ fun MyPlaylistsScreen(
     var neteasePlaylistId by remember { mutableStateOf("") }
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
+    var isNeteaseImportLoading by remember { mutableStateOf(false) }
+    val importNeteaseMatching = stringResource(R.string.import_netease_matching)
     val qqMusicNotSupported = stringResource(R.string.not_supported)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
@@ -701,6 +709,8 @@ fun MyPlaylistsScreen(
                 destinationOptions = importDestinationOptions,
                 selectedDestination = importDestination,
                 newPlaylistName = importNewPlaylistName,
+                isLoading = isNeteaseImportLoading,
+                loadingText = importNeteaseMatching,
                 sampleBackdrop = pageBackdrop,
                 onIdChange = { neteasePlaylistId = it },
                 onDestinationChange = { importDestination = it },
@@ -717,34 +727,79 @@ fun MyPlaylistsScreen(
                         return@NeteasePlaylistIdDialog
                     }
                     scope.launch {
-                        val responseResult = neteasePlaylistApi.fetchPlaylistDetail(playlistIdLong)
-                        responseResult.fold(
-                            onSuccess = { response ->
-                                if (response.code != 200 || response.playlist == null) {
+                        isNeteaseImportLoading = true
+                        try {
+                            val responseResult = neteasePlaylistApi.fetchPlaylistDetail(playlistIdLong)
+                            responseResult.fold(
+                                onSuccess = { response ->
+                                    if (response.code != 200 || response.playlist == null) {
+                                        Toast.makeText(
+                                            context,
+                                            neteasePlaylistApi.errorMessage(response),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        val playlist = response.playlist
+                                        neteasePlaylistApi.logPlaylistTracks(playlist)
+                                        val matchResult = neteasePlaylistApi.matchTracksInLibrary(
+                                            playlist,
+                                            musicApi,
+                                        )
+                                        matchResult.fold(
+                                            onSuccess = { stats ->
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(
+                                                        R.string.import_netease_match_success,
+                                                        stats.successCount,
+                                                        stats.failCount,
+                                                    ),
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                                showNeteasePlaylistIdDialog = false
+                                                neteasePlaylistId = ""
+                                                importDestination = null
+                                                importNewPlaylistName = ""
+                                            },
+                                            onFailure = { error ->
+                                                val toastText = when {
+                                                    isNeteaseMatchBusy(error) ->
+                                                        context.getString(R.string.import_netease_match_busy)
+                                                    error.message == "无可搜索曲目" ->
+                                                        context.getString(R.string.import_netease_match_no_tracks)
+                                                    else -> {
+                                                        val detail = error.message?.takeIf { it.isNotBlank() }
+                                                            ?: context.getString(R.string.import_netease_fetch_failed)
+                                                        context.getString(
+                                                            R.string.import_netease_match_failed,
+                                                            detail,
+                                                        )
+                                                    }
+                                                }
+                                                Toast.makeText(
+                                                    context,
+                                                    toastText,
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            },
+                                        )
+                                    }
+                                },
+                                onFailure = {
                                     Toast.makeText(
                                         context,
-                                        neteasePlaylistApi.errorMessage(response),
+                                        context.getString(R.string.import_netease_fetch_failed),
                                         Toast.LENGTH_SHORT,
                                     ).show()
-                                } else {
-                                    neteasePlaylistApi.logPlaylistTracks(response.playlist)
-                                    showNeteasePlaylistIdDialog = false
-                                    neteasePlaylistId = ""
-                                    importDestination = null
-                                    importNewPlaylistName = ""
-                                }
-                            },
-                            onFailure = {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.import_netease_fetch_failed),
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            },
-                        )
+                                },
+                            )
+                        } finally {
+                            isNeteaseImportLoading = false
+                        }
                     }
                 },
                 onDismiss = {
+                    if (isNeteaseImportLoading) return@NeteasePlaylistIdDialog
                     showNeteasePlaylistIdDialog = false
                     neteasePlaylistId = ""
                     importDestination = null
@@ -1114,6 +1169,8 @@ private fun NeteasePlaylistIdDialog(
     destinationOptions: List<ImportDestinationOption>,
     selectedDestination: ImportDestination?,
     newPlaylistName: String,
+    isLoading: Boolean,
+    loadingText: String,
     sampleBackdrop: LayerBackdrop,
     onIdChange: (String) -> Unit,
     onDestinationChange: (ImportDestination) -> Unit,
@@ -1141,11 +1198,15 @@ private fun NeteasePlaylistIdDialog(
     val placeholderColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
     val scrollState = rememberScrollState()
     val showNewPlaylistName = selectedDestination is ImportDestination.NewPlaylist
-    val canConfirm = playlistId.isNotBlank() &&
+    val canConfirm = !isLoading &&
+        playlistId.isNotBlank() &&
         selectedDestination != null &&
         (!showNewPlaylistName || newPlaylistName.isNotBlank())
 
-    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+    GlassDialogOverlay(
+        sampleBackdrop = sampleBackdrop,
+        onDismiss = { if (!isLoading) onDismiss() },
+    ) {
         GlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1164,11 +1225,12 @@ private fun NeteasePlaylistIdDialog(
             liquidLensHeight = dialogGlass.liquid.lensHeight,
             liquidLensAmount = dialogGlass.liquid.lensAmount,
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(28.dp)
-                    .verticalScroll(scrollState),
-            ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .padding(28.dp)
+                        .verticalScroll(scrollState),
+                ) {
                 Text(
                     text = title,
                     fontSize = 22.sp,
@@ -1274,7 +1336,10 @@ private fun NeteasePlaylistIdDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isLoading,
+                    ) {
                         Text(
                             text = cancelText,
                             fontSize = 17.sp,
@@ -1313,6 +1378,33 @@ private fun NeteasePlaylistIdDialog(
                                 },
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    }
+                }
+                }
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {},
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            CircularProgressIndicator(color = RoseRed)
+                            Text(
+                                text = loadingText,
+                                fontSize = 15.sp,
+                                color = titleColor,
+                                fontWeight = FontWeight.Medium,
                             )
                         }
                     }
@@ -1560,4 +1652,25 @@ fun PlaylistDialog(
             }
         }
     }
+}
+
+private fun isNeteaseMatchBusy(error: Throwable): Boolean {
+    var current: Throwable? = error
+    while (current != null) {
+        when (current) {
+            is MusicSearchBusyException,
+            is HttpRequestTimeoutException,
+            is KtorSocketTimeoutException,
+            is SocketTimeoutException,
+            -> return true
+        }
+        if (current.message?.contains("timeout", ignoreCase = true) == true) {
+            return true
+        }
+        if (current.message?.contains("unexpected end of the input", ignoreCase = true) == true) {
+            return true
+        }
+        current = current.cause
+    }
+    return false
 }
