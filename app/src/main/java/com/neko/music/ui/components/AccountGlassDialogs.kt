@@ -1,6 +1,7 @@
 package com.neko.music.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -41,20 +42,57 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.neko.music.R
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import kotlinx.coroutines.launch
 
+/**
+ * 与 [com.neko.music.ui.screens.PlaylistDialog] 一致：页内全屏 overlay + 本页 [LayerBackdrop]，
+ * 避免 [androidx.compose.ui.window.Dialog] 与 NavHost 录屏坐标系不一致导致取色错位。
+ */
 @Composable
-private fun accountDialogSampleBackdrop(): LayerBackdrop? =
-    LocalNavHostRecordingBackdrop.current ?: LocalLiquidLayerBackdrop.current
+private fun AccountGlassDialogOverlay(
+    sampleBackdrop: LayerBackdrop,
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    BackHandler(onBack = onDismiss)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.42f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+            ) {
+                content()
+            }
+        }
+    }
+}
 
 @Composable
 fun ChangeAvatarGlassDialog(
+    sampleBackdrop: LayerBackdrop,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -63,13 +101,11 @@ fun ChangeAvatarGlassDialog(
     val dialogGlass = LiquidGlassDefaults.appUpdateDialog
     val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
 
-    Dialog(onDismissRequest = onDismiss) {
+    AccountGlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            sampleBackdrop = accountDialogSampleBackdrop(),
+            sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),
             highlightAlpha = dialogGlass.tint.highlight(isDark),
@@ -114,7 +150,7 @@ fun ChangeAvatarGlassDialog(
                             .height(44.dp)
                             .clickable(onClick = onConfirm),
                         shape = RoundedCornerShape(14.dp),
-                        sampleBackdrop = accountDialogSampleBackdrop(),
+                        sampleBackdrop = sampleBackdrop,
                         backgroundAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.background(isDark),
                         borderAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.border(isDark),
                         highlightAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.highlight(isDark),
@@ -143,6 +179,7 @@ fun ChangeAvatarGlassDialog(
 
 @Composable
 fun ChangePasswordGlassDialog(
+    sampleBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     onConfirm: suspend (oldPassword: String, newPassword: String) -> Boolean,
 ) {
@@ -190,18 +227,11 @@ fun ChangePasswordGlassDialog(
         }
     }
 
-    BackHandler(onBack = onDismiss)
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
+    AccountGlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            sampleBackdrop = accountDialogSampleBackdrop(),
+            sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),
             highlightAlpha = dialogGlass.tint.highlight(isDark),
@@ -336,7 +366,7 @@ fun ChangePasswordGlassDialog(
                                 scope.launch { validateAndConfirm() }
                             },
                         shape = RoundedCornerShape(14.dp),
-                        sampleBackdrop = accountDialogSampleBackdrop(),
+                        sampleBackdrop = sampleBackdrop,
                         backgroundAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.background(isDark),
                         borderAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.border(isDark),
                         highlightAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.highlight(isDark),
