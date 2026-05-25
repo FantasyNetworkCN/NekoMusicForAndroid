@@ -10,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
@@ -21,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -67,6 +71,7 @@ import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.model.Playlist
 import com.neko.music.ui.theme.*
 import com.kyant.backdrop.backdrops.layerBackdrop
+import com.neko.music.ui.components.GlassDialogOverlay
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -317,6 +322,33 @@ fun MyPlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var dialogPlaylistName by remember { mutableStateOf("") }
     var editingPlaylist by remember { mutableStateOf<Playlist?>(null) }
+
+    // 外部导入
+    var showImportSourceDialog by remember { mutableStateOf(false) }
+    var showNeteasePlaylistIdDialog by remember { mutableStateOf(false) }
+    var neteasePlaylistId by remember { mutableStateOf("") }
+    var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
+    var importNewPlaylistName by remember { mutableStateOf("") }
+    val qqMusicNotSupported = stringResource(R.string.qq_music_import_not_supported)
+    val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
+
+    val importDestinationOptions = remember(playlists, favoritePlaylists, myFavoritesLabel, importNewPlaylistLabel) {
+        buildList {
+            add(ImportDestinationOption(ImportDestination.Favorites, myFavoritesLabel))
+            playlists.forEach { playlist ->
+                add(ImportDestinationOption(ImportDestination.UserPlaylist(playlist.id, playlist.name), playlist.name))
+            }
+            favoritePlaylists.forEach { playlist ->
+                add(
+                    ImportDestinationOption(
+                        ImportDestination.FavoritePlaylist(playlist.id, playlist.name),
+                        playlist.name,
+                    ),
+                )
+            }
+            add(ImportDestinationOption(ImportDestination.NewPlaylist, importNewPlaylistLabel))
+        }
+    }
     
     // 创建或更新歌单
     val createOrUpdatePlaylist = {
@@ -580,10 +612,118 @@ fun MyPlaylistsScreen(
                                     }
                                 }
                             }
+
+                            item {
+                                val isDark = isSystemInDarkTheme()
+                                val rowScheme = MaterialTheme.colorScheme
+                                val rowGlass = LiquidGlassDefaults.myPlaylistsListRow
+                                GlassSurface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp)
+                                        .clickable {
+                                            if (tokenManager.getToken() != null) {
+                                                showImportSourceDialog = true
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    pleaseLoginFirst,
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            }
+                                        },
+                                    shape = RoundedCornerShape(16.dp),
+                                    backgroundAlpha = rowGlass.tint.background(isDark),
+                                    borderAlpha = rowGlass.tint.border(isDark),
+                                    highlightAlpha = rowGlass.tint.highlight(isDark),
+                                    borderColor = if (isDark) Color.White else rowScheme.outline,
+                                    liquidBlur = rowGlass.liquid.blur,
+                                    liquidLensHeight = rowGlass.liquid.lensHeight,
+                                    liquidLensAmount = rowGlass.liquid.lensAmount
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.UploadFile,
+                                                contentDescription = null,
+                                                tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
+                                            )
+                                            Text(
+                                                text = stringResource(id = R.string.import_playlist_from_external),
+                                                fontSize = 16.sp,
+                                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
+
+        AnimatedVisibility(
+            visible = showImportSourceDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(46f),
+        ) {
+            ImportPlaylistSourceDialog(
+                sampleBackdrop = pageBackdrop,
+                onNeteaseClick = {
+                    showImportSourceDialog = false
+                    neteasePlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                    showNeteasePlaylistIdDialog = true
+                },
+                onQqClick = {
+                    Toast.makeText(context, qqMusicNotSupported, Toast.LENGTH_SHORT).show()
+                },
+                onDismiss = { showImportSourceDialog = false },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showNeteasePlaylistIdDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(47f),
+        ) {
+            NeteasePlaylistIdDialog(
+                playlistId = neteasePlaylistId,
+                destinationOptions = importDestinationOptions,
+                selectedDestination = importDestination,
+                newPlaylistName = importNewPlaylistName,
+                sampleBackdrop = pageBackdrop,
+                onIdChange = { neteasePlaylistId = it },
+                onDestinationChange = { importDestination = it },
+                onNewPlaylistNameChange = { importNewPlaylistName = it },
+                onConfirm = {
+                    showNeteasePlaylistIdDialog = false
+                    neteasePlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                },
+                onDismiss = {
+                    showNeteasePlaylistIdDialog = false
+                    neteasePlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                },
+            )
         }
 
         // 创建/编辑歌单对话框
@@ -821,6 +961,396 @@ fun PlaylistItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+private sealed class ImportDestination {
+    data object Favorites : ImportDestination()
+    data class UserPlaylist(val id: Int, val name: String) : ImportDestination()
+    data class FavoritePlaylist(val id: Int, val name: String) : ImportDestination()
+    data object NewPlaylist : ImportDestination()
+}
+
+private data class ImportDestinationOption(
+    val destination: ImportDestination,
+    val label: String,
+)
+
+@Composable
+private fun ImportPlaylistSourceDialog(
+    sampleBackdrop: LayerBackdrop,
+    onNeteaseClick: () -> Unit,
+    onQqClick: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val title = stringResource(R.string.import_playlist_source_title)
+    val neteaseLabel = stringResource(R.string.import_source_netease)
+    val qqLabel = stringResource(R.string.import_source_qq)
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
+    val optionGlass = LiquidGlassDefaults.myPlaylistsDialogInput
+    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(modifier = Modifier.padding(28.dp)) {
+                Text(
+                    text = title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor,
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                ImportSourceOptionRow(
+                    label = neteaseLabel,
+                    sampleBackdrop = sampleBackdrop,
+                    optionGlass = optionGlass,
+                    isDark = isDark,
+                    textColor = titleColor,
+                    onClick = onNeteaseClick,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ImportSourceOptionRow(
+                    label = qqLabel,
+                    sampleBackdrop = sampleBackdrop,
+                    optionGlass = optionGlass,
+                    isDark = isDark,
+                    textColor = titleColor,
+                    onClick = onQqClick,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportSourceOptionRow(
+    label: String,
+    sampleBackdrop: LayerBackdrop,
+    optionGlass: com.neko.music.ui.components.LiquidGlassPanel,
+    isDark: Boolean,
+    textColor: Color,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        sampleBackdrop = sampleBackdrop,
+        backgroundAlpha = optionGlass.tint.background(isDark),
+        borderAlpha = optionGlass.tint.border(isDark),
+        highlightAlpha = optionGlass.tint.highlight(isDark),
+        borderColor = if (isDark) Color.White.copy(alpha = 0.22f) else scheme.outline,
+        liquidBlur = optionGlass.liquid.blur,
+        liquidLensHeight = optionGlass.liquid.lensHeight,
+        liquidLensAmount = optionGlass.liquid.lensAmount,
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = textColor,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NeteasePlaylistIdDialog(
+    playlistId: String,
+    destinationOptions: List<ImportDestinationOption>,
+    selectedDestination: ImportDestination?,
+    newPlaylistName: String,
+    sampleBackdrop: LayerBackdrop,
+    onIdChange: (String) -> Unit,
+    onDestinationChange: (ImportDestination) -> Unit,
+    onNewPlaylistNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val title = stringResource(R.string.import_netease_playlist_title)
+    val idLabel = stringResource(R.string.import_netease_playlist_id)
+    val idHint = stringResource(R.string.import_netease_playlist_id_hint)
+    val destinationLabel = stringResource(R.string.import_destination_label)
+    val newNameLabel = stringResource(R.string.import_new_playlist_name)
+    val newNameHint = stringResource(R.string.import_new_playlist_name_hint)
+    val cancelText = stringResource(R.string.cancel)
+    val confirmText = stringResource(R.string.confirm)
+
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
+    val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
+    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
+    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+    val inputTextColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val placeholderColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
+    val scrollState = rememberScrollState()
+    val showNewPlaylistName = selectedDestination is ImportDestination.NewPlaylist
+    val canConfirm = playlistId.isNotBlank() &&
+        selectedDestination != null &&
+        (!showNewPlaylistName || newPlaylistName.isNotBlank())
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 560.dp),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(28.dp)
+                    .verticalScroll(scrollState),
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor,
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(text = idLabel, fontSize = 14.sp, color = mutedColor)
+                Spacer(modifier = Modifier.height(8.dp))
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(68.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    sampleBackdrop = sampleBackdrop,
+                    backgroundAlpha = inputGlass.tint.background(isDark),
+                    borderAlpha = inputGlass.tint.border(isDark),
+                    highlightAlpha = inputGlass.tint.highlight(isDark),
+                    borderColor = if (isDark) Color.White.copy(alpha = 0.22f) else scheme.outline,
+                    liquidBlur = inputGlass.liquid.blur,
+                    liquidLensHeight = inputGlass.liquid.lensHeight,
+                    liquidLensAmount = inputGlass.liquid.lensAmount,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 18.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (playlistId.isEmpty()) {
+                            Text(text = idHint, fontSize = 17.sp, color = placeholderColor)
+                        }
+                        BasicTextField(
+                            value = playlistId,
+                            onValueChange = onIdChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(color = inputTextColor, fontSize = 18.sp),
+                            singleLine = true,
+                            cursorBrush = SolidColor(RoseRed),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(text = destinationLabel, fontSize = 14.sp, color = mutedColor)
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    destinationOptions.forEach { option ->
+                        ImportDestinationRow(
+                            label = option.label,
+                            selected = selectedDestination?.let { it == option.destination } == true,
+                            sampleBackdrop = sampleBackdrop,
+                            optionGlass = inputGlass,
+                            isDark = isDark,
+                            textColor = titleColor,
+                            mutedColor = mutedColor,
+                            onClick = { onDestinationChange(option.destination) },
+                        )
+                    }
+                }
+
+                if (showNewPlaylistName) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = newNameLabel, fontSize = 14.sp, color = mutedColor)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = inputGlass.tint.background(isDark),
+                        borderAlpha = inputGlass.tint.border(isDark),
+                        highlightAlpha = inputGlass.tint.highlight(isDark),
+                        borderColor = if (isDark) Color.White.copy(alpha = 0.22f) else scheme.outline,
+                        liquidBlur = inputGlass.liquid.blur,
+                        liquidLensHeight = inputGlass.liquid.lensHeight,
+                        liquidLensAmount = inputGlass.liquid.lensAmount,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            if (newPlaylistName.isEmpty()) {
+                                Text(text = newNameHint, fontSize = 16.sp, color = placeholderColor)
+                            }
+                            BasicTextField(
+                                value = newPlaylistName,
+                                onValueChange = onNewPlaylistNameChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(color = inputTextColor, fontSize = 16.sp),
+                                singleLine = true,
+                                cursorBrush = SolidColor(RoseRed),
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = cancelText,
+                            fontSize = 17.sp,
+                            color = mutedColor,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(48.dp)
+                            .clickable(
+                                enabled = canConfirm,
+                                onClick = onConfirm,
+                            ),
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = confirmGlass.background(isDark),
+                        borderAlpha = confirmGlass.border(isDark),
+                        highlightAlpha = confirmGlass.highlight(isDark),
+                        liquidBlur = dialogGlass.liquid.blur,
+                        liquidLensHeight = dialogGlass.liquid.lensHeight,
+                        liquidLensAmount = dialogGlass.liquid.lensAmount,
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = confirmText,
+                                fontSize = 17.sp,
+                                color = if (isDark) {
+                                    Color.White.copy(alpha = if (canConfirm) 0.95f else 0.4f)
+                                } else {
+                                    if (canConfirm) scheme.onSurface else Color.Gray
+                                },
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportDestinationRow(
+    label: String,
+    selected: Boolean,
+    sampleBackdrop: LayerBackdrop,
+    optionGlass: com.neko.music.ui.components.LiquidGlassPanel,
+    isDark: Boolean,
+    textColor: Color,
+    mutedColor: Color,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        sampleBackdrop = sampleBackdrop,
+        backgroundAlpha = optionGlass.tint.background(isDark),
+        borderAlpha = if (selected) 0.55f else optionGlass.tint.border(isDark),
+        highlightAlpha = optionGlass.tint.highlight(isDark),
+        borderColor = if (selected) {
+            RoseRed.copy(alpha = if (isDark) 0.85f else 0.75f)
+        } else if (isDark) {
+            Color.White.copy(alpha = 0.22f)
+        } else {
+            scheme.outline
+        },
+        liquidBlur = optionGlass.liquid.blur,
+        liquidLensHeight = optionGlass.liquid.lensHeight,
+        liquidLensAmount = optionGlass.liquid.lensAmount,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = label,
+                fontSize = 15.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) textColor else mutedColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = RoseRed,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }

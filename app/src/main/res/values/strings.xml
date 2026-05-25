@@ -404,6 +404,18 @@
 
     <string name="no_playlists_yet">还没有本本，去写一个喵</string>
     <string name="create_new_playlist">写个新本本喵</string>
+    <string name="import_playlist_from_external">从外部导入喵</string>
+    <string name="import_playlist_source_title">导入源喵</string>
+    <string name="import_source_netease">网易云音乐</string>
+    <string name="import_source_qq">QQ音乐</string>
+    <string name="qq_music_import_not_supported">暂不支持喵</string>
+    <string name="import_netease_playlist_title">导入网易云歌单喵</string>
+    <string name="import_netease_playlist_id">歌单 ID</string>
+    <string name="import_netease_playlist_id_hint">请输入网易云歌单 ID</string>
+    <string name="import_destination_label">导入到喵</string>
+    <string name="import_destination_new_playlist">新建歌单</string>
+    <string name="import_new_playlist_name">新本本名称</string>
+    <string name="import_new_playlist_name_hint">起个新本本名字喵</string>
     <string name="edit_playlist">涂改本本喵</string>
     <string name="create_playlist_dialog">创建新本本喵</string>
     <string name="loading_failed">搬不动了喵: %s</string>
