@@ -39,6 +39,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -71,58 +72,51 @@ fun MineScreen(
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
     }
     
-    // 气泡上升动画
-    val infiniteTransition = rememberInfiniteTransition(label = "bubbles")
-    val bubble1Y by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -100f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(6000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-    val bubble2Y by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -120f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(7000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-    val bubble3Y by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -90f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
-    // 与列表同层录屏：头图与下方一起滚动。列表内 [GlassSurface] 不提供 [LocalLiquidLayerBackdrop]，
-    // 走 CPU 磨砂（与 SearchResult 歌单项一致）；真 Kyant 折射仅适合 layerBackdrop 外叠层控件。
-    val pageBackdrop = rememberLiquidPageBackdrop(
-        if (isDarkTheme) Color(0xFF121228) else scheme.background
-    )
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
     val glassHighlight = glassTint.highlight(isDarkTheme)
+    val dialogLiquid = LiquidGlassDefaults.appUpdateDialog.liquid
+    val glassBorderColor = if (isDarkTheme) {
+        SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+    } else {
+        scheme.outline
+    }
+    val scrimAlpha = if (isDarkTheme) 0.42f else 0.28f
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(scheme.background)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(pageBackdrop)
+                .layerBackdrop(pageBackdrop),
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = scrimAlpha * 0.35f),
+                                Color.Black.copy(alpha = scrimAlpha),
+                            ),
+                        ),
+                    ),
+            )
+        }
+
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 88.dp)
+                contentPadding = PaddingValues(bottom = 160.dp),
             ) {
                 item {
                     MineHeader(
@@ -135,9 +129,6 @@ fun MineScreen(
                         onVipEntryClick = onVipCenterClick,
                         onLogoutClick = onLogoutClick,
                         onAccountInfoClick = onAccountInfoClick,
-                        bubble1Y = bubble1Y,
-                        bubble2Y = bubble2Y,
-                        bubble3Y = bubble3Y
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -147,9 +138,14 @@ fun MineScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         shape = RoundedCornerShape(20.dp),
+                        sampleBackdrop = pageBackdrop,
                         backgroundAlpha = glassBg,
                         borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight
+                        highlightAlpha = glassHighlight,
+                        borderColor = glassBorderColor,
+                        liquidBlur = dialogLiquid.blur,
+                        liquidLensHeight = dialogLiquid.lensHeight,
+                        liquidLensAmount = dialogLiquid.lensAmount,
                     ) {
                         MineStats(
                             onUploadClick = onUploadClick,
@@ -166,9 +162,14 @@ fun MineScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         shape = RoundedCornerShape(20.dp),
+                        sampleBackdrop = pageBackdrop,
                         backgroundAlpha = glassBg,
                         borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight
+                        highlightAlpha = glassHighlight,
+                        borderColor = glassBorderColor,
+                        liquidBlur = dialogLiquid.blur,
+                        liquidLensHeight = dialogLiquid.lensHeight,
+                        liquidLensAmount = dialogLiquid.lensAmount,
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                             MineMenu(
@@ -191,9 +192,14 @@ fun MineScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp),
                         shape = RoundedCornerShape(20.dp),
+                        sampleBackdrop = pageBackdrop,
                         backgroundAlpha = glassBg,
                         borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight
+                        highlightAlpha = glassHighlight,
+                        borderColor = glassBorderColor,
+                        liquidBlur = dialogLiquid.blur,
+                        liquidLensHeight = dialogLiquid.lensHeight,
+                        liquidLensAmount = dialogLiquid.lensAmount,
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                             MoreSettings(
@@ -203,12 +209,35 @@ fun MineScreen(
                                 onLoginClick = onLoginClick,
                                 onLogoutClick = onLogoutClick,
                                 useElevatedMenuItems = false,
-                                contentHorizontalPadding = 0.dp
+                                contentHorizontalPadding = 0.dp,
+                                showFooter = false,
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    GlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        sampleBackdrop = pageBackdrop,
+                        backgroundAlpha = glassBg * 0.92f,
+                        borderAlpha = glassBorder,
+                        highlightAlpha = glassHighlight,
+                        borderColor = glassBorderColor,
+                        liquidBlur = dialogLiquid.blur,
+                        liquidLensHeight = dialogLiquid.lensHeight,
+                        liquidLensAmount = dialogLiquid.lensAmount,
+                    ) {
+                        MineScreenFooter(
+                            isDarkTheme = isDarkTheme,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -226,9 +255,6 @@ fun MineHeader(
     onVipEntryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onAccountInfoClick: () -> Unit = {},
-    bubble1Y: Float = 0f,
-    bubble2Y: Float = 0f,
-    bubble3Y: Float = 0f
 ) {
     val context = LocalContext.current
     
@@ -249,7 +275,18 @@ fun MineHeader(
             painter = painterResource(id = R.drawable.background),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f)),
+                    ),
+                ),
         )
         // 装饰圆圈
         androidx.compose.foundation.Canvas(
@@ -264,35 +301,6 @@ fun MineHeader(
                 color = SkyBlue.copy(alpha = 0.1f),
                 radius = 70.dp.toPx(),
                 center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.6f)
-            )
-        }
-        
-        // 气泡装饰
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .offset(x = 30.dp, y = bubble1Y.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.3f))
-            )
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .offset(x = 80.dp, y = bubble2Y.dp)
-                    .clip(CircleShape)
-                    .background(SkyBlue.copy(alpha = 0.4f))
-            )
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .offset(x = 120.dp, y = bubble3Y.dp)
-                    .clip(CircleShape)
-                    .background(SakuraPink.copy(alpha = 0.3f))
             )
         }
         
@@ -741,41 +749,50 @@ fun MoreSettings(
 }
 
 @Composable
-private fun MineScreenFooter() {
+private fun MineScreenFooter(
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    modifier: Modifier = Modifier,
+) {
+    val muted = if (isDarkTheme) {
+        Color(0xFFB8B8D1).copy(alpha = 0.75f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         ) {
             ExternalLinkButton(
                 text = stringResource(id = R.string.api_docs),
                 url = "https://github.com/FantasyNetworkCN/NekoMusicDocs",
-                icon = R.drawable.about
+                icon = R.drawable.about,
+                isDarkTheme = isDarkTheme,
             )
-            Spacer(modifier = Modifier.width(16.dp))
             ExternalLinkButton(
                 text = stringResource(id = R.string.github_repo),
                 url = "https://github.com/FantasyNetworkCN/NekoMusicForAndroid",
-                icon = R.drawable.about
+                icon = R.drawable.about,
+                isDarkTheme = isDarkTheme,
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = stringResource(id = R.string.footer_icp),
             fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            color = muted,
+            textAlign = TextAlign.Center,
         )
         Text(
             text = stringResource(id = R.string.footer_copyright),
             fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            color = muted,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -784,50 +801,63 @@ private fun MineScreenFooter() {
 fun ExternalLinkButton(
     text: String,
     url: String,
-    icon: Int
+    icon: Int,
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
 ) {
     val context = LocalContext.current
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
+            stiffness = Spring.StiffnessLow,
+        ),
     )
-    
+    val chipBg = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.08f)
+    } else {
+        Color.Black.copy(alpha = 0.05f)
+    }
+    val chipBorder = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.14f)
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    }
+    val labelColor = if (isDarkTheme) {
+        Color(0xFFF0F0F5).copy(alpha = 0.9f)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Row(
         modifier = Modifier
             .scale(scale)
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .shadow(
-                elevation = 2.dp,
-                spotColor = RoseRed.copy(alpha = 0.15f),
-                ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(chipBg)
+            .border(1.dp, chipBorder, RoundedCornerShape(12.dp))
             .clickable {
                 isPressed = true
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse(url),
+                )
                 context.startActivity(intent)
-            },
-        verticalAlignment = Alignment.CenterVertically
+            }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             painter = painterResource(id = icon),
             contentDescription = text,
-            modifier = Modifier.size(16.dp),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(RoseRed)
+            modifier = Modifier.size(15.dp),
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(RoseRed),
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = text,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium
+            fontSize = 12.sp,
+            color = labelColor,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
