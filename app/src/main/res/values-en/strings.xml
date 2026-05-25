@@ -441,6 +441,11 @@
     <string name="netease_playlist_id_hint">Enter NetEase playlist ID</string>
     <string name="import_netease_playlist_id_invalid">Playlist ID must be numeric</string>
     <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
+    <string name="import_netease_matching">Matching tracks in library…</string>
+    <string name="import_netease_match_success">Done: %1$d matched, %2$d not found</string>
+    <string name="import_netease_match_failed">Match failed: %1$s</string>
+    <string name="import_netease_match_no_tracks">No tracks to match</string>
+    <string name="import_netease_match_busy">Server is busy. Please try again later.</string>
     <string name="import_destination_label">Import to</string>
     <string name="import_destination_new_playlist">New playlist</string>
     <string name="import_new_playlist_name">New playlist name</string>

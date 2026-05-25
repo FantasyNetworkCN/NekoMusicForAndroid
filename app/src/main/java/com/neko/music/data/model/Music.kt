@@ -25,7 +25,18 @@ data class Music(
 
 @Serializable
 data class SearchRequest(
-    val query: String
+    val query: String,
+)
+
+@Serializable
+data class SearchItem(
+    val title: String,
+    val artist: String = "",
+)
+
+@Serializable
+data class BatchSearchRequest(
+    val items: List<SearchItem>,
 )
 
 @Serializable

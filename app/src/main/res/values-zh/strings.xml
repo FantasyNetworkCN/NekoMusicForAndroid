@@ -420,6 +420,11 @@
     <string name="netease_playlist_id_hint">请输入网易云歌单 ID</string>
     <string name="import_netease_playlist_id_invalid">歌单 ID 须为纯数字</string>
     <string name="import_netease_fetch_failed">获取歌单失败，请稍后重试</string>
+    <string name="import_netease_matching">正在匹配曲库…</string>
+    <string name="import_netease_match_success">匹配完成：成功 %1$d 首，失败 %2$d 首</string>
+    <string name="import_netease_match_failed">匹配失败：%1$s</string>
+    <string name="import_netease_match_no_tracks">没有可匹配的曲目</string>
+    <string name="import_netease_match_busy">服务繁忙，请稍后再试</string>
     <string name="import_destination_label">导入到</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新歌单名称</string>
