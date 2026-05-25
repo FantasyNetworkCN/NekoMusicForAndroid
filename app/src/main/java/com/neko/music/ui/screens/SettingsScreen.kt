@@ -46,6 +46,7 @@ import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LiquidGlassSwitch
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -589,22 +590,16 @@ fun SettingSwitchItem(
     title: String,
     subtitle: String = "",
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    /** 个性化页等可传入预览用的深浅色，与 [SettingSection] 一致 */
+    useDarkAppearance: Boolean? = null,
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = useDarkAppearance ?: isSystemInDarkTheme()
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                isPressed = true
-                onCheckedChange(!checked)
-            },
-        color = if (isPressed) 
-            if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color(0xFFF5F5F5) 
-        else Color.Transparent,
-        onClick = {}
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -612,11 +607,26 @@ fun SettingSwitchItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        isPressed = true
+                        onCheckedChange(!checked)
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(RoseRed.copy(alpha = 0.1f)),
+                    .background(
+                        if (isPressed)
+                            RoseRed.copy(alpha = 0.16f)
+                        else
+                            RoseRed.copy(alpha = 0.1f)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -647,18 +657,14 @@ fun SettingSwitchItem(
                     )
                 }
             }
+            }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            Switch(
+            LiquidGlassSwitch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = RoseRed,
-                    checkedTrackColor = RoseRed.copy(alpha = 0.5f),
-                    uncheckedThumbColor = if (isDarkTheme) Color(0xFFB8B8D1) else Color.Gray,
-                    uncheckedTrackColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.5f)
-                )
+                isDarkChrome = isDarkTheme
             )
         }
     }
