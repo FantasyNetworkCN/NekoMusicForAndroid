@@ -763,6 +763,9 @@ fun MainScreen() {
                         val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
                         navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     },
+                    onShowBottomControls = { show ->
+                        showBottomControls = show
+                    },
                     token = tokenManager.getToken(),
                     userId = tokenManager.getUserId()
                 )
