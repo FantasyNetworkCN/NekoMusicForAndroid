@@ -66,6 +66,28 @@ class FavoriteApi(private val context: android.content.Context) {
     }
 
     /**
+     * 批量添加收藏（POST /api/user/favorites，body 使用 [musicIds]）。
+     */
+    suspend fun addFavorites(token: String, musicIds: List<Int>): BatchAddMusicResponse {
+        val distinctIds = musicIds.distinct()
+        if (distinctIds.isEmpty()) {
+            return BatchAddMusicResponse(success = false, message = "musicIds 为空")
+        }
+        return try {
+            val response = client.post("$baseUrl/api/user/favorites") {
+                header("Authorization", token)
+                contentType(ContentType.Application.Json)
+                setBody(AddFavoritesBatchRequest(musicIds = distinctIds))
+            }
+            response.body()
+        } catch (e: Exception) {
+            com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
+            Log.e("FavoriteApi", "批量添加收藏失败${e.protocolLogSuffixOrEmpty()}", e)
+            BatchAddMusicResponse(success = false, message = "网络错误: ${e.message}")
+        }
+    }
+
+    /**
      * 取消收藏
      */
     suspend fun removeFavorite(token: String, musicId: Int): FavoriteResponse {
@@ -152,7 +174,12 @@ class FavoriteApi(private val context: android.content.Context) {
 // 数据模型
 @Serializable
 data class AddFavoriteRequest(
-    val musicId: Int
+    val musicId: Int,
+)
+
+@Serializable
+data class AddFavoritesBatchRequest(
+    val musicIds: List<Int>,
 )
 
 @Serializable

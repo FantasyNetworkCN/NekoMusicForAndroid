@@ -79,6 +79,7 @@ class NeteasePlaylistApi {
         val failCount: Int,
         val apiMessage: String,
         val failedItems: List<SearchItem>,
+        val matchedMusicIds: List<Int>,
     )
 
     suspend fun matchTracksInLibrary(
@@ -93,7 +94,7 @@ class NeteasePlaylistApi {
         Log.d(TAG, "开始批量搜索，共 ${items.size} 首")
         return musicApi.searchMusicBatch(items).mapCatching { batch ->
             val stats = summarizeBatchSearch(items, batch.results, batch.message)
-            logBatchSearchResults(items, batch.results, batch.message, stats)
+            logBatchSearchResults(items, batch.results, stats)
             stats
         }.onFailure { e ->
             Log.e(TAG, "批量搜索请求失败${e.message?.let { ": $it" } ?: ""}", e)
@@ -108,11 +109,13 @@ class NeteasePlaylistApi {
         val paired = items.indices.map { index -> items[index] to results.getOrNull(index) }
         val successCount = paired.count { it.second != null }
         val failedItems = paired.mapNotNull { (item, music) -> item.takeIf { music == null } }
+        val matchedMusicIds = paired.mapNotNull { (_, music) -> music?.id }
         return MatchTracksResult(
             successCount = successCount,
             failCount = failedItems.size,
             apiMessage = apiMessage,
             failedItems = failedItems,
+            matchedMusicIds = matchedMusicIds,
         )
     }
 
@@ -126,9 +129,9 @@ class NeteasePlaylistApi {
     private fun logBatchSearchResults(
         items: List<SearchItem>,
         results: List<Music?>,
-        apiMessage: String,
         stats: MatchTracksResult,
     ) {
+        val apiMessage = stats.apiMessage
         val paired = items.indices.map { index ->
             items[index] to results.getOrNull(index)
         }

@@ -415,6 +415,7 @@
     <string name="import_netease_playlist_id_invalid">歌单 ID 要是纯数字喵</string>
     <string name="import_netease_fetch_failed">拉歌单失败，稍后再试喵</string>
     <string name="import_netease_matching">正在匹配曲库喵…</string>
+    <string name="import_netease_processing">正在匹配并导入喵…</string>
     <string name="import_netease_match_success">匹配完成喵：成功 %1$d 首，失败 %2$d 首</string>
     <string name="import_netease_match_failed">匹配失败喵：%1$s</string>
     <string name="import_netease_match_no_tracks">没有可匹配的曲目喵</string>
@@ -422,6 +423,12 @@
     <string name="import_netease_match_failed_dialog_title">这些曲子没匹配上喵</string>
     <string name="import_netease_match_failed_dialog_summary">共 %1$d 首在曲库里找不到</string>
     <string name="import_netease_match_failed_unknown_artist">未知歌手</string>
+    <string name="import_netease_importing">正在导入曲库喵…</string>
+    <string name="import_netease_import_success">已导入 %1$d 首喵</string>
+    <string name="import_netease_import_partial">已导入 %1$d 首，%2$d 首未能导入喵</string>
+    <string name="import_netease_import_failed">导入失败喵：%1$s</string>
+    <string name="import_netease_favorite_playlist_not_supported">不能导入到收藏的歌单，请选自己的本本或我的收藏喵</string>
+    <string name="import_netease_no_matched_to_import">没有匹配成功的曲子可导入喵</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新本本名称</string>

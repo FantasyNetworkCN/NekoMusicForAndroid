@@ -421,6 +421,7 @@
     <string name="import_netease_playlist_id_invalid">歌单 ID 须为纯数字</string>
     <string name="import_netease_fetch_failed">获取歌单失败，请稍后重试</string>
     <string name="import_netease_matching">正在匹配曲库…</string>
+    <string name="import_netease_processing">正在匹配并导入…</string>
     <string name="import_netease_match_success">匹配完成：成功 %1$d 首，失败 %2$d 首</string>
     <string name="import_netease_match_failed">匹配失败：%1$s</string>
     <string name="import_netease_match_no_tracks">没有可匹配的曲目</string>
@@ -428,6 +429,12 @@
     <string name="import_netease_match_failed_dialog_title">以下音乐未能匹配</string>
     <string name="import_netease_match_failed_dialog_summary">共 %1$d 首在曲库中未找到</string>
     <string name="import_netease_match_failed_unknown_artist">未知歌手</string>
+    <string name="import_netease_importing">正在导入…</string>
+    <string name="import_netease_import_success">已导入 %1$d 首</string>
+    <string name="import_netease_import_partial">已导入 %1$d 首，%2$d 首未能导入</string>
+    <string name="import_netease_import_failed">导入失败：%1$s</string>
+    <string name="import_netease_favorite_playlist_not_supported">不能导入到收藏的歌单，请选择自己的歌单或我的收藏</string>
+    <string name="import_netease_no_matched_to_import">没有匹配成功的音乐可导入</string>
     <string name="import_destination_label">导入到</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新歌单名称</string>
