@@ -178,6 +178,93 @@ fun ChangeAvatarGlassDialog(
 }
 
 @Composable
+fun LogoutGlassDialog(
+    sampleBackdrop: LayerBackdrop,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.appUpdateDialog
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(modifier = Modifier.padding(28.dp)) {
+                Text(
+                    text = stringResource(id = R.string.logout),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoseRed,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(id = R.string.logout_confirm_message),
+                    fontSize = 16.sp,
+                    color = mutedColor,
+                    lineHeight = 22.sp,
+                )
+                Spacer(modifier = Modifier.height(28.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = stringResource(id = R.string.cancel),
+                            fontSize = 16.sp,
+                            color = mutedColor,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clickable(onClick = onConfirm),
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.background(isDark),
+                        borderAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.border(isDark),
+                        highlightAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.highlight(isDark),
+                        liquidBlur = dialogGlass.liquid.blur,
+                        liquidLensHeight = dialogGlass.liquid.lensHeight,
+                        liquidLensAmount = dialogGlass.liquid.lensAmount,
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.confirm),
+                                fontSize = 16.sp,
+                                color = if (isDark) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ChangePasswordGlassDialog(
     sampleBackdrop: LayerBackdrop,
     onDismiss: () -> Unit,

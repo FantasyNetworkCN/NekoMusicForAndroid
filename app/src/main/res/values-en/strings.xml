@@ -76,6 +76,7 @@
     <string name="settings_title">Settings</string>
     <string name="about_us">About Us</string>
     <string name="logout">Logout</string>
+    <string name="logout_confirm_message">Are you sure you want to log out?</string>
     <string name="login">Login</string>
     <string name="please_login_first">Please login first</string>
     <string name="login_after_view">View and manage your favorites after logging in</string>

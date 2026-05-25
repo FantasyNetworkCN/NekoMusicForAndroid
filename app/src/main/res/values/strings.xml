@@ -74,6 +74,7 @@
     <string name="settings_title">设置喵</string>
     <string name="about_us">关于猫娘们喵</string>
     <string name="logout">解除认领喵</string>
+    <string name="logout_confirm_message">真的要解除认领吗喵？</string>
     <string name="login">认领猫娘喵</string>
     <string name="please_login_first">主人快先登录呀喵</string>
     <string name="login_after_view">登录后才能看到主人藏的小秘密喵</string>
