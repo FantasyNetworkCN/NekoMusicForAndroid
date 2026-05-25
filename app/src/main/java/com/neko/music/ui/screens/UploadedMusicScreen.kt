@@ -113,7 +113,9 @@ fun UploadedMusicScreen(
     onBackClick: () -> Unit = {},
     onMusicClick: (UploadedMusic) -> Unit = {},
     token: String? = null,
-    userId: Int = -1
+    userId: Int = -1,
+    /** 上传弹窗等全屏浮层时隐藏迷你播放器与底栏（与播放页同款滑入滑出动画，由 MainActivity 驱动） */
+    onShowBottomControls: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -122,6 +124,13 @@ fun UploadedMusicScreen(
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var showUploadDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showUploadDialog) {
+        onShowBottomControls(!showUploadDialog)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onShowBottomControls(true) }
+    }
     
     // 下拉刷新状态
     var isRefreshing by remember { mutableStateOf(false) }
