@@ -3,19 +3,27 @@ package com.neko.music.ui.screens
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,16 +37,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
+import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.kyant.backdrop.backdrops.layerBackdrop
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.util.UrlConfig
@@ -53,6 +67,7 @@ fun DailyRecommendationScreen(
     val scope = rememberCoroutineScope()
     val musicApi = remember { MusicApi(context) }
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
+    val playlistManager = remember { PlaylistManager.getInstance(context) }
 
     var musicList by remember { mutableStateOf<List<Music>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -114,6 +129,55 @@ fun DailyRecommendationScreen(
         loadData()
     }
 
+    fun playMusicAndNavigate(music: Music) {
+        scope.launch {
+            try {
+                val url = musicApi.getMusicFileUrl(music)
+                val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
+                playerManager.playMusic(
+                    url,
+                    music.id,
+                    music.title,
+                    music.artist,
+                    music.coverFilePath ?: "",
+                    fullCoverUrl
+                )
+                onNavigateToPlayer(music)
+            } catch (e: Exception) {
+                Log.e("DailyRecommendationScreen", "播放失败", e)
+            }
+        }
+    }
+
+    fun playAllAndReplacePlaylist() {
+        scope.launch {
+            try {
+                if (musicList.isEmpty()) return@launch
+                playlistManager.clearPlaylist()
+                musicList.forEach { music ->
+                    val url = musicApi.getMusicFileUrl(music)
+                    playlistManager.addToPlaylist(
+                        Music(
+                            id = music.id,
+                            title = music.title,
+                            artist = music.artist,
+                            album = music.album,
+                            duration = music.duration,
+                            filePath = url,
+                            coverFilePath = music.coverFilePath ?: "",
+                            uploadUserId = music.uploadUserId,
+                            createdAt = music.createdAt
+                        )
+                    )
+                }
+                playMusicAndNavigate(musicList.first())
+            } catch (e: Exception) {
+                Log.e("DailyRecommendationScreen", "播放全部失败", e)
+            }
+        }
+    }
+
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val pageBackdrop = rememberLiquidPageBackdrop(MaterialTheme.colorScheme.background)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -168,11 +232,56 @@ fun DailyRecommendationScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             item {
-                                Text(
-                                    text = stringResource(id = R.string.daily_recommendation_title),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.daily_recommendation_title),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    val playAllGlass = LiquidGlassDefaults.rankingRetryButton
+                                    GlassSurface(
+                                        modifier = Modifier.clickable {
+                                            playAllAndReplacePlaylist()
+                                        },
+                                        shape = RoundedCornerShape(18.dp),
+                                        backgroundAlpha = playAllGlass.tint.background(isDark),
+                                        borderAlpha = playAllGlass.tint.border(isDark),
+                                        highlightAlpha = playAllGlass.tint.highlight(isDark),
+                                        liquidBlur = playAllGlass.liquid.blur,
+                                        liquidLensHeight = playAllGlass.liquid.lensHeight,
+                                        liquidLensAmount = playAllGlass.liquid.lensAmount,
+                                        borderColor = if (isDark) {
+                                            androidx.compose.ui.graphics.Color.White
+                                        } else {
+                                            MaterialTheme.colorScheme.outline
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = stringResource(id = R.string.play_all),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Text(
+                                                text = stringResource(
+                                                    id = R.string.play_all_count,
+                                                    musicList.size
+                                                ),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = stringResource(id = R.string.daily_recommendation_desc),
@@ -188,25 +297,7 @@ fun DailyRecommendationScreen(
                                 LatestItem(
                                     music = music,
                                     index = index,
-                                    onClick = {
-                                        scope.launch {
-                                            try {
-                                                val url = musicApi.getMusicFileUrl(music)
-                                                val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
-                                                playerManager.playMusic(
-                                                    url,
-                                                    music.id,
-                                                    music.title,
-                                                    music.artist,
-                                                    music.coverFilePath ?: "",
-                                                    fullCoverUrl
-                                                )
-                                                onNavigateToPlayer(music)
-                                            } catch (e: Exception) {
-                                                Log.e("DailyRecommendationScreen", "播放失败", e)
-                                            }
-                                        }
-                                    }
+                                    onClick = { playMusicAndNavigate(music) }
                                 )
                             }
                         }
