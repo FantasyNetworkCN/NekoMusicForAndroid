@@ -620,4 +620,7 @@
     <string name="video_render_download_started">已开始下载到 Download/NekoMusic 喵</string>
     <string name="video_render_failed">视频渲染失败：%1$s 喵</string>
     <string name="video_render_create_failed">创建任务失败喵</string>
+    <string name="daily_recommendation_title">今日推荐喵</string>
+    <string name="daily_recommendation_desc">根据你的收藏口味为你挑的喵</string>
+    <string name="no_daily_recommendation">今天还没挑出推荐喵</string>
 </resources>

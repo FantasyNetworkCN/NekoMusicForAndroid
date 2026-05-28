@@ -104,6 +104,7 @@ import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
 import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
+import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko云音乐Theme
@@ -756,6 +757,15 @@ fun MainScreen() {
                     }
                 )
             }
+            composable("daily_recommendations") {
+                DailyRecommendationScreen(
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                    }
+                )
+            }
             composable("uploaded_music") {
                 val tokenManager = com.neko.music.data.manager.TokenManager(context)
                 UploadedMusicScreen(
@@ -1233,6 +1243,9 @@ fun MainScreen() {
                             navController.navigate(
                                 "playlist_detail/$playlistId/歌单/null/null/null/-1/false"
                             )
+                        },
+                        onNavigateToDailyRecommendations = {
+                            navController.navigate("daily_recommendations")
                         },
                         onNavigateToRanking = {
                             Log.d("MainActivity", "导航到排行榜页面")
