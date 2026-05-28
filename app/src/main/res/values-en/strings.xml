@@ -663,4 +663,7 @@
     <string name="video_render_download_started">Download started to Download/NekoMusic</string>
     <string name="video_render_failed">Render failed: %1$s</string>
     <string name="video_render_create_failed">Failed to create job</string>
+    <string name="daily_recommendation_title">Daily Picks</string>
+    <string name="daily_recommendation_desc">Chosen from your favorites taste</string>
+    <string name="no_daily_recommendation">No daily picks yet</string>
 </resources>

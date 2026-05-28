@@ -41,6 +41,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.screens.DailyRecommendationCard
 import com.neko.music.ui.screens.LatestMusicCard
 import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
@@ -60,6 +61,7 @@ fun HomeLiquidHeroOverlay(
     liquidBackdrop: LayerBackdrop,
     onSearchClick: () -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
+    onNavigateToDailyRecommendations: () -> Unit,
     onNavigateToRanking: () -> Unit,
     onNavigateToLatest: () -> Unit,
     onHeroHeightChanged: (Int) -> Unit,
@@ -129,6 +131,40 @@ fun HomeLiquidHeroOverlay(
                     },
                     fontWeight = FontWeight.Normal
                 )
+            }
+        }
+
+        if (state.dailyRecommendedMusic.isNotEmpty()) {
+            val heroDaily = LiquidGlassDefaults.homeHeroShortcutCard
+            GlassSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                sampleBackdrop = liquidBackdrop,
+                shape = RoundedCornerShape(20.dp),
+                backgroundAlpha = heroDaily.tint.background(isDarkHome),
+                borderAlpha = heroDaily.tint.border(isDarkHome),
+                highlightAlpha = heroDaily.tint.highlight(isDarkHome),
+                borderColor = if (isDarkHome) {
+                    SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroShortcutCardDarkBorderSakuraAlpha)
+                } else {
+                    colorScheme.outline
+                },
+                liquidBlur = heroDaily.liquid.blur,
+                liquidLensHeight = heroDaily.liquid.lensHeight,
+                liquidLensAmount = heroDaily.liquid.lensAmount
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                ) {
+                    DailyRecommendationCard(
+                        musicList = state.dailyRecommendedMusic,
+                        onClick = onNavigateToDailyRecommendations,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 

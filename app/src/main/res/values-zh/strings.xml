@@ -658,4 +658,7 @@
     <string name="vip_pay_wechat">微信</string>
     <string name="vip_choose_plan">选择套餐</string>
     <string name="vip_member_benefits">尊享更长视频、无水印等权益</string>
+    <string name="daily_recommendation_title">每日推荐</string>
+    <string name="daily_recommendation_desc">根据你的收藏口味为你推荐</string>
+    <string name="no_daily_recommendation">今日暂无推荐</string>
 </resources>

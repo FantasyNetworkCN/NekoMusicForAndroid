@@ -76,6 +76,7 @@ import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.InstallPermissionCallback
+import com.neko.music.data.manager.TokenManager
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
 import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
@@ -125,6 +126,12 @@ fun HomeScreen(
                     musicApi.getRanking(200)
                 }
 
+                val dailyDeferred = async {
+                    val token = TokenManager(context).getToken().orEmpty()
+                    if (token.isBlank()) Result.success(emptyList())
+                    else com.neko.music.data.api.MusicApi(context).getDailyRecommendations(token)
+                }
+
                 val latestDeferred = async {
                     Log.d("HomeScreen", "开始加载最新音乐...")
                     val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -133,6 +140,7 @@ fun HomeScreen(
 
                 val playlistResponse = playlistsDeferred.await()
                 val rankingResult = rankingDeferred.await()
+                val dailyResult = dailyDeferred.await()
                 val latestResult = latestDeferred.await()
 
                 if (playlistResponse.success && playlistResponse.playlists != null) {
@@ -147,6 +155,13 @@ fun HomeScreen(
                     Log.d("HomeScreen", "热门音乐加载成功: ${musicList.size}首")
                 }.onFailure { error ->
                     Log.e("HomeScreen", "热门音乐加载失败: ${error.message}")
+                }
+
+                dailyResult.onSuccess { musicList ->
+                    liquidHeroState.dailyRecommendedMusic = musicList
+                    Log.d("HomeScreen", "每日推荐加载成功: ${musicList.size}首")
+                }.onFailure { error ->
+                    Log.e("HomeScreen", "每日推荐加载失败: ${error.message}")
                 }
 
                 latestResult.onSuccess { musicList ->

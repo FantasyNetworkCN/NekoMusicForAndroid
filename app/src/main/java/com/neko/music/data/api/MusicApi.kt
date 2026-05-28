@@ -20,6 +20,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType.Application.Json
@@ -339,6 +340,38 @@ class MusicApi(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e("MusicApi", "Latest music fetch error${e.protocolLogSuffixOrEmpty()}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDailyRecommendations(token: String): Result<List<Music>> {
+        if (token.isBlank()) return Result.success(emptyList())
+        return try {
+            val response = client.get("$baseUrl/api/user/recommendations/daily") {
+                header("Authorization", token)
+            }
+            val responseText = response.body<String>()
+            val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
+            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
+            val data = jsonResponse["data"]
+            if (success && data is JsonArray) {
+                val results = data.mapNotNull { item ->
+                    val obj = item as? JsonObject ?: return@mapNotNull null
+                    val musicId = (obj["musicId"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return@mapNotNull null
+                    Music(
+                        id = musicId,
+                        title = (obj["title"] as? JsonPrimitive)?.content ?: "未知歌曲",
+                        artist = (obj["artist"] as? JsonPrimitive)?.content ?: "未知歌手",
+                        album = (obj["album"] as? JsonPrimitive)?.content ?: "",
+                        duration = 0,
+                    )
+                }
+                Result.success(results)
+            } else {
+                Result.failure(Exception("获取每日推荐失败"))
+            }
+        } catch (e: Exception) {
+            com.neko.music.util.AuthErrorHandler.handleApiError(context, e)
             Result.failure(e)
         }
     }

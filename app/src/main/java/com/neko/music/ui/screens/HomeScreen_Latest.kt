@@ -244,3 +244,83 @@ fun LatestMusicCard(
         }
     }
 }
+
+@Composable
+fun DailyRecommendationCard(
+    musicList: List<com.neko.music.data.model.Music>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val title = stringResource(id = R.string.daily_recommendation_title)
+    val subtitle = stringResource(id = R.string.daily_recommendation_desc)
+    val count = stringResource(id = R.string.songs_count_format, musicList.size)
+
+    val context = LocalContext.current
+    val musicApi = remember { com.neko.music.data.api.MusicApi(context) }
+    var coverUrl by remember { mutableStateOf<String?>(null) }
+    val topMusic = musicList.firstOrNull()
+    LaunchedEffect(topMusic?.id) {
+        coverUrl = if (topMusic != null) musicApi.getMusicCoverUrl(topMusic) else null
+    }
+
+    Row(
+        modifier = modifier
+            .height(82.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.horizontalGradient(
+                    colors = listOf(
+                        RoseRed.copy(alpha = 0.28f),
+                        Lilac.copy(alpha = 0.2f)
+                    )
+                )
+            )
+            .clickable(
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() },
+            onClick = onClick
+        ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(coverUrl ?: UrlConfig.getDefaultAvatarUrl())
+                .crossfade(true)
+                .build(),
+            contentDescription = title,
+            modifier = Modifier
+                .padding(start = 12.dp)
+                .size(56.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Text(
+            text = count,
+            color = Color.White.copy(alpha = 0.95f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(end = 14.dp)
+        )
+    }
+}

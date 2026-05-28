@@ -12,6 +12,7 @@ import com.neko.music.data.model.Music
  */
 class HomeLiquidHeroState {
     var recommendedPlaylists: List<PlaylistInfo> by mutableStateOf(emptyList())
+    var dailyRecommendedMusic: List<Music> by mutableStateOf(emptyList())
     var rankingMusic: List<Music> by mutableStateOf(emptyList())
     var latestMusic: List<Music> by mutableStateOf(emptyList())
     var playlistsLoading: Boolean by mutableStateOf(false)
