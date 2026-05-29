@@ -411,8 +411,8 @@
     <string name="not_supported">暂不支持喵</string>
     <string name="import_netease_playlist_title">导入网易云歌单喵</string>
     <string name="playlist_id">歌单 ID</string>
-    <string name="netease_playlist_id_hint">请输入网易云歌单 ID</string>
-    <string name="import_netease_playlist_id_invalid">歌单 ID 要是纯数字喵</string>
+    <string name="netease_playlist_id_hint">粘贴分享链接或歌单 ID 喵</string>
+    <string name="import_netease_playlist_id_invalid">认不出歌单 ID 喵，请粘贴网易云分享链接或纯数字 ID</string>
     <string name="import_netease_fetch_failed">拉歌单失败，稍后再试喵</string>
     <string name="import_netease_matching">正在匹配曲库喵…</string>
     <string name="import_netease_processing">正在匹配并导入喵…</string>

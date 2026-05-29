@@ -438,8 +438,8 @@
     <string name="not_supported">Not supported yet</string>
     <string name="import_netease_playlist_title">Import NetEase playlist</string>
     <string name="playlist_id">Playlist ID</string>
-    <string name="netease_playlist_id_hint">Enter NetEase playlist ID</string>
-    <string name="import_netease_playlist_id_invalid">Playlist ID must be numeric</string>
+    <string name="netease_playlist_id_hint">Paste share link or playlist ID</string>
+    <string name="import_netease_playlist_id_invalid">Could not parse playlist ID. Paste a NetEase share link or enter a numeric ID.</string>
     <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
     <string name="import_netease_matching">Matching tracks in library…</string>
     <string name="import_netease_processing">Matching and importing…</string>
