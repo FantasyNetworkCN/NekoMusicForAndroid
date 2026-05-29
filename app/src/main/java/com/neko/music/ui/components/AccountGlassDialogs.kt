@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -352,7 +352,7 @@ fun ChangePasswordGlassDialog(
                     trailingIcon = {
                         IconButton(onClick = { showOldPassword = !showOldPassword }) {
                             Icon(
-                                imageVector = if (showOldPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                imageVector = if (showOldPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showOldPassword) {
                                     stringResource(id = R.string.hide_password)
                                 } else {
@@ -380,7 +380,7 @@ fun ChangePasswordGlassDialog(
                     trailingIcon = {
                         IconButton(onClick = { showNewPassword = !showNewPassword }) {
                             Icon(
-                                imageVector = if (showNewPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                imageVector = if (showNewPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showNewPassword) {
                                     stringResource(id = R.string.hide_password)
                                 } else {
@@ -408,7 +408,7 @@ fun ChangePasswordGlassDialog(
                     trailingIcon = {
                         IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
                             Icon(
-                                imageVector = if (showConfirmPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                imageVector = if (showConfirmPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showConfirmPassword) {
                                     stringResource(id = R.string.hide_password)
                                 } else {

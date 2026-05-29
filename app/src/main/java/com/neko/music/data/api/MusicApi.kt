@@ -16,9 +16,6 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -56,15 +53,6 @@ class MusicApi(private val context: Context) {
         }
         install(ContentNegotiation) {
             json(json)
-        }
-        install(Logging) {
-            logger = object : Logger {
-                override fun log(message: String) {
-                    // 禁用HTTP请求日志，避免大量日志输出
-                    // Log.d("MusicApi", message)
-                }
-            }
-            level = LogLevel.NONE
         }
     }
     

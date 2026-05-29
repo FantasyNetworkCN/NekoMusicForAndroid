@@ -29,14 +29,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.BlurOn
-import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -284,7 +279,7 @@ fun PersonalizationScreen(
                         useDarkAppearance = isDarkChrome
                     ) {
                         ThemeModeOptionRow(
-                            icon = Icons.Default.BrightnessAuto,
+                            icon = Icons.Default.Settings,
                             label = stringResource(id = R.string.theme_follow_system),
                             selected = themeMode == "auto",
                             isDarkChrome = isDarkChrome,
@@ -295,7 +290,7 @@ fun PersonalizationScreen(
                             color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
                         )
                         ThemeModeOptionRow(
-                            icon = Icons.Default.LightMode,
+                            icon = Icons.Default.Settings,
                             label = stringResource(id = R.string.theme_light),
                             selected = themeMode == "light",
                             isDarkChrome = isDarkChrome,
@@ -306,7 +301,7 @@ fun PersonalizationScreen(
                             color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
                         )
                         ThemeModeOptionRow(
-                            icon = Icons.Default.DarkMode,
+                            icon = Icons.Default.Settings,
                             label = stringResource(id = R.string.theme_dark),
                             selected = themeMode == "dark",
                             isDarkChrome = isDarkChrome,
@@ -322,7 +317,7 @@ fun PersonalizationScreen(
                             useDarkAppearance = isDarkChrome
                         ) {
                             SettingSwitchItem(
-                                icon = Icons.Default.Palette,
+                                icon = Icons.Default.Settings,
                                 title = stringResource(id = R.string.dynamic_color),
                                 subtitle = stringResource(id = R.string.dynamic_color_subtitle),
                                 checked = useDynamicColor,
@@ -419,7 +414,7 @@ fun PersonalizationScreen(
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Image,
+                                                imageVector = Icons.Default.Settings,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
                                             )
@@ -439,7 +434,7 @@ fun PersonalizationScreen(
                                             modifier = Modifier.weight(1f),
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Restore,
+                                                imageVector = Icons.Default.Refresh,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
                                             )
@@ -548,7 +543,7 @@ fun PersonalizationScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.BrightnessAuto,
+                                        imageVector = Icons.Default.Settings,
                                         contentDescription = stringResource(id = R.string.lyric_highlight_follow_theme),
                                         tint = if (isDarkChrome) Color(0xFFE8E8F0) else Color(0xFF555555),
                                         modifier = Modifier.size(22.dp)
@@ -592,7 +587,7 @@ fun PersonalizationScreen(
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             SettingSwitchItem(
-                                icon = Icons.Default.BlurOn,
+                                icon = Icons.Default.Settings,
                                 title = stringResource(id = R.string.liquid_glass_hardware_effects),
                                 subtitle = stringResource(id = R.string.liquid_glass_hardware_effects_subtitle),
                                 checked = liquidHardwareEffects,

@@ -33,11 +33,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -234,7 +232,7 @@ fun UploadedMusicScreen(
                                     onClick = { showUploadDialog = true }
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.UploadFile,
+                                        imageVector = Icons.Default.Add,
                                         contentDescription = stringResource(id = R.string.upload_music),
                                         tint = RoseRed
                                     )
@@ -391,7 +389,7 @@ fun ErrorView(
             modifier = Modifier.padding(32.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Error,
+                imageVector = Icons.Default.Warning,
                 contentDescription = stringResource(id = R.string.error),
                 tint = if (isDarkTheme) Color(0xFFFFB4AB) else scheme.error,
                 modifier = Modifier.size(64.dp)
@@ -429,7 +427,7 @@ fun EmptyView(isDarkTheme: Boolean = isSystemInDarkTheme()) {
             modifier = Modifier.padding(32.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.UploadFile,
+                imageVector = Icons.Default.Add,
                 contentDescription = stringResource(id = R.string.empty),
                 tint = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else scheme.onSurfaceVariant.copy(alpha = 0.3f),
                 modifier = Modifier.size(64.dp)
@@ -826,7 +824,7 @@ fun UploadMusicDialog(
                     enabled = !isUploading
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
+                        painter = painterResource(R.drawable.music),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -867,7 +865,7 @@ fun UploadMusicDialog(
                     enabled = !isUploading && languageCode != "instrumental"
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
+                        painter = painterResource(R.drawable.music),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -939,7 +937,7 @@ fun UploadMusicDialog(
                     enabled = !isUploading
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MusicNote,
+                        painter = painterResource(R.drawable.music),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -1732,7 +1730,9 @@ private fun PreviewPlayDialog(
                         modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            painter = painterResource(
+                                if (isPlaying) R.drawable.pause else R.drawable.play,
+                            ),
                             contentDescription = if (isPlaying) "暂停" else "播放",
                             modifier = Modifier.fillMaxSize(),
                             tint = RoseRed

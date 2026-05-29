@@ -37,7 +37,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                arguments("-DANDROID_STL=c++_shared")
+                arguments("-DANDROID_STL=c++_static")
             }
         }
     }
@@ -149,7 +149,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material)
-    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.geometry)
@@ -161,7 +161,6 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.client.logging)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
     // Image & Audio
@@ -169,7 +168,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor)
     implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
-    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+    implementation("com.google.android.exoplayer:extension-mediasession:2.19.1")
 
     // ✅ Room 必须使用 KSP
     implementation(libs.androidx.room.runtime)
