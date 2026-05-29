@@ -3,6 +3,9 @@ package com.neko.music.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,7 +34,9 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -51,7 +56,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +76,9 @@ import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.config.AppConfig
+import com.neko.music.data.manager.AppBackgroundKind
+import com.neko.music.data.manager.AppPageBackgroundStore
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.LiquidGlassUiScale
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
@@ -82,6 +92,9 @@ import com.neko.music.ui.theme.SkyBlue
 import com.neko.music.ui.theme.StarYellow
 import com.neko.music.ui.theme.defaultLyricHighlightColor
 import com.neko.music.ui.theme.lyricColorFromArgb
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -162,6 +175,39 @@ fun PersonalizationScreen(
     val isDarkChrome = com.neko.music.ui.theme.resolveAppDarkTheme(themeMode, isSystemInDarkTheme())
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val scope = rememberCoroutineScope()
+    var customBackgroundByKind by remember {
+        mutableStateOf(
+            AppBackgroundKind.entries.associateWith { AppPageBackgroundStore.hasCustom(context, it) },
+        )
+    }
+    var pickingBackgroundKind by remember { mutableStateOf<AppBackgroundKind?>(null) }
+    var savingBackgroundKind by remember { mutableStateOf<AppBackgroundKind?>(null) }
+    val backgroundAppliedText = stringResource(R.string.personalization_background_applied)
+    val backgroundFailedText = stringResource(R.string.personalization_background_failed)
+    val pickBackgroundLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri ->
+        val kind = pickingBackgroundKind
+        if (uri == null || kind == null) {
+            pickingBackgroundKind = null
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            savingBackgroundKind = kind
+            val ok = withContext(Dispatchers.IO) {
+                AppPageBackgroundStore.setFromUri(context, kind, uri)
+            }
+            savingBackgroundKind = null
+            pickingBackgroundKind = null
+            if (ok) {
+                customBackgroundByKind = customBackgroundByKind + (kind to true)
+                Toast.makeText(context, backgroundAppliedText, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, backgroundFailedText, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     fun applyTheme(mode: String) {
         if (mode == themeMode) return
@@ -183,11 +229,9 @@ fun PersonalizationScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
+                kind = AppBackgroundKind.SubPage,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
             PlaylistPageDarkTintOverlay(enabled = isDarkChrome)
         }
@@ -297,6 +341,114 @@ fun PersonalizationScreen(
                                 fontSize = 14.sp,
                                 color = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SettingSection(
+                        title = stringResource(id = R.string.personalization_background_section),
+                        useDarkAppearance = isDarkChrome,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.personalization_background_subtitle),
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = if (isDarkChrome) {
+                                    Color(0xFFB8B8D1).copy(alpha = 0.85f)
+                                } else {
+                                    scheme.onSurfaceVariant
+                                },
+                            )
+                            AppBackgroundKind.entries.forEach { kind ->
+                                val hasCustom = customBackgroundByKind[kind] == true
+                                val isSavingThis = savingBackgroundKind == kind
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = stringResource(id = kind.titleResId),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isDarkChrome) {
+                                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                                        } else {
+                                            scheme.onSurface
+                                        },
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(96.dp)
+                                            .clip(RoundedCornerShape(12.dp)),
+                                    ) {
+                                        AppPageBackgroundImage(
+                                            kind = kind,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                        if (kind == AppBackgroundKind.SubPage) {
+                                            PlaylistPageDarkTintOverlay(enabled = isDarkChrome)
+                                        }
+                                        if (isSavingThis) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color.Black.copy(alpha = 0.35f)),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                CircularProgressIndicator(color = RoseRed)
+                                            }
+                                        }
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                if (savingBackgroundKind == null) {
+                                                    pickingBackgroundKind = kind
+                                                    pickBackgroundLauncher.launch("image/*")
+                                                }
+                                            },
+                                            enabled = savingBackgroundKind == null,
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Image,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(stringResource(id = R.string.personalization_background_choose))
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                if (savingBackgroundKind == null && hasCustom) {
+                                                    scope.launch(Dispatchers.IO) {
+                                                        AppPageBackgroundStore.clear(context, kind)
+                                                        customBackgroundByKind = customBackgroundByKind + (kind to false)
+                                                    }
+                                                }
+                                            },
+                                            enabled = savingBackgroundKind == null && hasCustom,
+                                            modifier = Modifier.weight(1f),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Restore,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(stringResource(id = R.string.personalization_background_reset))
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 

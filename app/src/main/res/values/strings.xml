@@ -28,6 +28,16 @@
 
     <string name="personalization_section">外观与个性化喵</string>
     <string name="personalization">个性化喵</string>
+    <string name="personalization_background_section">背景喵</string>
+    <string name="personalization_background_subtitle">下面每一块都能单独换壁纸喵；子页面暗色还有遮罩</string>
+    <string name="personalization_background_sub_page">子页面（热门、收藏、设置等）喵</string>
+    <string name="personalization_background_home">首页喵</string>
+    <string name="personalization_background_mine_header">我的 · 顶栏喵</string>
+    <string name="personalization_background_my_playlists">我的歌单喵</string>
+    <string name="personalization_background_choose">选择图片</string>
+    <string name="personalization_background_reset">恢复默认</string>
+    <string name="personalization_background_applied">背景换好啦喵</string>
+    <string name="personalization_background_failed">背景保存失败喵</string>
     <string name="theme_mode">主题模式喵</string>
     <string name="theme_follow_system">跟随系统喵</string>
     <string name="theme_light">浅色喵</string>

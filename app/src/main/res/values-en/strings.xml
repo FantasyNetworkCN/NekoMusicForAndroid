@@ -28,6 +28,16 @@
 
     <string name="personalization_section">Appearance</string>
     <string name="personalization">Personalization</string>
+    <string name="personalization_background_section">Background</string>
+    <string name="personalization_background_subtitle">Set each area separately. Dark mode still applies the overlay on sub-pages.</string>
+    <string name="personalization_background_sub_page">Sub-pages (charts, favorites, settings, etc.)</string>
+    <string name="personalization_background_home">Home</string>
+    <string name="personalization_background_mine_header">Profile · top banner</string>
+    <string name="personalization_background_my_playlists">My playlists</string>
+    <string name="personalization_background_choose">Choose image</string>
+    <string name="personalization_background_reset">Restore default</string>
+    <string name="personalization_background_applied">Background updated</string>
+    <string name="personalization_background_failed">Could not save background image</string>
     <string name="theme_mode">Theme</string>
     <string name="theme_follow_system">Follow system</string>
     <string name="theme_light">Light</string>

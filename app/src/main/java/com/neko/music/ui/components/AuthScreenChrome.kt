@@ -83,11 +83,8 @@ fun AuthPageShell(
                 .fillMaxSize()
                 .layerBackdrop(resolvedBackdrop),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
             )
         }
 

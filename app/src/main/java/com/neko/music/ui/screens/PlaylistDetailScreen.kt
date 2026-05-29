@@ -63,6 +63,7 @@ import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -373,11 +374,8 @@ fun PlaylistDetailScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
             PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }

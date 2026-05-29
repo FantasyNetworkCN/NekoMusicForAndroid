@@ -37,6 +37,8 @@ import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
+import com.neko.music.data.manager.AppBackgroundKind
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -93,11 +95,8 @@ fun MineScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
             )
             Box(
                 modifier = Modifier
@@ -271,11 +270,9 @@ fun MineHeader(
             .fillMaxWidth()
             .height(268.dp)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.background),
-            contentDescription = null,
+        AppPageBackgroundImage(
+            kind = com.neko.music.data.manager.AppBackgroundKind.MineHeader,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
         )
         Box(
             modifier = Modifier
