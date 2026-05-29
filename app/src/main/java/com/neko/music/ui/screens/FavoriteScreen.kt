@@ -24,9 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.isSystemInDarkTheme
 import com.neko.music.R
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.isAppDarkTheme
 import coil3.compose.AsyncImage
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.components.GlassSurface
@@ -142,7 +142,7 @@ fun FavoriteScreen(
         }
     }
 
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
@@ -265,13 +265,21 @@ fun FavoriteScreen(
                                 text = if (searchQuery.isEmpty()) stringResource(id = R.string.no_favorites) else stringResource(id = R.string.no_search_results),
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Gray
+                                color = if (isDarkTheme) {
+                                    Color.White.copy(alpha = 0.6f)
+                                } else {
+                                    scheme.onSurface
+                                }
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = if (searchQuery.isEmpty()) stringResource(id = R.string.go_discover) else stringResource(id = R.string.try_other_keywords),
                                 fontSize = 14.sp,
-                                color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
+                                color = if (isDarkTheme) {
+                                    Color.White.copy(alpha = 0.4f)
+                                } else {
+                                    scheme.onSurfaceVariant
+                                }
                             )
                         }
                     }
@@ -366,7 +374,7 @@ fun FavoriteItem(
         }
     }
 
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
@@ -457,7 +465,7 @@ fun FavoriteSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    isDarkTheme: Boolean = isSystemInDarkTheme()
+    isDarkTheme: Boolean = isAppDarkTheme()
 ) {
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)

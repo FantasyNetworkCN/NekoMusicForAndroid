@@ -76,6 +76,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.ui.theme.isAppDarkTheme
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -122,7 +123,7 @@ fun BottomNavigationBar(
     BoxWithConstraints(modifier = modifier.fillMaxWidth().height(52.dp)) {
             val colorScheme = MaterialTheme.colorScheme
             /** 与主题背景一致（含动态色 / 深浅色），避免底栏写死成「深色玻璃 + 白字」 */
-            val isDarkBar = colorScheme.background.luminance() < 0.5f
+            val isDarkBar = isAppDarkTheme()
             val density = LocalDensity.current
             val view = LocalView.current
             val scope = rememberCoroutineScope()
@@ -378,8 +379,26 @@ fun MiniPlayer(
         )
     )
 
-    // 获取当前主题的背景色
-    val isDarkTheme = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkTheme = isAppDarkTheme()
+    val titleColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.98f) else colorScheme.onSurface
+    val subtitleColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.65f) else colorScheme.onSurfaceVariant
+    val progressTrackColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.15f) else colorScheme.onSurface.copy(alpha = 0.12f)
+    val progressActiveColor =
+        if (isDarkTheme) Color.White.copy(alpha = 0.9f) else colorScheme.primary
+    val playButtonBg =
+        if (isDarkTheme) Color.White.copy(alpha = 0.95f) else colorScheme.primary
+    val playButtonIconTint =
+        if (isDarkTheme) Color(0xFF1A1A2E) else colorScheme.onPrimary
+    val playlistButtonBg =
+        if (isDarkTheme) Color.White.copy(alpha = 0.12f) else colorScheme.onSurface.copy(alpha = 0.08f)
+    val playlistButtonBorder =
+        if (isDarkTheme) Color.White.copy(alpha = 0.18f) else colorScheme.outline.copy(alpha = 0.35f)
+    val playlistIconTint =
+        if (isDarkTheme) Color.White.copy(alpha = 0.85f) else colorScheme.onSurface.copy(alpha = 0.88f)
 
     val miniTint = LiquidGlassDefaults.miniPlayerBar
     val miniLiq = LiquidGlassDefaults.liquidSoft
@@ -458,29 +477,45 @@ fun MiniPlayer(
                             text = songTitle.ifEmpty { stringResource(id = R.string.player_no_music) },
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.98f),
+                            color = titleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             style = androidx.compose.ui.text.TextStyle(
-                                shadow = Shadow(
-                                    color = Color.Black.copy(alpha = 0.5f),
-                                    offset = Offset(0f, 1f),
-                                    blurRadius = 4f
-                                )
+                                shadow = if (isDarkTheme) {
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.5f),
+                                        offset = Offset(0f, 1f),
+                                        blurRadius = 4f
+                                    )
+                                } else {
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.08f),
+                                        offset = Offset(0f, 1f),
+                                        blurRadius = 2f
+                                    )
+                                }
                             )
                         )
                         Text(
                             text = artist.ifEmpty { stringResource(id = R.string.player_click_to_play) },
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.65f),
+                            color = subtitleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             style = androidx.compose.ui.text.TextStyle(
-                                shadow = Shadow(
-                                    color = Color.Black.copy(alpha = 0.4f),
-                                    offset = Offset(0f, 1f),
-                                    blurRadius = 3f
-                                )
+                                shadow = if (isDarkTheme) {
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.4f),
+                                        offset = Offset(0f, 1f),
+                                        blurRadius = 3f
+                                    )
+                                } else {
+                                    Shadow(
+                                        color = Color.Black.copy(alpha = 0.06f),
+                                        offset = Offset(0f, 1f),
+                                        blurRadius = 2f
+                                    )
+                                }
                             )
                         )
                     }
@@ -506,7 +541,7 @@ fun MiniPlayer(
 
                             // 背景圆环
                             drawCircle(
-                                color = Color.White.copy(alpha = 0.15f),
+                                color = progressTrackColor,
                                 radius = radius,
                                 center = center,
                                 style = Stroke(
@@ -518,7 +553,7 @@ fun MiniPlayer(
                             // 进度圆环
                             if (progress > 0f) {
                                 drawArc(
-                                    color = Color.White.copy(alpha = 0.9f),
+                                    color = progressActiveColor,
                                     startAngle = -90f,
                                     sweepAngle = 360f * progress,
                                     useCenter = false,
@@ -537,7 +572,7 @@ fun MiniPlayer(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.95f))
+                                .background(playButtonBg)
                                 .clickable(onClick = onPlayPauseClick),
                             contentAlignment = Alignment.Center
                         ) {
@@ -546,7 +581,7 @@ fun MiniPlayer(
                                     id = if (isPlaying) R.drawable.pause else R.drawable.play
                                 ),
                                 contentDescription = if (isPlaying) stringResource(id = R.string.content_description_pause) else stringResource(id = R.string.content_description_play),
-                                tint = Color(0xFF1A1A2E),
+                                tint = playButtonIconTint,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -557,10 +592,10 @@ fun MiniPlayer(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.12f))
+                            .background(playlistButtonBg)
                             .border(
                                 width = 0.5.dp,
-                                color = Color.White.copy(alpha = 0.18f),
+                                color = playlistButtonBorder,
                                 shape = CircleShape
                             )
                             .clickable(onClick = onPlaylistClick),
@@ -569,7 +604,7 @@ fun MiniPlayer(
                         Icon(
                             painter = painterResource(R.drawable.playlist),
                             contentDescription = stringResource(id = R.string.content_description_playlist),
-                            tint = Color.White.copy(alpha = 0.85f),
+                            tint = playlistIconTint,
                             modifier = Modifier.size(20.dp)
                         )
                     }

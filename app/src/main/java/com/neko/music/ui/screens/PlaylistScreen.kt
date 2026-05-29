@@ -67,6 +67,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
 import java.util.Collections
 import kotlinx.coroutines.launch
@@ -83,7 +84,7 @@ fun PlaylistScreen(
     val playlistManager = PlaylistManager.getInstance(context)
     val playlist by playlistManager.playlist.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
 
     AnimatedVisibility(
         visible = isVisible,
@@ -337,7 +338,7 @@ fun PlaylistItem(
     onReorderDragCancel: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val rowGlass = LiquidGlassDefaults.playlistQueueRow
 
     GlassSurface(

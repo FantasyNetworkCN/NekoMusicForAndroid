@@ -52,7 +52,7 @@ import com.neko.music.util.UrlConfig
 import androidx.compose.ui.zIndex
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.neko.music.ui.theme.isAppDarkTheme
 import coil3.request.error
 import coil3.request.placeholder
 import com.neko.music.data.manager.TokenManager
@@ -520,7 +520,7 @@ fun MyPlaylistsScreen(
                                             .padding(vertical = 8.dp)
                                             .height(1.dp)
                                             .background(
-                                                if (isSystemInDarkTheme()) {
+                                                if (isAppDarkTheme()) {
                                                     Color.White.copy(alpha = 0.1f)
                                                 } else {
                                                     Color.Black.copy(alpha = 0.1f)
@@ -567,7 +567,7 @@ fun MyPlaylistsScreen(
 
                             // 添加创建按钮项
                             item {
-                                val isDark = isSystemInDarkTheme()
+                                val isDark = isAppDarkTheme()
                                 val rowScheme = MaterialTheme.colorScheme
                                 val rowGlass = LiquidGlassDefaults.myPlaylistsListRow
                                 GlassSurface(
@@ -621,7 +621,7 @@ fun MyPlaylistsScreen(
                             }
 
                             item {
-                                val isDark = isSystemInDarkTheme()
+                                val isDark = isAppDarkTheme()
                                 val rowScheme = MaterialTheme.colorScheme
                                 val rowGlass = LiquidGlassDefaults.myPlaylistsListRow
                                 GlassSurface(
@@ -951,7 +951,7 @@ fun PlaylistItem(
     )
 
     val isMyFavorites = playlist.id == 0
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val itemScheme = MaterialTheme.colorScheme
 
     val coverUrl = remember(playlist, favorites, firstMusicCover) {
@@ -1128,7 +1128,7 @@ private fun ImportPlaylistSourceDialog(
     val neteaseLabel = stringResource(R.string.import_source_netease)
     val qqLabel = stringResource(R.string.import_source_qq)
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val optionGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
@@ -1245,7 +1245,7 @@ private fun NeteasePlaylistIdDialog(
     val confirmText = stringResource(R.string.confirm)
 
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
@@ -1486,7 +1486,7 @@ private fun ImportMatchFailedDialog(
     val confirmText = stringResource(R.string.confirm)
 
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
     val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
@@ -1653,7 +1653,7 @@ fun PlaylistDialog(
     val confirmText = stringResource(id = R.string.confirm)
 
     val scheme = MaterialTheme.colorScheme
-    val isDarkTheme = scheme.background.luminance() < 0.5f
+    val isDarkTheme = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton

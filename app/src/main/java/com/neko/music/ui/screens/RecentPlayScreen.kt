@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -70,7 +71,7 @@ fun RecentPlayScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val scope = rememberCoroutineScope()
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
@@ -240,7 +241,7 @@ fun RecentPlayItem(
     val context = androidx.compose.ui.platform.LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val scope = rememberCoroutineScope()
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
 
     val currentMusicId by playerManager.currentMusicId.collectAsState()

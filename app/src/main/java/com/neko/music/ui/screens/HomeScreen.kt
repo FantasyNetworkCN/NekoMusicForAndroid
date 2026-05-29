@@ -85,6 +85,7 @@ import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.theme.SkyBlue
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -799,7 +800,7 @@ fun PlaylistCard(
     modifier: Modifier = Modifier
 ) {
     val scheme = MaterialTheme.colorScheme
-    val isDarkCard = scheme.background.luminance() < 0.5f
+    val isDarkCard = isAppDarkTheme()
     val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
     val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
     val cardTitleShadow =
@@ -991,7 +992,7 @@ fun RankingMusicCard(
     val songsCountShortText = stringResource(id = R.string.songs_count_short, musicList.size)
 
     val scheme = MaterialTheme.colorScheme
-    val isDarkCard = scheme.background.luminance() < 0.5f
+    val isDarkCard = isAppDarkTheme()
     val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
     val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
     val cardTitleShadow =
