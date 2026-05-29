@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.luminance
+import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -55,7 +55,7 @@ fun SearchLiquidTopOverlay(
 ) {
     val backdropForGlass = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val density = LocalDensity.current
     val extraTopGap = remember(density) {
         with(density) { (5f / this.density).dp }
