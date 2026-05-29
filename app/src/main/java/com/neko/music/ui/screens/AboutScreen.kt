@@ -30,6 +30,7 @@ import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.verticalScroll
@@ -46,7 +47,7 @@ fun AboutScreen(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     
     SideEffect {
         val window = (view.context as android.app.Activity).window
@@ -106,6 +107,7 @@ fun AboutScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay()
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
@@ -167,7 +169,7 @@ fun InfoCard(
     items: List<Pair<String, String>>,
     scale: Float
 ) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
@@ -223,7 +225,11 @@ fun InfoCard(
                     Text(
                         text = label,
                         fontSize = 15.sp,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                        color = if (isDarkTheme) {
+                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                        } else {
+                            scheme.onSurfaceVariant
+                        },
                         fontWeight = FontWeight.Medium
                     )
                     Text(
@@ -240,7 +246,7 @@ fun InfoCard(
 
 @Composable
 fun TechStackCard(scale: Float) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
@@ -314,7 +320,7 @@ fun TechStackCard(scale: Float) {
 
 @Composable
 fun TechItem(tech: String, desc: String, modifier: Modifier = Modifier) {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
 
     Box(
@@ -341,7 +347,11 @@ fun TechItem(tech: String, desc: String, modifier: Modifier = Modifier) {
             Text(
                 text = desc,
                 fontSize = 12.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                }
             )
         }
     }
@@ -349,7 +359,7 @@ fun TechItem(tech: String, desc: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun CopyrightCard() {
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
@@ -390,7 +400,11 @@ fun CopyrightCard() {
             Text(
                 text = stringResource(id = R.string.icp_license),
                 fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                },
                 textAlign = TextAlign.Center
             )
             
@@ -399,7 +413,11 @@ fun CopyrightCard() {
             Text(
                 text = stringResource(id = R.string.copyright_contact),
                 fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                },
                 textAlign = TextAlign.Center
             )
             
@@ -408,7 +426,11 @@ fun CopyrightCard() {
             Text(
                 text = stringResource(id = R.string.copyright_text),
                 fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                },
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Medium
             )
@@ -418,7 +440,11 @@ fun CopyrightCard() {
             Text(
                 text = stringResource(id = R.string.all_rights_reserved),
                 fontSize = 14.sp,
-                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    scheme.onSurfaceVariant
+                },
                 textAlign = TextAlign.Center
             )
         }

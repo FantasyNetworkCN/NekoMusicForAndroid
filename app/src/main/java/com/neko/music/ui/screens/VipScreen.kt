@@ -1,7 +1,7 @@
 package com.neko.music.ui.screens
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,7 +86,7 @@ fun VipScreen(
     var payWeb by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val scheme = MaterialTheme.colorScheme
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val heroGlass = LiquidGlassDefaults.vipCenterHero
     val pricingGlass = LiquidGlassDefaults.vipCenterPricingCard

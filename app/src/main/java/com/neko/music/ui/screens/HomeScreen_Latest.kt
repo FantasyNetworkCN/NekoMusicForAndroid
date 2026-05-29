@@ -41,6 +41,7 @@ import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
+import com.neko.music.ui.theme.isAppDarkTheme
 
 // LatestMusicCard组件，用于在HomeScreen中显示最新音乐
 @Composable
@@ -55,7 +56,7 @@ fun LatestMusicCard(
     val songsCountFormat = stringResource(id = R.string.songs_count_format, musicList.size)
 
     val scheme = MaterialTheme.colorScheme
-    val isDarkCard = scheme.background.luminance() < 0.5f
+    val isDarkCard = isAppDarkTheme()
     val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
     val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
     val cardTitleShadow =
@@ -254,6 +255,11 @@ fun DailyRecommendationCard(
     val title = stringResource(id = R.string.daily_recommendation_title)
     val subtitle = stringResource(id = R.string.daily_recommendation_desc)
     val count = stringResource(id = R.string.songs_count_format, musicList.size)
+    val scheme = MaterialTheme.colorScheme
+    val isDarkCard = isAppDarkTheme()
+    val titleColor = if (isDarkCard) Color.White else scheme.onSurface
+    val subtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.82f) else scheme.onSurfaceVariant
+    val countColor = if (isDarkCard) Color.White.copy(alpha = 0.95f) else scheme.onSurface
 
     val context = LocalContext.current
     val musicApi = remember { com.neko.music.data.api.MusicApi(context) }
@@ -300,7 +306,7 @@ fun DailyRecommendationCard(
         ) {
             Text(
                 text = title,
-                color = Color.White,
+                color = titleColor,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -309,7 +315,7 @@ fun DailyRecommendationCard(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                color = Color.White.copy(alpha = 0.82f),
+                color = subtitleColor,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -317,7 +323,7 @@ fun DailyRecommendationCard(
         }
         Text(
             text = count,
-            color = Color.White.copy(alpha = 0.95f),
+            color = countColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(end = 14.dp)

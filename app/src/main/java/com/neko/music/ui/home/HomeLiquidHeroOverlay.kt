@@ -41,6 +41,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.screens.DailyRecommendationCard
 import com.neko.music.ui.screens.LatestMusicCard
 import com.neko.music.ui.screens.PlaylistCard
@@ -68,7 +69,7 @@ fun HomeLiquidHeroOverlay(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isDarkHome = colorScheme.background.luminance() < 0.5f
+    val isDarkHome = isAppDarkTheme()
 
     CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
     Column(

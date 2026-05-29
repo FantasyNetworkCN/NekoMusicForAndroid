@@ -10,7 +10,7 @@ import com.neko.music.R
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -232,7 +232,7 @@ fun SettingsScreen(
     }
 
     val scheme = MaterialTheme.colorScheme
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
@@ -469,7 +469,7 @@ fun SettingSection(
     useDarkAppearance: Boolean? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-        val isDark = useDarkAppearance ?: isSystemInDarkTheme()
+        val isDark = useDarkAppearance ?: isAppDarkTheme()
         val glassTint = LiquidGlassDefaults.screenListCard
         val glassBg = glassTint.background(isDark)
         val glassBorder = glassTint.border(isDark)
@@ -506,7 +506,7 @@ fun SettingItem(
         onClick: () -> Unit = {}
     ) {
         var isPressed by remember { mutableStateOf(false) }
-        val isDarkTheme = isSystemInDarkTheme()
+        val isDarkTheme = isAppDarkTheme()
 
         Surface(
             modifier = Modifier
@@ -597,7 +597,7 @@ fun SettingSwitchItem(
     useDarkAppearance: Boolean? = null,
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    val isDarkTheme = useDarkAppearance ?: isSystemInDarkTheme()
+    val isDarkTheme = useDarkAppearance ?: isAppDarkTheme()
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -685,7 +685,7 @@ fun LanguageSelectionDialog(
     onDismiss: () -> Unit,
     onLanguageSelected: (String) -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val languages = listOf(
         "system" to stringResource(id = R.string.language_follow_system),
         "zh" to stringResource(id = R.string.language_zh),

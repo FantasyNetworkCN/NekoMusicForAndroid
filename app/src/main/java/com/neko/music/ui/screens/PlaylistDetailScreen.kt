@@ -20,7 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -365,7 +365,7 @@ fun PlaylistDetailScreen(
     val scheme = MaterialTheme.colorScheme
     val liquidGlass = LiquidGlassDefaults.playlistDetail
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -1078,7 +1078,7 @@ private fun PlaylistBatchDeleteGlassDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     BackHandler(onBack = onDismiss)
     Dialog(
@@ -1220,7 +1220,7 @@ private fun PlaylistShareSheet(
         label = "playlist_share_scrim",
     )
     BackHandler(onBack = onDismiss)
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val shareLabelTint =
         if (isDarkTheme) Color.White.copy(alpha = 0.82f) else scheme.onSurfaceVariant
@@ -1438,7 +1438,7 @@ fun PlaylistMusicItem(
     showDeleteButton: Boolean = true,
     liquidGlass: PlaylistDetailLiquidGlassParams = LiquidGlassDefaults.playlistDetail,
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
 
     val coverUrl = remember(music.id) {
