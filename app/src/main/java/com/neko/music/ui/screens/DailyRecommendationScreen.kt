@@ -37,7 +37,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.luminance
@@ -57,10 +56,8 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import com.neko.music.ui.theme.DeepBlue
-import com.neko.music.ui.theme.Lilac
-import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 
@@ -204,22 +201,7 @@ fun DailyRecommendationScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            if (isDark) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    DeepBlue.copy(alpha = 0.78f),
-                                    RoseRed.copy(alpha = 0.28f),
-                                    Lilac.copy(alpha = 0.18f),
-                                    DeepBlue.copy(alpha = 0.82f)
-                                )
-                            )
-                        )
-                )
-            }
+            PlaylistPageDarkTintOverlay()
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {

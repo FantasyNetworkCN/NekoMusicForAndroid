@@ -56,6 +56,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
@@ -227,6 +228,7 @@ fun ArtistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {

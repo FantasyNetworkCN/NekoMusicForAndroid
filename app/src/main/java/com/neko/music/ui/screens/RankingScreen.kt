@@ -53,6 +53,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.list.RankingLiquidBarState
 import kotlinx.coroutines.launch
@@ -151,6 +152,7 @@ fun RankingScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay()
         }
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Box(modifier = Modifier.fillMaxSize()) {

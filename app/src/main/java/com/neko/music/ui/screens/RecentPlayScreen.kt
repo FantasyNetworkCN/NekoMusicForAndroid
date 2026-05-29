@@ -51,6 +51,7 @@ import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -113,6 +114,7 @@ fun RecentPlayScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay()
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
