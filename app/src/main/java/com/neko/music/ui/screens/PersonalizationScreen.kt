@@ -158,12 +158,7 @@ fun PersonalizationScreen(
         )
     }
 
-    val systemDark = isSystemInDarkTheme()
-    val isDarkChrome = when (themeMode) {
-        "light" -> false
-        "dark" -> true
-        else -> systemDark
-    }
+    val isDarkChrome = com.neko.music.ui.theme.resolveAppDarkTheme(themeMode, isSystemInDarkTheme())
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 

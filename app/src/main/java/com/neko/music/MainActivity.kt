@@ -1737,11 +1737,7 @@ private fun AppThemeWrapper(content: @Composable () -> Unit) {
         AppConfig.PrefConfig.KEY_DYNAMIC_COLOR,
         AppConfig.PrefConfig.DEFAULT_DYNAMIC_COLOR
     )
-    val darkTheme = when (themeMode) {
-        "light" -> false
-        "dark" -> true
-        else -> systemDark
-    }
+    val darkTheme = com.neko.music.ui.theme.resolveAppDarkTheme(themeMode, systemDark)
     Neko云音乐Theme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
         val liquidScale = remember(prefs) { prefs.readLiquidGlassUiScale() }
         val liquidHardware = prefs.getBoolean(

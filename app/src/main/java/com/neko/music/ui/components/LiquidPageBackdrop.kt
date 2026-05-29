@@ -1,7 +1,6 @@
 package com.neko.music.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -14,6 +13,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.neko.music.ui.theme.DeepBlue
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.isAppDarkTheme
 
 /** 与 MainActivity 主 Nav 一致：先铺底色再 `drawContent()`，供页内独立 [rememberLiquidPageBackdrop] 使用。 */
 fun liquidBackdropLayerFillOnDraw(fill: Color): ContentDrawScope.() -> Unit = {
@@ -31,7 +31,7 @@ fun PlaylistPageDarkTintOverlay(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    if (!isSystemInDarkTheme() || !enabled) return
+    if (!isAppDarkTheme() || !enabled) return
 
     Box(
         modifier = modifier

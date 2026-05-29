@@ -58,6 +58,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 
@@ -181,7 +182,7 @@ fun DailyRecommendationScreen(
     }
 
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
+    val isDark = isAppDarkTheme()
     val pageTitleColor = if (isDark) Color.White else scheme.onSurface
     val pageBodyColor =
         if (isDark) Color.White.copy(alpha = 0.92f) else scheme.onSurface.copy(alpha = 0.84f)
