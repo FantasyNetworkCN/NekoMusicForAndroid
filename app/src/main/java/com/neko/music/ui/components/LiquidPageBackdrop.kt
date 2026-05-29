@@ -29,9 +29,9 @@ fun rememberLiquidPageBackdrop(fillColor: Color) =
 @Composable
 fun PlaylistPageDarkTintOverlay(
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = isAppDarkTheme(),
 ) {
-    if (!isAppDarkTheme() || !enabled) return
+    if (!enabled) return
 
     Box(modifier = modifier.fillMaxSize()) {
         Box(
