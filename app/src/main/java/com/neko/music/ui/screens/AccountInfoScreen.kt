@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -62,7 +61,9 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.theme.*
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 
@@ -82,15 +83,17 @@ fun AccountInfoScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
     val glassHighlight = glassTint.highlight(isDarkTheme)
+    val primaryTextColor = if (isDarkTheme) Color(0xFFFFF8FA) else scheme.onSurface
+    val secondaryTextColor = if (isDarkTheme) LightRose else scheme.onSurfaceVariant
     val dividerColor =
-        if (isDarkTheme) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
+        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
     
     // 头像更新时间戳，用于绕过缓存
     var avatarUpdateTime by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -144,6 +147,7 @@ fun AccountInfoScreen(
             AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
@@ -151,7 +155,7 @@ fun AccountInfoScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
-            contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
+            contentColor = primaryTextColor,
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -159,7 +163,7 @@ fun AccountInfoScreen(
                             text = stringResource(id = R.string.account_info),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                            color = primaryTextColor,
                         )
                     },
                     navigationIcon = {
@@ -167,7 +171,7 @@ fun AccountInfoScreen(
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = stringResource(id = R.string.back),
-                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                                tint = primaryTextColor,
                             )
                         }
                     },
@@ -229,7 +233,7 @@ fun AccountInfoScreen(
                             Text(
                                 text = stringResource(id = R.string.click_avatar_to_change),
                                 fontSize = 13.sp,
-                                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.75f) else scheme.onSurfaceVariant
+                                color = secondaryTextColor,
                             )
                         }
                     }
@@ -250,7 +254,9 @@ fun AccountInfoScreen(
                                 value = username,
                                 showArrow = false,
                                 colorFilter = ColorFilter.tint(RoseRed),
-                                isDarkTheme = isDarkTheme
+                                primaryTextColor = primaryTextColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkTheme = isDarkTheme,
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 12.dp),
@@ -261,7 +267,9 @@ fun AccountInfoScreen(
                                 title = stringResource(id = R.string.email),
                                 value = email,
                                 showArrow = false,
-                                isDarkTheme = isDarkTheme
+                                primaryTextColor = primaryTextColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkTheme = isDarkTheme,
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 12.dp),
@@ -283,7 +291,9 @@ fun AccountInfoScreen(
                                 showArrow = true,
                                 onClick = onVipCenterClick,
                                 colorFilter = ColorFilter.tint(Color(0xFFFFB300)),
-                                isDarkTheme = isDarkTheme
+                                primaryTextColor = primaryTextColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkTheme = isDarkTheme,
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 12.dp),
@@ -296,7 +306,9 @@ fun AccountInfoScreen(
                                 showArrow = true,
                                 onClick = { showPasswordDialog = true },
                                 colorFilter = ColorFilter.tint(RoseRed),
-                                isDarkTheme = isDarkTheme
+                                primaryTextColor = primaryTextColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkTheme = isDarkTheme,
                             )
                         }
                     }
@@ -383,7 +395,7 @@ fun AccountInfoScreen(
                         text = toastMessage ?: stringResource(id = R.string.operation_success),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                        color = primaryTextColor,
                     )
                 }
             }
@@ -432,7 +444,9 @@ fun InfoCard(
     showArrow: Boolean = false,
     onClick: () -> Unit = {},
     colorFilter: ColorFilter? = null,
-    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    primaryTextColor: Color = MaterialTheme.colorScheme.onSurface,
+    secondaryTextColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    isDarkTheme: Boolean = isAppDarkTheme(),
 ) {
     var isPressed by remember { mutableStateOf(false) }
 
@@ -482,15 +496,15 @@ fun InfoCard(
                 Text(
                     text = title,
                     fontSize = 14.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                    fontWeight = FontWeight.Medium
+                    color = secondaryTextColor,
+                    fontWeight = FontWeight.Medium,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = value,
                     fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black,
-                    fontWeight = FontWeight.Medium
+                    color = primaryTextColor,
+                    fontWeight = FontWeight.Medium,
                 )
             }
 
@@ -498,7 +512,7 @@ fun InfoCard(
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowRight,
                     contentDescription = stringResource(id = R.string.more),
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    tint = secondaryTextColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
