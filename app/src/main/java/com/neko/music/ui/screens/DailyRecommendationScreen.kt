@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -36,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -177,8 +179,14 @@ fun DailyRecommendationScreen(
         }
     }
 
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val pageBackdrop = rememberLiquidPageBackdrop(MaterialTheme.colorScheme.background)
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val pageTitleColor = if (isDark) Color.White else scheme.onSurface
+    val pageBodyColor =
+        if (isDark) Color.White.copy(alpha = 0.92f) else scheme.onSurface.copy(alpha = 0.84f)
+    val itemMetaColor =
+        if (isDark) Color.White.copy(alpha = 0.88f) else scheme.onSurface.copy(alpha = 0.78f)
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -197,10 +205,14 @@ fun DailyRecommendationScreen(
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             when {
                 loading && musicList.isEmpty() -> {
-                    LatestLoadingState()
+                    LatestLoadingState(messageColor = pageBodyColor)
                 }
                 loadError && musicList.isEmpty() -> {
-                    LatestErrorState(onRetry = { loadData() })
+                    LatestErrorState(
+                        onRetry = { loadData() },
+                        titleColor = pageTitleColor,
+                        messageColor = pageBodyColor
+                    )
                 }
                 musicList.isEmpty() -> {
                     Column(
@@ -210,7 +222,9 @@ fun DailyRecommendationScreen(
                     ) {
                         Text(
                             text = stringResource(id = R.string.no_daily_recommendation),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = pageBodyColor,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -240,7 +254,8 @@ fun DailyRecommendationScreen(
                                     Text(
                                         text = stringResource(id = R.string.daily_recommendation_title),
                                         style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = pageTitleColor,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     val playAllGlass = LiquidGlassDefaults.rankingRetryButton
                                     GlassSurface(
@@ -267,17 +282,18 @@ fun DailyRecommendationScreen(
                                             Icon(
                                                 imageVector = Icons.Default.PlayArrow,
                                                 contentDescription = stringResource(id = R.string.play_all),
-                                                tint = MaterialTheme.colorScheme.primary
+                                                tint = pageTitleColor,
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text(
                                                 text = stringResource(
                                                     id = R.string.play_all_count,
                                                     musicList.size
                                                 ),
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold
+                                                color = pageTitleColor,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
@@ -286,7 +302,8 @@ fun DailyRecommendationScreen(
                                 Text(
                                     text = stringResource(id = R.string.daily_recommendation_desc),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = pageBodyColor,
+                                    fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
@@ -297,7 +314,10 @@ fun DailyRecommendationScreen(
                                 LatestItem(
                                     music = music,
                                     index = index,
-                                    onClick = { playMusicAndNavigate(music) }
+                                    onClick = { playMusicAndNavigate(music) },
+                                    titleColor = pageTitleColor,
+                                    subtitleColor = pageBodyColor,
+                                    metaColor = itemMetaColor
                                 )
                             }
                         }
