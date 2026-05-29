@@ -61,6 +61,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
 import com.neko.music.ui.components.ShareSheetLiquidSection
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -378,6 +379,7 @@ fun PlaylistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {

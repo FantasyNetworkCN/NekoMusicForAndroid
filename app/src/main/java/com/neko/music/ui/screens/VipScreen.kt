@@ -59,6 +59,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LiquidGlassPanel
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.VipPill
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.PayLauncher
@@ -125,6 +126,7 @@ fun VipScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         Scaffold(
