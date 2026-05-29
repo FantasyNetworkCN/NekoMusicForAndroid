@@ -50,6 +50,7 @@ import com.neko.music.ui.components.LiquidGlassSwitch
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
 import kotlinx.coroutines.launch
@@ -245,11 +246,8 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
             PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }

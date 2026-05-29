@@ -99,6 +99,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -199,11 +200,8 @@ fun UploadedMusicScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
         }
 

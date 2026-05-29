@@ -70,6 +70,8 @@ import com.neko.music.data.model.Playlist
 import com.neko.music.data.model.SearchItem
 import com.neko.music.ui.theme.*
 import com.kyant.backdrop.backdrops.layerBackdrop
+import com.neko.music.data.manager.AppBackgroundKind
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassDialogOverlay
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -433,11 +435,9 @@ fun MyPlaylistsScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            androidx.compose.foundation.Image(
-                painter = painterResource(id = R.drawable.list_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
+                kind = com.neko.music.data.manager.AppBackgroundKind.MyPlaylists,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
         }
 

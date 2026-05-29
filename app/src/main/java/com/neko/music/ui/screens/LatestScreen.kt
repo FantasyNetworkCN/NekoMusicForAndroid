@@ -55,6 +55,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.list.LatestLiquidBarState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -147,11 +148,8 @@ fun LatestScreen(
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.playlist_background),
-                contentDescription = null,
+            AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
             )
             PlaylistPageDarkTintOverlay()
         }

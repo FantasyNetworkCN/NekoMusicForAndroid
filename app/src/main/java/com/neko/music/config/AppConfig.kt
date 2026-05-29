@@ -128,5 +128,13 @@ object AppConfig {
 
         /** 播放页当前句歌词高亮色（ARGB）。未写入该键时跟随主题默认色。 */
         const val KEY_LYRIC_HIGHLIGHT_COLOR = "lyric_highlight_color_argb"
+
+        /** @deprecated 已迁移至 [KEY_CUSTOM_BG_SUB_PAGE] */
+        const val KEY_CUSTOM_PAGE_BACKGROUND = "custom_page_background_enabled"
+
+        const val KEY_CUSTOM_BG_SUB_PAGE = "custom_bg_enabled_sub_page"
+        const val KEY_CUSTOM_BG_HOME = "custom_bg_enabled_home"
+        const val KEY_CUSTOM_BG_MINE_HEADER = "custom_bg_enabled_mine_header"
+        const val KEY_CUSTOM_BG_MY_PLAYLISTS = "custom_bg_enabled_my_playlists"
     }
 }

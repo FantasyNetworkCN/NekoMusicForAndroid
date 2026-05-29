@@ -27,6 +27,16 @@
 
     <string name="personalization_section">外观与个性化</string>
     <string name="personalization">个性化</string>
+    <string name="personalization_background_section">背景</string>
+    <string name="personalization_background_subtitle">以下区域可分别设置壁纸；暗色模式下子页面仍会叠加主题遮罩</string>
+    <string name="personalization_background_sub_page">子页面（热门、收藏、设置等）</string>
+    <string name="personalization_background_home">首页</string>
+    <string name="personalization_background_mine_header">我的 · 顶部横幅</string>
+    <string name="personalization_background_my_playlists">我的歌单</string>
+    <string name="personalization_background_choose">选择图片</string>
+    <string name="personalization_background_reset">恢复默认</string>
+    <string name="personalization_background_applied">背景已更新</string>
+    <string name="personalization_background_failed">无法保存背景图片</string>
     <string name="theme_mode">主题模式</string>
     <string name="theme_follow_system">跟随系统</string>
     <string name="theme_light">浅色</string>

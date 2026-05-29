@@ -81,6 +81,8 @@ import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
 import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
+import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.data.manager.AppBackgroundKind
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
@@ -321,11 +323,9 @@ fun HomeScreen(
 
     // 背景与列表仅由 NavHost 的 layerBackdrop(liquidBackdrop) 录屏；搜索/推荐玻璃在 MainActivity 中叠在 NavHost 外采样。
     Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(id = R.drawable.home_background),
-            contentDescription = null,
+        com.neko.music.ui.components.AppPageBackgroundImage(
+            kind = com.neko.music.data.manager.AppBackgroundKind.Home,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
         )
         // 显示土司消息
         if (showToast.value && toastMessage.value.isNotEmpty()) {
