@@ -25,7 +25,7 @@ fun liquidBackdropLayerFillOnDraw(fill: Color): ContentDrawScope.() -> Unit = {
 fun rememberLiquidPageBackdrop(fillColor: Color) =
     rememberLayerBackdrop(onDraw = remember(fillColor) { liquidBackdropLayerFillOnDraw(fillColor) })
 
-/** 歌单类子页**仅深色模式**底图上的有色半透明渐变，叠在 [playlist_background] 之上；亮色模式不绘制。 */
+/** 歌单类子页**仅深色模式**底图遮罩：先压暗壁纸，再叠低饱和品牌色；亮色模式不绘制。 */
 @Composable
 fun PlaylistPageDarkTintOverlay(
     modifier: Modifier = Modifier,
@@ -33,18 +33,33 @@ fun PlaylistPageDarkTintOverlay(
 ) {
     if (!isAppDarkTheme() || !enabled) return
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        DeepBlue.copy(alpha = 0.78f),
-                        RoseRed.copy(alpha = 0.28f),
-                        Lilac.copy(alpha = 0.18f),
-                        DeepBlue.copy(alpha = 0.82f)
+    Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.18f),
+                            Color.Black.copy(alpha = 0.30f),
+                            Color.Black.copy(alpha = 0.36f)
+                        )
                     )
                 )
-            )
-    )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            DeepBlue.copy(alpha = 0.50f),
+                            RoseRed.copy(alpha = 0.20f),
+                            Lilac.copy(alpha = 0.10f),
+                            DeepBlue.copy(alpha = 0.66f)
+                        )
+                    )
+                )
+        )
+    }
 }
