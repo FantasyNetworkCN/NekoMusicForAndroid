@@ -71,6 +71,7 @@ import com.neko.music.R
 import com.neko.music.config.AppConfig
 import com.neko.music.ui.components.LiquidGlassUiScale
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.LightRose
 import com.neko.music.ui.theme.MintGreen
@@ -188,6 +189,7 @@ fun PersonalizationScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkChrome)
         }
 
     Scaffold(

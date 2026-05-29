@@ -28,8 +28,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.layout.ContentScale
 import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.res.painterResource
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
+import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.ui.res.stringResource
 import com.neko.music.R
 import coil3.compose.AsyncImage
@@ -41,7 +42,7 @@ fun CacheManagementScreen(
     onBackClick: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
@@ -86,6 +87,7 @@ fun CacheManagementScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
     Scaffold(
@@ -473,7 +475,7 @@ fun CacheItem(
     artist: String,
     onDelete: () -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
