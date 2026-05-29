@@ -17,9 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -352,7 +352,7 @@ fun SettingsScreen(
 
                 SettingSection(title = stringResource(id = R.string.personalization_section)) {
                     SettingItem(
-                        icon = Icons.Filled.Palette,
+                        icon = Icons.Default.Settings,
                         title = stringResource(id = R.string.personalization),
                         subtitle = themeSubtitle,
                         onClick = onNavigateToPersonalization
@@ -567,7 +567,7 @@ fun SettingItem(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        imageVector = Icons.Default.KeyboardArrowRight,
                         contentDescription = stringResource(id = R.string.more),
                         tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
                         modifier = Modifier.size(20.dp)

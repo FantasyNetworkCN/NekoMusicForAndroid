@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -409,7 +409,7 @@ fun VideoRenderPlayerEntry(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Videocam,
+                        imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = RoseRed,
                         modifier = Modifier.size(18.dp)
@@ -436,7 +436,7 @@ fun VideoRenderPlayerEntry(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Videocam,
+                        imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = RoseRed,
                         modifier = Modifier.size(18.dp)
