@@ -417,8 +417,8 @@
     <string name="not_supported">暂不支持</string>
     <string name="import_netease_playlist_title">导入网易云歌单</string>
     <string name="playlist_id">歌单 ID</string>
-    <string name="netease_playlist_id_hint">请输入网易云歌单 ID</string>
-    <string name="import_netease_playlist_id_invalid">歌单 ID 须为纯数字</string>
+    <string name="netease_playlist_id_hint">粘贴分享链接或输入歌单 ID</string>
+    <string name="import_netease_playlist_id_invalid">无法识别歌单 ID，请粘贴网易云分享链接或输入纯数字 ID</string>
     <string name="import_netease_fetch_failed">获取歌单失败，请稍后重试</string>
     <string name="import_netease_matching">正在匹配曲库…</string>
     <string name="import_netease_processing">正在匹配并导入…</string>

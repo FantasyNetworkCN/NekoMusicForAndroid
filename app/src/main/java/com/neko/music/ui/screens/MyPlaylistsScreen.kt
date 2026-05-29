@@ -48,6 +48,7 @@ import androidx.activity.compose.BackHandler
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.NeteasePlaylistImport
 import com.neko.music.util.UrlConfig
 import androidx.compose.ui.zIndex
 import coil3.request.ImageRequest
@@ -732,13 +733,14 @@ fun MyPlaylistsScreen(
                 isLoading = isNeteaseImportLoading,
                 loadingText = importNeteaseProcessing,
                 sampleBackdrop = pageBackdrop,
-                onIdChange = { neteasePlaylistId = it },
+                onIdChange = { neteasePlaylistId = NeteasePlaylistImport.normalizePlaylistIdInput(it) },
                 onDestinationChange = { importDestination = it },
                 onNewPlaylistNameChange = { importNewPlaylistName = it },
                 onConfirm = {
-                    val sourceId = neteasePlaylistId.trim()
+                    val sourceId = NeteasePlaylistImport.parsePlaylistId(neteasePlaylistId)
+                        ?: neteasePlaylistId.trim()
                     val playlistIdLong = sourceId.toLongOrNull()
-                    if (playlistIdLong == null || sourceId.any { !it.isDigit() }) {
+                    if (playlistIdLong == null) {
                         Toast.makeText(
                             context,
                             context.getString(R.string.import_netease_playlist_id_invalid),
