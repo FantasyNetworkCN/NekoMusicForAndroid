@@ -44,9 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
@@ -60,7 +61,10 @@ import com.neko.music.data.model.SearchHistory
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
 import com.neko.music.ui.theme.RoseRed
@@ -200,16 +204,21 @@ fun SearchResultScreen(
         if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 168.dp
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(scheme.background)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(pageBackdrop)
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.playlist_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            PlaylistPageDarkTintOverlay()
+        }
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -352,7 +361,7 @@ fun PlaylistItem(
     val noDescriptionNyaText = stringResource(id = R.string.no_description_nya)
     val songsCountFormatText = stringResource(id = R.string.songs_count, playlist.musicCount)
     
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
 
     val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
@@ -463,7 +472,7 @@ fun MusicItem(
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
     var coverUrl by remember { mutableStateOf<String?>(null) }
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     
     androidx.compose.runtime.LaunchedEffect(music.id) {
         scope.launch {
@@ -549,7 +558,7 @@ fun SearchHistoryList(
     val searchHistoryText = stringResource(id = R.string.search_history)
     val clearHistoryText = stringResource(id = R.string.clear_history)
     
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     
     Column(
         modifier = Modifier
@@ -822,7 +831,7 @@ fun SearchTypeButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
 
     Column(
         modifier = Modifier
@@ -891,7 +900,7 @@ fun ArtistItem(
     // Preload strings
     val songsCountSuffixText = stringResource(id = R.string.songs_count_suffix, artist.musicCount)
     
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
 
     val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
