@@ -79,6 +79,11 @@ import io.ktor.client.network.sockets.SocketTimeoutException as KtorSocketTimeou
 import kotlinx.coroutines.launch
 import java.net.SocketTimeoutException
 
+/** 暗色底图上可读的主/次文字色（避免灰紫 B8B8D1 对比不足） */
+private val MyPlaylistsDarkPrimaryText = Color(0xFFFFF8FA)
+private val MyPlaylistsDarkSecondaryText = LightRose
+private val MyPlaylistsDarkPlaceholderText = SakuraPink.copy(alpha = 0.88f)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyPlaylistsScreen(
@@ -452,7 +457,11 @@ fun MyPlaylistsScreen(
                         text = stringResource(id = R.string.my_playlists),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (isAppDarkTheme()) {
+                            MyPlaylistsDarkPrimaryText
+                        } else {
+                            MaterialTheme.colorScheme.onBackground
+                        }
                     )
                 }
 
@@ -461,7 +470,9 @@ fun MyPlaylistsScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color.White.copy(alpha = 0.8f))
+                        CircularProgressIndicator(
+                            color = if (isAppDarkTheme()) LightRose else MaterialTheme.colorScheme.primary
+                        )
                     }
                 } else if (allPlaylists.isEmpty()) {
                     // 空状态
@@ -481,7 +492,11 @@ fun MyPlaylistsScreen(
                             Text(
                                 text = stringResource(id = R.string.no_playlists_yet),
                                 fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isAppDarkTheme()) {
+                                    MyPlaylistsDarkSecondaryText
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -607,12 +622,12 @@ fun MyPlaylistsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
-                                                tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
+                                                tint = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray
                                             )
                                             Text(
                                                 text = stringResource(id = R.string.create_new_playlist),
                                                 fontSize = 16.sp,
-                                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
+                                                color = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -659,12 +674,12 @@ fun MyPlaylistsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.UploadFile,
                                                 contentDescription = null,
-                                                tint = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray
+                                                tint = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray
                                             )
                                             Text(
                                                 text = stringResource(id = R.string.import_playlist_from_external),
                                                 fontSize = 16.sp,
-                                                color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.DarkGray,
+                                                color = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -1043,7 +1058,7 @@ fun PlaylistItem(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDarkTheme) {
-                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                        MyPlaylistsDarkPrimaryText
                     } else {
                         itemScheme.onSurface
                     }
@@ -1053,7 +1068,7 @@ fun PlaylistItem(
                     text = songsCountLabelText,
                     fontSize = 14.sp,
                     color = if (isDarkTheme) {
-                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                        MyPlaylistsDarkSecondaryText
                     } else {
                         itemScheme.onSurfaceVariant
                     }
@@ -1076,7 +1091,7 @@ fun PlaylistItem(
                             imageVector = Icons.Default.Create,
                             contentDescription = editText,
                             tint = if (isDarkTheme) {
-                                Color.White.copy(alpha = 0.9f)
+                                MyPlaylistsDarkSecondaryText
                             } else {
                                 itemScheme.onSurfaceVariant
                             }
@@ -1093,7 +1108,7 @@ fun PlaylistItem(
                             imageVector = Icons.Default.Delete,
                             contentDescription = deleteText,
                             tint = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                RoseRed.copy(alpha = 0.92f)
                             } else {
                                 itemScheme.onSurfaceVariant
                             }
@@ -1131,8 +1146,8 @@ private fun ImportPlaylistSourceDialog(
     val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val optionGlass = LiquidGlassDefaults.myPlaylistsDialogInput
-    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+    val titleColor = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val mutedColor = if (isDark) MyPlaylistsDarkSecondaryText else scheme.onSurfaceVariant
 
     GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
@@ -1249,10 +1264,10 @@ private fun NeteasePlaylistIdDialog(
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
-    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
-    val inputTextColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val placeholderColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
+    val titleColor = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val mutedColor = if (isDark) MyPlaylistsDarkSecondaryText else scheme.onSurfaceVariant
+    val inputTextColor = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val placeholderColor = if (isDark) MyPlaylistsDarkPlaceholderText else scheme.onSurfaceVariant
     val scrollState = rememberScrollState()
     val showNewPlaylistName = selectedDestination is ImportDestination.NewPlaylist
     val canConfirm = !isLoading &&
@@ -1429,7 +1444,11 @@ private fun NeteasePlaylistIdDialog(
                                 text = confirmText,
                                 fontSize = 17.sp,
                                 color = if (isDark) {
-                                    Color.White.copy(alpha = if (canConfirm) 0.95f else 0.4f)
+                                    if (canConfirm) {
+                                        MyPlaylistsDarkPrimaryText
+                                    } else {
+                                        SakuraPink.copy(alpha = 0.45f)
+                                    }
                                 } else {
                                     if (canConfirm) scheme.onSurface else Color.Gray
                                 },
@@ -1489,8 +1508,8 @@ private fun ImportMatchFailedDialog(
     val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
-    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+    val titleColor = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val mutedColor = if (isDark) MyPlaylistsDarkSecondaryText else scheme.onSurfaceVariant
 
     GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
         GlassSurface(
@@ -1566,7 +1585,7 @@ private fun ImportMatchFailedDialog(
                             Text(
                                 text = confirmText,
                                 fontSize = 17.sp,
-                                color = if (isDark) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
+                                color = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 20.dp),
                             )
@@ -1657,10 +1676,10 @@ fun PlaylistDialog(
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
     val inputGlass = LiquidGlassDefaults.myPlaylistsDialogInput
     val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
-    val titleColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
-    val inputTextColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-    val placeholderColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
+    val titleColor = if (isDarkTheme) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val mutedColor = if (isDarkTheme) MyPlaylistsDarkSecondaryText else scheme.onSurfaceVariant
+    val inputTextColor = if (isDarkTheme) MyPlaylistsDarkPrimaryText else scheme.onSurface
+    val placeholderColor = if (isDarkTheme) MyPlaylistsDarkPlaceholderText else scheme.onSurfaceVariant
 
     BackHandler(onBack = onDismiss)
 
@@ -1800,9 +1819,11 @@ fun PlaylistDialog(
                                     text = confirmText,
                                     fontSize = 17.sp,
                                     color = if (isDarkTheme) {
-                                        Color.White.copy(
-                                            alpha = if (playlistName.isNotBlank()) 0.95f else 0.4f,
-                                        )
+                                        if (playlistName.isNotBlank()) {
+                                            MyPlaylistsDarkPrimaryText
+                                        } else {
+                                            SakuraPink.copy(alpha = 0.45f)
+                                        }
                                     } else {
                                         if (playlistName.isNotBlank()) scheme.onSurface else Color.Gray
                                     },
