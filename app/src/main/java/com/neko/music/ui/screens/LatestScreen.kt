@@ -253,7 +253,9 @@ fun LatestScreen(
 }
 
 @Composable
-fun LatestLoadingState() {
+fun LatestLoadingState(
+    messageColor: Color? = null
+) {
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -268,14 +270,16 @@ fun LatestLoadingState() {
         Text(
             text = stringResource(id = R.string.loading_latest_music),
             fontSize = 14.sp,
-            color = scheme.onSurfaceVariant
+            color = messageColor ?: scheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
 fun LatestErrorState(
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    titleColor: Color? = null,
+    messageColor: Color? = null
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDark = scheme.background.luminance() < 0.5f
@@ -288,13 +292,13 @@ fun LatestErrorState(
             text = stringResource(id = R.string.load_failed),
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
-            color = scheme.onSurface
+            color = titleColor ?: scheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(id = R.string.network_error),
             fontSize = 14.sp,
-            color = scheme.onSurfaceVariant
+            color = messageColor ?: scheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(20.dp))
         val retryGlass = LiquidGlassDefaults.rankingRetryButton
@@ -346,7 +350,10 @@ fun LatestEmptyState() {
 fun LatestItem(
     music: Music,
     index: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    titleColor: Color? = null,
+    subtitleColor: Color? = null,
+    metaColor: Color? = null
 ) {
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
@@ -374,9 +381,9 @@ fun LatestItem(
         }
     }
 
-    val titleColor = scheme.onSurface
-    val subtitleColor = scheme.onSurfaceVariant
-    val metaColor = scheme.onSurfaceVariant.copy(alpha = 0.85f)
+    val resolvedTitleColor = titleColor ?: scheme.onSurface
+    val resolvedSubtitleColor = subtitleColor ?: scheme.onSurfaceVariant
+    val resolvedMetaColor = metaColor ?: scheme.onSurfaceVariant.copy(alpha = 0.85f)
 
     val latestGlass = LiquidGlassDefaults.latestListItem
     GlassSurface(
@@ -449,7 +456,7 @@ fun LatestItem(
                             text = music.title,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = titleColor,
+                            color = resolvedTitleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -457,7 +464,7 @@ fun LatestItem(
                         Text(
                             text = music.artist,
                             fontSize = 12.sp,
-                            color = subtitleColor,
+                            color = resolvedSubtitleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -467,7 +474,7 @@ fun LatestItem(
                         Text(
                             text = uploadTime,
                             fontSize = 11.sp,
-                            color = metaColor,
+                            color = resolvedMetaColor,
                             fontWeight = FontWeight.Medium
                         )
                     }
