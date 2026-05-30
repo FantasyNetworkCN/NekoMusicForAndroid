@@ -224,6 +224,7 @@
     <!-- Player -->
     <string name="click_cover_show_lyrics">Click cover to view lyrics</string>
     <string name="no_lyrics">No lyrics available</string>
+    <string name="has_lyrics">Has lyrics</string>
     <string name="list_loop">List Loop</string>
     <string name="single_loop">Single Loop</string>
     <string name="shuffle_play">Shuffle</string>

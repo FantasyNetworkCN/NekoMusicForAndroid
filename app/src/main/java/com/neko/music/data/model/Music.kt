@@ -13,7 +13,9 @@ data class Music(
     val coverFilePath: String? = null,
     val uploadUserId: Int? = null,
     val createdAt: String? = null,
-    val playCount: Int? = null
+    val playCount: Int? = null,
+    /** 是否有有效歌词（单条 query 搜索响应字段） */
+    val lrc: Boolean = false
 ) {
     val coverUrl: String
         get() = if (coverFilePath.isNullOrEmpty()) {
