@@ -4,6 +4,8 @@
 > [!TIP]
 > 🐾 **pc端入口**：[点击这里查看 Neko云音乐 pc版仓库](https://github.com/MinecraftNekoServer/NekoMusicForPc)
 
+# 官网 https://music.cnmsb.xin/
+
 ## 关于从外部导入歌单
 网易云使用的是三方api和Neko官方api调用。[网易云API仓库](https://github.com/kengwang/NeteaseCloudMusicApi-1)
 - qq云暂未实现
