@@ -215,6 +215,7 @@
 
     <string name="click_cover_show_lyrics">戳戳封面看歌词喵</string>
     <string name="no_lyrics">还没人写歌词喵</string>
+    <string name="has_lyrics">有歌词喵</string>
     <string name="list_loop">列表转圈圈喵</string>
     <string name="single_loop">死循环这一首喵</string>
     <string name="shuffle_play">随便乱放喵</string>

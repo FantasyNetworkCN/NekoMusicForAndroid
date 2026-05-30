@@ -68,6 +68,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
+import com.neko.music.ui.components.LrcBadge
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
@@ -527,13 +528,24 @@ fun MusicItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = music.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = music.title,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    LrcBadge(
+                        visible = music.lrc,
+                        tint = if (isDarkTheme) Color(0xFFB8A0FF) else Color(0xFF9370DB)
+                    )
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = authorPrefixText,
