@@ -161,8 +161,9 @@ class DesktopLyricService : Service() {
         if (lyricView == null) return
 
         try {
+            // 宽度用 WRAP_CONTENT，避免整屏横条挡住底部导航/手势区；仅歌词文字区域参与触摸
             layoutParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
