@@ -328,7 +328,7 @@ class MusicPlayerService : Service() {
                 nextPendingIntent
             )
             .addAction(
-                R.drawable.music,
+                R.drawable.ic_lyric_toggle,
                 "词",
                 lyricPendingIntent
             )
