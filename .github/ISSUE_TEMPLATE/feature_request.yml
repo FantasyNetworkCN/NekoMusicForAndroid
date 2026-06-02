@@ -1,7 +1,6 @@
 name: 功能建议（Feature）
 description: 希望增加或改进的安卓端能力
 title: "[Feature] "
-labels: []
 body:
   - type: markdown
     attributes:
@@ -35,15 +34,16 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: dropdown
     id: contribute
     attributes:
       label: 贡献意愿
       options:
-        - label: 我愿意尝试提交 PR（可在补充里写思路或分支）
-          required: false
-        - label: 仅提建议，由维护者排期
-          required: false
+        - 我愿意尝试提交 PR（可在「参考」里写思路或分支）
+        - 仅提建议，由维护者排期
+        - 暂不表态
+    validations:
+      required: true
 
   - type: textarea
     id: references

@@ -1,7 +1,6 @@
 name: 缺陷报告（Bug）
 description: 崩溃、无法播放、网易云导入失败等异常（请尽量填全，便于复现）
 title: "[Bug] "
-labels: []
 body:
   - type: markdown
     attributes:
@@ -115,6 +114,6 @@ body:
     id: extra
     attributes:
       label: 其他说明（可选）
-      description: 例如仅 Wi‑Fi、仅后台播放、仅某类音频格式等。
+      description: 例如仅 Wi-Fi、仅后台播放、仅某类音频格式等。
     validations:
       required: false

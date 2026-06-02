@@ -1,3 +1,5 @@
+# Issue 模板：同目录下 bug_report.yml、feature_request.yml 为「带表单」的模板（New issue 里应出现两条）。
+# 若页面上只有外链没有 Bug/Feature：请确认已推送到默认分支；或在仓库 Settings → General → Features 查看是否有模板校验错误。
 blank_issues_enabled: true
 contact_links:
   - name: 官网（在线播放 / 账户）
