@@ -427,10 +427,13 @@
     <string name="import_source_qq">QQ音乐</string>
     <string name="not_supported">暂不支持</string>
     <string name="import_netease_playlist_title">导入网易云歌单</string>
+    <string name="import_qq_playlist_title">导入QQ音乐歌单</string>
     <string name="playlist_id">歌单 ID</string>
     <string name="netease_playlist_id_hint">粘贴分享链接或输入歌单 ID</string>
     <string name="import_netease_playlist_id_invalid">无法识别歌单 ID，请粘贴网易云分享链接或输入纯数字 ID</string>
+    <string name="import_qq_playlist_id_invalid">未找到歌单 ID ，请粘贴 QQ音乐 分享链接或纯数字 ID</string>
     <string name="import_netease_fetch_failed">获取歌单失败，请稍后重试</string>
+    <string name="import_qq_fetch_failed">同步歌单失败，稍后再试</string>
     <string name="import_netease_matching">正在匹配曲库…</string>
     <string name="import_netease_processing">正在匹配并导入…</string>
     <string name="import_netease_match_success">匹配完成：成功 %1$d 首，失败 %2$d 首</string>
@@ -672,4 +675,5 @@
     <string name="daily_recommendation_title">每日推荐</string>
     <string name="daily_recommendation_desc">根据你的收藏口味为你推荐</string>
     <string name="no_daily_recommendation">今日暂无推荐</string>
+    <string name="qq_playlist_id_hint">粘贴QQ音乐分享链接或歌单 ID</string>
 </resources>

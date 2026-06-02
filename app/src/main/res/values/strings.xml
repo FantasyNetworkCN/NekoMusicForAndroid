@@ -444,7 +444,6 @@
     <string name="import_netease_import_failed">导入失败喵：%1$s</string>
     <string name="import_netease_favorite_playlist_not_supported">不能导入到收藏的歌单，请选自己的本本或我的收藏喵</string>
     <string name="import_netease_no_matched_to_import">没有匹配成功的曲子可导入喵</string>
-    <string name="import_qq_logged_to_logcat">已获取 QQ 歌单曲目数量（看 logcat）：%1$d 首喵</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新本本名称</string>

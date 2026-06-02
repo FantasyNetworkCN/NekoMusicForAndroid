@@ -448,10 +448,13 @@
     <string name="import_source_qq">QQ Music</string>
     <string name="not_supported">Not supported yet</string>
     <string name="import_netease_playlist_title">Import NetEase playlist</string>
+    <string name="import_qq_playlist_title">Import QQ Music playlists</string>
     <string name="playlist_id">Playlist ID</string>
     <string name="netease_playlist_id_hint">Paste share link or playlist ID</string>
     <string name="import_netease_playlist_id_invalid">Could not parse playlist ID. Paste a NetEase share link or enter a numeric ID.</string>
+    <string name="import_qq_playlist_id_invalid">Playlist ID not found. Please paste the QQ Music share link or a numeric ID.</string>
     <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
+    <string name="import_qq_fetch_failed">Playlist syncing failed, please try again later.</string>
     <string name="import_netease_matching">Matching tracks in library…</string>
     <string name="import_netease_processing">Matching and importing…</string>
     <string name="import_netease_match_success">Done: %1$d matched, %2$d not found</string>
@@ -677,4 +680,5 @@
     <string name="daily_recommendation_title">Daily Picks</string>
     <string name="daily_recommendation_desc">Chosen from your favorites taste</string>
     <string name="no_daily_recommendation">No daily picks yet</string>
+    <string name="qq_playlist_id_hint">Paste the QQ Music sharing link or playlist ID</string>
 </resources>
