@@ -1,0 +1,54 @@
+name: 功能建议（Feature）
+description: 希望增加或改进的安卓端能力
+title: "[Feature] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认 **Web / PC 是否已有类似能力**，避免重复提需求；若希望多端一致，可注明希望与哪端对齐。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 背景 / 想解决什么问题？
+      description: 使用场景、当前痛点。
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的方案或效果
+      description: 尽量具体：入口、交互、是否与 Material 规范等相关。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围（主观即可）
+      options:
+        - 仅安卓端
+        - 希望与 PC / Web 行为一致（可分开跟进）
+        - 不确定
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: 贡献意愿
+      options:
+        - label: 我愿意尝试提交 PR（可在补充里写思路或分支）
+          required: false
+        - label: 仅提建议，由维护者排期
+          required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考（可选）
+      description: 其他 App、设计稿、相关 Issue 链接等。
+    validations:
+      required: false

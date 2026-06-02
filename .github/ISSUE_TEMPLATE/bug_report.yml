@@ -1,0 +1,120 @@
+name: 缺陷报告（Bug）
+description: 崩溃、无法播放、网易云导入失败等异常（请尽量填全，便于复现）
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请**勿**在 Issue 中粘贴明文密码、完整登录 Token 或完整 Cookie；日志可打码后再发。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题简述
+      description: 用一两句话说明「发生了什么」。
+      placeholder: 例：播放某首歌时闪退；网易云歌单导入后列表为空……
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 按顺序写操作步骤，越具体越好。
+      placeholder: |
+        1. 打开 …
+        2. 点击 …
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: 期望行为 vs 实际行为
+      description: 分别写「应该怎样」和「实际怎样」。
+      placeholder: |
+        期望：……
+        实际：……
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: App 版本
+      description: 关于页或设置里显示的版本号。
+      placeholder: 例：1.2.3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: android_version
+    attributes:
+      label: Android 系统版本（大致）
+      options:
+        - Android 15
+        - Android 14
+        - Android 13
+        - Android 12 或更低
+        - 不确定 / 其他（请在下方「其他说明」里写具体版本号）
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 机型 / ROM（可选但强烈建议填写）
+      placeholder: 例：Pixel 8 / 小米 14 + HyperOS
+    validations:
+      required: false
+
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: 安装来源
+      options:
+        - GitHub Release APK
+        - 自行编译 / 调试安装
+        - 其他渠道（请说明）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: api_backend
+    attributes:
+      label: 连接的后端 / API
+      options:
+        - 官方 music.cnmsb.xin（或默认未改）
+        - 自建 / 第三方 API（域名可打码）
+        - 不确定
+    validations:
+      required: true
+
+  - type: dropdown
+    id: netease_related
+    attributes:
+      label: 是否与「网易云歌单导入」相关？
+      options:
+        - 无关
+        - 有关（请在下方「日志或截图说明」或「其他说明」里写歌单 ID / 现象）
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图说明
+      description: 可粘贴 logcat 关键片段，或说明「无日志」；截图可传图床后贴链接。
+      placeholder: 在此粘贴（已打码）……
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其他说明（可选）
+      description: 例如仅 Wi‑Fi、仅后台播放、仅某类音频格式等。
+    validations:
+      required: false
