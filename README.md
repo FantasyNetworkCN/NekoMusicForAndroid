@@ -10,6 +10,10 @@
 网易云歌单导入使用的是三方api和Neko官方api调用。[网易云API仓库](https://github.com/kengwang/NeteaseCloudMusicApi-1)
 QQ云音乐歌单导入相同 [QQ云API仓库](https://github.com/Rain120/qq-music-api)
 
+### 获取外部歌单api
+获取qq歌单列表`https://music.cnmsb.xin/loser1/getSongListDetail?disstid=歌单id`
+获取网易云歌单列表`https://music.cnmsb.xin/loser/playlist/detail?id=歌单id`
+
 ## Deep Link 外部唤醒
 
 支持通过浏览器或其他 App 唤醒 Neko云音乐，并直接跳转到指定页面。
