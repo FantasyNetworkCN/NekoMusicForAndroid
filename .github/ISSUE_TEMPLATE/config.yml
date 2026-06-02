@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 官网（在线播放 / 账户）
+    url: https://music.cnmsb.xin/
+    about: Web 端、账户与会员等与浏览器相关的问题，请优先在官网侧排查。
+  - name: PC 客户端仓库
+    url: https://github.com/MinecraftNekoServer/NekoMusicForPc
+    about: 桌面端（Windows / Linux / macOS）问题请到 PC 仓库提 Issue。
+  - name: API / 开发者文档
+    url: https://github.com/FantasyNetworkCN/NekoMusicDocs
+    about: 纯接口、协议或与官方服务端约定相关的内容，可参考文档仓库。
