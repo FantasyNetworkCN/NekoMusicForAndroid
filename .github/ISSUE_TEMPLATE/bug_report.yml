@@ -53,6 +53,8 @@ body:
     attributes:
       label: Android 系统版本（大致）
       options:
+        - Android 17
+        - Android 16
         - Android 15
         - Android 14
         - Android 13
@@ -74,30 +76,9 @@ body:
     attributes:
       label: 安装来源
       options:
-        - GitHub Release APK
+        - 官网下载
         - 自行编译 / 调试安装
         - 其他渠道（请说明）
-    validations:
-      required: true
-
-  - type: dropdown
-    id: api_backend
-    attributes:
-      label: 连接的后端 / API
-      options:
-        - 官方 music.cnmsb.xin（或默认未改）
-        - 自建 / 第三方 API（域名可打码）
-        - 不确定
-    validations:
-      required: true
-
-  - type: dropdown
-    id: netease_related
-    attributes:
-      label: 是否与「网易云歌单导入」相关？
-      options:
-        - 无关
-        - 有关（请在下方「日志或截图说明」或「其他说明」里写歌单 ID / 现象）
     validations:
       required: true
 
