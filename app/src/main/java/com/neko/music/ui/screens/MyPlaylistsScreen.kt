@@ -100,6 +100,7 @@ fun MyPlaylistsScreen(
     val playlistApi = remember { PlaylistApi(tokenManager.getToken(), context) }
     val favoriteApi = remember { FavoriteApi(context) }
     val neteasePlaylistApi = remember { NeteasePlaylistApi() }
+    val qqPlaylistApi = remember { QqMusicPlaylistApi() }
     val musicApi = remember { MusicApi(context) }
     
     // 预加载字符串资源
@@ -897,8 +898,7 @@ fun MyPlaylistsScreen(
                 onNewPlaylistNameChange = { importNewPlaylistName = it },
                 onConfirm = {
                     val sourceId = QqMusicPlaylistImport.parsePlaylistId(qqPlaylistId) ?: qqPlaylistId.trim()
-                    val disstid = sourceId.toLongOrNull()
-                    if (disstid == null) {
+                    if (sourceId.isEmpty() || sourceId.toLongOrNull() == null) {
                         Toast.makeText(
                             context,
                             context.getString(R.string.import_qq_playlist_id_invalid),
@@ -909,22 +909,96 @@ fun MyPlaylistsScreen(
                     scope.launch {
                         isQqImportLoading = true
                         try {
-                            val result = QqMusicPlaylistApi.fetchSongListSummary(disstid.toString())
-                            result.fold(
-                                onSuccess = { summary ->
-                                    QqMusicPlaylistApi.logSongCount(summary)
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(
-                                            R.string.import_qq_logged_to_logcat,
-                                            summary.totalSongs,
-                                        ),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                    showQqPlaylistIdDialog = false
-                                    qqPlaylistId = ""
-                                    importDestination = null
-                                    importNewPlaylistName = ""
+                            val responseResult = qqPlaylistApi.fetchPlaylistDetail(sourceId)
+                            responseResult.fold(
+                                onSuccess = { response ->
+                                    val body = response.response
+                                    val playlist = body?.let { qqPlaylistApi.toPlaylist(sourceId, it) }
+                                    if (body == null || body.code != 0 || playlist == null) {
+                                        Toast.makeText(
+                                            context,
+                                            qqPlaylistApi.errorMessage(response),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        val destination = importDestination
+                                        val newName = importNewPlaylistName.trim()
+                                        qqPlaylistApi.logPlaylistTracks(playlist)
+                                        val matchResult = qqPlaylistApi.matchTracksInLibrary(
+                                            playlist,
+                                            musicApi,
+                                        )
+                                        matchResult.fold(
+                                            onSuccess = { stats ->
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(
+                                                        R.string.import_netease_match_success,
+                                                        stats.successCount,
+                                                        stats.failCount,
+                                                    ),
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                                if (stats.matchedMusicIds.isNotEmpty() && destination != null) {
+                                                    val token = tokenManager.getToken()
+                                                    if (token != null) {
+                                                        val importResponse = importMatchedMusicToDestination(
+                                                            destination = destination,
+                                                            musicIds = stats.matchedMusicIds,
+                                                            newPlaylistName = newName,
+                                                            token = token,
+                                                            playlistApi = playlistApi,
+                                                            favoriteApi = favoriteApi,
+                                                            context = context,
+                                                        )
+                                                        showNeteaseImportResultToast(context, importResponse)
+                                                        if (importResponse.success ||
+                                                            (importResponse.addedCount ?: 0) > 0
+                                                        ) {
+                                                            refreshData()
+                                                        }
+                                                    }
+                                                } else if (stats.matchedMusicIds.isEmpty()) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(
+                                                            R.string.import_netease_no_matched_to_import,
+                                                        ),
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                }
+                                                showQqPlaylistIdDialog = false
+                                                qqPlaylistId = ""
+                                                importDestination = null
+                                                importNewPlaylistName = ""
+                                                if (stats.failedItems.isNotEmpty()) {
+                                                    importMatchFailedItems = stats.failedItems
+                                                    showImportMatchFailedDialog = true
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                val toastText = when {
+                                                    isNeteaseMatchBusy(error) ->
+                                                        context.getString(R.string.import_netease_match_busy)
+                                                    error.message == "无可搜索曲目" ->
+                                                        context.getString(R.string.import_netease_match_no_tracks)
+                                                    else -> {
+                                                        val detail = error.message?.takeIf { it.isNotBlank() }
+                                                            ?: context.getString(R.string.import_qq_fetch_failed)
+                                                        context.getString(
+                                                            R.string.import_netease_match_failed,
+                                                            detail,
+                                                        )
+                                                    }
+                                                }
+                                                Toast.makeText(
+                                                    context,
+                                                    toastText,
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            },
+                                        )
+                                    }
                                 },
                                 onFailure = {
                                     Toast.makeText(
