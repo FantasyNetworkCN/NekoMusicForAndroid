@@ -7,9 +7,8 @@
 # 官网 https://music.cnmsb.xin/
 
 ## 关于从外部导入歌单
-网易云使用的是三方api和Neko官方api调用。[网易云API仓库](https://github.com/kengwang/NeteaseCloudMusicApi-1)
-- qq云暂未实现
-
+网易云歌单导入使用的是三方api和Neko官方api调用。[网易云API仓库](https://github.com/kengwang/NeteaseCloudMusicApi-1)
+QQ云音乐歌单导入相同 [QQ云API仓库](https://github.com/Rain120/qq-music-api)
 
 ## Deep Link 外部唤醒
 
