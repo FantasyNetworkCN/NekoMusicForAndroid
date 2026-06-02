@@ -421,10 +421,14 @@
     <string name="import_source_qq">QQ音乐</string>
     <string name="not_supported">暂不支持喵</string>
     <string name="import_netease_playlist_title">导入网易云歌单喵</string>
+    <string name="import_qq_playlist_title">导入QQ歌单喵</string>
     <string name="playlist_id">歌单 ID</string>
     <string name="netease_playlist_id_hint">粘贴分享链接或歌单 ID 喵</string>
     <string name="import_netease_playlist_id_invalid">认不出歌单 ID 喵，请粘贴网易云分享链接或纯数字 ID</string>
+    <string name="qq_playlist_id_hint">粘贴QQ分享链接或歌单 ID 喵</string>
+    <string name="import_qq_playlist_id_invalid">认不出歌单 ID 喵，请粘贴 QQ 分享链接或纯数字 ID</string>
     <string name="import_netease_fetch_failed">拉歌单失败，稍后再试喵</string>
+    <string name="import_qq_fetch_failed">拉歌单失败，稍后再试喵</string>
     <string name="import_netease_matching">正在匹配曲库喵…</string>
     <string name="import_netease_processing">正在匹配并导入喵…</string>
     <string name="import_netease_match_success">匹配完成喵：成功 %1$d 首，失败 %2$d 首</string>
@@ -440,6 +444,7 @@
     <string name="import_netease_import_failed">导入失败喵：%1$s</string>
     <string name="import_netease_favorite_playlist_not_supported">不能导入到收藏的歌单，请选自己的本本或我的收藏喵</string>
     <string name="import_netease_no_matched_to_import">没有匹配成功的曲子可导入喵</string>
+    <string name="import_qq_logged_to_logcat">已获取 QQ 歌单曲目数量（看 logcat）：%1$d 首喵</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
     <string name="import_new_playlist_name">新本本名称</string>

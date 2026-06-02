@@ -48,6 +48,7 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.util.NeteasePlaylistImport
+import com.neko.music.util.QqMusicPlaylistImport
 import com.neko.music.util.UrlConfig
 import androidx.compose.ui.zIndex
 import coil3.request.ImageRequest
@@ -60,6 +61,7 @@ import com.neko.music.data.api.BatchAddMusicResponse
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.MusicSearchBusyException
 import com.neko.music.data.api.NeteasePlaylistApi
+import com.neko.music.data.api.QqMusicPlaylistApi
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistMusicListResponse
 import com.neko.music.data.api.PlaylistListResponse
@@ -337,13 +339,16 @@ fun MyPlaylistsScreen(
     var showImportSourceDialog by remember { mutableStateOf(false) }
     var showNeteasePlaylistIdDialog by remember { mutableStateOf(false) }
     var neteasePlaylistId by remember { mutableStateOf("") }
+    var showQqPlaylistIdDialog by remember { mutableStateOf(false) }
+    var qqPlaylistId by remember { mutableStateOf("") }
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
+    var isQqImportLoading by remember { mutableStateOf(false) }
     var showImportMatchFailedDialog by remember { mutableStateOf(false) }
     var importMatchFailedItems by remember { mutableStateOf<List<SearchItem>>(emptyList()) }
     val importNeteaseProcessing = stringResource(R.string.import_netease_processing)
-    val qqMusicNotSupported = stringResource(R.string.not_supported)
+    val importQqProcessing = stringResource(R.string.import_netease_processing)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
     val importDestinationOptions = remember(playlists, favoritePlaylists, myFavoritesLabel, importNewPlaylistLabel) {
@@ -710,7 +715,11 @@ fun MyPlaylistsScreen(
                     showNeteasePlaylistIdDialog = true
                 },
                 onQqClick = {
-                    Toast.makeText(context, qqMusicNotSupported, Toast.LENGTH_SHORT).show()
+                    showImportSourceDialog = false
+                    qqPlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                    showQqPlaylistIdDialog = true
                 },
                 onDismiss = { showImportSourceDialog = false },
             )
@@ -724,7 +733,7 @@ fun MyPlaylistsScreen(
                 .fillMaxSize()
                 .zIndex(47f),
         ) {
-            NeteasePlaylistIdDialog(
+            PlaylistIdDialog(
                 playlistId = neteasePlaylistId,
                 destinationOptions = importDestinationOptions,
                 selectedDestination = importDestination,
@@ -732,6 +741,8 @@ fun MyPlaylistsScreen(
                 isLoading = isNeteaseImportLoading,
                 loadingText = importNeteaseProcessing,
                 sampleBackdrop = pageBackdrop,
+                dialogTitleText = stringResource(R.string.import_netease_playlist_title),
+                idHintText = stringResource(R.string.netease_playlist_id_hint),
                 onIdChange = { neteasePlaylistId = NeteasePlaylistImport.normalizePlaylistIdInput(it) },
                 onDestinationChange = { importDestination = it },
                 onNewPlaylistNameChange = { importNewPlaylistName = it },
@@ -745,7 +756,7 @@ fun MyPlaylistsScreen(
                             context.getString(R.string.import_netease_playlist_id_invalid),
                             Toast.LENGTH_SHORT,
                         ).show()
-                        return@NeteasePlaylistIdDialog
+                        return@PlaylistIdDialog
                     }
                     scope.launch {
                         isNeteaseImportLoading = true
@@ -854,9 +865,84 @@ fun MyPlaylistsScreen(
                     }
                 },
                 onDismiss = {
-                    if (isNeteaseImportLoading) return@NeteasePlaylistIdDialog
+                    if (isNeteaseImportLoading) return@PlaylistIdDialog
                     showNeteasePlaylistIdDialog = false
                     neteasePlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showQqPlaylistIdDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(47f),
+        ) {
+            PlaylistIdDialog(
+                playlistId = qqPlaylistId,
+                destinationOptions = importDestinationOptions,
+                selectedDestination = importDestination,
+                newPlaylistName = importNewPlaylistName,
+                isLoading = isQqImportLoading,
+                loadingText = importQqProcessing,
+                sampleBackdrop = pageBackdrop,
+                dialogTitleText = stringResource(R.string.import_qq_playlist_title),
+                idHintText = stringResource(R.string.qq_playlist_id_hint),
+                onIdChange = { qqPlaylistId = QqMusicPlaylistImport.normalizePlaylistIdInput(it) },
+                onDestinationChange = { importDestination = it },
+                onNewPlaylistNameChange = { importNewPlaylistName = it },
+                onConfirm = {
+                    val sourceId = QqMusicPlaylistImport.parsePlaylistId(qqPlaylistId) ?: qqPlaylistId.trim()
+                    val disstid = sourceId.toLongOrNull()
+                    if (disstid == null) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_qq_playlist_id_invalid),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@PlaylistIdDialog
+                    }
+                    scope.launch {
+                        isQqImportLoading = true
+                        try {
+                            val result = QqMusicPlaylistApi.fetchSongListSummary(disstid.toString())
+                            result.fold(
+                                onSuccess = { summary ->
+                                    QqMusicPlaylistApi.logSongCount(summary)
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(
+                                            R.string.import_qq_logged_to_logcat,
+                                            summary.totalSongs,
+                                        ),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    showQqPlaylistIdDialog = false
+                                    qqPlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                },
+                                onFailure = {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.import_qq_fetch_failed),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                },
+                            )
+                        } finally {
+                            isQqImportLoading = false
+                        }
+                    }
+                },
+                onDismiss = {
+                    if (isQqImportLoading) return@PlaylistIdDialog
+                    showQqPlaylistIdDialog = false
+                    qqPlaylistId = ""
                     importDestination = null
                     importNewPlaylistName = ""
                 },
@@ -1237,7 +1323,7 @@ private fun ImportSourceOptionRow(
 }
 
 @Composable
-private fun NeteasePlaylistIdDialog(
+private fun PlaylistIdDialog(
     playlistId: String,
     destinationOptions: List<ImportDestinationOption>,
     selectedDestination: ImportDestination?,
@@ -1245,15 +1331,17 @@ private fun NeteasePlaylistIdDialog(
     isLoading: Boolean,
     loadingText: String,
     sampleBackdrop: LayerBackdrop,
+    dialogTitleText: String,
+    idHintText: String,
     onIdChange: (String) -> Unit,
     onDestinationChange: (ImportDestination) -> Unit,
     onNewPlaylistNameChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val title = stringResource(R.string.import_netease_playlist_title)
+    val title = dialogTitleText
     val idLabel = stringResource(R.string.playlist_id)
-    val idHint = stringResource(R.string.netease_playlist_id_hint)
+    val idHint = idHintText
     val destinationLabel = stringResource(R.string.import_destination_label)
     val newNameLabel = stringResource(R.string.import_new_playlist_name)
     val newNameHint = stringResource(R.string.import_new_playlist_name_hint)
