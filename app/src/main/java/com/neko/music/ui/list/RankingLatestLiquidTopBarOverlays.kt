@@ -162,23 +162,7 @@ private fun ListScreenLiquidTopBarOverlay(
                                 indication = null
                             ) {
                                 Log.d(logTag, "播放全部: ${musicList.size}首")
-                                scope.launch {
-                                    try {
-                                        val firstMusic = musicList[0]
-                                        val url = musicApi.getMusicFileUrl(firstMusic)
-                                        val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                        playerManager.playMusic(
-                                            url,
-                                            firstMusic.id,
-                                            firstMusic.title,
-                                            firstMusic.artist,
-                                            firstMusic.coverFilePath ?: "",
-                                            fullCoverUrl
-                                        )
-                                    } catch (e: Exception) {
-                                        Log.e(logTag, "播放全部失败", e)
-                                    }
-                                }
+                                playerManager.playMusicList(musicList)
                             }
                             .padding(horizontal = 10.dp, vertical = 10.dp),
                         fontSize = 14.sp,

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(adb devices:*)",
+      "Bash(./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk && adb shell am start -n com.neko.music/.MainActivity)",
+      "Bash(echo $ANDROID_HOME && ls /opt/android* 2>/dev/null || ls ~/Android* 2>/dev/null || ls /usr/lib/android* 2>/dev/null || find /opt -name \"android-sdk*\" 2>/dev/null | head -5)",
+      "Bash(export ANDROID_HOME=$HOME/Android/Sdk && ls $ANDROID_HOME)",
+      "Bash(export ANDROID_HOME=$HOME/Android/Sdk && ./gradlew assembleDebug 2>&1 | tail -20)"
+    ]
+  }
+}

@@ -1112,6 +1112,52 @@ class MusicPlayerManager private constructor(context: Context) {
             fadeIn()
         }
     }
+
+    /**
+     * 播放音乐列表：清空当前列表，添加新列表并从指定索引开始播放
+     */
+    fun playMusicList(musicList: List<com.neko.music.data.model.Music>, startIndex: Int = 0) {
+        if (musicList.isEmpty()) return
+        
+        scope.launch {
+            try {
+                // 1. 清空当前播放列表
+                playlistManager.clearPlaylist()
+                
+                // 2. 批量添加新音乐到列表
+                for (music in musicList) {
+                    playlistManager.addToPlaylist(music)
+                }
+                
+                // 3. 播放指定索引的音乐
+                val firstMusic = musicList[startIndex.coerceIn(0, musicList.size - 1)]
+                val musicApi = com.neko.music.data.api.MusicApi(context)
+                val url = musicApi.getMusicFileUrl(firstMusic)
+                val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
+                    if (firstMusic.coverFilePath.startsWith("http")) {
+                        firstMusic.coverFilePath
+                    } else {
+                        UrlConfig.buildFullUrl("${firstMusic.coverFilePath}")
+                    }
+                } else {
+                    UrlConfig.getMusicCoverUrl(firstMusic.id)
+                }
+                
+                playMusic(
+                    url,
+                    firstMusic.id,
+                    firstMusic.title,
+                    firstMusic.artist,
+                    firstMusic.coverFilePath ?: "",
+                    fullCoverUrl
+                )
+                
+                Log.d("MusicPlayerManager", "播放列表成功，共 ${musicList.size} 首，从第 $startIndex 首开始")
+            } catch (e: Exception) {
+                Log.e("MusicPlayerManager", "播放列表失败", e)
+            }
+        }
+    }
     
     fun pause() {
         fadeOut {}
