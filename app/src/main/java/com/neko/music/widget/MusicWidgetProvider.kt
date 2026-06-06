@@ -7,8 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.widget.RemoteViews
+import androidx.core.graphics.drawable.toBitmap
+import coil3.asDrawable
 import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
+import kotlinx.coroutines.launch
 
 class MusicWidgetProvider : AppWidgetProvider() {
 
@@ -140,7 +143,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
                     val imageLoader = coil3.ImageLoader.Builder(context).build()
                     val result = imageLoader.execute(request)
                     if (result is coil3.request.SuccessResult) {
-                        val bitmap = androidx.core.graphics.drawable.toBitmap(result.image.asDrawable(context.resources))
+                        val bitmap = result.image.asDrawable(context.resources).toBitmap()
                         views.setImageViewBitmap(R.id.widget_cover, bitmap)
                         appWidgetManager.updateAppWidget(appWidgetId, views)
                     }
