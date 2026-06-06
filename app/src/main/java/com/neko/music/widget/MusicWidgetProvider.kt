@@ -39,7 +39,11 @@ class MusicWidgetProvider : AppWidgetProvider() {
 
         // 确保 Service 正在运行，以便处理播放逻辑
         if (intent.action in listOf(ACTION_PLAY_PAUSE, ACTION_PREVIOUS, ACTION_NEXT)) {
-            com.neko.music.MusicPlayerService.startService(context)
+            try {
+                com.neko.music.MusicPlayerService.startService(context)
+            } catch (e: Exception) {
+                android.util.Log.e("MusicWidgetProvider", "无法启动播放服务", e)
+            }
         }
 
         when (intent.action) {

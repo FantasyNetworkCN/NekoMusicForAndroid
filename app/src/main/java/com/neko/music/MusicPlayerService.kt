@@ -32,7 +32,11 @@ class MusicPlayerService : Service() {
 
         fun startService(context: Context) {
             val intent = Intent(context, MusicPlayerService::class.java)
-            context.startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
     }
 
@@ -56,6 +60,13 @@ class MusicPlayerService : Service() {
 
         // 启动前台服务以确保后台播放正常
         startForeground(NOTIFICATION_ID, createMusicNotification())
+
+        // 如果是冷启动且没有当前音乐，尝试恢复最后播放
+        if (playerManager.currentMusicId.value == null) {
+            kotlinx.coroutines.GlobalScope.launch {
+                playerManager.restoreLastPlayed(this@MusicPlayerService)
+            }
+        }
 
         // 监听定时关闭剩余时间变化
         kotlinx.coroutines.GlobalScope.launch {
