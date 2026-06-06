@@ -104,7 +104,7 @@ class MusicPlayerService : Service() {
         @OptIn(FlowPreview::class)
         kotlinx.coroutines.GlobalScope.launch {
             playerManager.currentPosition
-                .debounce(500) // 防抖0.5秒，限制桌面组件和浮动窗更新频率
+                .debounce(200) // 缩短防抖时间，使进度条更平滑
                 .collect {
                     // 发送广播更新桌面组件
                     val updateIntent = Intent(this@MusicPlayerService, com.neko.music.widget.MusicWidgetProvider::class.java).apply {

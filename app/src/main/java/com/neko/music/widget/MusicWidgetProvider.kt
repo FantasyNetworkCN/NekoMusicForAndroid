@@ -34,6 +34,11 @@ class MusicWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
 
+        // 确保 Service 正在运行，以便处理播放逻辑
+        if (intent.action in listOf(ACTION_PLAY_PAUSE, ACTION_PREVIOUS, ACTION_NEXT)) {
+            com.neko.music.MusicPlayerService.startService(context)
+        }
+
         when (intent.action) {
             ACTION_PLAY_PAUSE -> {
                 val playerManager = MusicPlayerManager.getInstance(context)
@@ -86,8 +91,10 @@ class MusicWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.music_widget)
 
         // 更新歌曲信息
-        views.setTextViewText(R.id.widget_song_title, playerManager.currentMusicTitle.value ?: "Neko云音乐")
-        views.setTextViewText(R.id.widget_artist_name, playerManager.currentMusicArtist.value ?: "暂无播放")
+        val title = playerManager.currentMusicTitle.value ?: "Neko云音乐"
+        val artist = playerManager.currentMusicArtist.value ?: "暂无播放"
+        views.setTextViewText(R.id.widget_song_title, title)
+        views.setTextViewText(R.id.widget_artist_name, artist)
 
         // 更新播放/暂停按钮图标
         val playPauseIcon = if (playerManager.isPlaying.value) {
@@ -97,7 +104,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
         }
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
-        // 进度条：有总时长用系统 Material 横条 determinate；正在播放但无时长（如部分流）用 indeterminate，即系统自带流动/波浪动画
+        // 进度条
         val currentPosition = playerManager.currentPosition.value
         val duration = playerManager.duration.value
         if (duration > 0) {
@@ -112,10 +119,44 @@ class MusicWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_total_time, "0:00")
         }
 
+        // 异步加载封面
+        val coverUrl = playerManager.currentMusicCover.value
+        val musicId = playerManager.currentMusicId.value
+        if (!coverUrl.isNullOrEmpty() && musicId != null) {
+            val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(context)
+            val cachedFile = cacheManager.getExistingCoverCacheFile(musicId)
+            
+            // 使用协程在 IO 线程加载图片（这里简单起见使用 Coil 的 ImageLoader）
+            // 注意：RemoteViews 只能在主线程更新，所以这里我们只是触发加载
+            // 实际上在 Widget 中加载图片通常需要一个专门的 Service 或者使用 Glide/Coil 的 Target
+            // 这里我们利用 MusicWidgetUpdateService 或者直接在 Provider 中处理
+            
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val request = coil3.request.ImageRequest.Builder(context)
+                        .data(cachedFile ?: coverUrl)
+                        .size(128, 128)
+                        .build()
+                    val imageLoader = coil3.ImageLoader.Builder(context).build()
+                    val result = imageLoader.execute(request)
+                    if (result is coil3.request.SuccessResult) {
+                        val bitmap = androidx.core.graphics.drawable.toBitmap(result.image.asDrawable(context.resources))
+                        views.setImageViewBitmap(R.id.widget_cover, bitmap)
+                        appWidgetManager.updateAppWidget(appWidgetId, views)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MusicWidgetProvider", "加载封面失败", e)
+                }
+            }
+        } else {
+            views.setImageViewResource(R.id.widget_cover, R.drawable.music)
+        }
+
         // 设置点击事件
         views.setOnClickPendingIntent(R.id.widget_play_pause, getPendingIntent(context, ACTION_PLAY_PAUSE))
         views.setOnClickPendingIntent(R.id.widget_previous, getPendingIntent(context, ACTION_PREVIOUS))
         views.setOnClickPendingIntent(R.id.widget_next, getPendingIntent(context, ACTION_NEXT))
+        views.setOnClickPendingIntent(R.id.widget_root, getPendingIntent(context, ACTION_OPEN_PLAYER))
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
