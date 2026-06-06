@@ -116,6 +116,16 @@ class MusicPlayerManager private constructor(context: Context) {
             // 创建 MediaSession，使用组件名以确保兼容性
             mediaSession = MediaSessionCompat(serviceContext, "MusicPlayerSession")
 
+            // 设置 SessionActivity 以便系统将播放与 UI 关联，有助于后台启动豁免
+            val activityIntent = Intent(serviceContext, com.neko.music.MainActivity::class.java)
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                serviceContext,
+                0,
+                activityIntent,
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            mediaSession?.setSessionActivity(pendingIntent)
+
             // 设置 MediaSession 标志以兼容国产厂商
             mediaSession?.setFlags(
                 MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -568,6 +578,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                Log.d("MusicPlayerManager", "onIsPlayingChanged: isPlaying = $isPlaying")
                 if (!isReleased) {
                     _isPlaying.value = isPlaying
                     updatePlaybackState()
@@ -575,7 +586,7 @@ class MusicPlayerManager private constructor(context: Context) {
             }
 
             override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
-                Log.e("MusicPlayerManager", "播放错误: ${error.message}, 重试次数: $retryCount", error)
+                Log.e("MusicPlayerManager", "播放错误: code = ${error.errorCode}, message = ${error.message}, 重试次数: $retryCount", error)
                 // 增加重试计数器
                 retryCount++
 
@@ -610,11 +621,15 @@ class MusicPlayerManager private constructor(context: Context) {
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (isReleased) return
+                Log.d("MusicPlayerManager", "onPlaybackStateChanged: state = $playbackState (IDLE = 1, BUFFERING = 2, READY = 3, ENDED = 4)")
 
                 when (playbackState) {
                     Player.STATE_IDLE -> {}
-                    Player.STATE_BUFFERING -> {}
+                    Player.STATE_BUFFERING -> {
+                        Log.d("MusicPlayerManager", "ExoPlayer 正在缓冲数据...")
+                    }
                     Player.STATE_READY -> {
+                        Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${player.duration} ms")
                         if (!isReleased) {
                             _duration.value = player.duration
                             // 音乐加载完成，预加载下一首
@@ -962,6 +977,7 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun playMusic(url: String, id: Int? = null, title: String? = null, artist: String? = null, cover: String? = null, fullCoverUrl: String? = null) {
+        Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$url")
         // 重置重试计数器
         retryCount = 0
 
@@ -1022,6 +1038,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
             // 先停止当前播放，避免状态冲突
             try {
+                Log.d("MusicPlayerManager", "正在停止旧播放并清理队列...")
                 player.stop()
                 player.clearMediaItems()
             } catch (e: Exception) {
@@ -1030,6 +1047,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
             // 立即执行 ExoPlayer 操作（同步）
             try {
+                Log.d("MusicPlayerManager", "正在设置 MediaItem 并准备播放: $playUrl")
                 val mediaItem = MediaItem.fromUri(playUrl)
                 player.setMediaItem(mediaItem)
                 player.prepare()
@@ -1037,6 +1055,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 Log.e("MusicPlayerManager", "ExoPlayer 操作失败: ${e.message}", e)
                 // 如果准备失败，尝试重新设置
                 try {
+                    Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $url")
                     val mediaItem = MediaItem.fromUri(url)
                     player.setMediaItem(mediaItem)
                     player.prepare()
@@ -1262,10 +1281,17 @@ class MusicPlayerManager private constructor(context: Context) {
 
             scheduleAlbumSessionArtLoad()
             
-            // 准备但不自动播放
-            val mediaItem = MediaItem.fromUri(url)
-            player.setMediaItem(mediaItem)
-            player.prepare()
+            // 准备但不自动播放（必须在主线程操作 ExoPlayer）
+            withContext(Dispatchers.Main) {
+                try {
+                    Log.d("MusicPlayerManager", "正在主线程恢复最后播放的媒体源: $url")
+                    val mediaItem = MediaItem.fromUri(url)
+                    player.setMediaItem(mediaItem)
+                    player.prepare()
+                } catch (e: Exception) {
+                    Log.e("MusicPlayerManager", "恢复最后播放失败", e)
+                }
+            }
         }
     }
     
