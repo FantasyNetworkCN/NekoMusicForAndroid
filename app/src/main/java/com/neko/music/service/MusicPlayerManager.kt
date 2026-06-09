@@ -190,14 +190,12 @@ class MusicPlayerManager private constructor(context: Context) {
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
 
-    private lateinit var context: android.content.Context
     private lateinit var tokenManager: com.neko.music.data.manager.TokenManager
     private lateinit var favoriteApi: com.neko.music.data.api.FavoriteApi
 
     fun initializeFavoriteManager() {
-        context = appContext.applicationContext
-        tokenManager = com.neko.music.data.manager.TokenManager(context)
-        favoriteApi = com.neko.music.data.api.FavoriteApi(context)
+        tokenManager = com.neko.music.data.manager.TokenManager(appContext)
+        favoriteApi = com.neko.music.data.api.FavoriteApi(appContext)
     }
 
     private val _playMode = MutableStateFlow(
@@ -286,6 +284,7 @@ class MusicPlayerManager private constructor(context: Context) {
     }
 
     fun toggleFavorite() {
+        if (!::tokenManager.isInitialized) return
         val musicId = currentMusicId.value ?: return
 
         scope.launch {
@@ -315,6 +314,10 @@ class MusicPlayerManager private constructor(context: Context) {
      * 检查当前音乐是否已收藏
      */
     fun checkFavoriteStatus() {
+        if (!::tokenManager.isInitialized) {
+            _isFavorite.value = false
+            return
+        }
         val token = tokenManager.getToken()
         val musicId = currentMusicId.value
 
@@ -409,7 +412,7 @@ class MusicPlayerManager private constructor(context: Context) {
                                                     }
                                                     android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                                                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                                                    val musicApi = com.neko.music.data.api.MusicApi(context)
+                                                    val musicApi = com.neko.music.data.api.MusicApi(appContext)
                                                     val musicUrl = musicApi.getMusicFileUrl(nextMusic)
                                                     playMusic(musicUrl, nextMusic.id, nextMusic.title, nextMusic.artist, nextMusic.coverFilePath ?: "", fullCoverUrl)
                     } else {
@@ -424,7 +427,7 @@ class MusicPlayerManager private constructor(context: Context) {
                                 UrlConfig.getMusicCoverUrl(firstMusic.id)
                             }
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                            val musicApi = com.neko.music.data.api.MusicApi(context)
+                            val musicApi = com.neko.music.data.api.MusicApi(appContext)
                             val musicUrl = musicApi.getMusicFileUrl(firstMusic)
                             playMusic(musicUrl, firstMusic.id, firstMusic.title, firstMusic.artist, firstMusic.coverFilePath ?: "", fullCoverUrl)
                         }
@@ -451,7 +454,7 @@ class MusicPlayerManager private constructor(context: Context) {
                         }
                         android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                        val musicApi = com.neko.music.data.api.MusicApi(context)
+                        val musicApi = com.neko.music.data.api.MusicApi(appContext)
                         val musicUrl = musicApi.getMusicFileUrl(nextMusic)
                         playMusic(musicUrl, nextMusic.id, nextMusic.title, nextMusic.artist, nextMusic.coverFilePath ?: "", fullCoverUrl)
                     } else {
@@ -466,7 +469,7 @@ class MusicPlayerManager private constructor(context: Context) {
                                 UrlConfig.getMusicCoverUrl(firstMusic.id)
                             }
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                            val musicApi = com.neko.music.data.api.MusicApi(context)
+                            val musicApi = com.neko.music.data.api.MusicApi(appContext)
                             val musicUrl = musicApi.getMusicFileUrl(firstMusic)
                             playMusic(musicUrl, firstMusic.id, firstMusic.title, firstMusic.artist, firstMusic.coverFilePath ?: "", fullCoverUrl)
                         }
@@ -484,7 +487,7 @@ class MusicPlayerManager private constructor(context: Context) {
                             UrlConfig.getMusicCoverUrl(randomMusic.id)
                         }
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                        val musicApi = com.neko.music.data.api.MusicApi(context)
+                        val musicApi = com.neko.music.data.api.MusicApi(appContext)
                         val musicUrl = musicApi.getMusicFileUrl(randomMusic)
                         playMusic(musicUrl, randomMusic.id, randomMusic.title, randomMusic.artist, randomMusic.coverFilePath ?: "", fullCoverUrl)
                     } else {
@@ -520,7 +523,7 @@ class MusicPlayerManager private constructor(context: Context) {
                             UrlConfig.getMusicCoverUrl(previousMusic.id)
                         }
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                        val musicApi = com.neko.music.data.api.MusicApi(context)
+                        val musicApi = com.neko.music.data.api.MusicApi(appContext)
                         val musicUrl = musicApi.getMusicFileUrl(previousMusic)
                         playMusic(musicUrl, previousMusic.id, previousMusic.title, previousMusic.artist, previousMusic.coverFilePath ?: "", fullCoverUrl)
                         return@runBlocking
@@ -540,7 +543,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     UrlConfig.getMusicCoverUrl(previousMusic.id)
                 }
                 // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                val musicApi = com.neko.music.data.api.MusicApi(context)
+                val musicApi = com.neko.music.data.api.MusicApi(appContext)
                 val musicUrl = musicApi.getMusicFileUrl(previousMusic)
                 playMusic(musicUrl, previousMusic.id, previousMusic.title, previousMusic.artist, previousMusic.coverFilePath ?: "", fullCoverUrl)
             } else {
@@ -555,7 +558,7 @@ class MusicPlayerManager private constructor(context: Context) {
                         UrlConfig.getMusicCoverUrl(lastMusic.id)
                     }
                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                    val musicApi = com.neko.music.data.api.MusicApi(context)
+                    val musicApi = com.neko.music.data.api.MusicApi(appContext)
                     val musicUrl = musicApi.getMusicFileUrl(lastMusic)
                     playMusic(musicUrl, lastMusic.id, lastMusic.title, lastMusic.artist, lastMusic.coverFilePath ?: "", fullCoverUrl)
                 }
@@ -1029,7 +1032,7 @@ class MusicPlayerManager private constructor(context: Context) {
             scheduleAlbumSessionArtLoad()
 
             // 优先使用缓存文件
-            val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(context)
+            val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
             val playUrl = if (id != null) {
                 cacheManager.getCachedMusicFile(id)?.absolutePath ?: url
             } else {
@@ -1086,7 +1089,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     playlistManager.updateAddedAt(id)
 
                     // 缓存管理 - 仅在缓存启用时执行
-                    val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(context)
+                    val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
                     
                     if (cacheManager.isCacheEnabled()) {
                         // 检查是否已缓存，如果没有则开始缓存
@@ -1119,7 +1122,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
 
                     // 添加到最近播放列表
-                    val recentPlayManager = com.neko.music.data.manager.RecentPlayManager(context)
+                    val recentPlayManager = com.neko.music.data.manager.RecentPlayManager(appContext)
                     recentPlayManager.addRecentPlay(music)
                 }
             }
@@ -1150,7 +1153,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 
                 // 3. 播放指定索引的音乐
                 val firstMusic = musicList[startIndex.coerceIn(0, musicList.size - 1)]
-                val musicApi = com.neko.music.data.api.MusicApi(context)
+                val musicApi = com.neko.music.data.api.MusicApi(appContext)
                 val url = musicApi.getMusicFileUrl(firstMusic)
                 val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
                     if (firstMusic.coverFilePath.startsWith("http")) {
@@ -1220,7 +1223,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 }
 
                 if (nextMusic != null) {
-                    val musicApi = com.neko.music.data.api.MusicApi(context)
+                    val musicApi = com.neko.music.data.api.MusicApi(appContext)
                     val nextUrl = musicApi.getMusicFileUrl(nextMusic)
 
                     val fullCoverUrl = if (!nextMusic.coverFilePath.isNullOrEmpty()) {
@@ -1261,7 +1264,7 @@ class MusicPlayerManager private constructor(context: Context) {
     suspend fun restoreLastPlayed(context: Context) {
         val lastPlayed = playlistManager.getLastPlayed()
         lastPlayed?.let { music ->
-            val musicApi = com.neko.music.data.api.MusicApi(context)
+            val musicApi = com.neko.music.data.api.MusicApi(appContext)
             val url = musicApi.getMusicFileUrl(music)
             val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
                 UrlConfig.buildFullUrl("${music.coverFilePath}")
