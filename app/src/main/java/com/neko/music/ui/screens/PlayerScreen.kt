@@ -252,6 +252,7 @@ fun PlayerScreen(
     val currentMusicTitle by playerManager.currentMusicTitle.collectAsState()
     val currentMusicArtist by playerManager.currentMusicArtist.collectAsState()
     val currentMusicCover by playerManager.currentMusicCover.collectAsState()
+    val currentMusicUrl by playerManager.currentMusicUrl.collectAsState()
 
     // 检查登录状态
     val isLoggedIn = tokenManager.isLoggedIn()
@@ -334,7 +335,17 @@ fun PlayerScreen(
     val videoRenderDownloadStarted = stringResource(id = R.string.video_render_download_started)
 
     // 从播放器获取当前音乐信息
-    val currentMusic = remember(currentMusicId) {
+    val isLocalCurrentMusic = (currentMusicId ?: music.id) < 0
+
+    val currentMusic = remember(
+        currentMusicId,
+        currentMusicTitle,
+        currentMusicArtist,
+        currentMusicCover,
+        currentMusicUrl,
+        duration,
+        music,
+    ) {
         val id = currentMusicId
         val title = currentMusicTitle
         val artist = currentMusicArtist
@@ -345,7 +356,7 @@ fun PlayerScreen(
                 artist = artist,
                 album = "",
                 duration = duration.toInt(),
-                filePath = musicFileUrl ?: "",
+                filePath = currentMusicUrl ?: musicFileUrl ?: "",
                 coverFilePath = currentMusicCover ?: "",
                 uploadUserId = 0,
                 createdAt = ""
@@ -426,10 +437,14 @@ fun PlayerScreen(
     }
 
     // 加载音乐文件URL，只在音乐ID不同时才重新播放
-    LaunchedEffect(music.id) {
+    LaunchedEffect(music.id, currentMusicUrl) {
         isLoading = true
         scope.launch {
-            musicFileUrl = musicApi.getMusicFileUrl(music)
+            musicFileUrl = if (music.id < 0 && currentMusicId == music.id) {
+                currentMusicUrl ?: music.filePath
+            } else {
+                musicApi.getMusicFileUrl(music)
+            }
             isLoading = false
             musicFileUrl?.let { url ->
                 // 只在音乐ID不同时才播放
@@ -460,6 +475,10 @@ fun PlayerScreen(
 
     // 加载歌词
     LaunchedEffect(currentMusic.id) {
+        if (currentMusic.id < 0) {
+            lyrics = emptyList()
+            return@LaunchedEffect
+        }
         scope.launch {
             val result = musicApi.getMusicLyrics(currentMusic)
             result.fold(
@@ -562,10 +581,10 @@ fun PlayerScreen(
         Unit
     }
 
-    val coverUrl = if (!currentMusic.coverFilePath.isNullOrEmpty()) {
-        UrlConfig.buildFullUrl(currentMusic.coverFilePath)
-    } else {
-        UrlConfig.getMusicCoverUrl(currentMusic.id)
+    val coverUrl = when {
+        currentMusic.coverFilePath.isNullOrEmpty() && currentMusic.id < 0 -> null
+        !currentMusic.coverFilePath.isNullOrEmpty() -> UrlConfig.buildFullUrl(currentMusic.coverFilePath)
+        else -> UrlConfig.getMusicCoverUrl(currentMusic.id)
     }
 
     val colorScheme = MaterialTheme.colorScheme
@@ -652,46 +671,48 @@ fun PlayerScreen(
                             onClick = { showLyrics = true }
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        VideoRenderPlayerEntry(
-                            isBusy = videoRenderBusy,
-                            jobStatus = videoRenderJobStatus,
-                            remainingToday = videoRenderRemainingToday,
-                            errorMessage = videoRenderError,
-                            onOpenDialog = {
-                                if (!isLoggedIn) {
-                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                } else {
-                                    if (videoRenderJobStatus == "failed") {
-                                        videoRenderJobId = null
-                                        videoRenderJobStatus = null
-                                        videoRenderError = null
-                                        videoRenderRemainingToday = null
+                        if (!isLocalCurrentMusic) {
+                            VideoRenderPlayerEntry(
+                                isBusy = videoRenderBusy,
+                                jobStatus = videoRenderJobStatus,
+                                remainingToday = videoRenderRemainingToday,
+                                errorMessage = videoRenderError,
+                                onOpenDialog = {
+                                    if (!isLoggedIn) {
+                                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        if (videoRenderJobStatus == "failed") {
+                                            videoRenderJobId = null
+                                            videoRenderJobStatus = null
+                                            videoRenderError = null
+                                            videoRenderRemainingToday = null
+                                        }
+                                        showVideoRenderDialog = true
                                     }
-                                    showVideoRenderDialog = true
-                                }
-                            },
-                            onDownload = {
-                                val jobId = videoRenderJobId ?: return@VideoRenderPlayerEntry
-                                val name = "${currentMusic.title}.mp4"
-                                VideoRenderApi.enqueueDownload(context, jobId, name).fold(
-                                    onSuccess = {
-                                        Toast.makeText(
-                                            context,
-                                            videoRenderDownloadStarted,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
-                                    onFailure = { e ->
-                                        Toast.makeText(
-                                            context,
-                                            e.message ?: videoRenderCreateFailed,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                )
-                            },
-                            modifier = Modifier.padding(horizontal = 24.dp)
-                        )
+                                },
+                                onDownload = {
+                                    val jobId = videoRenderJobId ?: return@VideoRenderPlayerEntry
+                                    val name = "${currentMusic.title}.mp4"
+                                    VideoRenderApi.enqueueDownload(context, jobId, name).fold(
+                                        onSuccess = {
+                                            Toast.makeText(
+                                                context,
+                                                videoRenderDownloadStarted,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                        onFailure = { e ->
+                                            Toast.makeText(
+                                                context,
+                                                e.message ?: videoRenderCreateFailed,
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -862,6 +883,10 @@ fun PlayerScreen(
                     onDownload = {
                         scope.launch {
                             showShareDialog = false
+                            if (currentMusic.id < 0) {
+                                Toast.makeText(context, context.getString(R.string.local_music_cloud_action_unavailable), Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
                             try {
                                 val downloadHelper = com.neko.music.util.DownloadHelper(context)
                                 val result = downloadHelper.downloadMusicWithLyrics(currentMusic)
@@ -883,6 +908,10 @@ fun PlayerScreen(
                     onShareToTwitter = {
                         scope.launch {
                             showShareDialog = false
+                            if (currentMusic.id < 0) {
+                                Toast.makeText(context, context.getString(R.string.local_music_cloud_action_unavailable), Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
                             try {
                                 val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
                                 val encodedText = java.net.URLEncoder.encode(shareText, "UTF-8")
@@ -907,6 +936,10 @@ fun PlayerScreen(
                     onShareToQQ = {
                         scope.launch {
                             showShareDialog = false
+                            if (currentMusic.id < 0) {
+                                Toast.makeText(context, context.getString(R.string.local_music_cloud_action_unavailable), Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
                             try {
                                 val shareText = context.getString(R.string.share_music_text, currentMusic.artist, currentMusic.title, currentMusic.id)
                                 val qqIntent = android.content.Intent().apply {
@@ -960,6 +993,10 @@ fun PlayerScreen(
                         selectedPlaylistId = playlist.id
                         scope.launch {
                             try {
+                                if (currentMusic.id < 0) {
+                                    Toast.makeText(context, context.getString(R.string.local_music_cloud_action_unavailable), Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
                                 val token = tokenManager.getToken()
                                 Log.d("PlayerScreen", "开始添加到歌单: playlistId=${playlist.id}, musicId=${currentMusic.id}, token=$token")
                                 if (token != null) {

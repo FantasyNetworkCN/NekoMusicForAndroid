@@ -224,6 +224,10 @@ class MusicApi(private val context: Context) {
     }
     
     suspend fun getMusicFileUrl(music: Music): String {
+        music.filePath?.takeIf { UrlConfig.isLocalUri(it) }?.let { url ->
+            Log.d("MusicApi", "使用本地音频URI: $url")
+            return url
+        }
         // 直接返回网络 URL，不使用本地缓存
         val url = UrlConfig.getMusicFileUrl(music.id)
         Log.d("MusicApi", "使用网络URL: $url")

@@ -25,6 +25,11 @@ object UrlConfig {
      */
     fun getMusicFileUrl(musicId: Int): String = "${BASE_URL}/api/music/file/$musicId"
 
+    fun isLocalUri(value: String?): Boolean {
+        if (value.isNullOrBlank()) return false
+        return value.startsWith("content://") || value.startsWith("file://")
+    }
+
     /**
      * 获取用户头像URL
      * @param userId 用户ID
@@ -73,6 +78,7 @@ object UrlConfig {
      * @param path 路径
      */
     fun buildFullUrl(path: String): String {
+        if (isLocalUri(path)) return path
         return if (path.startsWith("/")) {
             "${BASE_URL}$path"
         } else {
@@ -86,6 +92,7 @@ object UrlConfig {
      * @param coverFilePath 封面文件路径（可选）
      */
     fun buildMusicCoverUrl(musicId: Int, coverFilePath: String? = null): String {
+        if (isLocalUri(coverFilePath)) return coverFilePath.orEmpty()
         return if (!coverFilePath.isNullOrEmpty() && coverFilePath.startsWith("/")) {
             "${BASE_URL}$coverFilePath"
         } else {
