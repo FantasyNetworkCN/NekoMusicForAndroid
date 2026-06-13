@@ -43,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.activity.compose.BackHandler
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import coil3.compose.AsyncImage
@@ -92,7 +94,7 @@ private val MyPlaylistsDarkPlaceholderText = SakuraPink.copy(alpha = 0.88f)
 @Composable
 fun MyPlaylistsScreen(
     onNavigateToPlaylistDetail: (Int, String, String?, String?, String?, Int?) -> Unit,
-    onNavigateToFavorite: () -> Unit
+    onNavigateToFavorite: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -698,14 +700,7 @@ fun MyPlaylistsScreen(
             }
         }
 
-        AnimatedVisibility(
-            visible = showImportSourceDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(46f),
-        ) {
+        TopLevelImportDialogVisibility(visible = showImportSourceDialog) {
             ImportPlaylistSourceDialog(
                 sampleBackdrop = pageBackdrop,
                 onNeteaseClick = {
@@ -726,14 +721,7 @@ fun MyPlaylistsScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = showNeteasePlaylistIdDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(47f),
-        ) {
+        TopLevelImportDialogVisibility(visible = showNeteasePlaylistIdDialog) {
             PlaylistIdDialog(
                 playlistId = neteasePlaylistId,
                 destinationOptions = importDestinationOptions,
@@ -875,14 +863,7 @@ fun MyPlaylistsScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = showQqPlaylistIdDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(47f),
-        ) {
+        TopLevelImportDialogVisibility(visible = showQqPlaylistIdDialog) {
             PlaylistIdDialog(
                 playlistId = qqPlaylistId,
                 destinationOptions = importDestinationOptions,
@@ -1023,14 +1004,7 @@ fun MyPlaylistsScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = showImportMatchFailedDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(48f),
-        ) {
+        TopLevelImportDialogVisibility(visible = showImportMatchFailedDialog) {
             ImportMatchFailedDialog(
                 failedItems = importMatchFailedItems,
                 sampleBackdrop = pageBackdrop,
@@ -1292,6 +1266,34 @@ private data class ImportDestinationOption(
     val destination: ImportDestination,
     val label: String,
 )
+
+@Composable
+private fun TopLevelImportDialogVisibility(
+    visible: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val visibilityState = remember { MutableTransitionState(false) }
+
+    LaunchedEffect(visible) {
+        visibilityState.targetState = visible
+    }
+
+    if (visibilityState.currentState || visibilityState.targetState) {
+        Popup(
+            alignment = Alignment.TopStart,
+            properties = PopupProperties(focusable = true),
+        ) {
+            AnimatedVisibility(
+                visibleState = visibilityState,
+                enter = LiquidCenterModalTransitions.Enter,
+                exit = LiquidCenterModalTransitions.Exit,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                content()
+            }
+        }
+    }
+}
 
 @Composable
 private fun ImportPlaylistSourceDialog(
