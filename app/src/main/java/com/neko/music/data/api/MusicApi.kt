@@ -235,6 +235,14 @@ class MusicApi(private val context: Context) {
     }
     
     suspend fun getMusicLyrics(music: Music): Result<String> {
+        if (music.id < 0) {
+            cacheManager.getExistingLyricsContent(music.id)?.let { lyrics ->
+                Log.d("MusicApi", "使用本地歌词: ${music.id}")
+                return Result.success(sanitizeLyricsJsonEscapes(lyrics))
+            }
+            return Result.failure(Exception("No local lyrics"))
+        }
+
         // 优先使用缓存（仅在缓存启用时）
         if (cacheManager.isCacheEnabled()) {
             val cachedLyrics = cacheManager.getCachedLyricsContent(music.id)

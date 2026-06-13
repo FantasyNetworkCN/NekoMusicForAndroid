@@ -15,7 +15,15 @@ data class Music(
     val createdAt: String? = null,
     val playCount: Int? = null,
     /** 是否有有效歌词（单条 query 搜索响应字段） */
-    val lrc: Boolean = false
+    val lrc: Boolean = false,
+    val albumArtist: String? = null,
+    val composer: String? = null,
+    val genre: String? = null,
+    val year: String? = null,
+    val discNumber: String? = null,
+    val trackNumber: String? = null,
+    val fileName: String? = null,
+    val lyricsPreview: String? = null
 ) {
     val coverUrl: String
         get() = if (coverFilePath.isNullOrEmpty()) {

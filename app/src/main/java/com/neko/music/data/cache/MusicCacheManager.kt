@@ -122,6 +122,20 @@ private fun ensureCacheDirs() {
         return if (file.exists() && file.length() > 0L) file else null
     }
 
+    suspend fun saveLocalCover(musicId: Int, bytes: ByteArray): Result<File> = withContext(Dispatchers.IO) {
+        try {
+            ensureCacheDirs()
+            val file = File(coverDir, "cover_$musicId.jpg")
+            FileOutputStream(file).use { output ->
+                output.write(bytes)
+            }
+            Result.success(file)
+        } catch (e: Exception) {
+            Log.e(TAG, "保存本地封面失败: $musicId", e)
+            Result.failure(e)
+        }
+    }
+
     /**
      * 获取歌词缓存路径
      */
@@ -253,6 +267,35 @@ private fun ensureCacheDirs() {
         } catch (e: Exception) {
             Log.e(TAG, "读取缓存歌词失败: $musicId", e)
             null
+        }
+    }
+
+    fun getExistingLyricsContent(musicId: Int): String? {
+        val file = File(lyricsDir, "lyrics_$musicId.lrc")
+        if (!file.exists() || file.length() <= 0L) return null
+        return try {
+            file.readText(Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "读取本地歌词失败: $musicId", e)
+            null
+        }
+    }
+
+    suspend fun saveLocalLyrics(musicId: Int, content: String): Result<File> = withContext(Dispatchers.IO) {
+        try {
+            ensureCacheDirs()
+            val file = File(lyricsDir, "lyrics_$musicId.lrc")
+            FileOutputStream(file).use { output ->
+                output.write(content.toByteArray(Charsets.UTF_8))
+            }
+            prefs.edit()
+                .putLong("lyrics_${musicId}_time", System.currentTimeMillis())
+                .putLong("lyrics_${musicId}_size", file.length())
+                .apply()
+            Result.success(file)
+        } catch (e: Exception) {
+            Log.e(TAG, "保存本地歌词失败: $musicId", e)
+            Result.failure(e)
         }
     }
 
