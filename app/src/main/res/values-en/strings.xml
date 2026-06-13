@@ -681,4 +681,12 @@
     <string name="daily_recommendation_desc">Chosen from your favorites taste</string>
     <string name="no_daily_recommendation">No daily picks yet</string>
     <string name="qq_playlist_id_hint">Paste the QQ Music sharing link or playlist ID</string>
+    <string name="refresh">Refresh</string>
+    <string name="local_music">Local Music</string>
+    <string name="local_music_song_count">%d local songs</string>
+    <string name="local_music_search_count">%d found</string>
+    <string name="local_music_empty">No local music found</string>
+    <string name="local_music_permission_title">Local music permission needed</string>
+    <string name="local_music_permission_message">Allow access to scan audio files on this device and play them with the current player.</string>
+    <string name="local_music_cloud_action_unavailable">Cloud actions are not available for local music</string>
 </resources>

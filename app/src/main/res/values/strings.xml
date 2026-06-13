@@ -638,4 +638,12 @@
     <string name="daily_recommendation_title">今日推荐喵</string>
     <string name="daily_recommendation_desc">根据你的收藏口味为你挑的喵</string>
     <string name="no_daily_recommendation">今天还没挑出推荐喵</string>
+    <string name="refresh">刷新喵</string>
+    <string name="local_music">本地音乐喵</string>
+    <string name="local_music_song_count">%d 首本地歌喵</string>
+    <string name="local_music_search_count">找到 %d 首喵</string>
+    <string name="local_music_empty">没扫到本地音乐喵</string>
+    <string name="local_music_permission_title">要读本地音乐喵</string>
+    <string name="local_music_permission_message">允许后就能扫描设备里的音频文件，直接在这里播放喵</string>
+    <string name="local_music_cloud_action_unavailable">本地音乐暂不支持云端操作喵</string>
 </resources>

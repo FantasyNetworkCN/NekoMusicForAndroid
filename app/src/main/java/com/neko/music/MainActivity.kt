@@ -81,6 +81,7 @@ import com.neko.music.ui.list.RankingLiquidTopBarOverlay
 import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.navigation.AuthRoutes
+import com.neko.music.ui.screens.LocalMusicScreen
 import com.neko.music.ui.screens.LoginScreen
 import com.neko.music.ui.screens.RegisterScreen
 import com.neko.music.ui.screens.ForgotPasswordScreen
@@ -657,6 +658,9 @@ fun MainScreen() {
                     onFavoriteClick = {
                         navController.navigate("favorites")
                     },
+                    onLocalMusicClick = {
+                        navController.navigate("local_music")
+                    },
                     onAboutClick = {
                         navController.navigate("about")
                     },
@@ -714,6 +718,18 @@ fun MainScreen() {
                         val encodedArtist =
                             java.net.URLEncoder.encode(music.artist, "UTF-8")
                         navController.navigate("player/$id/$encodedTitle/$encodedArtist")
+                    }
+                )
+            }
+            composable("local_music") {
+                LocalMusicScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToPlayer = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
                     }
                 )
             }
