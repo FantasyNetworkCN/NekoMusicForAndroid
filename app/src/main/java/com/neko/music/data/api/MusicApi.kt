@@ -228,6 +228,11 @@ class MusicApi(private val context: Context) {
             Log.d("MusicApi", "使用本地音频URI: $url")
             return url
         }
+        music.filePath?.takeIf { it.startsWith("/") || it.startsWith("http") }?.let { path ->
+            val url = UrlConfig.buildFullUrl(path)
+            Log.d("MusicApi", "使用音乐文件URL: $url")
+            return url
+        }
         // 直接返回网络 URL，不使用本地缓存
         val url = UrlConfig.getMusicFileUrl(music.id)
         Log.d("MusicApi", "使用网络URL: $url")
