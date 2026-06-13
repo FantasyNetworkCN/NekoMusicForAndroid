@@ -475,10 +475,6 @@ fun PlayerScreen(
 
     // 加载歌词
     LaunchedEffect(currentMusic.id) {
-        if (currentMusic.id < 0) {
-            lyrics = emptyList()
-            return@LaunchedEffect
-        }
         scope.launch {
             val result = musicApi.getMusicLyrics(currentMusic)
             result.fold(
@@ -487,6 +483,7 @@ fun PlayerScreen(
                     Log.d("PlayerScreen", "歌词加载成功，共 ${lyrics.size} 行")
                 },
                 onFailure = { error ->
+                    lyrics = emptyList()
                     Log.e("PlayerScreen", "歌词加载失败: ${error.message}")
                 }
             )
@@ -583,6 +580,7 @@ fun PlayerScreen(
 
     val coverUrl = when {
         currentMusic.coverFilePath.isNullOrEmpty() && currentMusic.id < 0 -> null
+        currentMusic.id < 0 -> currentMusic.coverFilePath
         !currentMusic.coverFilePath.isNullOrEmpty() -> UrlConfig.buildFullUrl(currentMusic.coverFilePath)
         else -> UrlConfig.getMusicCoverUrl(currentMusic.id)
     }

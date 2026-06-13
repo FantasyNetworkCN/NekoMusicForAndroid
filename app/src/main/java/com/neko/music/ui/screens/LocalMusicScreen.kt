@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -442,12 +443,20 @@ private fun LocalMusicItem(
                     .background(SkyBlue.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.music),
-                    contentDescription = null,
-                    tint = if (isCurrent) RoseRed else SkyBlue,
-                    modifier = Modifier.size(28.dp),
-                )
+                if (!music.coverFilePath.isNullOrBlank()) {
+                    AsyncImage(
+                        model = music.coverFilePath,
+                        contentDescription = music.title,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(id = R.drawable.music),
+                        contentDescription = null,
+                        tint = if (isCurrent) RoseRed else SkyBlue,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -463,14 +472,33 @@ private fun LocalMusicItem(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = listOf(music.artist, formatDurationSeconds(music.duration))
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · "),
+                    text = buildPrimaryLocalMeta(music),
                     color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.78f) else scheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+//                val secondaryMeta = buildSecondaryLocalMeta(music)
+//                if (secondaryMeta.isNotBlank()) {
+//                    Spacer(modifier = Modifier.height(3.dp))
+//                    Text(
+//                        text = secondaryMeta,
+//                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.58f) else scheme.onSurfaceVariant.copy(alpha = 0.78f),
+//                        fontSize = 12.sp,
+//                        maxLines = 1,
+//                        overflow = TextOverflow.Ellipsis,
+//                    )
+//                }
+//                if (!music.lyricsPreview.isNullOrBlank()) {
+//                    Spacer(modifier = Modifier.height(3.dp))
+//                    Text(
+//                        text = music.lyricsPreview,
+//                        color = RoseRed.copy(alpha = if (isDarkTheme) 0.82f else 0.72f),
+//                        fontSize = 12.sp,
+//                        maxLines = 1,
+//                        overflow = TextOverflow.Ellipsis,
+//                    )
+//                }
             }
 
             Icon(
@@ -554,4 +582,27 @@ private fun formatDurationSeconds(seconds: Int): String {
     val minutes = seconds / 60
     val remain = seconds % 60
     return "%d:%02d".format(minutes, remain)
+}
+
+private fun buildPrimaryLocalMeta(music: Music): String {
+    return listOf(
+        music.artist,
+        music.album,
+        formatDurationSeconds(music.duration),
+    ).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun buildSecondaryLocalMeta(music: Music): String {
+    val track = listOfNotNull(
+        music.discNumber?.takeIf { it.isNotBlank() }?.let { "D$it" },
+        music.trackNumber?.takeIf { it.isNotBlank() }?.let { "#$it" },
+    ).joinToString(" ")
+    return listOf(
+        music.year.orEmpty(),
+        music.genre.orEmpty(),
+        music.albumArtist?.takeIf { it != music.artist }.orEmpty(),
+        music.composer?.takeIf { it != music.artist }.orEmpty(),
+        track,
+        if (music.lrc) "LRC" else "",
+    ).filter { it.isNotBlank() }.joinToString(" · ")
 }

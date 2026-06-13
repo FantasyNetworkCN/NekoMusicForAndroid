@@ -27,7 +27,7 @@ object UrlConfig {
 
     fun isLocalUri(value: String?): Boolean {
         if (value.isNullOrBlank()) return false
-        return value.startsWith("content://") || value.startsWith("file://")
+        return value.startsWith("content://") || value.startsWith("file://") || value.startsWith("/")
     }
 
     /**
