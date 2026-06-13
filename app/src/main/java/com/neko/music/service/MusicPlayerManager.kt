@@ -946,7 +946,8 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun playMusic(url: String, id: Int? = null, title: String? = null, artist: String? = null, cover: String? = null, fullCoverUrl: String? = null) {
-        Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$url")
+        val normalizedUrl = if (UrlConfig.isLocalUri(url)) url else UrlConfig.buildFullUrl(url)
+        Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$normalizedUrl")
         // 重置重试计数器
         retryCount = 0
 
@@ -958,14 +959,14 @@ class MusicPlayerManager private constructor(context: Context) {
         preloadedNextMusicUrl = null
         preloadedNextMusicFullCoverUrl = null
 
-        if (_currentMusicUrl.value != url) {
+        if (_currentMusicUrl.value != normalizedUrl) {
             // 添加到历史记录（如果不是重复播放同一首歌）
             if (id != null && _currentMusicId.value != id) {
                 playHistory.add(id)
             }
 
             // 立即更新 UI 状态
-            _currentMusicUrl.value = url
+            _currentMusicUrl.value = normalizedUrl
             _currentMusicId.value = id
             _currentMusicTitle.value = title
             _currentMusicArtist.value = artist
@@ -999,10 +1000,10 @@ class MusicPlayerManager private constructor(context: Context) {
 
             // 优先使用缓存文件
             val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
-            val playUrl = if (id != null && !isLocalMusicId(id) && !UrlConfig.isLocalUri(url)) {
-                cacheManager.getCachedMusicFile(id)?.absolutePath ?: url
+            val playUrl = if (id != null && !isLocalMusicId(id) && !UrlConfig.isLocalUri(normalizedUrl)) {
+                cacheManager.getCachedMusicFile(id)?.absolutePath ?: normalizedUrl
             } else {
-                url
+                normalizedUrl
             }
 
             // 先停止当前播放，避免状态冲突
@@ -1024,8 +1025,8 @@ class MusicPlayerManager private constructor(context: Context) {
                 Log.e("MusicPlayerManager", "ExoPlayer 操作失败: ${e.message}", e)
                 // 如果准备失败，尝试重新设置
                 try {
-                    Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $url")
-                    val mediaItem = MediaItem.fromUri(url)
+                    Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $normalizedUrl")
+                    val mediaItem = MediaItem.fromUri(normalizedUrl)
                     player.setMediaItem(mediaItem)
                     player.prepare()
                 } catch (e2: Exception) {
@@ -1045,7 +1046,7 @@ class MusicPlayerManager private constructor(context: Context) {
                         artist = artist,
                         album = "",
                         duration = 0,
-                        filePath = url,
+                        filePath = normalizedUrl,
                         coverFilePath = cover ?: "",
                         uploadUserId = 0,
                         createdAt = ""
@@ -1060,7 +1061,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     if (cacheManager.isCacheEnabled()) {
                         // 检查是否已缓存，如果没有则开始缓存
                         if (cacheManager.getCachedMusicFile(id) == null) {
-                            cacheManager.cacheMusicFile(id, url, title, artist)
+                            cacheManager.cacheMusicFile(id, normalizedUrl, title, artist)
                                 .onSuccess { 
                                     Log.d("MusicPlayerManager", "音乐缓存成功: $title")
                                 }

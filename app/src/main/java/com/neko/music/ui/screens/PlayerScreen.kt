@@ -436,24 +436,26 @@ fun PlayerScreen(
         }
     }
 
-    // 加载音乐文件URL，只在音乐ID不同时才重新播放
-    LaunchedEffect(music.id, currentMusicUrl) {
+    // 加载音乐文件URL，只在路由音乐变化时准备播放。
+    // currentMusicUrl 会在切歌时变化，不能作为 key，否则页面会用旧路由歌曲把刚切到的新歌覆盖回去。
+    LaunchedEffect(music.id) {
         isLoading = true
         scope.launch {
-            musicFileUrl = if (music.id < 0 && currentMusicId == music.id) {
-                currentMusicUrl ?: music.filePath
-            } else {
-                musicApi.getMusicFileUrl(music)
+            musicFileUrl = when {
+                music.id < 0 && currentMusicId == music.id -> currentMusicUrl ?: music.filePath
+                music.id < 0 && UrlConfig.isLocalUri(music.filePath) -> music.filePath
+                music.id < 0 -> null
+                else -> musicApi.getMusicFileUrl(music)
             }
             isLoading = false
             musicFileUrl?.let { url ->
                 // 只在音乐ID不同时才播放
                 if (currentMusicId != music.id) {
                     // 获取完整的封面URL
-                    val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-                        UrlConfig.buildFullUrl("${music.coverFilePath}")
-                    } else {
-                        UrlConfig.getMusicCoverUrl(music.id)
+                    val fullCoverUrl = when {
+                        music.id < 0 && music.coverFilePath.isNullOrEmpty() -> null
+                        !music.coverFilePath.isNullOrEmpty() -> UrlConfig.buildFullUrl("${music.coverFilePath}")
+                        else -> UrlConfig.getMusicCoverUrl(music.id)
                     }
                     Log.d(
                         "PlayerScreen",
