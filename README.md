@@ -12,7 +12,7 @@ QQ云音乐歌单导入相同 [QQ云API仓库](https://github.com/Rain120/qq-mus
 
 ### 获取外部歌单api
 获取qq歌单列表`https://music.cnmsb.xin/loser1/getSongListDetail?disstid=歌单id`
-获取网易云歌单列表`https://music.cnmsb.xin/loser/playlist/detail?id=歌单id`
+获取网易云歌单列表`https://music.cnmsb.xin/loser/playlist/track/all?id=歌单id`
 
 ## Deep Link 外部唤醒
 
