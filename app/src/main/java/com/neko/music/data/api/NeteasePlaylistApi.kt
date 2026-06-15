@@ -21,6 +21,7 @@ data class NeteasePlaylistDetailResponse(
     val message: String? = null,
     val msg: String? = null,
     val playlist: NeteasePlaylist? = null,
+    val songs: List<NeteaseTrack>? = null,
 )
 
 @Serializable
@@ -64,10 +65,20 @@ class NeteasePlaylistApi {
 
     suspend fun fetchPlaylistDetail(playlistId: Long): Result<NeteasePlaylistDetailResponse> {
         return try {
-            val url = "${UrlConfig.getBaseUrl()}/loser/playlist/detail?id=$playlistId"
+            val url = "${UrlConfig.getBaseUrl()}/loser/playlist/track/all?id=$playlistId"
             Log.d(TAG, "请求网易云歌单: id=$playlistId url=$url")
             val response = client.get(url).body<NeteasePlaylistDetailResponse>()
-            Result.success(response)
+            val songs = response.songs.orEmpty()
+            Result.success(
+                response.copy(
+                    playlist = response.playlist ?: NeteasePlaylist(
+                        id = playlistId,
+                        name = "网易云歌单 $playlistId",
+                        trackCount = songs.size,
+                        tracks = songs,
+                    ),
+                ),
+            )
         } catch (e: Exception) {
             Log.e(TAG, "获取网易云歌单失败${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
