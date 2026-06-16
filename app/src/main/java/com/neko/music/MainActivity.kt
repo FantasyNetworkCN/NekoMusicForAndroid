@@ -108,7 +108,7 @@ import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
 import com.neko.music.util.UrlConfig
-import com.neko.music.ui.theme.Neko云音乐Theme
+import com.neko.music.ui.theme.Neko歌姬计划
 import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidGlassUiScale
 import com.neko.music.ui.components.readLiquidGlassUiScale
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 先切回正常主题，避免原生 Splash 背景一直显示
-        setTheme(R.style.Theme_Neko云音乐)
+        setTheme(R.style.Theme_Neko歌姬计划)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -1754,7 +1754,7 @@ private fun AppThemeWrapper(content: @Composable () -> Unit) {
         AppConfig.PrefConfig.DEFAULT_DYNAMIC_COLOR
     )
     val darkTheme = com.neko.music.ui.theme.resolveAppDarkTheme(themeMode, systemDark)
-    Neko云音乐Theme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
+    Neko歌姬计划(darkTheme = darkTheme, dynamicColor = dynamicColor) {
         val liquidScale = remember(prefs) { prefs.readLiquidGlassUiScale() }
         val liquidHardware = prefs.getBoolean(
             AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
