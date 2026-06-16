@@ -49,7 +49,7 @@ fun isAppDarkTheme(): Boolean {
 }
 
 @Composable
-fun Neko云音乐Theme(
+fun Neko歌姬计划(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

@@ -41,7 +41,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Neko云音乐"
+        android:theme="@style/Theme.Neko歌姬计划"
         android:usesCleartextTraffic="true">
 
         <activity
