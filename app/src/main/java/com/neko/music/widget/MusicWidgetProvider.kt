@@ -98,7 +98,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
         val views = RemoteViews(context.packageName, R.layout.music_widget)
 
         // 更新歌曲信息
-        val title = playerManager.currentMusicTitle.value ?: "Neko云音乐"
+        val title = playerManager.currentMusicTitle.value ?: "Neko歌姬计划"
         val artist = playerManager.currentMusicArtist.value ?: "暂无播放"
         views.setTextViewText(R.id.widget_song_title, title)
         views.setTextViewText(R.id.widget_artist_name, artist)

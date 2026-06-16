@@ -1,8 +1,8 @@
-# Neko云音乐安卓版
+# Neko歌姬计划安卓版
 ![](https://count.getloli.com/get/@:NekoMusicAndroid?theme=moebooru)
 
 > [!TIP]
-> 🐾 **pc端入口**：[点击这里查看 Neko云音乐 pc版仓库](https://github.com/MinecraftNekoServer/NekoMusicForPc)
+> 🐾 **pc端入口**：[点击这里查看 Neko歌姬计划 pc版仓库](https://github.com/MinecraftNekoServer/NekoMusicForPc)
 
 # 官网 https://music.cnmsb.xin/
 
@@ -16,7 +16,7 @@ QQ云音乐歌单导入相同 [QQ云API仓库](https://github.com/Rain120/qq-mus
 
 ## Deep Link 外部唤醒
 
-支持通过浏览器或其他 App 唤醒 Neko云音乐，并直接跳转到指定页面。
+支持通过浏览器或其他 App 唤醒 Neko歌姬计划，并直接跳转到指定页面。
 
 ### 支持的 Scheme
 

@@ -230,7 +230,7 @@ class MusicPlayerService : Service() {
     }
 
     private fun createMusicNotification(): Notification {
-        val title = playerManager.currentMusicTitle.value ?: "Neko云音乐"
+        val title = playerManager.currentMusicTitle.value ?: "Neko歌姬计划"
         val artist = playerManager.currentMusicArtist.value ?: ""
         val isPlaying = playerManager.isPlaying.value
         val remainingSeconds = playerManager.sleepTimerRemainingSeconds.value
