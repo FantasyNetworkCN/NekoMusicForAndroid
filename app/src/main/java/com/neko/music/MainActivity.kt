@@ -1649,7 +1649,7 @@ fun LogoIcon(scale: Float, alpha: Float, glowAlpha: Float = 0.4f) {
 @Composable
 fun AppTitle(alpha: Float) {
     Text(
-        text = "Neko云音乐",
+        text = "Neko歌姬计划",
         fontSize = 36.sp,
         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
         color = Color.White,

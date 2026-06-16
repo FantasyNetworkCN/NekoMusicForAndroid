@@ -34,7 +34,7 @@
                 android:id="@+id/widget_song_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Neko云音乐"
+                android:text="Neko歌姬计划"
                 android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textColor="?android:attr/textColorPrimary"
                 android:textStyle="bold"
