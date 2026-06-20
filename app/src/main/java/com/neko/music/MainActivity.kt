@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -42,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
@@ -56,6 +60,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavType
@@ -89,6 +95,7 @@ import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
 import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
+import com.neko.music.ui.screens.PrivacyPolicyScreen
 import com.neko.music.ui.screens.RecentPlayScreen
 import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
@@ -107,6 +114,7 @@ import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
+import com.neko.music.data.manager.PrivacyConsentManager
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko歌姬计划
 import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
@@ -121,6 +129,9 @@ class MainActivity : ComponentActivity() {
 
     // 启动页状态
     private var showSplash by mutableStateOf(false)
+    private var privacyAccepted by mutableStateOf(false)
+    private var pendingIntentAfterConsent: Intent? = null
+    private var appServicesStarted = false
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(updateBaseContextLocale(base))
@@ -153,6 +164,8 @@ class MainActivity : ComponentActivity() {
         setTheme(R.style.Theme_Neko歌姬计划)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        privacyAccepted = PrivacyConsentManager.hasAccepted(this)
+        pendingIntentAfterConsent = intent
 
         // 检查是否是首次启动
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -164,14 +177,9 @@ class MainActivity : ComponentActivity() {
             showSplash = true
         }
 
-        // 启动音乐播放服务（前台服务，保持后台运行）
-        MusicPlayerService.startService(this)
-
-        // 检查所有开关状态并启动相应的服务
-        checkAndStartServices()
-
-        // 处理 Deep Link
-        handleIntent(intent)
+        if (privacyAccepted) {
+            startAppServicesAfterPrivacyAccepted()
+        }
 
         setContent {
             AppThemeWrapper {
@@ -183,11 +191,34 @@ class MainActivity : ComponentActivity() {
                         SplashScreen(onAnimationComplete = {
                             showSplash = false
                         })
+                    } else if (!privacyAccepted) {
+                        PrivacyConsentScreen(
+                            onAgree = {
+                                PrivacyConsentManager.accept(this)
+                                privacyAccepted = true
+                                startAppServicesAfterPrivacyAccepted()
+                            },
+                            onDisagree = {
+                                finishAffinity()
+                            }
+                        )
                     } else {
                         MainScreen()
                     }
                 }
             }
+        }
+    }
+
+    private fun startAppServicesAfterPrivacyAccepted() {
+        if (!appServicesStarted) {
+            MusicPlayerService.startService(this)
+            checkAndStartServices()
+            appServicesStarted = true
+        }
+        pendingIntentAfterConsent?.let {
+            handleIntent(it)
+            pendingIntentAfterConsent = null
         }
     }
 
@@ -292,6 +323,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (!PrivacyConsentManager.hasAccepted(this)) {
+            pendingIntentAfterConsent = intent
+            return
+        }
         // 处理 Deep Link（应用在后台时被唤醒）
         handleIntent(intent)
         // 从后台返回，不需要恢复播放，只检查收藏状态
@@ -300,6 +335,88 @@ class MainActivity : ComponentActivity() {
         playerManager.checkFavoriteStatus()
     }
 
+}
+
+@Composable
+private fun PrivacyConsentScreen(
+    onAgree: () -> Unit,
+    onDisagree: () -> Unit,
+) {
+    var showDetails by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = true) {
+        onDisagree()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Neko歌姬计划隐私政策",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "为了向您提供音乐搜索、播放、收藏、歌单、上传、本地音乐、桌面歌词、会员和客户端更新等服务，我们会按照隐私政策处理必要的个人信息，并在使用相关功能时按需申请系统权限。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Start,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "请先阅读并同意《隐私政策》。如果您不同意，我们将不会进入应用主界面，也不会启动播放、桌面歌词或 deep link 处理等主流程。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Start,
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            TextButton(
+                onClick = { showDetails = !showDetails }
+            ) {
+                Text(text = if (showDetails) "收起完整隐私政策" else "查看完整隐私政策")
+            }
+            if (showDetails) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Neko歌姬计划由 Neko歌姬计划运营方（Fantasy Network「梦幻网络」）提供服务。\n\n一、我们如何收集和使用个人信息：注册、登录、找回密码会处理用户名、昵称、头像、电子邮箱地址、密码或密码加密摘要、登录 token、账号状态；搜索、播放、下载会处理搜索关键词、歌曲 ID、播放和下载请求、播放进度、播放列表、访问时间、IP 地址、设备类型、客户端版本和错误日志；收藏、歌单和歌单迁入会处理收藏记录、歌单名称、第三方歌单链接或 ID、从网易云音乐或 QQ 音乐等来源返回的歌单和曲目信息；上传和头像会处理您主动上传的图片、音频、歌词、封面和审核记录；会员支付会处理用户 ID、订单号、套餐、支付方式、支付状态和回调结果；本地音乐、桌面歌词、通知和更新会处理本地音频文件信息、文件名、音频元数据或文件路径、通知状态、更新包下载状态和桌面歌词设置。\n\n二、权限调用：网络用于连接服务器；通知用于播放、下载或更新状态；前台服务和唤醒锁用于后台播放；读取音频媒体或外部存储仅在您使用本地音乐、文件选择或上传时触发；悬浮窗仅在您开启桌面歌词时触发；安装未知应用和 FileProvider 临时读取仅用于您确认安装客户端更新；查询微信、支付宝仅用于您选择对应支付方式时判断能否拉起支付。\n\n三、本地存储：应用可能在设备本地保存登录 token、用户基础资料、播放队列、播放进度、播放模式、搜索状态、主题语言、缓存开关、桌面歌词设置等。您可通过系统设置清除应用数据。\n\n四、共享与委托处理：我们不会出售个人信息。为实现功能，可能向支付服务、邮件或验证码服务、歌单来源、文件存储/CDN/下载服务、应用商店或审核平台提供必要信息。除取得明确同意、依法需要或合并分立等法律允许情形外，不会转让或公开披露个人信息。\n\n五、存储和保护：境内收集和产生的信息存储在中华人民共和国境内。账号资料通常保存至账号删除或注销；网络安全日志通常不超过 3 年；支付订单按财税、支付、争议处理要求保存；本地播放状态主要保存在您的设备本地。我们会采取访问控制、身份校验、加密或摘要存储、传输加密、日志审计和安全事件响应等措施。\n\n六、您的权利：您可依法访问、更正、补充、复制、删除个人信息，撤回授权，关闭系统权限，申请注销或删除账号。我们可能会先验证身份，并在 15 个工作日内或法律法规要求期限内回复。\n\n七、未成年人：未满 14 周岁的未成年人应在监护人同意后使用。监护人可联系我们查询、更正或删除未成年人信息。\n\n八、联系我们：support@cnmsb.xin；官网 https://www.cnmsb.xin/；QQ群 https://qm.qq.com/q/Q9HkDi6Ewk。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    lineHeight = 21.sp,
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TextButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onDisagree,
+                ) {
+                    Text(text = "不同意并退出")
+                }
+                androidx.compose.material3.Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = onAgree,
+                ) {
+                    Text(text = "同意并继续")
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -995,7 +1112,15 @@ fun MainScreen() {
                     },
                     onNavigateToPersonalization = {
                         navController.navigate("personalization")
+                    },
+                    onNavigateToPrivacyPolicy = {
+                        navController.navigate("privacy_policy")
                     }
+                )
+            }
+            composable("privacy_policy") {
+                PrivacyPolicyScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
             composable("personalization") {
