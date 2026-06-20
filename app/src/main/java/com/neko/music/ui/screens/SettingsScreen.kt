@@ -60,7 +60,8 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onNavigateToCache: () -> Unit = {},
-    onNavigateToPersonalization: () -> Unit = {}
+    onNavigateToPersonalization: () -> Unit = {},
+    onNavigateToPrivacyPolicy: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -402,6 +403,17 @@ fun SettingsScreen(
                         title = stringResource(id = R.string.language),
                         subtitle = getLanguageDisplayName(context, currentLanguage),
                         onClick = { showLanguageDialog = true }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SettingSection(title = "合规与隐私") {
+                    SettingItem(
+                        icon = Icons.Default.Info,
+                        title = "隐私政策",
+                        subtitle = "查看个人信息处理规则、权限调用和联系方式",
+                        onClick = onNavigateToPrivacyPolicy
                     )
                 }
 

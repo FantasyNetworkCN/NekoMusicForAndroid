@@ -9,8 +9,14 @@
         <!-- 备份用户数据库（播放列表、搜索历史等） -->
         <include domain="database" path="app_database"/>
 
-        <!-- 备份SharedPreferences（用户设置、主题设置等） -->
-        <include domain="sharedpref" path="*.xml"/>
+        <!-- 备份非敏感设置，排除登录凭据、搜索历史、缓存记录和更新状态 -->
+        <include domain="sharedpref" path="."/>
+        <exclude domain="sharedpref" path="user_prefs.xml"/>
+        <exclude domain="sharedpref" path="search_history.xml"/>
+        <exclude domain="sharedpref" path="search_state.xml"/>
+        <exclude domain="sharedpref" path="music_cache.xml"/>
+        <exclude domain="sharedpref" path="app_update.xml"/>
+        <exclude domain="sharedpref" path="privacy_consent.xml"/>
 
         <!-- 备份内部存储中的用户数据文件 -->
         <include domain="file" path="playlists/"/>
@@ -22,8 +28,14 @@
         <!-- 备份所有数据库 -->
         <include domain="database" path="."/>
 
-        <!-- 备份所有SharedPreferences -->
+        <!-- 备份非敏感 SharedPreferences -->
         <include domain="sharedpref" path="."/>
+        <exclude domain="sharedpref" path="user_prefs.xml"/>
+        <exclude domain="sharedpref" path="search_history.xml"/>
+        <exclude domain="sharedpref" path="search_state.xml"/>
+        <exclude domain="sharedpref" path="music_cache.xml"/>
+        <exclude domain="sharedpref" path="app_update.xml"/>
+        <exclude domain="sharedpref" path="privacy_consent.xml"/>
 
         <!-- 备份内部存储中的所有用户数据 -->
         <include domain="file" path="playlists/"/>

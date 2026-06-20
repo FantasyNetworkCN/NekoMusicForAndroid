@@ -15,6 +15,12 @@
 
     <!-- 排除数据库（默认备份，不需要include） -->
     <!-- 排除SharedPreferences（默认备份，不需要include） -->
+    <exclude domain="sharedpref" path="user_prefs.xml"/>
+    <exclude domain="sharedpref" path="search_history.xml"/>
+    <exclude domain="sharedpref" path="search_state.xml"/>
+    <exclude domain="sharedpref" path="music_cache.xml"/>
+    <exclude domain="sharedpref" path="app_update.xml"/>
+    <exclude domain="sharedpref" path="privacy_consent.xml"/>
 
     <!-- 排除内部存储中的特定目录 -->
     <exclude domain="file" path="cache/"/>
