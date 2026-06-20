@@ -280,6 +280,12 @@ class MainActivity : ComponentActivity() {
                                 android.util.Log.d("MainActivity", "Deep Link HTTPS -> Playlist: id=$id")
                             }
                         }
+                        path == "/privacy" || path == "/privacy/" -> {
+                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy
+                            )
+                            android.util.Log.d("MainActivity", "Deep Link HTTPS -> PrivacyPolicy")
+                        }
                     }
                 }
             }
@@ -604,6 +610,11 @@ fun MainScreen() {
                                 restoreState = true
                             }
                         }
+                    }
+                }
+                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy -> {
+                    navController.navigate("privacy_policy") {
+                        launchSingleTop = true
                     }
                 }
             }
@@ -1071,6 +1082,7 @@ fun MainScreen() {
                     onBackClick = { navController.popBackStack() },
                     onRegisterClick = { navController.navigate(AuthRoutes.REGISTER) },
                     onForgotPasswordClick = { navController.navigate(AuthRoutes.FORGOT_PASSWORD) },
+                    onPrivacyClick = { navController.navigate("privacy_policy") },
                 )
             }
             composable(AuthRoutes.REGISTER) {
@@ -1082,6 +1094,7 @@ fun MainScreen() {
                             inclusive = false,
                         )
                     },
+                    onPrivacyClick = { navController.navigate("privacy_policy") },
                 )
             }
             composable(AuthRoutes.FORGOT_PASSWORD) {

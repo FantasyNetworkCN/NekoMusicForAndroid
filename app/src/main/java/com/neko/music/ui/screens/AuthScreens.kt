@@ -1,6 +1,7 @@
 package com.neko.music.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -53,12 +57,14 @@ fun LoginScreen(
     onBackClick: () -> Unit,
     onRegisterClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
+    onPrivacyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var hasAgreedPrivacy by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
@@ -66,6 +72,7 @@ fun LoginScreen(
 
     val pleaseEnterEmailAndPassword = stringResource(id = R.string.please_enter_email_and_password)
     val loginFailed = stringResource(id = R.string.login_failed)
+    val privacyAgreementRequired = "请先阅读并勾选同意《隐私政策》"
 
     BackHandler(onBack = onBackClick)
 
@@ -106,10 +113,23 @@ fun LoginScreen(
                 onClick = onForgotPasswordClick,
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
+        PrivacyAgreementRow(
+            checked = hasAgreedPrivacy,
+            onCheckedChange = {
+                hasAgreedPrivacy = it
+                errorMessage = ""
+            },
+            onPrivacyClick = onPrivacyClick,
+        )
         Spacer(modifier = Modifier.height(20.dp))
         AuthPrimaryButton(
             text = stringResource(id = R.string.login),
             onClick = {
+                if (!hasAgreedPrivacy) {
+                    errorMessage = privacyAgreementRequired
+                    return@AuthPrimaryButton
+                }
                 if (username.isEmpty() || password.isEmpty()) {
                     errorMessage = pleaseEnterEmailAndPassword
                     return@AuthPrimaryButton
@@ -155,6 +175,7 @@ fun LoginScreen(
 fun RegisterScreen(
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit,
+    onPrivacyClick: () -> Unit = {},
 ) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -165,6 +186,7 @@ fun RegisterScreen(
     var countdown by remember { mutableIntStateOf(0) }
     var errorMessage by remember { mutableStateOf("") }
     var showCaptchaDialog by remember { mutableStateOf(false) }
+    var hasAgreedPrivacy by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val userApi = com.neko.music.data.api.UserApi()
@@ -176,6 +198,7 @@ fun RegisterScreen(
     val emailFormatError = stringResource(id = R.string.email_format_error)
     val registerFailed = stringResource(id = R.string.register_failed)
     val pleaseEnterEmailFirst = stringResource(id = R.string.please_enter_email_first)
+    val privacyAgreementRequired = "请先阅读并勾选同意《隐私政策》"
 
     LaunchedEffect(countdown) {
         if (countdown > 0) {
@@ -283,10 +306,23 @@ fun RegisterScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             )
             AuthErrorText(message = errorMessage)
+            Spacer(modifier = Modifier.height(8.dp))
+            PrivacyAgreementRow(
+                checked = hasAgreedPrivacy,
+                onCheckedChange = {
+                    hasAgreedPrivacy = it
+                    errorMessage = ""
+                },
+                onPrivacyClick = onPrivacyClick,
+            )
             Spacer(modifier = Modifier.height(20.dp))
             AuthPrimaryButton(
                 text = stringResource(id = R.string.register),
                 onClick = {
+                    if (!hasAgreedPrivacy) {
+                        errorMessage = privacyAgreementRequired
+                        return@AuthPrimaryButton
+                    }
                     if (username.isEmpty() || email.isEmpty() || password.isEmpty() ||
                         confirmPassword.isEmpty() || verificationCode.isEmpty()
                     ) {
@@ -353,6 +389,41 @@ fun RegisterScreen(
                 showCaptchaDialog = false
                 countdown = 60
             },
+        )
+    }
+}
+
+@Composable
+private fun PrivacyAgreementRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onPrivacyClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(
+                checkedColor = RoseRed,
+                uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+        Text(
+            text = "我已阅读并同意",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+        )
+        Text(
+            text = "《隐私政策》",
+            color = RoseRed,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.clickable(onClick = onPrivacyClick),
         )
     }
 }
