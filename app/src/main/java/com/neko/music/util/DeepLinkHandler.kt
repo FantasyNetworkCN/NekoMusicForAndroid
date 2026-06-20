@@ -22,5 +22,8 @@ object DeepLinkHandler {
          * @param id 歌单ID
          */
         data class Playlist(val id: Int) : DeepLinkRoute()
+
+        /** 打开隐私政策页 */
+        data object PrivacyPolicy : DeepLinkRoute()
     }
 }
