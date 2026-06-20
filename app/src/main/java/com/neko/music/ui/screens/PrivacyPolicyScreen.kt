@@ -96,25 +96,25 @@ fun PrivacyPolicyScreen(
                             )
                         }
                     },
-                    actions = {
-                        TextButton(
-                            onClick = {
-                                context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://music.cnmsb.xin/privacy")
-                                    )
-                                )
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = RoseRed,
-                            )
-                            Text(text = "网页版本", color = RoseRed)
-                        }
-                    },
+//                    actions = {
+//                        TextButton(
+//                            onClick = {
+//                                context.startActivity(
+//                                    Intent(
+//                                        Intent.ACTION_VIEW,
+//                                        Uri.parse("https://music.cnmsb.xin/privacy")
+//                                    )
+//                                )
+//                            }
+//                        ) {
+//                            Icon(
+//                                Icons.Default.KeyboardArrowRight,
+//                                contentDescription = null,
+//                                tint = RoseRed,
+//                            )
+//                            Text(text = "网页版本", color = RoseRed)
+//                        }
+//                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
