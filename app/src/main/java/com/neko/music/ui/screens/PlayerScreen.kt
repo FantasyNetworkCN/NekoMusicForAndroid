@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -91,6 +92,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -739,7 +741,7 @@ fun PlayerScreen(
                         androidx.compose.runtime.LaunchedEffect(externalScrollIndex) {
                             if (externalScrollIndex >= 0 && externalScrollIndex < lyrics.size) {
                                 try {
-                                    lyricsListState.animateScrollToItem(externalScrollIndex, 0)
+                                    centerLyricItem(lyricsListState, externalScrollIndex)
                                 } catch (e: Exception) {
                                     android.util.Log.e("PlayerScreen", "Failed to sync scroll from external", e)
                                 }
@@ -1976,7 +1978,7 @@ fun LyricsView(
                         // 延迟一下，避免频繁触发
                         kotlinx.coroutines.delay(50)
                         // 简单地滚动到当前歌词
-                        listState.animateScrollToItem(currentIndex, 0)
+                        centerLyricItem(listState, currentIndex)
                         android.util.Log.d("LyricsView", "Scroll to index=$currentIndex")
                     } catch (e: Exception) {
                         android.util.Log.e("LyricsView", "Scroll error: ${e.message}", e)
@@ -2029,14 +2031,26 @@ fun LyricsView(
                                 val distance = if (currentIndex >= 0) kotlin.math.abs(index - currentIndex) else 2
                                 val targetAlpha = when {
                                     isCurrentLine -> 1f
-                                    distance == 1 -> 0.62f
-                                    distance == 2 -> 0.42f
-                                    else -> 0.24f
+                                    distance == 1 -> 0.7f
+                                    distance == 2 -> 0.48f
+                                    distance == 3 -> 0.3f
+                                    else -> 0.18f
+                                }
+                                val targetBlur = when {
+                                    distance <= 1 -> 0f
+                                    distance == 2 -> 1.6f
+                                    distance == 3 -> 4f
+                                    else -> 7f
                                 }
                                 val lineAlpha by animateFloatAsState(
                                     targetValue = targetAlpha,
                                     animationSpec = tween(durationMillis = 260),
                                     label = "lyric_line_alpha"
+                                )
+                                val lineBlur by animateFloatAsState(
+                                    targetValue = targetBlur,
+                                    animationSpec = tween(durationMillis = 280),
+                                    label = "lyric_line_blur"
                                 )
                                 val lineScale by animateFloatAsState(
                                     targetValue = if (isCurrentLine) 1.04f else 0.96f,
@@ -2059,6 +2073,7 @@ fun LyricsView(
                                             scaleY = lineScale
                                             transformOrigin = TransformOrigin(0f, 0.5f)
                                         }
+                                        .blur(lineBlur.dp)
                                         .padding(vertical = if (isCurrentLine) 4.dp else 2.dp)
                                 ) {
                                     // 原文歌词
@@ -2115,6 +2130,27 @@ fun LyricsView(
                 }
             }
         }
+
+private suspend fun centerLyricItem(
+    listState: LazyListState,
+    index: Int
+) {
+    val layoutInfo = listState.layoutInfo
+    val visibleItems = layoutInfo.visibleItemsInfo
+    val itemHeight = visibleItems
+        .firstOrNull { it.index == index }
+        ?.size
+        ?: visibleItems
+            .map { it.size }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.toInt()
+        ?: 0
+    val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+    val scrollOffset = viewportCenter - itemHeight / 2
+
+    listState.animateScrollToItem(index, -scrollOffset)
+}
 
         /**
          * LRC 歌词行数据类
