@@ -11,8 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -223,10 +226,8 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
                 }
             }
 
-            if (text.isNotEmpty()) {
-                result.add(LrcLine(time, text, translation ?: ""))
-                android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=${translation ?: ""}")
-            }
+            result.add(LrcLine(time, text, translation ?: ""))
+            android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=${translation ?: ""}")
 
             // 如果有翻译行，跳过它
             if (hasTranslation) {
@@ -1956,16 +1957,23 @@ fun LyricsView(
             val highlightColor = remember(isDarkTheme, lyricHighlightRev) {
                 lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
             }
-            val currentIndex = remember(lyrics, currentProgressSeconds) {
-                lyrics.indexOfLast { it.time <= currentProgressSeconds }
+            val displayLyrics = remember(lyrics) {
+                if (lyrics.firstOrNull()?.time?.let { it > 0f } == true) {
+                    listOf(LrcLine(0f, "")) + lyrics
+                } else {
+                    lyrics
+                }
+            }
+            val currentIndex = remember(displayLyrics, currentProgressSeconds) {
+                displayLyrics.indexOfLast { it.time <= currentProgressSeconds }
             }
             val lineSpringOffsets = remember { mutableStateMapOf<Int, Animatable<Float, *>>() }
             var previousVisibleOffsets by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
 
             // 自动滚动到当前歌词，使其居中
             androidx.compose.runtime.LaunchedEffect(currentIndex) {
-                android.util.Log.d("LyricsView", "LaunchedEffect: currentIndex=$currentIndex, lyrics.size=${lyrics.size}")
-                if (currentIndex >= 0 && lyrics.isNotEmpty()) {
+                android.util.Log.d("LyricsView", "LaunchedEffect: currentIndex=$currentIndex, lyrics.size=${displayLyrics.size}")
+                if (currentIndex >= 0 && displayLyrics.isNotEmpty()) {
                     try {
                         val beforeOffsets = previousVisibleOffsets.ifEmpty {
                             listState.layoutInfo.visibleItemsInfo.associate { it.index to it.offset }
@@ -2018,7 +2026,7 @@ fun LyricsView(
                         }
                     }
 
-                    lyrics.isEmpty() -> {
+                    displayLyrics.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -2039,8 +2047,8 @@ fun LyricsView(
                             verticalArrangement = Arrangement.spacedBy(18.dp),
                             horizontalAlignment = Alignment.Start
                         ) {
-                            items(lyrics.size) { index ->
-                                val line = lyrics[index]
+                            items(displayLyrics.size) { index ->
+                                val line = displayLyrics[index]
                                 val isCurrentLine = index == currentIndex
                                 val springOffset = lineSpringOffsets[index]?.value ?: 0f
                                 val distance = if (currentIndex >= 0) kotlin.math.abs(index - currentIndex) else 2
@@ -2093,26 +2101,85 @@ fun LyricsView(
                                         .padding(vertical = if (isCurrentLine) 4.dp else 2.dp)
                                 ) {
                                     // 原文歌词
-                                    Text(
-                                        text = line.text,
-                                        fontSize = if (isCurrentLine) 30.sp else 24.sp,
-                                        lineHeight = if (isCurrentLine) 36.sp else 30.sp,
-                                        fontWeight = if (isCurrentLine) FontWeight.ExtraBold else FontWeight.Bold,
-                                        color = if (isCurrentLine) currentLineColor else otherLineColor,
-                                        textAlign = TextAlign.Start,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = if (isCurrentLine) {
-                                            androidx.compose.ui.text.TextStyle(
-                                                shadow = androidx.compose.ui.graphics.Shadow(
-                                                    color = highlightColor.copy(
-                                                        alpha = if (isDarkTheme) 0.38f else 0.22f
-                                                    ),
-                                                    offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                    blurRadius = 18f
+                                    if (line.text.isBlank()) {
+                                        val segmentEndTime = remember(displayLyrics, index) {
+                                            displayLyrics.getOrNull(index + 1)?.time
+                                                ?: (line.time + 3f)
+                                        }
+                                        val segmentDuration = (segmentEndTime - line.time).coerceAtLeast(0.6f)
+                                        val segmentElapsed = (currentProgressSeconds - line.time).coerceAtLeast(0f)
+                                        val dotsPulse = rememberInfiniteTransition(label = "lyric_dots_pulse")
+                                        val pulseScale by dotsPulse.animateFloat(
+                                            initialValue = 0.92f,
+                                            targetValue = 1.08f,
+                                            animationSpec = infiniteRepeatable(
+                                                animation = tween(900),
+                                                repeatMode = RepeatMode.Reverse
+                                            ),
+                                            label = "lyric_dots_pulse_scale"
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = if (isCurrentLine) 6.dp else 4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            repeat(3) { pointIndex ->
+                                                val countdownPointIndex = 2 - pointIndex
+                                                val timedAlpha = lyricCountdownPointAlpha(
+                                                    elapsedSeconds = segmentElapsed,
+                                                    durationSeconds = segmentDuration,
+                                                    pointIndex = countdownPointIndex
                                                 )
-                                            )
-                                        } else androidx.compose.ui.text.TextStyle()
-                                    )
+                                                val targetPointAlpha = if (isCurrentLine) {
+                                                    timedAlpha
+                                                } else {
+                                                    timedAlpha * 0.5f
+                                                }
+                                                val pointAlpha by animateFloatAsState(
+                                                    targetValue = targetPointAlpha,
+                                                    animationSpec = tween(durationMillis = 500),
+                                                    label = "lyric_dot_alpha"
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(if (isCurrentLine) 12.dp else 10.dp)
+                                                        .graphicsLayer {
+                                                            val stagger = 1f - pointIndex * 0.06f
+                                                            scaleX = if (isCurrentLine) pulseScale * stagger else 1f
+                                                            scaleY = if (isCurrentLine) pulseScale * stagger else 1f
+                                                        }
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            (if (isCurrentLine) currentLineColor else otherLineColor)
+                                                                .copy(alpha = pointAlpha)
+                                                        )
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Text(
+                                            text = line.text,
+                                            fontSize = if (isCurrentLine) 30.sp else 24.sp,
+                                            lineHeight = if (isCurrentLine) 36.sp else 30.sp,
+                                            fontWeight = if (isCurrentLine) FontWeight.ExtraBold else FontWeight.Bold,
+                                            color = if (isCurrentLine) currentLineColor else otherLineColor,
+                                            textAlign = TextAlign.Start,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            style = if (isCurrentLine) {
+                                                androidx.compose.ui.text.TextStyle(
+                                                    shadow = androidx.compose.ui.graphics.Shadow(
+                                                        color = highlightColor.copy(
+                                                            alpha = if (isDarkTheme) 0.38f else 0.22f
+                                                        ),
+                                                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                                        blurRadius = 18f
+                                                    )
+                                                )
+                                            } else androidx.compose.ui.text.TextStyle()
+                                        )
+                                    }
 
                                     // 翻译歌词（如果存在）
                                     if (line.translation.isNotEmpty()) {
@@ -2166,6 +2233,22 @@ private suspend fun centerLyricItem(
     val scrollOffset = viewportCenter.toInt() - itemHeight / 2
 
     listState.scrollToItem(index, -scrollOffset)
+}
+
+private fun lyricCountdownPointAlpha(
+    elapsedSeconds: Float,
+    durationSeconds: Float,
+    pointIndex: Int
+): Float {
+    if (durationSeconds <= 0f || elapsedSeconds <= 0f) return 0f
+
+    val perPointTime = durationSeconds / 3f
+    if (elapsedSeconds < perPointTime * (pointIndex + 1)) {
+        val percentage = ((elapsedSeconds - perPointTime * pointIndex) / perPointTime)
+            .coerceIn(0f, 1f)
+        return 0.1f + 0.7f * (1f - percentage)
+    }
+    return 0.1f
 }
 
         /**
