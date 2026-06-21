@@ -31,6 +31,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,6 +97,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -2016,40 +2019,65 @@ fun LyricsView(
                         androidx.compose.foundation.lazy.LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            contentPadding = PaddingValues(top = 220.dp, bottom = 260.dp),
+                            verticalArrangement = Arrangement.spacedBy(18.dp),
+                            horizontalAlignment = Alignment.Start
                         ) {
-                            // 添加顶部占位，让第一行歌词也能居中
-                            item {
-                                Spacer(modifier = Modifier.height(250.dp))
-                            }
-
                             items(lyrics.size) { index ->
                                 val line = lyrics[index]
                                 val isCurrentLine = index == currentIndex
+                                val distance = if (currentIndex >= 0) kotlin.math.abs(index - currentIndex) else 2
+                                val targetAlpha = when {
+                                    isCurrentLine -> 1f
+                                    distance == 1 -> 0.62f
+                                    distance == 2 -> 0.42f
+                                    else -> 0.24f
+                                }
+                                val lineAlpha by animateFloatAsState(
+                                    targetValue = targetAlpha,
+                                    animationSpec = tween(durationMillis = 260),
+                                    label = "lyric_line_alpha"
+                                )
+                                val lineScale by animateFloatAsState(
+                                    targetValue = if (isCurrentLine) 1.04f else 0.96f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    ),
+                                    label = "lyric_line_scale"
+                                )
                                 val currentLineColor = highlightColor
-                                val otherLineColor = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else Color.Gray
+                                val otherLineColor = if (isDarkTheme) Color.White else Color(0xFF1F1F24)
 
                                 Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    horizontalAlignment = Alignment.Start,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
+                                        .graphicsLayer {
+                                            alpha = lineAlpha
+                                            scaleX = lineScale
+                                            scaleY = lineScale
+                                            transformOrigin = TransformOrigin(0f, 0.5f)
+                                        }
+                                        .padding(vertical = if (isCurrentLine) 4.dp else 2.dp)
                                 ) {
                                     // 原文歌词
                                     Text(
                                         text = line.text,
-                                        fontSize = if (isCurrentLine) 18.sp else 14.sp,
-                                        fontWeight = if (isCurrentLine) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = if (isCurrentLine) 30.sp else 24.sp,
+                                        lineHeight = if (isCurrentLine) 36.sp else 30.sp,
+                                        fontWeight = if (isCurrentLine) FontWeight.ExtraBold else FontWeight.Bold,
                                         color = if (isCurrentLine) currentLineColor else otherLineColor,
-                                        textAlign = TextAlign.Center,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier.fillMaxWidth(),
                                         style = if (isCurrentLine) {
                                             androidx.compose.ui.text.TextStyle(
                                                 shadow = androidx.compose.ui.graphics.Shadow(
                                                     color = highlightColor.copy(
-                                                        alpha = if (isDarkTheme) 0.5f else 0.3f
+                                                        alpha = if (isDarkTheme) 0.38f else 0.22f
                                                     ),
                                                     offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                    blurRadius = 14f
+                                                    blurRadius = 18f
                                                 )
                                             )
                                         } else androidx.compose.ui.text.TextStyle()
@@ -2059,30 +2087,28 @@ fun LyricsView(
                                     if (line.translation.isNotEmpty()) {
                                         Text(
                                             text = line.translation,
-                                            fontSize = if (isCurrentLine) 14.sp else 12.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = if (isCurrentLine) currentLineColor.copy(alpha = 0.9f) else otherLineColor.copy(alpha = 0.7f),
-                                            textAlign = TextAlign.Center,
-                                            modifier = Modifier.padding(top = 2.dp),
+                                            fontSize = if (isCurrentLine) 17.sp else 14.sp,
+                                            lineHeight = if (isCurrentLine) 23.sp else 20.sp,
+                                            fontWeight = if (isCurrentLine) FontWeight.SemiBold else FontWeight.Medium,
+                                            color = if (isCurrentLine) currentLineColor.copy(alpha = 0.86f) else otherLineColor.copy(alpha = 0.78f),
+                                            textAlign = TextAlign.Start,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 6.dp),
                                             style = if (isCurrentLine) {
                                                 androidx.compose.ui.text.TextStyle(
                                                     shadow = androidx.compose.ui.graphics.Shadow(
                                                         color = highlightColor.copy(
-                                                            alpha = if (isDarkTheme) 0.45f else 0.25f
+                                                            alpha = if (isDarkTheme) 0.28f else 0.18f
                                                         ),
                                                         offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                        blurRadius = 10f
+                                                        blurRadius = 14f
                                                     )
                                                 )
                                             } else androidx.compose.ui.text.TextStyle()
                                         )
                                     }
                                 }
-                            }
-
-                            // 添加底部占位，让最后一行歌词也能居中
-                            item {
-                                Spacer(modifier = Modifier.height(300.dp))
                             }
                         }
                     }
