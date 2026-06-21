@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -80,6 +81,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -734,18 +736,6 @@ fun PlayerScreen(
                         // 监听歌词列表滚动并同步到LyricScrollManager
                         androidx.compose.runtime.LaunchedEffect(Unit) {
                             com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
-                        }
-                        
-                        // 监听外部滚动状态变化并同步回播放页面
-                        val externalScrollIndex by com.neko.music.util.LyricScrollManager.currentLyricIndex.collectAsState()
-                        androidx.compose.runtime.LaunchedEffect(externalScrollIndex) {
-                            if (externalScrollIndex >= 0 && externalScrollIndex < lyrics.size) {
-                                try {
-                                    centerLyricItem(lyricsListState, externalScrollIndex)
-                                } catch (e: Exception) {
-                                    android.util.Log.e("PlayerScreen", "Failed to sync scroll from external", e)
-                                }
-                            }
                         }
                         
                         LyricsView(
@@ -1969,16 +1959,40 @@ fun LyricsView(
             val currentIndex = remember(lyrics, currentProgressSeconds) {
                 lyrics.indexOfLast { it.time <= currentProgressSeconds }
             }
+            val lineSpringOffsets = remember { mutableStateMapOf<Int, Animatable<Float, *>>() }
+            var previousVisibleOffsets by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
 
             // 自动滚动到当前歌词，使其居中
             androidx.compose.runtime.LaunchedEffect(currentIndex) {
                 android.util.Log.d("LyricsView", "LaunchedEffect: currentIndex=$currentIndex, lyrics.size=${lyrics.size}")
                 if (currentIndex >= 0 && lyrics.isNotEmpty()) {
                     try {
+                        val beforeOffsets = previousVisibleOffsets.ifEmpty {
+                            listState.layoutInfo.visibleItemsInfo.associate { it.index to it.offset }
+                        }
                         // 延迟一下，避免频繁触发
                         kotlinx.coroutines.delay(50)
                         // 简单地滚动到当前歌词
                         centerLyricItem(listState, currentIndex)
+                        val afterOffsets = listState.layoutInfo.visibleItemsInfo.associate { it.index to it.offset }
+                        afterOffsets.forEach { (index, newOffset) ->
+                            val oldOffset = beforeOffsets[index] ?: return@forEach
+                            val delta = oldOffset - newOffset
+                            if (kotlin.math.abs(delta) > 1) {
+                                val anim = lineSpringOffsets.getOrPut(index) { Animatable(0f) }
+                                anim.snapTo(delta.toFloat())
+                                launch {
+                                    anim.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        previousVisibleOffsets = afterOffsets
                         android.util.Log.d("LyricsView", "Scroll to index=$currentIndex")
                     } catch (e: Exception) {
                         android.util.Log.e("LyricsView", "Scroll error: ${e.message}", e)
@@ -2028,6 +2042,7 @@ fun LyricsView(
                             items(lyrics.size) { index ->
                                 val line = lyrics[index]
                                 val isCurrentLine = index == currentIndex
+                                val springOffset = lineSpringOffsets[index]?.value ?: 0f
                                 val distance = if (currentIndex >= 0) kotlin.math.abs(index - currentIndex) else 2
                                 val targetAlpha = when {
                                     isCurrentLine -> 1f
@@ -2053,10 +2068,10 @@ fun LyricsView(
                                     label = "lyric_line_blur"
                                 )
                                 val lineScale by animateFloatAsState(
-                                    targetValue = if (isCurrentLine) 1.04f else 0.96f,
+                                    targetValue = if (isCurrentLine) 1f else 0.95f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessLow
                                     ),
                                     label = "lyric_line_scale"
                                 )
@@ -2071,6 +2086,7 @@ fun LyricsView(
                                             alpha = lineAlpha
                                             scaleX = lineScale
                                             scaleY = lineScale
+                                            translationY = springOffset
                                             transformOrigin = TransformOrigin(0f, 0.5f)
                                         }
                                         .blur(lineBlur.dp)
@@ -2137,19 +2153,19 @@ private suspend fun centerLyricItem(
 ) {
     val layoutInfo = listState.layoutInfo
     val visibleItems = layoutInfo.visibleItemsInfo
+    val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
     val itemHeight = visibleItems
         .firstOrNull { it.index == index }
         ?.size
         ?: visibleItems
-            .map { it.size }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
-            ?.toInt()
+        .map { it.size }
+        .takeIf { it.isNotEmpty() }
+        ?.average()
+        ?.toInt()
         ?: 0
-    val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
-    val scrollOffset = viewportCenter - itemHeight / 2
+    val scrollOffset = viewportCenter.toInt() - itemHeight / 2
 
-    listState.animateScrollToItem(index, -scrollOffset)
+    listState.scrollToItem(index, -scrollOffset)
 }
 
         /**
