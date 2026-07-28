@@ -3,6 +3,7 @@
 
 > [!TIP]
 > 🐾 **pc端入口**：[点击这里查看 Neko歌姬计划 pc版仓库](https://github.com/MinecraftNekoServer/NekoMusicForPc)
+> 🐾 **后端**：[点击这里查看 Neko歌姬计划 后端仓库](https://github.com/FantasyNetworkCN/NekoMusic)
 
 # 官网 https://music.cnmsb.xin/
 
