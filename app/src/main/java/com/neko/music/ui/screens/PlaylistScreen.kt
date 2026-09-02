@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +65,9 @@ import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.manager.PlaylistManager
+import com.neko.music.data.lan.LanDevice
+import com.neko.music.data.lan.LanDeviceManager
+import com.neko.music.data.lan.LanMusic
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
@@ -83,6 +89,10 @@ fun PlaylistScreen(
     val context = LocalContext.current
     val playlistManager = PlaylistManager.getInstance(context)
     val playlist by playlistManager.playlist.collectAsState(initial = emptyList())
+    val lanManager = remember { LanDeviceManager.getInstance(context) }
+    val lanDevices by lanManager.devices.collectAsState()
+    val selectedDeviceId by lanManager.selectedDeviceId.collectAsState()
+    val remoteQueue by lanManager.remoteQueue.collectAsState()
     val scope = rememberCoroutineScope()
     val isDark = isAppDarkTheme()
 
@@ -124,6 +134,10 @@ fun PlaylistScreen(
                 PlaylistContent(
                     playlist = playlist,
                     currentMusicId = currentMusicId,
+                    lanDevices = lanDevices,
+                    selectedDeviceId = selectedDeviceId,
+                    remoteQueue = remoteQueue,
+                    onSelectDevice = { lanManager.selectDevice(it) },
                     onBackClick = onBackClick,
                     onMusicClick = onMusicClick,
                     playlistManager = playlistManager,
@@ -138,6 +152,10 @@ fun PlaylistScreen(
 fun PlaylistContent(
     playlist: List<Music>,
     currentMusicId: Int?,
+    lanDevices: List<LanDevice>,
+    selectedDeviceId: String?,
+    remoteQueue: com.neko.music.data.lan.LanQueueSnapshot?,
+    onSelectDevice: (LanDevice?) -> Unit,
     onBackClick: () -> Unit,
     onMusicClick: (Music) -> Unit,
     playlistManager: PlaylistManager,
@@ -147,15 +165,22 @@ fun PlaylistContent(
     val context = LocalContext.current
     val density = LocalDensity.current
     val itemHeightPx = with(density) { (64.dp + 8.dp).toPx() }
+    val isRemote = selectedDeviceId != null
+    val shownPlaylist = if (isRemote) {
+        remoteQueue?.items?.map { it.toMusic() } ?: emptyList()
+    } else {
+        playlist
+    }
+    val shownCurrentId = if (isRemote) remoteQueue?.currentMusicId else currentMusicId
 
     val ordered = remember { mutableStateListOf<Music>() }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(playlist, draggingIndex) {
+    LaunchedEffect(shownPlaylist, draggingIndex) {
         if (draggingIndex == null) {
             ordered.clear()
-            ordered.addAll(playlist)
+            ordered.addAll(shownPlaylist)
         }
     }
 
@@ -216,17 +241,30 @@ fun PlaylistContent(
                 )
             }
 
-            Text(
-                text = stringResource(id = R.string.playback_list),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = scheme.onSurface
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = stringResource(id = R.string.playback_list),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface
+                )
+                Text(
+                    text = if (isRemote) {
+                        lanDevices.firstOrNull { it.deviceId == selectedDeviceId }?.deviceName
+                            ?: "远程设备"
+                    } else "本机",
+                    fontSize = 11.sp,
+                    color = scheme.onSurfaceVariant
+                )
+            }
 
             TextButton(
+                enabled = !isRemote,
                 onClick = {
                     scope.launch {
-                        currentMusicId?.let { playlistManager.clearPlaylistExcept(it) }
+                        if (!isRemote) {
+                            currentMusicId?.let { playlistManager.clearPlaylistExcept(it) }
+                        }
                     }
                 }
             ) {
@@ -235,6 +273,30 @@ fun PlaylistContent(
                     fontSize = 14.sp,
                     color = scheme.onSurfaceVariant
                 )
+            }
+        }
+
+        if (lanDevices.isNotEmpty() || isRemote) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = !isRemote,
+                        onClick = { onSelectDevice(null) },
+                        label = { Text("本机", maxLines = 1) }
+                    )
+                }
+                items(lanDevices, key = { it.deviceId }) { device ->
+                    FilterChip(
+                        selected = selectedDeviceId == device.deviceId,
+                        onClick = { onSelectDevice(device) },
+                        label = { Text(device.deviceName, maxLines = 1) }
+                    )
+                }
             }
         }
 
@@ -253,7 +315,7 @@ fun PlaylistContent(
             color = scheme.onSurfaceVariant.copy(alpha = 0.85f)
         )
 
-        if (playlist.isEmpty()) {
+        if (shownPlaylist.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -277,15 +339,18 @@ fun PlaylistContent(
                 itemsIndexed(ordered, key = { _, m -> m.id }) { index, music ->
                     PlaylistItem(
                         music = music,
-                        isPlaying = music.id == currentMusicId,
+                        isPlaying = music.id == shownCurrentId,
+                        readOnly = isRemote,
                         isDragging = draggingIndex == index,
                         dragOffsetY = if (draggingIndex == index) dragOffsetY else 0f,
                         modifier = Modifier.zIndex(if (draggingIndex == index) 1f else 0f),
-                        onPlayClick = { onMusicClick(music) },
-                        onRemoveClick = { removeFromQueue(music) },
+                        onPlayClick = { if (!isRemote) onMusicClick(music) },
+                        onRemoveClick = { if (!isRemote) removeFromQueue(music) },
                         onReorderDragStart = {
-                            draggingIndex = index
-                            dragOffsetY = 0f
+                            if (!isRemote) {
+                                draggingIndex = index
+                                dragOffsetY = 0f
+                            }
                         },
                         onReorderDrag = { dy ->
                             dragOffsetY += dy
@@ -305,11 +370,13 @@ fun PlaylistContent(
                             }
                         },
                         onReorderDragEnd = {
-                            val ids = ordered.map { it.id }
-                            scope.launch {
-                                playlistManager.applyQueueOrder(ids)
-                                draggingIndex = null
-                                dragOffsetY = 0f
+                            if (!isRemote) {
+                                val ids = ordered.map { it.id }
+                                scope.launch {
+                                    playlistManager.applyQueueOrder(ids)
+                                    draggingIndex = null
+                                    dragOffsetY = 0f
+                                }
                             }
                         },
                         onReorderDragCancel = {
@@ -327,6 +394,7 @@ fun PlaylistContent(
 fun PlaylistItem(
     music: Music,
     isPlaying: Boolean,
+    readOnly: Boolean = false,
     isDragging: Boolean,
     dragOffsetY: Float,
     modifier: Modifier = Modifier,
@@ -364,18 +432,18 @@ fun PlaylistItem(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .pointerInput(music.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { onReorderDragStart() },
+                        .pointerInput(music.id) {
+                            detectDragGesturesAfterLongPress(
+                            onDragStart = { if (!readOnly) onReorderDragStart() },
                             onDrag = { _, dragAmount -> onReorderDrag(dragAmount.y) },
-                            onDragEnd = { onReorderDragEnd() },
-                            onDragCancel = { onReorderDragCancel() }
+                            onDragEnd = { if (!readOnly) onReorderDragEnd() },
+                            onDragCancel = { if (!readOnly) onReorderDragCancel() }
                         )
                     }
                     .clickable(
                         interactionSource = remember(music.id) { MutableInteractionSource() },
                         indication = ripple(bounded = true),
-                        onClick = onPlayClick
+                        onClick = { if (!readOnly) onPlayClick() }
                     )
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -387,19 +455,32 @@ fun PlaylistItem(
                 )
             }
 
-            IconButton(
-                onClick = onRemoveClick,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(id = R.string.playback_queue_remove_from_list),
-                    tint = scheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    modifier = Modifier.size(22.dp)
-                )
+            if (!readOnly) {
+                IconButton(
+                    onClick = onRemoveClick,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(id = R.string.playback_queue_remove_from_list),
+                        tint = scheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }
+}
+
+private fun LanMusic.toMusic(): Music {
+    return Music(
+        id = id,
+        title = title,
+        artist = artist,
+        album = album,
+        duration = duration,
+        coverFilePath = coverPath
+    )
 }
 
 @Composable

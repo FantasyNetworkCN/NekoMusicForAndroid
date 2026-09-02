@@ -8,6 +8,8 @@ import com.neko.music.data.database.AppDatabase
 import com.neko.music.data.database.PlaylistEntity
 import com.neko.music.data.model.Music
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -62,6 +64,12 @@ class PlaylistManager private constructor(context: Context) {
         .build()
     
     private val dao = database.playlistDao()
+
+    private val _events = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
+    val events: SharedFlow<Unit> = _events
     
     val playlist: Flow<List<Music>> = dao.getAllPlaylist().map { entities ->
         android.util.Log.d("PlaylistManager", "从数据库读取 ${entities.size} 首音乐")
@@ -98,6 +106,7 @@ class PlaylistManager private constructor(context: Context) {
             )
             android.util.Log.d("PlaylistManager", "添加到数据库: id=${music.id}, title=${music.title}, coverFilePath=${entity.coverFilePath}")
             dao.addToPlaylist(entity)
+            _events.tryEmit(Unit)
         } else {
             android.util.Log.d("PlaylistManager", "音乐已存在，跳过: id=${music.id}")
         }
@@ -105,6 +114,7 @@ class PlaylistManager private constructor(context: Context) {
     
     suspend fun removeFromPlaylist(musicId: Int) {
         dao.removeFromPlaylist(musicId)
+        _events.tryEmit(Unit)
     }
 
     /**
@@ -121,10 +131,12 @@ class PlaylistManager private constructor(context: Context) {
         val map = db.associateBy { it.musicId }
         val ordered = musicIds.map { map.getValue(it) }
         dao.replacePlaylistOrdered(ordered.map { it.copy(id = 0L) })
+        _events.tryEmit(Unit)
     }
     
     suspend fun clearPlaylist() {
         dao.clearPlaylist()
+        _events.tryEmit(Unit)
     }
     
     suspend fun getPlaylistCount(): Int {
@@ -139,10 +151,15 @@ class PlaylistManager private constructor(context: Context) {
         val allMusic: List<PlaylistEntity> = kotlinx.coroutines.runBlocking {
             dao.getAllPlaylist().first()
         }
+        var changed = false
         allMusic.forEach { entity: PlaylistEntity ->
             if (entity.musicId != currentMusicId) {
                 dao.removeFromPlaylist(entity.musicId)
+                changed = true
             }
+        }
+        if (changed) {
+            _events.tryEmit(Unit)
         }
     }
     
