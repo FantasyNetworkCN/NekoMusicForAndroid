@@ -3,6 +3,7 @@ package com.neko.music.data.lan
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.TokenManager
@@ -157,7 +158,9 @@ class LanDeviceManager private constructor(private val context: Context) {
     private var runtimeScope: CoroutineScope? = null
     private var runningAccountTag: String? = null
     private var selectedConnectionJob: Job? = null
+    private val selectedSocketRef = AtomicReference<Socket?>()
     private var multicastLock: WifiManager.MulticastLock? = null
+    @Volatile
     private var selectedDeviceIdValue: String? = null
 
     private val _devices = MutableStateFlow<List<LanDevice>>(emptyList())
@@ -214,6 +217,7 @@ class LanDeviceManager private constructor(private val context: Context) {
     fun stop() {
         selectedDeviceIdValue = null
         _selectedDeviceId.value = null
+        closeQuietly(selectedSocketRef.getAndSet(null))
         selectedConnectionJob?.cancel()
         selectedConnectionJob = null
         _remoteQueue.value = null
@@ -232,10 +236,15 @@ class LanDeviceManager private constructor(private val context: Context) {
         selectedDeviceIdValue = device?.deviceId
         _selectedDeviceId.value = device?.deviceId
         _remoteQueue.value = null
+        closeQuietly(selectedSocketRef.getAndSet(null))
         selectedConnectionJob?.cancel()
         selectedConnectionJob = null
-        if (device == null) return
+        if (device == null) {
+            Log.d(TAG, "已切换到本机播放列表")
+            return
+        }
 
+        Log.d(TAG, "开始连接远程设备: ${device.deviceName} ${device.host}:${device.port}")
         selectedConnectionJob = (runtimeScope ?: scope).launch {
             var backoff = 1_000L
             while (isActive && selectedDeviceIdValue == device.deviceId) {
@@ -245,7 +254,7 @@ class LanDeviceManager private constructor(private val context: Context) {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.d(TAG, "远程设备连接断开: ${device.deviceName}", e)
+                    Log.w(TAG, "远程设备连接失败: ${device.deviceName} ${device.host}:${device.port}", e)
                     _remoteQueue.value = null
                     delay(backoff)
                     backoff = (backoff * 2).coerceAtMost(30_000L)
@@ -326,13 +335,18 @@ class LanDeviceManager private constructor(private val context: Context) {
     }
 
     private suspend fun subscribe(device: LanDevice) {
-        Socket().use { socket ->
+        val socket = Socket()
+        currentCoroutineContext().ensureActive()
+        selectedSocketRef.set(socket)
+        try {
+            currentCoroutineContext().ensureActive()
             socket.connect(InetSocketAddress(device.host, device.port), 1_500)
             val reader = BufferedReader(InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
             val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))
             writer.write(json.encodeToString(LanSubscribe(accountTag = accountTag())))
             writer.newLine()
             writer.flush()
+            Log.d(TAG, "远程设备订阅已发送: ${device.deviceName}")
 
             while (selectedDeviceIdValue == device.deviceId) {
                 val line = reader.readLine() ?: error("连接已关闭")
@@ -340,8 +354,15 @@ class LanDeviceManager private constructor(private val context: Context) {
                 val snapshot = json.decodeFromJsonElement<LanQueueSnapshot>(element)
                 if (snapshot.type == "queue") {
                     _remoteQueue.value = snapshot
+                    Log.d(
+                        TAG,
+                        "收到远程播放列表: ${device.deviceName}, revision=${snapshot.revision}, count=${snapshot.items.size}"
+                    )
                 }
             }
+        } finally {
+            selectedSocketRef.compareAndSet(socket, null)
+            closeQuietly(socket)
         }
     }
 
@@ -497,8 +518,34 @@ class LanDeviceManager private constructor(private val context: Context) {
     }
 
     private fun deviceName(): String {
+        val configuredName = Settings.Global.getString(
+            appContext.contentResolver,
+            Settings.Global.DEVICE_NAME
+        )?.trim().orEmpty()
+        if (isUsableDeviceName(configuredName)) return configuredName
+
+        val bluetoothName = Settings.Secure.getString(
+            appContext.contentResolver,
+            "bluetooth_name"
+        )?.trim().orEmpty()
+        if (isUsableDeviceName(bluetoothName)) return bluetoothName
+
         val model = Build.MODEL?.trim().orEmpty()
-        return if (model.isBlank()) "Android" else model
+        if (!isUsableDeviceName(model)) {
+            return "Android手机"
+        }
+        val manufacturer = Build.MANUFACTURER?.trim().orEmpty()
+        return if (manufacturer.isBlank() ||
+            model.startsWith(manufacturer, ignoreCase = true)
+        ) {
+            model
+        } else {
+            "$manufacturer $model"
+        }
+    }
+
+    private fun isUsableDeviceName(value: String): Boolean {
+        return value.isNotBlank() && !value.matches(Regex("^pkg\\d+$", RegexOption.IGNORE_CASE))
     }
 
     private fun sha256(value: String): String {

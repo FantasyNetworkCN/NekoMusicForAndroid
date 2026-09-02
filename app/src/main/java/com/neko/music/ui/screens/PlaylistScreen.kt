@@ -117,7 +117,11 @@ fun PlaylistScreen(
                 .fillMaxWidth()
                 .height(600.dp)
                 .clip(panelShape)
-                .clickable(enabled = false) {}
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                )
 
             val modalGlass = LiquidGlassDefaults.playlistModalBottomSheet
             GlassSurface(
@@ -217,8 +221,7 @@ fun PlaylistContent(
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .clickable(enabled = false) {},
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
