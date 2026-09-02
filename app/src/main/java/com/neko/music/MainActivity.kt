@@ -114,6 +114,7 @@ import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
+import com.neko.music.data.lan.LanDeviceManager
 import com.neko.music.data.manager.PrivacyConsentManager
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko歌姬计划
@@ -518,6 +519,20 @@ fun MainScreen() {
             }
         } catch (_: Exception) {
         }
+    }
+
+    // 局域网共享属于登录会话级服务，不能只在播放列表抽屉打开时运行。
+    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserId) {
+        val lanManager = LanDeviceManager.getInstance(context)
+        if (isLoggedIn && currentUserId >= 0) {
+            lanManager.start()
+        } else {
+            lanManager.stop()
+        }
+    }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { LanDeviceManager.getInstance(context).stop() }
     }
 
     // 监听 Deep Link 事件并导航
