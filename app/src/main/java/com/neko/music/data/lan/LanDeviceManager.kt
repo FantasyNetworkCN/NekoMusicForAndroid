@@ -1,6 +1,8 @@
 package com.neko.music.data.lan
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
@@ -15,8 +17,10 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.DatagramPacket
 import java.net.InetAddress
+import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.MulticastSocket
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.charset.StandardCharsets
@@ -97,7 +101,11 @@ data class LanAnnouncement(
 private data class LanSubscribe(
     val protocol: Int = 1,
     val type: String = "subscribe",
-    val accountTag: String
+    val accountTag: String,
+    val deviceId: String = "",
+    val deviceName: String = "",
+    val platform: String = "",
+    val port: Int = 0
 )
 
 data class LanDevice(
@@ -278,6 +286,7 @@ class LanDeviceManager private constructor(private val context: Context) {
 
     private suspend fun servePeer(socket: Socket) {
         socket.use { peer ->
+            var peerDeviceId: String? = null
             try {
                 peer.soTimeout = 1_000
                 val reader = BufferedReader(InputStreamReader(peer.getInputStream(), StandardCharsets.UTF_8))
@@ -285,6 +294,7 @@ class LanDeviceManager private constructor(private val context: Context) {
                 val writerMutex = Mutex()
                 val request = json.decodeFromString<LanSubscribe>(reader.readLine() ?: return)
                 if (request.type != "subscribe" || request.accountTag != accountTag()) return
+                peerDeviceId = registerPeer(request, peer.inetAddress?.hostAddress)
 
                 writeSnapshot(writer, writerMutex)
                 val changes = merge(
@@ -310,6 +320,7 @@ class LanDeviceManager private constructor(private val context: Context) {
                                     }
                                 }
                             } catch (_: java.net.SocketTimeoutException) {
+                                peerDeviceId?.let { touchPeer(it) }
                                 currentCoroutineContext().ensureActive()
                             }
                         }
@@ -343,7 +354,17 @@ class LanDeviceManager private constructor(private val context: Context) {
             socket.connect(InetSocketAddress(device.host, device.port), 1_500)
             val reader = BufferedReader(InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
             val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))
-            writer.write(json.encodeToString(LanSubscribe(accountTag = accountTag())))
+            writer.write(
+                json.encodeToString(
+                    LanSubscribe(
+                        accountTag = accountTag(),
+                        deviceId = deviceId(),
+                        deviceName = deviceName(),
+                        platform = "android",
+                        port = serverSocketRef.get()?.localPort ?: 0
+                    )
+                )
+            )
             writer.newLine()
             writer.flush()
             Log.d(TAG, "远程设备订阅已发送: ${device.deviceName}")
@@ -368,10 +389,22 @@ class LanDeviceManager private constructor(private val context: Context) {
 
     private suspend fun discoveryLoop(serverPort: Int) = coroutineScope {
         val group = InetAddress.getByName(GROUP)
+        val networkInterface = findMulticastNetworkInterface()
         val socket = MulticastSocket(PORT).apply {
             reuseAddress = true
-            joinGroup(group)
+            if (networkInterface != null) {
+                setNetworkInterface(networkInterface)
+            }
+            if (networkInterface != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                joinGroup(InetSocketAddress(group, PORT), networkInterface)
+            } else {
+                joinGroup(group)
+            }
         }
+        Log.d(
+            TAG,
+            "局域网发现已启动: interface=${networkInterface?.displayName ?: "default"}"
+        )
         multicastSocketRef.set(socket)
         val receiveJob = launch {
             val buffer = ByteArray(16 * 1024)
@@ -503,6 +536,69 @@ class LanDeviceManager private constructor(private val context: Context) {
         _devices.value = synchronized(devicesLock) {
             devicesById.values.sortedBy { it.deviceName.lowercase() }
         }
+    }
+
+    private fun registerPeer(request: LanSubscribe, host: String?): String? {
+        val peerId = request.deviceId.trim()
+        val peerHost = host?.trim().orEmpty()
+        if (peerId.isBlank() || peerId == deviceId() || peerHost.isBlank()) return null
+
+        val existing = synchronized(devicesLock) { devicesById[peerId] }
+        val peerPort = if (request.port > 0) request.port else existing?.port ?: 0
+        if (peerPort <= 0) return null
+
+        val peer = LanDevice(
+            deviceId = peerId,
+            deviceName = request.deviceName.ifBlank { existing?.deviceName ?: "局域网设备" },
+            platform = request.platform.ifBlank { existing?.platform ?: "unknown" },
+            host = peerHost,
+            port = peerPort,
+            accountTag = request.accountTag,
+            queueRevision = existing?.queueRevision ?: 0,
+            queueCount = existing?.queueCount ?: 0,
+            currentMusicId = existing?.currentMusicId,
+            lastSeen = System.currentTimeMillis()
+        )
+        synchronized(devicesLock) {
+            devicesById[peerId] = peer
+        }
+        publishDevices()
+        Log.i(TAG, "通过 TCP 登记远端设备: ${peer.deviceName} $peerHost:$peerPort")
+        return peerId
+    }
+
+    private fun touchPeer(peerId: String) {
+        synchronized(devicesLock) {
+            devicesById[peerId]?.let { device ->
+                devicesById[peerId] = device.copy(lastSeen = System.currentTimeMillis())
+            }
+        }
+    }
+
+    private fun findMulticastNetworkInterface(): NetworkInterface? {
+        val connectivity = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+            as? ConnectivityManager ?: return null
+        var fallback: NetworkInterface? = null
+        for (network in connectivity.allNetworks) {
+            val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
+            val linkProperties = connectivity.getLinkProperties(network) ?: continue
+            for (linkAddress in linkProperties.linkAddresses) {
+                val address = linkAddress.address
+                if (address !is Inet4Address || address.isLoopbackAddress) continue
+                val networkInterface = try {
+                    NetworkInterface.getByInetAddress(address)
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    return networkInterface
+                }
+                if (fallback == null) {
+                    fallback = networkInterface
+                }
+            }
+        }
+        return fallback
     }
 
     private fun accountTag(): String {
