@@ -1120,15 +1120,9 @@ class MusicPlayerManager private constructor(context: Context) {
         if (musicList.isEmpty()) return
 
         try {
-            // 1. 清空当前播放列表
-            playlistManager.clearPlaylist()
+            playlistManager.replacePlaylist(musicList)
 
-            // 2. 批量添加新音乐到列表
-            for (music in musicList) {
-                playlistManager.addToPlaylist(music)
-            }
-
-            // 3. 播放指定索引的音乐
+            // Play the requested item while keeping the imported order.
             val firstMusic = musicList[startIndex.coerceIn(0, musicList.size - 1)]
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
             val url = musicApi.getMusicFileUrl(firstMusic)

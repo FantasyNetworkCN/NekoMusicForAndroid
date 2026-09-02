@@ -133,6 +133,25 @@ class PlaylistManager private constructor(context: Context) {
         dao.replacePlaylistOrdered(ordered.map { it.copy(id = 0L) })
         _events.tryEmit(Unit)
     }
+
+    suspend fun replacePlaylist(musicList: List<Music>) {
+        val uniqueMusic = musicList.distinctBy { it.id }
+        val entities = uniqueMusic.map { music ->
+            PlaylistEntity(
+                musicId = music.id,
+                title = music.title,
+                artist = music.artist,
+                album = music.album,
+                duration = music.duration,
+                filePath = music.filePath,
+                coverFilePath = music.coverFilePath ?: "",
+                uploadUserId = music.uploadUserId,
+                createdAt = music.createdAt
+            )
+        }
+        dao.replacePlaylistOrdered(entities)
+        _events.tryEmit(Unit)
+    }
     
     suspend fun clearPlaylist() {
         dao.clearPlaylist()
