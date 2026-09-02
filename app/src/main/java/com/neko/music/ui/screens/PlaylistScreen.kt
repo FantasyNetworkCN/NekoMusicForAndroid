@@ -347,19 +347,7 @@ fun PlaylistContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("替换并播放", maxLines = 1)
-                }
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            playlistManager.replacePlaylist(remotePlaylist)
-                            onSelectDevice(null)
-                            onBackClick()
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("替换本机列表", maxLines = 1)
+                    Text("播放全部", maxLines = 1)
                 }
             }
         }
