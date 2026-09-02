@@ -279,25 +279,33 @@ fun PlaylistContent(
             }
         }
 
-        if (lanDevices.isNotEmpty() || isRemote) {
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item {
+                FilterChip(
+                    selected = !isRemote,
+                    onClick = { onSelectDevice(null) },
+                    label = { Text("本机", maxLines = 1) }
+                )
+            }
+            items(lanDevices, key = { it.deviceId }) { device ->
+                FilterChip(
+                    selected = selectedDeviceId == device.deviceId,
+                    onClick = { onSelectDevice(device) },
+                    label = { Text(device.deviceName, maxLines = 1) }
+                )
+            }
+            if (lanDevices.isEmpty()) {
                 item {
-                    FilterChip(
-                        selected = !isRemote,
-                        onClick = { onSelectDevice(null) },
-                        label = { Text("本机", maxLines = 1) }
-                    )
-                }
-                items(lanDevices, key = { it.deviceId }) { device ->
-                    FilterChip(
-                        selected = selectedDeviceId == device.deviceId,
-                        onClick = { onSelectDevice(device) },
-                        label = { Text(device.deviceName, maxLines = 1) }
+                    Text(
+                        text = "未发现其他设备",
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 9.dp),
+                        fontSize = 12.sp,
+                        color = scheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                 }
             }
