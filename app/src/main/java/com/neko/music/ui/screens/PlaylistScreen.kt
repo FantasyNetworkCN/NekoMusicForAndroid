@@ -28,11 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -175,6 +178,7 @@ fun PlaylistContent(
     } else {
         playlist
     }
+    val remotePlaylist = remoteQueue?.items?.map { it.toMusic() } ?: emptyList()
     val shownCurrentId = if (isRemote) remoteQueue?.currentMusicId else currentMusicId
 
     val ordered = remember { mutableStateListOf<Music>() }
@@ -216,6 +220,16 @@ fun PlaylistContent(
                     player.pause()
                 }
             }
+        }
+    }
+
+    fun replaceAndPlayRemote(startIndex: Int) {
+        if (!isRemote || remotePlaylist.isEmpty()) return
+        scope.launch {
+            MusicPlayerManager.getInstance(context)
+                .playMusicListAndAwait(remotePlaylist, startIndex)
+            onSelectDevice(null)
+            onBackClick()
         }
     }
 
@@ -311,6 +325,45 @@ fun PlaylistContent(
             }
         }
 
+        if (isRemote && remotePlaylist.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val startIndex = remoteQueue?.currentIndex
+                            ?.coerceIn(0, remotePlaylist.lastIndex)
+                            ?: 0
+                        replaceAndPlayRemote(startIndex)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("替换并播放", maxLines = 1)
+                }
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            playlistManager.replacePlaylist(remotePlaylist)
+                            onSelectDevice(null)
+                            onBackClick()
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("替换本机列表", maxLines = 1)
+                }
+            }
+        }
+
         HorizontalDivider(
             modifier = Modifier.fillMaxWidth(),
             thickness = 1.dp,
@@ -355,7 +408,13 @@ fun PlaylistContent(
                         isDragging = draggingIndex == index,
                         dragOffsetY = if (draggingIndex == index) dragOffsetY else 0f,
                         modifier = Modifier.zIndex(if (draggingIndex == index) 1f else 0f),
-                        onPlayClick = { if (!isRemote) onMusicClick(music) },
+                        onPlayClick = {
+                            if (isRemote) {
+                                replaceAndPlayRemote(index)
+                            } else {
+                                onMusicClick(music)
+                            }
+                        },
                         onRemoveClick = { if (!isRemote) removeFromQueue(music) },
                         onReorderDragStart = {
                             if (!isRemote) {
@@ -454,7 +513,7 @@ fun PlaylistItem(
                     .clickable(
                         interactionSource = remember(music.id) { MutableInteractionSource() },
                         indication = ripple(bounded = true),
-                        onClick = { if (!readOnly) onPlayClick() }
+                        onClick = onPlayClick
                     )
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
