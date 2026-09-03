@@ -21,4 +21,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Neko歌姬计划"
 include(":app")
-include(":backdrop-port")

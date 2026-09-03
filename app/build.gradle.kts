@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace = "com.neko.music"
-    compileSdk = 36
+    compileSdk = 37
 
     externalNativeBuild {
         cmake {
@@ -24,7 +24,7 @@ android {
     defaultConfig {
         applicationId = "com.neko.music"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 69
         versionName = "20260621"
 
@@ -124,15 +124,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_11
-            freeCompilerArgs.addAll(
-                "-opt-in=kotlin.RequiresOptIn",
-                "-Xcontext-receivers"
-            )
-        }
-    }
+//    kotlin {
+//        compilerOptions {
+//            jvmTarget = JvmTarget.JVM_11
+//            freeCompilerArgs.addAll(
+//                "-opt-in=kotlin.RequiresOptIn",
+//                "-Xcontext-receivers"
+//            )
+//        }
+//    }
 
     ndkVersion = "29.0.14206865"
     buildToolsVersion = "36.1.0 rc1"
@@ -154,9 +154,6 @@ dependencies {
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.geometry)
 
-    // 液态玻璃（源码：仓库内 AndroidLiquidGlass/backdrop，由 :backdrop-port 模块接入）
-    implementation(project(":backdrop-port"))
-
     // Network (Ktor)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
@@ -169,6 +166,9 @@ dependencies {
     implementation(libs.coil.network.ktor)
     implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
     implementation("com.google.android.exoplayer:extension-mediasession:2.19.1")
+
+    // 液态玻璃
+    implementation("io.github.kyant0:backdrop:2.0.1")
 
     // ✅ Room 必须使用 KSP
     implementation(libs.androidx.room.runtime)
