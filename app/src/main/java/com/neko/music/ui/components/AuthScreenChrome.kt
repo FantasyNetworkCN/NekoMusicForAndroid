@@ -36,6 +36,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.autofill.contentType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -208,6 +210,7 @@ fun AuthGlassTextField(
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
         androidx.compose.ui.text.input.VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    autofillType: ContentType? = null,
     singleLine: Boolean = true,
     isDark: Boolean = isSystemInDarkTheme(),
 ) {
@@ -219,7 +222,9 @@ fun AuthGlassTextField(
             { Icon(imageVector = icon, contentDescription = label) }
         },
         trailingIcon = trailingIcon,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(autofillType?.let { Modifier.contentType(it) } ?: Modifier),
         enabled = enabled,
         singleLine = singleLine,
         visualTransformation = visualTransformation,
