@@ -70,6 +70,7 @@ import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
 import com.neko.music.ui.components.LrcBadge
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.util.UrlConfig
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -382,7 +383,7 @@ fun PlaylistItem(
             // 封面
             if (!playlist.coverPath.isNullOrEmpty()) {
                 coil3.compose.AsyncImage(
-                    model = playlist.coverPath,
+                    model = UrlConfig.buildFullUrl(playlist.coverPath),
                     contentDescription = playlistCoverText,
                     modifier = Modifier
                         .size(56.dp)

@@ -11,6 +11,9 @@ import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.network.ktor3.KtorNetworkFetcherFactory
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import java.util.Locale
 
 class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
@@ -84,10 +87,16 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Coil 3 全局 [ImageLoader]：关闭内存与磁盘缓存（每次按需拉取/解码）。
+     * Coil 3 全局 [ImageLoader]：注册网络 Fetcher，否则 AsyncImage 只能处理本地资源，
+     * 无法加载 https 封面、头像等远程图片。
      */
     override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val httpClient = HttpClient(OkHttp)
         return ImageLoader.Builder(context)
+            .components {
+                add(KtorNetworkFetcherFactory(httpClient = { httpClient }))
+            }
+            // 关闭内存与磁盘缓存（每次按需拉取/解码）。
             .memoryCache(null)
             .diskCache(null)
             .build()
