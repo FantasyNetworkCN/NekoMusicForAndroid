@@ -389,21 +389,31 @@ class LanDeviceManager private constructor(private val context: Context) {
 
     private suspend fun discoveryLoop(serverPort: Int) = coroutineScope {
         val group = InetAddress.getByName(GROUP)
-        val networkInterface = findMulticastNetworkInterface()
+        val networkInterfaces = findMulticastNetworkInterfaces()
+        val primaryInterface = networkInterfaces.firstOrNull()
         val socket = MulticastSocket(PORT).apply {
             reuseAddress = true
-            if (networkInterface != null) {
-                setNetworkInterface(networkInterface)
+            if (primaryInterface != null) {
+                setNetworkInterface(primaryInterface)
             }
-            if (networkInterface != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                joinGroup(InetSocketAddress(group, PORT), networkInterface)
-            } else {
+            var joined = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                for (networkInterface in networkInterfaces) {
+                    try {
+                        joinGroup(InetSocketAddress(group, PORT), networkInterface)
+                        joined = true
+                    } catch (e: Exception) {
+                        Log.d(TAG, "加入局域网发现组失败: ${networkInterface.displayName}", e)
+                    }
+                }
+            }
+            if (!joined) {
                 joinGroup(group)
             }
         }
         Log.d(
             TAG,
-            "局域网发现已启动: interface=${networkInterface?.displayName ?: "default"}"
+            "局域网发现已启动: interfaces=${networkInterfaces.joinToString { it.displayName }}"
         )
         multicastSocketRef.set(socket)
         val receiveJob = launch {
@@ -449,9 +459,19 @@ class LanDeviceManager private constructor(private val context: Context) {
             }
         } finally {
             receiveJob.cancelAndJoin()
-            try {
-                socket.leaveGroup(group)
-            } catch (_: Exception) {
+            for (networkInterface in networkInterfaces) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        socket.leaveGroup(InetSocketAddress(group, PORT), networkInterface)
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            if (networkInterfaces.isEmpty()) {
+                try {
+                    socket.leaveGroup(group)
+                } catch (_: Exception) {
+                }
             }
             closeQuietly(socket)
         }
@@ -575,10 +595,12 @@ class LanDeviceManager private constructor(private val context: Context) {
         }
     }
 
-    private fun findMulticastNetworkInterface(): NetworkInterface? {
+    private fun findMulticastNetworkInterfaces(): List<NetworkInterface> {
         val connectivity = appContext.getSystemService(Context.CONNECTIVITY_SERVICE)
-            as? ConnectivityManager ?: return null
-        var fallback: NetworkInterface? = null
+            as? ConnectivityManager ?: return emptyList()
+        val wifi = mutableListOf<NetworkInterface>()
+        val fallback = mutableListOf<NetworkInterface>()
+        val seen = HashSet<String>()
         for (network in connectivity.allNetworks) {
             val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
             val linkProperties = connectivity.getLinkProperties(network) ?: continue
@@ -590,15 +612,15 @@ class LanDeviceManager private constructor(private val context: Context) {
                 } catch (_: Exception) {
                     null
                 } ?: continue
-                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                    return networkInterface
-                }
-                if (fallback == null) {
-                    fallback = networkInterface
-                }
+                if (!networkInterface.supportsMulticast() ||
+                    !seen.add(networkInterface.name)) continue
+                if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+                    wifi += networkInterface
+                else
+                    fallback += networkInterface
             }
         }
-        return fallback
+        return wifi + fallback
     }
 
     private fun accountTag(): String {
