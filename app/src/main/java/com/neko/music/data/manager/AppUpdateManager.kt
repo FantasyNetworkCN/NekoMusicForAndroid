@@ -32,6 +32,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.Headers
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.discard
+import io.ktor.utils.io.readAvailable
 
 /**
  * 版本信息 JSON 数据类
