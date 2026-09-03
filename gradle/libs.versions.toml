@@ -1,6 +1,6 @@
 [versions]
 agp = "9.4.0"
-kotlin = "2.2.10"
+kotlin = "2.4.10"
 ksp = "2.3.6"
 # ✅ Room 升级到 2.7.0-alpha11 以解决与新版 Kotlin 的兼容性冲突
 room = "2.7.0-alpha11"
@@ -11,14 +11,14 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2024.09.00"
-ktor = "2.3.12"
-kotlinxSerialization = "1.7.3"
+ktor = "3.5.2"
+kotlinxSerialization = "1.11.0"
 navigation = "2.8.4"
-coil = "3.0.0"
+coil = "3.6.1"
 exoplayer = "2.19.1"
-accompanist = "0.36.0"
-foundationLayout = "1.10.6"
-uiGeometry = "1.10.6"
+accompanist = "0.37.3"
+foundationLayout = "1.12.0"
+uiGeometry = "1.12.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
