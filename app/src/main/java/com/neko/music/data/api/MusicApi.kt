@@ -29,6 +29,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
@@ -92,13 +93,15 @@ class MusicApi(private val context: Context) {
     suspend fun recognizeMusic(recording: File): Result<RecognitionResult> {
         return try {
             val audioBytes = withContext(Dispatchers.IO) { recording.readBytes() }
+            val extension = recording.extension.lowercase().takeIf { it in setOf("wav", "m4a") } ?: "wav"
+            val contentType = if (extension == "wav") "audio/wav" else "audio/mp4"
             val response = client.post("$baseUrl/api/music/recognize") {
                 setBody(
                     MultiPartFormDataContent(
                         formData {
                             append("audio", audioBytes, Headers.build {
-                                append(HttpHeaders.ContentDisposition, "filename=recognition.m4a")
-                                append(HttpHeaders.ContentType, "audio/mp4")
+                                append(HttpHeaders.ContentDisposition, "filename=recognition.$extension")
+                                append(HttpHeaders.ContentType, contentType)
                             })
                         }
                     )
@@ -129,6 +132,8 @@ class MusicApi(private val context: Context) {
                     ),
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("MusicApi", "Music recognition failed${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
