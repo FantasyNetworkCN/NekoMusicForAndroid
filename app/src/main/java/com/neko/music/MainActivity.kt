@@ -97,6 +97,7 @@ import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.PrivacyPolicyScreen
 import com.neko.music.ui.screens.RecentPlayScreen
+import com.neko.music.ui.screens.MusicRecognitionScreen
 import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
@@ -439,6 +440,7 @@ fun MainScreen() {
     // 检查是否在播放页面
     val isPlayerScreen = currentRoute?.startsWith("player") == true
     val isAuthScreen = AuthRoutes.isAuthRoute(currentRoute)
+    val isRecognitionScreen = currentRoute == "music_recognition"
 
     // 获取播放器状态
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -1307,6 +1309,16 @@ fun MainScreen() {
                     }
                 )
             }
+            composable("music_recognition") {
+                MusicRecognitionScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onMusicClick = { music ->
+                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
+                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
+                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                    },
+                )
+            }
             composable(
                 route = "artist_detail/{artistName}/{musicCount}/{coverPath}",
                 arguments = listOf(
@@ -1407,6 +1419,9 @@ fun MainScreen() {
                                 .apply()
                             navController.navigate("search")
                         },
+                        onRecognitionClick = {
+                            navController.navigate("music_recognition")
+                        },
                         onNavigateToPlaylist = { playlistId ->
                             Log.d("MainActivity", "导航到歌单详情: $playlistId")
                             navController.navigate(
@@ -1468,7 +1483,11 @@ fun MainScreen() {
         // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
 
         // 迷你播放器 + 底栏：底部对齐后整体做 AnimatedVisibility，避免自定义 Layout 把内容画在测量区域外导致动画被裁切
-        val bottomChromeVisible = showBottomControls && !isPlayerScreen && !isAuthScreen && !playlistBatchHidingChrome
+        val bottomChromeVisible = showBottomControls &&
+            !isPlayerScreen &&
+            !isAuthScreen &&
+            !isRecognitionScreen &&
+            !playlistBatchHidingChrome
         val bottomChromeEnter = remember {
             slideInVertically(
                 initialOffsetY = { it },

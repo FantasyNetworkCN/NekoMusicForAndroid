@@ -646,4 +646,18 @@
     <string name="local_music_permission_title">要读本地音乐喵</string>
     <string name="local_music_permission_message">允许后就能扫描设备里的音频文件，直接在这里播放喵</string>
     <string name="local_music_cloud_action_unavailable">本地音乐暂不支持云端操作喵</string>
+    <string name="music_recognition">听歌识曲喵</string>
+    <string name="recognition_ready">准备识别喵</string>
+    <string name="recognition_listening">正在聆听 · %1$d 秒喵</string>
+    <string name="recognition_identifying">正在识别喵</string>
+    <string name="recognition_success">识别成功喵</string>
+    <string name="recognition_no_match">曲库里暂时没有认出来喵</string>
+    <string name="recognition_permission_denied">需要麦克风权限才能识曲喵</string>
+    <string name="recognition_recording_failed">录音启动失败喵</string>
+    <string name="recognition_too_short">请至少录制 %1$d 秒喵</string>
+    <string name="recognition_request_failed">识曲服务暂不可用喵</string>
+    <string name="recognition_confidence">匹配度 %1$d%%</string>
+    <string name="recognition_start">开始听歌识曲</string>
+    <string name="recognition_stop">停止录音</string>
+    <string name="recognition_open_result">打开识别结果</string>
 </resources>

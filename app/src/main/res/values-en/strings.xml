@@ -689,4 +689,18 @@
     <string name="local_music_permission_title">Local music permission needed</string>
     <string name="local_music_permission_message">Allow access to scan audio files on this device and play them with the current player.</string>
     <string name="local_music_cloud_action_unavailable">Cloud actions are not available for local music</string>
+    <string name="music_recognition">Identify Music</string>
+    <string name="recognition_ready">Ready to identify</string>
+    <string name="recognition_listening">Listening · %1$d sec</string>
+    <string name="recognition_identifying">Identifying</string>
+    <string name="recognition_success">Match found</string>
+    <string name="recognition_no_match">No match in the current library</string>
+    <string name="recognition_permission_denied">Microphone permission is required to identify music</string>
+    <string name="recognition_recording_failed">Unable to start recording</string>
+    <string name="recognition_too_short">Record for at least %1$d seconds</string>
+    <string name="recognition_request_failed">Music identification is temporarily unavailable</string>
+    <string name="recognition_confidence">%1$d%% match</string>
+    <string name="recognition_start">Start music identification</string>
+    <string name="recognition_stop">Stop recording</string>
+    <string name="recognition_open_result">Open identified song</string>
 </resources>
