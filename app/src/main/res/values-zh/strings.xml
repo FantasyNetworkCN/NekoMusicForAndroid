@@ -684,4 +684,18 @@
     <string name="local_music_permission_title">需要读取本地音乐权限</string>
     <string name="local_music_permission_message">授权后可扫描设备中的音频文件，并使用当前播放器直接播放。</string>
     <string name="local_music_cloud_action_unavailable">本地音乐暂不支持云端操作</string>
+    <string name="music_recognition">听歌识曲</string>
+    <string name="recognition_ready">准备识别</string>
+    <string name="recognition_listening">正在聆听 · %1$d 秒</string>
+    <string name="recognition_identifying">正在识别</string>
+    <string name="recognition_success">识别成功</string>
+    <string name="recognition_no_match">未在当前曲库识别到歌曲</string>
+    <string name="recognition_permission_denied">需要麦克风权限才能使用听歌识曲</string>
+    <string name="recognition_recording_failed">无法启动录音</string>
+    <string name="recognition_too_short">请至少录制 %1$d 秒</string>
+    <string name="recognition_request_failed">识曲服务暂不可用</string>
+    <string name="recognition_confidence">匹配度 %1$d%%</string>
+    <string name="recognition_start">开始听歌识曲</string>
+    <string name="recognition_stop">停止录音</string>
+    <string name="recognition_open_result">打开识别结果</string>
 </resources>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -31,8 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -61,6 +64,7 @@ fun HomeLiquidHeroOverlay(
     state: HomeLiquidHeroState,
     liquidBackdrop: LayerBackdrop,
     onSearchClick: () -> Unit,
+    onRecognitionClick: () -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToDailyRecommendations: () -> Unit,
     onNavigateToRanking: () -> Unit,
@@ -79,59 +83,98 @@ fun HomeLiquidHeroOverlay(
             .onSizeChanged { onHeroHeightChanged(it.height) }
     ) {
         val heroSearch = LiquidGlassDefaults.homeHeroSearchBar
-        GlassSurface(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .height(48.dp),
-            sampleBackdrop = liquidBackdrop,
-            shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = heroSearch.tint.background(isDarkHome),
-            borderAlpha = heroSearch.tint.border(isDarkHome),
-            highlightAlpha = heroSearch.tint.highlight(isDarkHome),
-            borderColor = if (isDarkHome) {
-                SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
-            } else {
-                colorScheme.outline
-            },
-            // 与 Kyant Glass Bottom Bar 教程同量级，便于看出 vibrancy + blur + lens
-            liquidBlur = heroSearch.liquid.blur,
-            liquidLensHeight = heroSearch.liquid.lensHeight,
-            liquidLensAmount = heroSearch.liquid.lensAmount
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
+            GlassSurface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = 16.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onSearchClick
-                    ),
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f)
+                    .height(48.dp),
+                sampleBackdrop = liquidBackdrop,
+                shape = RoundedCornerShape(20.dp),
+                backgroundAlpha = heroSearch.tint.background(isDarkHome),
+                borderAlpha = heroSearch.tint.border(isDarkHome),
+                highlightAlpha = heroSearch.tint.highlight(isDarkHome),
+                borderColor = if (isDarkHome) {
+                    SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
+                } else {
+                    colorScheme.outline
+                },
+                liquidBlur = heroSearch.liquid.blur,
+                liquidLensHeight = heroSearch.liquid.lensHeight,
+                liquidLensAmount = heroSearch.liquid.lensAmount,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(id = R.string.search),
-                    tint = if (isDarkHome) {
-                        Color.White.copy(alpha = 0.72f)
-                    } else {
-                        colorScheme.onSurface.copy(alpha = 0.55f)
-                    },
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = stringResource(id = R.string.search_music_artist_album),
-                    fontSize = 15.sp,
-                    color = if (isDarkHome) {
-                        Color.White.copy(alpha = 0.62f)
-                    } else {
-                        colorScheme.onSurfaceVariant
-                    },
-                    fontWeight = FontWeight.Normal
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(horizontal = 16.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onSearchClick,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = stringResource(id = R.string.search),
+                        tint = if (isDarkHome) {
+                            Color.White.copy(alpha = 0.72f)
+                        } else {
+                            colorScheme.onSurface.copy(alpha = 0.55f)
+                        },
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = stringResource(id = R.string.search_music_artist_album),
+                        fontSize = 15.sp,
+                        color = if (isDarkHome) {
+                            Color.White.copy(alpha = 0.62f)
+                        } else {
+                            colorScheme.onSurfaceVariant
+                        },
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            GlassSurface(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable(onClick = onRecognitionClick),
+                sampleBackdrop = liquidBackdrop,
+                shape = CircleShape,
+                backgroundAlpha = heroSearch.tint.background(isDarkHome),
+                borderAlpha = heroSearch.tint.border(isDarkHome),
+                highlightAlpha = heroSearch.tint.highlight(isDarkHome),
+                borderColor = if (isDarkHome) {
+                    SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
+                } else {
+                    colorScheme.outline
+                },
+                liquidBlur = heroSearch.liquid.blur,
+                liquidLensHeight = heroSearch.liquid.lensHeight,
+                liquidLensAmount = heroSearch.liquid.lensAmount,
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_music_recognition),
+                        contentDescription = stringResource(R.string.music_recognition),
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
             }
         }
 

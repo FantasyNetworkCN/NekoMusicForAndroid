@@ -20,10 +20,17 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.ContentType.Application.Json
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
@@ -69,6 +76,64 @@ class MusicApi(private val context: Context) {
         val message: String,
         val results: List<Music?>,
     )
+
+    data class RecognitionMatch(
+        val music: Music,
+        val confidence: Double,
+        val offsetSeconds: Double,
+        val sampleDurationSeconds: Double,
+    )
+
+    data class RecognitionResult(
+        val message: String,
+        val match: RecognitionMatch?,
+    )
+
+    suspend fun recognizeMusic(recording: File): Result<RecognitionResult> {
+        return try {
+            val audioBytes = withContext(Dispatchers.IO) { recording.readBytes() }
+            val response = client.post("$baseUrl/api/music/recognize") {
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            append("audio", audioBytes, Headers.build {
+                                append(HttpHeaders.ContentDisposition, "filename=recognition.m4a")
+                                append(HttpHeaders.ContentType, "audio/mp4")
+                            })
+                        }
+                    )
+                )
+            }
+            val responseText = response.body<String>()
+            val root = json.parseToJsonElement(responseText) as? JsonObject
+                ?: return Result.failure(IOException("识曲服务返回了无效响应"))
+            val success = (root["success"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
+            val matched = (root["matched"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
+            val message = (root["message"] as? JsonPrimitive)?.content.orEmpty()
+            if (!success) {
+                return Result.failure(IOException(message.ifBlank { "识曲请求失败" }))
+            }
+            val data = root["data"] as? JsonObject
+            if (!matched || data == null) {
+                return Result.success(RecognitionResult(message = message, match = null))
+            }
+            val music = json.decodeFromJsonElement<Music>(data)
+            Result.success(
+                RecognitionResult(
+                    message = message,
+                    match = RecognitionMatch(
+                        music = music,
+                        confidence = (data["confidence"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                        offsetSeconds = (data["offsetSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                        sampleDurationSeconds = (data["sampleDurationSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                    ),
+                )
+            )
+        } catch (e: Exception) {
+            Log.e("MusicApi", "Music recognition failed${e.protocolLogSuffixOrEmpty()}", e)
+            Result.failure(e)
+        }
+    }
 
     suspend fun searchMusicBatch(items: List<SearchItem>): Result<BatchSearchResult> {
         if (items.isEmpty()) {
