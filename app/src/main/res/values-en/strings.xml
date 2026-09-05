@@ -691,7 +691,7 @@
     <string name="local_music_cloud_action_unavailable">Cloud actions are not available for local music</string>
     <string name="music_recognition">Identify Music</string>
     <string name="recognition_ready">Ready to identify</string>
-    <string name="recognition_listening">Listening · %1$d sec</string>
+    <string name="recognition_listening">Listening and matching · %1$d sec</string>
     <string name="recognition_identifying">Identifying</string>
     <string name="recognition_success">Match found</string>
     <string name="recognition_no_match">No match in the current library</string>

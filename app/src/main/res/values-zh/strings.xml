@@ -686,7 +686,7 @@
     <string name="local_music_cloud_action_unavailable">本地音乐暂不支持云端操作</string>
     <string name="music_recognition">听歌识曲</string>
     <string name="recognition_ready">准备识别</string>
-    <string name="recognition_listening">正在聆听 · %1$d 秒</string>
+    <string name="recognition_listening">持续聆听并识别 · %1$d 秒</string>
     <string name="recognition_identifying">正在识别</string>
     <string name="recognition_success">识别成功</string>
     <string name="recognition_no_match">未在当前曲库识别到歌曲</string>
