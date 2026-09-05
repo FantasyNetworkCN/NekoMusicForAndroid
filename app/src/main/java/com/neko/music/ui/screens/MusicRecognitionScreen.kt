@@ -2,7 +2,10 @@ package com.neko.music.ui.screens
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -39,11 +42,13 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -56,6 +61,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +89,7 @@ import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.MusicRecognitionPlaybackService
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -110,6 +117,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
 private const val MAX_RECORDING_SECONDS = 20
+private const val MIN_RECOGNITION_SECONDS = 3
 private const val SNAPSHOT_INTERVAL_SECONDS = 4
 
 private enum class RecognitionStage {
@@ -142,6 +150,10 @@ fun MusicRecognitionScreen(
     var recordingStartedAt by remember { mutableLongStateOf(0L) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var recognitionJob by remember { mutableStateOf<Job?>(null) }
+    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    val latestStage by rememberUpdatedState(stage)
+    val latestRecordingStartedAt by rememberUpdatedState(recordingStartedAt)
+    val latestRecognitionJob by rememberUpdatedState(recognitionJob)
 
     val permissionDeniedText = stringResource(R.string.recognition_permission_denied)
     val recordingFailedText = stringResource(R.string.recognition_recording_failed)
@@ -157,6 +169,17 @@ fun MusicRecognitionScreen(
             recordingStartedAt = SystemClock.elapsedRealtime()
             elapsedSeconds = 0
             stage = RecognitionStage.Recording
+            // Establish the microphone foreground-service state while the
+            // activity is visible. Actual background capture is requested later
+            // from ON_PAUSE, avoiding Android 14/Oplus background mic denial.
+            runCatching {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, MusicRecognitionPlaybackService::class.java)
+                        .setAction(MusicRecognitionPlaybackService.ACTION_PREPARE)
+                        .putExtra(MusicRecognitionPlaybackService.EXTRA_MAX_SECONDS, MAX_RECORDING_SECONDS),
+                )
+            }
             recognitionJob = scope.launch {
                 try {
                     for (snapshot in snapshots) {
@@ -173,10 +196,12 @@ fun MusicRecognitionScreen(
                                     errorMessage = null
                                     stage = RecognitionStage.Matched
                                     matched = true
+                                    context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
                                 }
                             },
                             onFailure = { error ->
                                 recorder.cancel()
+                                context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
                                 errorMessage = error.message?.takeIf { it.isNotBlank() } ?: requestFailedText
                                 stage = RecognitionStage.Error
                             },
@@ -187,6 +212,7 @@ fun MusicRecognitionScreen(
                         }
                     }
                     if (stage == RecognitionStage.Recording) {
+                        context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
                         stage = RecognitionStage.NoMatch
                     }
                 } catch (_: CancellationException) {
@@ -216,17 +242,23 @@ fun MusicRecognitionScreen(
     }
 
     fun requestRecording() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            beginRecording()
-        } else {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return
         }
+        if (!android.provider.Settings.canDrawOverlays(context)) {
+            // Recognition can continue without this optional permission, but the
+            // floating background control will only be shown after it is granted.
+            showOverlayPermissionDialog = true
+        }
+        beginRecording()
     }
 
     fun stopListening() {
         recognitionJob?.cancel()
         recognitionJob = null
         recorder.cancel()
+        context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
         elapsedSeconds = 0
         stage = RecognitionStage.Ready
     }
@@ -248,14 +280,94 @@ fun MusicRecognitionScreen(
         }
     }
 
-    DisposableEffect(recorder, lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP && stage == RecognitionStage.Recording) {
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != MusicRecognitionPlaybackService.ACTION_RESULT) return
                 recognitionJob?.cancel()
                 recognitionJob = null
                 recorder.cancel()
-                elapsedSeconds = 0
-                stage = RecognitionStage.Ready
+                when (intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_STATUS)) {
+                    MusicRecognitionPlaybackService.STATUS_MATCHED -> {
+                        val music = Music(
+                            id = intent.getIntExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_ID, -1),
+                            title = intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_TITLE).orEmpty(),
+                            artist = intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_ARTIST).orEmpty(),
+                            album = intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_ALBUM).orEmpty(),
+                            duration = intent.getIntExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_DURATION, 0),
+                            coverFilePath = intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_COVER),
+                        )
+                        match = MusicApi.RecognitionMatch(
+                            music = music,
+                            confidence = intent.getDoubleExtra(MusicRecognitionPlaybackService.EXTRA_CONFIDENCE, 0.0),
+                            offsetSeconds = intent.getDoubleExtra(MusicRecognitionPlaybackService.EXTRA_OFFSET_SECONDS, 0.0),
+                            sampleDurationSeconds = intent.getDoubleExtra(MusicRecognitionPlaybackService.EXTRA_SAMPLE_DURATION_SECONDS, 0.0),
+                        )
+                        errorMessage = null
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.Matched
+                    }
+                    MusicRecognitionPlaybackService.STATUS_NO_MATCH -> {
+                        match = null
+                        errorMessage = null
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.NoMatch
+                    }
+                    MusicRecognitionPlaybackService.STATUS_STOPPED -> {
+                        match = null
+                        errorMessage = null
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.Ready
+                    }
+                    MusicRecognitionPlaybackService.STATUS_ERROR -> {
+                        match = null
+                        errorMessage = intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_MESSAGE)
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.Error
+                    }
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(MusicRecognitionPlaybackService.ACTION_RESULT),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
+
+    DisposableEffect(recorder, lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            // Start the microphone foreground service while the activity is still
+            // considered visible. Waiting until ON_STOP is too late on some
+            // Android versions and the system rejects the foreground-service start.
+            if (event == Lifecycle.Event.ON_PAUSE && latestStage == RecognitionStage.Recording) {
+                latestRecognitionJob?.cancel()
+                recognitionJob = null
+                recorder.cancel()
+                val elapsed = ((SystemClock.elapsedRealtime() - latestRecordingStartedAt) / 1000L).toInt()
+                val remaining = (MAX_RECORDING_SECONDS - elapsed).coerceAtLeast(0)
+                if (remaining >= MIN_RECOGNITION_SECONDS) {
+                    val serviceIntent = Intent(context, MusicRecognitionPlaybackService::class.java).apply {
+                        action = MusicRecognitionPlaybackService.ACTION_START
+                        putExtra(MusicRecognitionPlaybackService.EXTRA_MAX_SECONDS, remaining)
+                    }
+                    try {
+                        // The service was prepared while the activity was
+                        // visible; only send it the capture command now.
+                        context.startService(serviceIntent)
+                    } catch (_: Exception) {
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.Error
+                        errorMessage = recordingFailedText
+                    }
+                } else {
+                    elapsedSeconds = 0
+                    stage = RecognitionStage.Ready
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -263,7 +375,38 @@ fun MusicRecognitionScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
             recognitionJob?.cancel()
             recorder.cancel()
+            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
         }
+    }
+
+    if (showOverlayPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showOverlayPermissionDialog = false },
+            title = { Text(stringResource(R.string.recognition_overlay_permission_title)) },
+            text = { Text(stringResource(R.string.recognition_overlay_permission_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showOverlayPermissionDialog = false
+                        runCatching {
+                            context.startActivity(
+                                Intent(
+                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}"),
+                                ),
+                            )
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.recognition_overlay_permission_authorize))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOverlayPermissionDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface

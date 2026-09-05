@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -82,6 +83,13 @@
             android:name=".MusicPlayerService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="false" />
+
+        <!-- 后台听歌识曲：使用麦克风采集并显示悬浮控件 -->
+        <service
+            android:name=".service.MusicRecognitionPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="microphone"
             android:stopWithTask="false" />
 
         <!-- 桌面歌词服务 -->
