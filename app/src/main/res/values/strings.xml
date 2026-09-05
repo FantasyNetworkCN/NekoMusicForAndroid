@@ -660,4 +660,7 @@
     <string name="recognition_start">开始听歌识曲</string>
     <string name="recognition_stop">停止录音</string>
     <string name="recognition_open_result">打开识别结果</string>
+    <string name="recognition_overlay_permission_title">开启后台悬浮窗</string>
+    <string name="recognition_overlay_permission_message">切到后台识曲时，需要悬浮窗权限显示录音状态和停止按钮。不开启也可以继续录音，但不会显示悬浮窗。</string>
+    <string name="recognition_overlay_permission_authorize">去授权</string>
 </resources>

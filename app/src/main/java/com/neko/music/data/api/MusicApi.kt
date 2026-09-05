@@ -67,6 +67,10 @@ class MusicApi(private val context: Context) {
     private val baseUrl = UrlConfig.getBaseUrl()
     private val cacheManager = MusicCacheManager.getInstance(context)
 
+    fun close() {
+        client.close()
+    }
+
     private companion object {
         const val BATCH_SEARCH_TIMEOUT_MS = 600_000L
         const val BATCH_SEARCH_CHUNK_SIZE = 40
