@@ -784,10 +784,9 @@ fun PlayerScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .zIndex(1f)
-                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(top = 8.dp)
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
@@ -798,8 +797,13 @@ fun PlayerScreen(
                                 )
                             )
                         )
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
                         if (showLyrics) LyricSongInfoBar(
                             music = currentMusic,
                             isFavorite = isFavorite,
@@ -847,6 +851,7 @@ fun PlayerScreen(
                             onPlaylistClick = onPlaylistClick,
                             onPlayModeClick = { playerManager.togglePlayMode() }
                         )
+                    }
                 }
             }
             if (showShareDialog) {
