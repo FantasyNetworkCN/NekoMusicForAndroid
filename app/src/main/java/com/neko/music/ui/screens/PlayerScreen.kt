@@ -22,9 +22,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,6 +30,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -275,7 +275,11 @@ fun PlayerScreen(
     var lyrics by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
     val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val isFavorite by playerManager.isFavorite.collectAsState()
-    var showLyrics by remember { mutableStateOf(false) }
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { 2 },
+    )
+    val showLyrics = pagerState.currentPage == 1
     val playMode by playerManager.playMode.collectAsState()
     val playbackSpeed by playerManager.playbackSpeed.collectAsState()
     val sleepTimerMinutes by playerManager.sleepTimerMinutes.collectAsState()
@@ -652,113 +656,100 @@ fun PlayerScreen(
             // 顶栏移到 layerBackdrop 外以 GlassSurface 叠放，避免顶栏被录进底图导致玻璃无折射层次
             Spacer(modifier = Modifier.height(64.dp))
 
-            // 封面视图和歌词视图容器
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
-                // 封面视图
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = !showLyrics,
-                    modifier = Modifier.fillMaxSize(),
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CoverImage(
-                            music = currentMusic,
-                            onClick = { showLyrics = true },
-                            modifier = Modifier
-                                .fillMaxWidth(0.76f)
-                                .aspectRatio(1f)
-                                .widthIn(max = 310.dp)
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        NowPlayingIdentity(
-                            music = currentMusic,
-                            isFavorite = isFavorite,
-                            onFavoriteClick = {
-                                if (isLoggedIn) playerManager.toggleFavorite()
-                                else Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        if (!isLocalCurrentMusic) {
-                            VideoRenderPlayerEntry(
-                                isBusy = videoRenderBusy,
-                                jobStatus = videoRenderJobStatus,
-                                remainingToday = videoRenderRemainingToday,
-                                errorMessage = videoRenderError,
-                                onOpenDialog = {
-                                    if (!isLoggedIn) {
-                                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        if (videoRenderJobStatus == "failed") {
-                                            videoRenderJobId = null
-                                            videoRenderJobStatus = null
-                                            videoRenderError = null
-                                            videoRenderRemainingToday = null
-                                        }
-                                        showVideoRenderDialog = true
+                // 封面和歌词是同一个横向分页容器，避免点击内容触发页面导航。
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    userScrollEnabled = true,
+                    beyondViewportPageCount = 1,
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                CoverImage(
+                                    music = currentMusic,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.76f)
+                                        .aspectRatio(1f)
+                                        .widthIn(max = 310.dp)
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                NowPlayingIdentity(
+                                    music = currentMusic,
+                                    isFavorite = isFavorite,
+                                    onFavoriteClick = {
+                                        if (isLoggedIn) playerManager.toggleFavorite()
+                                        else Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                                onDownload = {
-                                    val jobId = videoRenderJobId ?: return@VideoRenderPlayerEntry
-                                    val name = "${currentMusic.title}.mp4"
-                                    VideoRenderApi.enqueueDownload(context, jobId, name).fold(
-                                        onSuccess = {
-                                            Toast.makeText(
-                                                context,
-                                                videoRenderDownloadStarted,
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                if (!isLocalCurrentMusic) {
+                                    VideoRenderPlayerEntry(
+                                        isBusy = videoRenderBusy,
+                                        jobStatus = videoRenderJobStatus,
+                                        remainingToday = videoRenderRemainingToday,
+                                        errorMessage = videoRenderError,
+                                        onOpenDialog = {
+                                            if (!isLoggedIn) {
+                                                Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                if (videoRenderJobStatus == "failed") {
+                                                    videoRenderJobId = null
+                                                    videoRenderJobStatus = null
+                                                    videoRenderError = null
+                                                    videoRenderRemainingToday = null
+                                                }
+                                                showVideoRenderDialog = true
+                                            }
                                         },
-                                        onFailure = { e ->
-                                            Toast.makeText(
-                                                context,
-                                                e.message ?: videoRenderCreateFailed,
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
+                                        onDownload = {
+                                            val jobId = videoRenderJobId ?: return@VideoRenderPlayerEntry
+                                            val name = "${currentMusic.title}.mp4"
+                                            VideoRenderApi.enqueueDownload(context, jobId, name).fold(
+                                                onSuccess = {
+                                                    Toast.makeText(
+                                                        context,
+                                                        videoRenderDownloadStarted,
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                onFailure = { e ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        e.message ?: videoRenderCreateFailed,
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            )
+                                        },
+                                        modifier = Modifier.padding(horizontal = 24.dp)
                                     )
-                                },
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            )
+                                }
+                            }
                         }
-                    }
-                }
 
-                // 歌词视图
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showLyrics,
-                    modifier = Modifier.fillMaxSize(),
-                    enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                    exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // 监听歌词列表滚动并同步到LyricScrollManager
-                        androidx.compose.runtime.LaunchedEffect(Unit) {
-                            com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                        1 -> {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                androidx.compose.runtime.LaunchedEffect(Unit) {
+                                    com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                                }
+                                LyricsView(
+                                    lyrics = lyrics,
+                                    currentProgressSeconds = currentProgressSeconds,
+                                    isLoading = isLoading,
+                                    modifier = Modifier.fillMaxSize(),
+                                    listState = lyricsListState
+                                )
+                            }
                         }
-                        
-                        LyricsView(
-                            lyrics = lyrics,
-                            currentProgressSeconds = currentProgressSeconds,
-                            isLoading = isLoading,
-                            onClick = { showLyrics = false },
-                            modifier = Modifier.fillMaxSize(),
-                            listState = lyricsListState
-                        )
                     }
                 }
-            }
 
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -774,6 +765,7 @@ fun PlayerScreen(
             ) {
                 TopBar(
                     isDarkTheme = isDarkTheme,
+                    currentPage = pagerState.currentPage,
                     onBackClick = onBackClick,
                     onMenuClick = { showShareDialog = true },
                     onPlaylistClick = onPlaylistClick
@@ -1380,6 +1372,7 @@ fun PlayerScreen(
 @Composable
 fun TopBar(
     isDarkTheme: Boolean,
+    currentPage: Int = 0,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onPlaylistClick: () -> Unit = {}
@@ -1404,14 +1397,21 @@ fun TopBar(
                     )
                 }
 
-                Text(
-                    text = stringResource(id = R.string.now_playing),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 0.8.sp,
-                    textAlign = TextAlign.Center
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.now_playing),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDarkTheme) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = 0.8.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    PlayerPageIndicator(currentPage = currentPage, isDarkTheme = isDarkTheme)
+                }
 
                 IconButton(
                     onClick = onMenuClick,
@@ -1423,6 +1423,33 @@ fun TopBar(
                         tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
+        }
+    }
+}
+
+@Composable
+private fun PlayerPageIndicator(
+    currentPage: Int,
+    isDarkTheme: Boolean,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(2) { index ->
+            Box(
+                modifier = Modifier
+                    .size(if (index == currentPage) 6.dp else 5.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            index == currentPage && isDarkTheme -> Color.White
+                            index == currentPage -> Color(0xFF17171A)
+                            isDarkTheme -> Color.White.copy(alpha = 0.32f)
+                            else -> Color.Black.copy(alpha = 0.24f)
+                        }
+                    )
+            )
         }
     }
 }
@@ -1485,7 +1512,6 @@ private fun NowPlayingIdentity(
         @Composable
 fun CoverImage(
             music: Music,
-            onClick: () -> Unit,
             modifier: Modifier = Modifier
         ) {
             val context = LocalContext.current
@@ -1521,8 +1547,7 @@ fun CoverImage(
                         )
                         .background(
                             if (isDarkTheme) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.2f)
-                        )
-                        .clickable(onClick = onClick),
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!coverUrl.isNullOrEmpty()) {
@@ -1961,7 +1986,6 @@ fun LyricsView(
             lyrics: List<LrcLine>,
             currentProgressSeconds: Float,
             isLoading: Boolean,
-            onClick: () -> Unit,
             modifier: Modifier = Modifier,
             listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
         ) {
@@ -2037,7 +2061,6 @@ fun LyricsView(
             Box(
                 modifier = modifier
                     .fillMaxSize()
-                    .clickable(onClick = onClick)
                     .padding(horizontal = 32.dp)
             ) {
                 when {
