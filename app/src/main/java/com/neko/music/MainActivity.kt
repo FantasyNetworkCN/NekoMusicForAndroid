@@ -166,6 +166,11 @@ class MainActivity : ComponentActivity() {
         setTheme(R.style.Theme_Neko歌姬计划)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 播放页与底部渐隐层需要真正延伸到系统导航栏区域，避免系统自动添加白色对比度遮罩。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         privacyAccepted = PrivacyConsentManager.hasAccepted(this)
         pendingIntentAfterConsent = intent
 
