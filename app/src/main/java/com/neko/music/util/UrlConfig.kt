@@ -74,7 +74,7 @@ object UrlConfig {
     /**
      * 获取版本检查URL
      */
-    fun getVersionCheckUrl(): String = "${BASE_URL}/version.json"
+    fun getVersionCheckUrl(): String = "${BASE_URL}/version"
 
     /**
      * 构建完整URL（用于处理以/开头的相对路径）
