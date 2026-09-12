@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,18 +60,16 @@ import com.neko.music.ui.theme.isAppDarkTheme
 import coil3.request.error
 import coil3.request.placeholder
 import com.neko.music.data.manager.TokenManager
-import com.neko.music.data.api.BatchAddMusicResponse
-import com.neko.music.data.api.MusicApi
-import com.neko.music.data.api.MusicSearchBusyException
-import com.neko.music.data.api.NeteasePlaylistApi
-import com.neko.music.data.api.QqMusicPlaylistApi
+import com.neko.music.data.api.ExternalPlaylistPullApi
+import com.neko.music.data.api.ExternalPullCallbacks
+import com.neko.music.data.api.ExternalPullProgress
+import com.neko.music.data.api.ExternalPullTrack
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistMusicListResponse
 import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.api.PlaylistResponse
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.model.Playlist
-import com.neko.music.data.model.SearchItem
 import com.neko.music.ui.theme.*
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.data.manager.AppBackgroundKind
@@ -80,10 +79,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import io.ktor.client.plugins.HttpRequestTimeoutException
-import io.ktor.client.network.sockets.SocketTimeoutException as KtorSocketTimeoutException
 import kotlinx.coroutines.launch
-import java.net.SocketTimeoutException
 
 /** 暗色底图上可读的主/次文字色（避免灰紫 B8B8D1 对比不足） */
 private val MyPlaylistsDarkPrimaryText = Color(0xFFFFF8FA)
@@ -101,9 +97,7 @@ fun MyPlaylistsScreen(
     val tokenManager = remember { TokenManager(context) }
     val playlistApi = remember { PlaylistApi(tokenManager.getToken(), context) }
     val favoriteApi = remember { FavoriteApi(context) }
-    val neteasePlaylistApi = remember { NeteasePlaylistApi() }
-    val qqPlaylistApi = remember { QqMusicPlaylistApi() }
-    val musicApi = remember { MusicApi(context) }
+    val externalPullApi = remember { ExternalPlaylistPullApi() }
     
     // 预加载字符串资源
     val pleaseLoginFirst = stringResource(id = R.string.please_login_first)
@@ -348,30 +342,19 @@ fun MyPlaylistsScreen(
     var importNewPlaylistName by remember { mutableStateOf("") }
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
     var isQqImportLoading by remember { mutableStateOf(false) }
-    var showImportMatchFailedDialog by remember { mutableStateOf(false) }
-    var importMatchFailedItems by remember { mutableStateOf<List<SearchItem>>(emptyList()) }
+    var importProgress by remember { mutableStateOf(ImportProgress()) }
     val importNeteaseProcessing = stringResource(R.string.import_netease_processing)
     val importQqProcessing = stringResource(R.string.import_netease_processing)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
-    val importDestinationOptions = remember(playlists, favoritePlaylists, myFavoritesLabel, importNewPlaylistLabel) {
+    val importDestinationOptions = remember(playlists, importNewPlaylistLabel) {
         buildList {
-            add(ImportDestinationOption(ImportDestination.Favorites, myFavoritesLabel))
             playlists.forEach { playlist ->
                 add(ImportDestinationOption(ImportDestination.UserPlaylist(playlist.id, playlist.name), playlist.name))
-            }
-            favoritePlaylists.forEach { playlist ->
-                add(
-                    ImportDestinationOption(
-                        ImportDestination.FavoritePlaylist(playlist.id, playlist.name),
-                        playlist.name,
-                    ),
-                )
             }
             add(ImportDestinationOption(ImportDestination.NewPlaylist, importNewPlaylistLabel))
         }
     }
-    
     // 创建或更新歌单
     val createOrUpdatePlaylist = {
         scope.launch {
@@ -728,7 +711,9 @@ fun MyPlaylistsScreen(
                 selectedDestination = importDestination,
                 newPlaylistName = importNewPlaylistName,
                 isLoading = isNeteaseImportLoading,
-                loadingText = importNeteaseProcessing,
+                loadingText = importLoadingText(importNeteaseProcessing, importProgress),
+                progressFraction = importProgress.fraction,
+                detailText = importDetailText(importProgress),
                 sampleBackdrop = pageBackdrop,
                 dialogTitleText = stringResource(R.string.import_netease_playlist_title),
                 idHintText = stringResource(R.string.netease_playlist_id_hint),
@@ -738,8 +723,7 @@ fun MyPlaylistsScreen(
                 onConfirm = {
                     val sourceId = NeteasePlaylistImport.parsePlaylistId(neteasePlaylistId)
                         ?: neteasePlaylistId.trim()
-                    val playlistIdLong = sourceId.toLongOrNull()
-                    if (playlistIdLong == null) {
+                    if (sourceId.isEmpty() || !sourceId.all { it.isDigit() }) {
                         Toast.makeText(
                             context,
                             context.getString(R.string.import_netease_playlist_id_invalid),
@@ -747,107 +731,73 @@ fun MyPlaylistsScreen(
                         ).show()
                         return@PlaylistIdDialog
                     }
+                    val destination = importDestination
+                    val targetPlaylistId =
+                        (destination as? ImportDestination.UserPlaylist)?.id
+                    val targetPlaylistName =
+                        (destination as? ImportDestination.NewPlaylist)
+                            ?.let { importNewPlaylistName.trim() }
+                            ?.takeIf { it.isNotEmpty() }
+                    val token = tokenManager.getToken()
+                    if (token == null) {
+                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    if (destination == null) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_destination_label),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@PlaylistIdDialog
+                    }
                     scope.launch {
                         isNeteaseImportLoading = true
+                        importProgress = ImportProgress()
                         try {
-                            val responseResult = neteasePlaylistApi.fetchPlaylistDetail(playlistIdLong)
-                            responseResult.fold(
-                                onSuccess = { response ->
-                                    if (response.code != 200 || response.playlist == null) {
+                            externalPullApi.pull(
+                                source = ExternalPlaylistPullApi.SOURCE_NETEASE,
+                                externalPlaylistId = sourceId,
+                                targetPlaylistId = targetPlaylistId,
+                                targetPlaylistName = targetPlaylistName,
+                                token = token,
+                                callbacks = ExternalPullCallbacks(
+                                    onStart = { start ->
+                                        importProgress = ImportProgress(total = start.total)
+                                    },
+                                    onTrack = { track ->
+                                        importProgress = applyPullTrack(importProgress, track)
+                                    },
+                                    onProgress = { progress ->
+                                        importProgress = applyPullProgress(importProgress, progress)
+                                    },
+                                    onDone = { summary ->
+                                        showImportSummaryToast(
+                                            context = context,
+                                            added = summary.imported + summary.existed,
+                                            failed = summary.failed,
+                                        )
+                                        scope.launch { refreshData() }
+                                    },
+                                    onError = { message ->
                                         Toast.makeText(
                                             context,
-                                            neteasePlaylistApi.errorMessage(response),
-                                            Toast.LENGTH_SHORT,
+                                            context.getString(
+                                                R.string.import_netease_import_failed,
+                                                message,
+                                            ),
+                                            Toast.LENGTH_LONG,
                                         ).show()
-                                    } else {
-                                        val playlist = response.playlist
-                                        val destination = importDestination
-                                        val newName = importNewPlaylistName.trim()
-                                        neteasePlaylistApi.logPlaylistTracks(playlist)
-                                        val matchResult = neteasePlaylistApi.matchTracksInLibrary(
-                                            playlist,
-                                            musicApi,
-                                        )
-                                        matchResult.fold(
-                                            onSuccess = { stats ->
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(
-                                                        R.string.import_netease_match_success,
-                                                        stats.successCount,
-                                                        stats.failCount,
-                                                    ),
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                                if (stats.matchedMusicIds.isNotEmpty() && destination != null) {
-                                                    val token = tokenManager.getToken()
-                                                    if (token != null) {
-                                                        val importResponse = importMatchedMusicToDestination(
-                                                            destination = destination,
-                                                            musicIds = stats.matchedMusicIds,
-                                                            newPlaylistName = newName,
-                                                            token = token,
-                                                            playlistApi = playlistApi,
-                                                            favoriteApi = favoriteApi,
-                                                            context = context,
-                                                        )
-                                                        showNeteaseImportResultToast(context, importResponse)
-                                                        if (importResponse.success ||
-                                                            (importResponse.addedCount ?: 0) > 0
-                                                        ) {
-                                                            refreshData()
-                                                        }
-                                                    }
-                                                } else if (stats.matchedMusicIds.isEmpty()) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(
-                                                            R.string.import_netease_no_matched_to_import,
-                                                        ),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                }
-                                                showNeteasePlaylistIdDialog = false
-                                                neteasePlaylistId = ""
-                                                importDestination = null
-                                                importNewPlaylistName = ""
-                                                if (stats.failedItems.isNotEmpty()) {
-                                                    importMatchFailedItems = stats.failedItems
-                                                    showImportMatchFailedDialog = true
-                                                }
-                                            },
-                                            onFailure = { error ->
-                                                val toastText = when {
-                                                    isNeteaseMatchBusy(error) ->
-                                                        context.getString(R.string.import_netease_match_busy)
-                                                    error.message == "无可搜索曲目" ->
-                                                        context.getString(R.string.import_netease_match_no_tracks)
-                                                    else -> {
-                                                        val detail = error.message?.takeIf { it.isNotBlank() }
-                                                            ?: context.getString(R.string.import_netease_fetch_failed)
-                                                        context.getString(
-                                                            R.string.import_netease_match_failed,
-                                                            detail,
-                                                        )
-                                                    }
-                                                }
-                                                Toast.makeText(
-                                                    context,
-                                                    toastText,
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            },
-                                        )
-                                    }
-                                },
-                                onFailure = {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.import_netease_fetch_failed),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                },
-                            )
+                                    },
+                                ),
+                            ).also { result ->
+                                if (result.isSuccess) {
+                                    showNeteasePlaylistIdDialog = false
+                                    neteasePlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                }
+                            }
                         } finally {
                             isNeteaseImportLoading = false
                         }
@@ -870,7 +820,9 @@ fun MyPlaylistsScreen(
                 selectedDestination = importDestination,
                 newPlaylistName = importNewPlaylistName,
                 isLoading = isQqImportLoading,
-                loadingText = importQqProcessing,
+                loadingText = importLoadingText(importQqProcessing, importProgress),
+                progressFraction = importProgress.fraction,
+                detailText = importDetailText(importProgress),
                 sampleBackdrop = pageBackdrop,
                 dialogTitleText = stringResource(R.string.import_qq_playlist_title),
                 idHintText = stringResource(R.string.qq_playlist_id_hint),
@@ -878,8 +830,9 @@ fun MyPlaylistsScreen(
                 onDestinationChange = { importDestination = it },
                 onNewPlaylistNameChange = { importNewPlaylistName = it },
                 onConfirm = {
-                    val sourceId = QqMusicPlaylistImport.parsePlaylistId(qqPlaylistId) ?: qqPlaylistId.trim()
-                    if (sourceId.isEmpty() || sourceId.toLongOrNull() == null) {
+                    val sourceId = QqMusicPlaylistImport.parsePlaylistId(qqPlaylistId)
+                        ?: qqPlaylistId.trim()
+                    if (sourceId.isEmpty() || !sourceId.all { it.isDigit() }) {
                         Toast.makeText(
                             context,
                             context.getString(R.string.import_qq_playlist_id_invalid),
@@ -887,108 +840,73 @@ fun MyPlaylistsScreen(
                         ).show()
                         return@PlaylistIdDialog
                     }
+                    val destination = importDestination
+                    val targetPlaylistId =
+                        (destination as? ImportDestination.UserPlaylist)?.id
+                    val targetPlaylistName =
+                        (destination as? ImportDestination.NewPlaylist)
+                            ?.let { importNewPlaylistName.trim() }
+                            ?.takeIf { it.isNotEmpty() }
+                    val token = tokenManager.getToken()
+                    if (token == null) {
+                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    if (destination == null) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_destination_label),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@PlaylistIdDialog
+                    }
                     scope.launch {
                         isQqImportLoading = true
+                        importProgress = ImportProgress()
                         try {
-                            val responseResult = qqPlaylistApi.fetchPlaylistDetail(sourceId)
-                            responseResult.fold(
-                                onSuccess = { response ->
-                                    val body = response.response
-                                    val playlist = body?.let { qqPlaylistApi.toPlaylist(sourceId, it) }
-                                    if (body == null || body.code != 0 || playlist == null) {
+                            externalPullApi.pull(
+                                source = ExternalPlaylistPullApi.SOURCE_QQ,
+                                externalPlaylistId = sourceId,
+                                targetPlaylistId = targetPlaylistId,
+                                targetPlaylistName = targetPlaylistName,
+                                token = token,
+                                callbacks = ExternalPullCallbacks(
+                                    onStart = { start ->
+                                        importProgress = ImportProgress(total = start.total)
+                                    },
+                                    onTrack = { track ->
+                                        importProgress = applyPullTrack(importProgress, track)
+                                    },
+                                    onProgress = { progress ->
+                                        importProgress = applyPullProgress(importProgress, progress)
+                                    },
+                                    onDone = { summary ->
+                                        showImportSummaryToast(
+                                            context = context,
+                                            added = summary.imported + summary.existed,
+                                            failed = summary.failed,
+                                        )
+                                        scope.launch { refreshData() }
+                                    },
+                                    onError = { message ->
                                         Toast.makeText(
                                             context,
-                                            qqPlaylistApi.errorMessage(response),
-                                            Toast.LENGTH_SHORT,
+                                            context.getString(
+                                                R.string.import_netease_import_failed,
+                                                message,
+                                            ),
+                                            Toast.LENGTH_LONG,
                                         ).show()
-                                    } else {
-                                        val destination = importDestination
-                                        val newName = importNewPlaylistName.trim()
-                                        qqPlaylistApi.logPlaylistTracks(playlist)
-                                        val matchResult = qqPlaylistApi.matchTracksInLibrary(
-                                            playlist,
-                                            musicApi,
-                                        )
-                                        matchResult.fold(
-                                            onSuccess = { stats ->
-                                                Toast.makeText(
-                                                    context,
-                                                    context.getString(
-                                                        R.string.import_netease_match_success,
-                                                        stats.successCount,
-                                                        stats.failCount,
-                                                    ),
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                                if (stats.matchedMusicIds.isNotEmpty() && destination != null) {
-                                                    val token = tokenManager.getToken()
-                                                    if (token != null) {
-                                                        val importResponse = importMatchedMusicToDestination(
-                                                            destination = destination,
-                                                            musicIds = stats.matchedMusicIds,
-                                                            newPlaylistName = newName,
-                                                            token = token,
-                                                            playlistApi = playlistApi,
-                                                            favoriteApi = favoriteApi,
-                                                            context = context,
-                                                        )
-                                                        showNeteaseImportResultToast(context, importResponse)
-                                                        if (importResponse.success ||
-                                                            (importResponse.addedCount ?: 0) > 0
-                                                        ) {
-                                                            refreshData()
-                                                        }
-                                                    }
-                                                } else if (stats.matchedMusicIds.isEmpty()) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(
-                                                            R.string.import_netease_no_matched_to_import,
-                                                        ),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                }
-                                                showQqPlaylistIdDialog = false
-                                                qqPlaylistId = ""
-                                                importDestination = null
-                                                importNewPlaylistName = ""
-                                                if (stats.failedItems.isNotEmpty()) {
-                                                    importMatchFailedItems = stats.failedItems
-                                                    showImportMatchFailedDialog = true
-                                                }
-                                            },
-                                            onFailure = { error ->
-                                                val toastText = when {
-                                                    isNeteaseMatchBusy(error) ->
-                                                        context.getString(R.string.import_netease_match_busy)
-                                                    error.message == "无可搜索曲目" ->
-                                                        context.getString(R.string.import_netease_match_no_tracks)
-                                                    else -> {
-                                                        val detail = error.message?.takeIf { it.isNotBlank() }
-                                                            ?: context.getString(R.string.import_qq_fetch_failed)
-                                                        context.getString(
-                                                            R.string.import_netease_match_failed,
-                                                            detail,
-                                                        )
-                                                    }
-                                                }
-                                                Toast.makeText(
-                                                    context,
-                                                    toastText,
-                                                    Toast.LENGTH_LONG,
-                                                ).show()
-                                            },
-                                        )
-                                    }
-                                },
-                                onFailure = {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.import_qq_fetch_failed),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                },
-                            )
+                                    },
+                                ),
+                            ).also { result ->
+                                if (result.isSuccess) {
+                                    showQqPlaylistIdDialog = false
+                                    qqPlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                }
+                            }
                         } finally {
                             isQqImportLoading = false
                         }
@@ -1000,17 +918,6 @@ fun MyPlaylistsScreen(
                     qqPlaylistId = ""
                     importDestination = null
                     importNewPlaylistName = ""
-                },
-            )
-        }
-
-        TopLevelImportDialogVisibility(visible = showImportMatchFailedDialog) {
-            ImportMatchFailedDialog(
-                failedItems = importMatchFailedItems,
-                sampleBackdrop = pageBackdrop,
-                onDismiss = {
-                    showImportMatchFailedDialog = false
-                    importMatchFailedItems = emptyList()
                 },
             )
         }
@@ -1256,11 +1163,59 @@ fun PlaylistItem(
 }
 
 private sealed class ImportDestination {
-    data object Favorites : ImportDestination()
     data class UserPlaylist(val id: Int, val name: String) : ImportDestination()
-    data class FavoritePlaylist(val id: Int, val name: String) : ImportDestination()
     data object NewPlaylist : ImportDestination()
 }
+
+private data class ImportProgress(
+    val total: Int = 0,
+    val finished: Int = 0,
+    val currentTitle: String = "",
+    val downloadPercent: Int = -1,
+) {
+    /** 有总数时才给确定进度，否则让界面显示转圈。 */
+    val fraction: Float?
+        get() = if (total > 0) (finished.toFloat() / total).coerceIn(0f, 1f) else null
+}
+
+private fun importLoadingText(base: String, progress: ImportProgress): String = buildString {
+    append(base)
+    if (progress.total > 0) {
+        append(" ${progress.finished}/${progress.total}")
+    }
+}
+
+private fun importDetailText(progress: ImportProgress): String {
+    val title = progress.currentTitle
+    val percent = if (progress.downloadPercent in 0..100) "${progress.downloadPercent}%" else ""
+    return when {
+        title.isBlank() -> percent
+        percent.isBlank() -> title
+        else -> "$title · $percent"
+    }
+}
+
+private fun applyPullTrack(current: ImportProgress, track: ExternalPullTrack): ImportProgress {
+    val total = if (track.total > 0) track.total else current.total
+    return if (track.status == "downloading" || track.status == "matching") {
+        current.copy(
+            total = total,
+            currentTitle = listOf(track.title, track.artist)
+                .filter { it.isNotBlank() }
+                .joinToString(" — "),
+            downloadPercent = -1,
+        )
+    } else {
+        current.copy(
+            total = total,
+            finished = current.finished + 1,
+            downloadPercent = -1,
+        )
+    }
+}
+
+private fun applyPullProgress(current: ImportProgress, progress: ExternalPullProgress): ImportProgress =
+    if (progress.percent in 0..100) current.copy(downloadPercent = progress.percent) else current
 
 private data class ImportDestinationOption(
     val destination: ImportDestination,
@@ -1406,6 +1361,8 @@ private fun PlaylistIdDialog(
     newPlaylistName: String,
     isLoading: Boolean,
     loadingText: String,
+    progressFraction: Float?,
+    detailText: String,
     sampleBackdrop: LayerBackdrop,
     dialogTitleText: String,
     idHintText: String,
@@ -1638,122 +1595,34 @@ private fun PlaylistIdDialog(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.padding(horizontal = 40.dp),
                         ) {
-                            CircularProgressIndicator(color = RoseRed)
+                            if (progressFraction != null) {
+                                LinearProgressIndicator(
+                                    progress = { progressFraction.coerceIn(0f, 1f) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp),
+                                    color = RoseRed,
+                                )
+                            } else {
+                                CircularProgressIndicator(color = RoseRed)
+                            }
                             Text(
                                 text = loadingText,
                                 fontSize = 15.sp,
                                 color = titleColor,
                                 fontWeight = FontWeight.Medium,
                             )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ImportMatchFailedDialog(
-    failedItems: List<SearchItem>,
-    sampleBackdrop: LayerBackdrop,
-    onDismiss: () -> Unit,
-) {
-    val title = stringResource(R.string.import_netease_match_failed_dialog_title)
-    val summary = stringResource(
-        R.string.import_netease_match_failed_dialog_summary,
-        failedItems.size,
-    )
-    val unknownArtist = stringResource(R.string.import_netease_match_failed_unknown_artist)
-    val confirmText = stringResource(R.string.confirm)
-
-    val scheme = MaterialTheme.colorScheme
-    val isDark = isAppDarkTheme()
-    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
-    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
-    val titleColor = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface
-    val mutedColor = if (isDark) MyPlaylistsDarkSecondaryText else scheme.onSurfaceVariant
-
-    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 520.dp),
-            shape = RoundedCornerShape(24.dp),
-            sampleBackdrop = sampleBackdrop,
-            backgroundAlpha = dialogGlass.tint.background(isDark),
-            borderAlpha = dialogGlass.tint.border(isDark),
-            highlightAlpha = dialogGlass.tint.highlight(isDark),
-            borderColor = if (isDark) {
-                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
-            } else {
-                scheme.outline
-            },
-            liquidBlur = dialogGlass.liquid.blur,
-            liquidLensHeight = dialogGlass.liquid.lensHeight,
-            liquidLensAmount = dialogGlass.liquid.lensAmount,
-        ) {
-            Column(modifier = Modifier.padding(28.dp)) {
-                Text(
-                    text = title,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = titleColor,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = summary,
-                    fontSize = 14.sp,
-                    color = mutedColor,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    itemsIndexed(failedItems, key = { index, _ -> index }) { _, item ->
-                        val artistLabel = item.artist.ifBlank { unknownArtist }
-                        Text(
-                            text = "${item.title} — $artistLabel",
-                            fontSize = 15.sp,
-                            color = titleColor,
-                            lineHeight = 20.sp,
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    GlassSurface(
-                        modifier = Modifier
-                            .height(48.dp)
-                            .clickable(onClick = onDismiss),
-                        shape = RoundedCornerShape(14.dp),
-                        sampleBackdrop = sampleBackdrop,
-                        backgroundAlpha = confirmGlass.background(isDark),
-                        borderAlpha = confirmGlass.border(isDark),
-                        highlightAlpha = confirmGlass.highlight(isDark),
-                        liquidBlur = dialogGlass.liquid.blur,
-                        liquidLensHeight = dialogGlass.liquid.lensHeight,
-                        liquidLensAmount = dialogGlass.liquid.lensAmount,
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = confirmText,
-                                fontSize = 17.sp,
-                                color = if (isDark) MyPlaylistsDarkPrimaryText else scheme.onSurface,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 20.dp),
-                            )
+                            if (detailText.isNotBlank()) {
+                                Text(
+                                    text = detailText,
+                                    fontSize = 13.sp,
+                                    color = titleColor.copy(alpha = 0.75f),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                         }
                     }
                 }
@@ -2004,82 +1873,21 @@ fun PlaylistDialog(
     }
 }
 
-private suspend fun importMatchedMusicToDestination(
-    destination: ImportDestination,
-    musicIds: List<Int>,
-    newPlaylistName: String,
-    token: String,
-    playlistApi: PlaylistApi,
-    favoriteApi: FavoriteApi,
+private fun showImportSummaryToast(
     context: android.content.Context,
-): BatchAddMusicResponse {
-    return when (destination) {
-        is ImportDestination.Favorites -> favoriteApi.addFavorites(token, musicIds)
-        is ImportDestination.UserPlaylist ->
-            playlistApi.addMusicsToPlaylist(destination.id, musicIds)
-        is ImportDestination.FavoritePlaylist ->
-            BatchAddMusicResponse(
-                success = false,
-                message = context.getString(R.string.import_netease_favorite_playlist_not_supported),
-            )
-        is ImportDestination.NewPlaylist -> {
-            val createResponse = playlistApi.createPlaylist(newPlaylistName)
-            val playlistId = createResponse.playlist?.id
-            if (!createResponse.success || playlistId == null) {
-                BatchAddMusicResponse(
-                    success = false,
-                    message = createResponse.message.ifBlank {
-                        context.getString(R.string.import_netease_fetch_failed)
-                    },
-                )
-            } else {
-                playlistApi.addMusicsToPlaylist(playlistId, musicIds)
-            }
-        }
-    }
-}
-
-private fun showNeteaseImportResultToast(
-    context: android.content.Context,
-    response: BatchAddMusicResponse,
+    added: Int,
+    failed: Int,
 ) {
-    val added = response.addedCount ?: 0
-    val failedCount = response.failedMusicIds?.size ?: 0
     val text = when {
-        !response.success && added > 0 ->
-            context.getString(R.string.import_netease_import_partial, added, failedCount)
-        response.success ->
-            response.message.ifBlank {
-                context.getString(R.string.import_netease_import_success, added)
-            }
+        failed > 0 && added > 0 ->
+            context.getString(R.string.import_netease_import_partial, added, failed)
+        added > 0 ->
+            context.getString(R.string.import_netease_import_success, added)
         else ->
             context.getString(
                 R.string.import_netease_import_failed,
-                response.message.ifBlank {
-                    context.getString(R.string.import_netease_fetch_failed)
-                },
+                context.getString(R.string.import_netease_no_matched_to_import),
             )
     }
     Toast.makeText(context, text, Toast.LENGTH_LONG).show()
-}
-
-private fun isNeteaseMatchBusy(error: Throwable): Boolean {
-    var current: Throwable? = error
-    while (current != null) {
-        when (current) {
-            is MusicSearchBusyException,
-            is HttpRequestTimeoutException,
-            is KtorSocketTimeoutException,
-            is SocketTimeoutException,
-            -> return true
-        }
-        if (current.message?.contains("timeout", ignoreCase = true) == true) {
-            return true
-        }
-        if (current.message?.contains("unexpected end of the input", ignoreCase = true) == true) {
-            return true
-        }
-        current = current.cause
-    }
-    return false
 }
