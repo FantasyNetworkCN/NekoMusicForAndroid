@@ -17,6 +17,13 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,20 +34,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -53,9 +58,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size as GeometrySize
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -71,6 +81,7 @@ import com.google.zxing.common.HybridBinarizer
 import com.neko.music.R
 import com.neko.music.data.api.QrLoginApi
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.ui.theme.SakuraPink
 import java.util.concurrent.Executors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -80,7 +91,6 @@ private enum class QrScanStage { Scanning, Checking, Confirming, Done, Error }
 /**
  * 扫码登录：扫描 PC 端二维码 → 上报已扫描 → 用户确认后在电脑端完成登录。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScanScreen(
     onBackClick: () -> Unit = {},
@@ -144,89 +154,60 @@ fun QrScanScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.qr_scan_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        if (hasPermission) {
+            CameraPreview(
+                scanningEnabled = stage == QrScanStage.Scanning,
+                onDecoded = { raw -> handleDecoded(raw) },
+                modifier = Modifier.fillMaxSize()
+            )
+            ScanOverlay(hint = stringResource(R.string.qr_scan_hint))
+        } else {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.qr_scan_permission_message),
+                    color = Color.White,
+                    textAlign = TextAlign.Center
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Text(stringResource(R.string.qr_scan_permission_action))
+                }
+            }
+        }
+
+        // 相机页不挂 TopAppBar，改用悬浮返回键，避免遮挡取景区
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(8.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.35f))
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+                tint = Color.White
             )
         }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(Color.Black)
-        ) {
-            if (!hasPermission) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(R.string.qr_scan_permission_message),
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.qr_scan_permission_action))
-                    }
-                }
-            } else {
-                CameraPreview(
-                    scanningEnabled = stage == QrScanStage.Scanning,
-                    onDecoded = { raw -> handleDecoded(raw) },
-                    modifier = Modifier.fillMaxSize()
-                )
-                ScanFrameHint(hint = stringResource(R.string.qr_scan_hint))
-            }
 
-            if (stage == QrScanStage.Checking) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Color.White)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = stringResource(R.string.qr_scan_checking),
-                            color = Color.White
-                        )
-                    }
-                }
-            }
+        if (stage == QrScanStage.Checking) {
+            StageCard(text = stringResource(R.string.qr_scan_checking), showSpinner = true)
+        }
 
-            if (stage == QrScanStage.Done) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.qr_scan_success),
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+        if (stage == QrScanStage.Done) {
+            StageCard(text = stringResource(R.string.qr_scan_success), showSpinner = false)
         }
     }
 
@@ -299,24 +280,112 @@ private fun extractSessionId(raw: String): String? {
     return sid.takeIf { it.length >= 16 }
 }
 
+private val ScanFrameSize = 260.dp
+
+/** 取景遮罩：框外压暗 + 四角高亮 + 上下往返的扫描线，底部给出提示文案。 */
 @Composable
-private fun ScanFrameHint(hint: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(240.dp)
-                .border(2.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
-        )
+private fun ScanOverlay(hint: String) {
+    val transition = rememberInfiniteTransition(label = "qrScanLine")
+    val lineProgress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "qrScanLineProgress"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val frame = ScanFrameSize.toPx()
+            val left = (size.width - frame) / 2f
+            val top = (size.height - frame) / 2f
+            val right = left + frame
+            val bottom = top + frame
+            val scrim = Color.Black.copy(alpha = 0.62f)
+
+            drawRect(scrim, size = GeometrySize(size.width, top))
+            drawRect(scrim, topLeft = Offset(0f, bottom), size = GeometrySize(size.width, size.height - bottom))
+            drawRect(scrim, topLeft = Offset(0f, top), size = GeometrySize(left, frame))
+            drawRect(scrim, topLeft = Offset(right, top), size = GeometrySize(size.width - right, frame))
+
+            val corner = 30.dp.toPx()
+            val stroke = 3.dp.toPx()
+            val accent = SakuraPink
+
+            fun bracket(x: Float, y: Float, dx: Float, dy: Float) {
+                drawLine(
+                    color = accent,
+                    start = Offset(x, y),
+                    end = Offset(x + dx * corner, y),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = accent,
+                    start = Offset(x, y),
+                    end = Offset(x, y + dy * corner),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round
+                )
+            }
+            bracket(left, top, 1f, 1f)
+            bracket(right, top, -1f, 1f)
+            bracket(left, bottom, 1f, -1f)
+            bracket(right, bottom, -1f, -1f)
+
+            val inset = 12.dp.toPx()
+            val lineY = top + inset + lineProgress * (frame - inset * 2)
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color.Transparent, accent.copy(alpha = 0.9f), Color.Transparent),
+                    startX = left,
+                    endX = right
+                ),
+                topLeft = Offset(left + inset, lineY),
+                size = GeometrySize(frame - inset * 2, 2.dp.toPx())
+            )
+        }
+
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 56.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.size(ScanFrameSize))
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = hint,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 40.dp)
+            )
+        }
+    }
+}
+
+/** 居中悬浮的深色提示卡（校验中 / 已完成）。 */
+@Composable
+private fun StageCard(text: String, showSpinner: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xCC000000))
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (showSpinner) {
+                CircularProgressIndicator(color = Color.White)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            Text(
+                text = text,
                 color = Color.White,
                 textAlign = TextAlign.Center
             )
