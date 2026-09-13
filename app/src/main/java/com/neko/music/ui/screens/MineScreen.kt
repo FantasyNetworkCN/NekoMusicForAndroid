@@ -130,6 +130,7 @@ fun MineScreen(
                         onVipEntryClick = onVipCenterClick,
                         onLogoutClick = onLogoutClick,
                         onAccountInfoClick = onAccountInfoClick,
+                        onQrScanClick = onQrScanClick,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -207,7 +208,6 @@ fun MineScreen(
                             MoreSettings(
                                 onAboutClick = onAboutClick,
                                 onNavigateToSettings = onNavigateToSettings,
-                                onQrScanClick = onQrScanClick,
                                 isLoggedIn = isLoggedIn,
                                 onLoginClick = onLoginClick,
                                 onLogoutClick = onLogoutClick,
@@ -258,6 +258,7 @@ fun MineHeader(
     onVipEntryClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onAccountInfoClick: () -> Unit = {},
+    onQrScanClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     
@@ -289,6 +290,26 @@ fun MineHeader(
                     ),
                 ),
         )
+        // 右上角「扫一扫」：扫码登录电脑端的入口
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 10.dp, end = 16.dp)
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.3f))
+                .clickable(onClick = onQrScanClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_qr_scan),
+                contentDescription = stringResource(id = R.string.qr_scan),
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
         // 装饰圆圈
         androidx.compose.foundation.Canvas(
             modifier = Modifier.fillMaxSize()
@@ -704,7 +725,6 @@ fun MenuItem(
 fun MoreSettings(
     onAboutClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    onQrScanClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     onLoginClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
@@ -723,13 +743,6 @@ fun MoreSettings(
             R.drawable.setting,
             RoseRed,
             onClick = onNavigateToSettings,
-            useElevatedSurface = useElevatedMenuItems
-        )
-        MenuItem(
-            stringResource(id = R.string.qr_scan),
-            R.drawable.ic_qr_scan,
-            SkyBlue,
-            onClick = onQrScanClick,
             useElevatedSurface = useElevatedMenuItems
         )
         MenuItem(
