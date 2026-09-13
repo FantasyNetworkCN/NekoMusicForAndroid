@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 四角取景框 + 中间扫描线，语义同「扫一扫」 -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M3,3h6v2H5v4H3V3zM15,3h6v6h-2V5h-4V3zM3,15h2v4h4v2H3v-6zM19,15h2v6h-6v-2h4v-4z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,11h16v2H4z" />
+</vector>

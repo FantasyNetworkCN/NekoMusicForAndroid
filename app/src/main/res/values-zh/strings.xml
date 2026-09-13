@@ -701,4 +701,19 @@
     <string name="recognition_overlay_permission_title">开启后台悬浮窗</string>
     <string name="recognition_overlay_permission_message">切到后台听歌识曲时，需要悬浮窗权限显示录音状态和停止按钮。不开启也可以继续录音，但不会显示悬浮窗。</string>
     <string name="recognition_overlay_permission_authorize">去授权</string>
+
+    <!-- 扫码登录 -->
+    <string name="qr_scan">扫一扫</string>
+    <string name="qr_scan_title">扫码登录</string>
+    <string name="qr_scan_hint">将电脑端二维码放入取景框内</string>
+    <string name="qr_scan_checking">正在校验二维码…</string>
+    <string name="qr_scan_confirm_title">确认登录</string>
+    <string name="qr_scan_confirm_message">是否在电脑端登录当前账号？</string>
+    <string name="qr_scan_confirm_ok">确认登录</string>
+    <string name="qr_scan_success">已确认，电脑端即将自动登录</string>
+    <string name="qr_scan_failed">扫码失败</string>
+    <string name="qr_scan_retry">重新扫描</string>
+    <string name="qr_scan_invalid">不是有效的登录二维码</string>
+    <string name="qr_scan_permission_message">需要相机权限才能扫描电脑端二维码</string>
+    <string name="qr_scan_permission_action">授权相机</string>
 </resources>

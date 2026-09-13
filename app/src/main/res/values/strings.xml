@@ -663,4 +663,19 @@
     <string name="recognition_overlay_permission_title">开启后台悬浮窗</string>
     <string name="recognition_overlay_permission_message">切到后台识曲时，需要悬浮窗权限显示录音状态和停止按钮。不开启也可以继续录音，但不会显示悬浮窗。</string>
     <string name="recognition_overlay_permission_authorize">去授权</string>
+
+    <!-- 扫码登录 -->
+    <string name="qr_scan">扫一扫喵</string>
+    <string name="qr_scan_title">扫码登录喵</string>
+    <string name="qr_scan_hint">把电脑上的喵码放进框框里喵</string>
+    <string name="qr_scan_checking">正在看喵码…</string>
+    <string name="qr_scan_confirm_title">确认登录喵</string>
+    <string name="qr_scan_confirm_message">要在电脑上登录这个账号吗喵？</string>
+    <string name="qr_scan_confirm_ok">确认登录喵</string>
+    <string name="qr_scan_success">好啦，电脑那边马上就会登录喵～</string>
+    <string name="qr_scan_failed">扫码失败了喵</string>
+    <string name="qr_scan_retry">再扫一次喵</string>
+    <string name="qr_scan_invalid">这不是登录用的喵码喵</string>
+    <string name="qr_scan_permission_message">要给相机权限才能扫喵码喵</string>
+    <string name="qr_scan_permission_action">给相机权限喵</string>
 </resources>
