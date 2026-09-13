@@ -109,6 +109,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -2017,6 +2018,7 @@ fun LyricsView(
             val currentIndex = remember(displayLyrics, currentProgressSeconds) {
                 displayLyrics.indexOfLast { it.time <= currentProgressSeconds }
             }
+            val density = LocalDensity.current
             val lineSpringOffsets = remember { mutableStateMapOf<Int, Animatable<Float, *>>() }
             var previousVisibleOffsets by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
 
@@ -2108,21 +2110,26 @@ fun LyricsView(
                                     distance == 3 -> 0.3f
                                     else -> 0.18f
                                 }
+                                // 模糊固定在屏幕上：按歌词与视口中心的距离计算，随滚动变化，而不是跟随当前播放行
+                                val scrollLayout = listState.layoutInfo
+                                val viewportCenterPx =
+                                    (scrollLayout.viewportStartOffset + scrollLayout.viewportEndOffset) / 2f
+                                val itemCenterPx = scrollLayout.visibleItemsInfo
+                                    .firstOrNull { it.index == index }
+                                    ?.let { it.offset + it.size / 2f }
+                                val centerDistanceDp = itemCenterPx
+                                    ?.let { with(density) { kotlin.math.abs(it - viewportCenterPx).toDp().value } }
+                                    ?: Float.MAX_VALUE
                                 val targetBlur = when {
-                                    distance <= 1 -> 0f
-                                    distance == 2 -> 1.6f
-                                    distance == 3 -> 4f
+                                    centerDistanceDp <= 60f -> 0f
+                                    centerDistanceDp <= 130f -> 1.6f
+                                    centerDistanceDp <= 220f -> 4f
                                     else -> 7f
                                 }
                                 val lineAlpha by animateFloatAsState(
                                     targetValue = targetAlpha,
                                     animationSpec = tween(durationMillis = 260),
                                     label = "lyric_line_alpha"
-                                )
-                                val lineBlur by animateFloatAsState(
-                                    targetValue = targetBlur,
-                                    animationSpec = tween(durationMillis = 280),
-                                    label = "lyric_line_blur"
                                 )
                                 val lineScale by animateFloatAsState(
                                     targetValue = if (isCurrentLine) 1f else 0.95f,
@@ -2146,7 +2153,7 @@ fun LyricsView(
                                             translationY = springOffset
                                             transformOrigin = TransformOrigin(0f, 0.5f)
                                         }
-                                        .blur(lineBlur.dp)
+                                        .blur(targetBlur.dp)
                                         .padding(vertical = if (isCurrentLine) 4.dp else 2.dp)
                                 ) {
                                     // 原文歌词
