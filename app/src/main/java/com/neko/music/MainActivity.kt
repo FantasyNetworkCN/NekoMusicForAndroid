@@ -98,6 +98,7 @@ import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.PrivacyPolicyScreen
 import com.neko.music.ui.screens.RecentPlayScreen
 import com.neko.music.ui.screens.MusicRecognitionScreen
+import com.neko.music.ui.screens.QrScanScreen
 import com.neko.music.ui.screens.SearchResultScreen
 import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
@@ -834,6 +835,13 @@ fun MainScreen() {
                             navController.navigate(AuthRoutes.LOGIN)
                         }
                     },
+                    onQrScanClick = {
+                        if (isLoggedIn) {
+                            navController.navigate("qr_login_scan")
+                        } else {
+                            navController.navigate(AuthRoutes.LOGIN)
+                        }
+                    },
                     isLoggedIn = isLoggedIn,
                     username = currentUsername,
                     userId = currentUserId,
@@ -1312,6 +1320,11 @@ fun MainScreen() {
                         val encodedCover = if (coverPath != null) java.net.URLEncoder.encode(coverPath, "UTF-8") else "null"
                         navController.navigate("artist_detail/$encodedName/$musicCount/$encodedCover")
                     }
+                )
+            }
+            composable("qr_login_scan") {
+                QrScanScreen(
+                    onBackClick = { navController.popBackStack() },
                 )
             }
             composable("music_recognition") {

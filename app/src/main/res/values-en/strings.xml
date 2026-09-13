@@ -703,4 +703,19 @@
     <string name="recognition_start">Start music identification</string>
     <string name="recognition_stop">Stop recording</string>
     <string name="recognition_open_result">Open identified song</string>
+
+    <!-- QR login -->
+    <string name="qr_scan">Scan QR</string>
+    <string name="qr_scan_title">QR Login</string>
+    <string name="qr_scan_hint">Point the camera at the QR code on your PC</string>
+    <string name="qr_scan_checking">Verifying QR code…</string>
+    <string name="qr_scan_confirm_title">Confirm login</string>
+    <string name="qr_scan_confirm_message">Log this account in on the PC?</string>
+    <string name="qr_scan_confirm_ok">Confirm</string>
+    <string name="qr_scan_success">Confirmed. The PC will sign in shortly.</string>
+    <string name="qr_scan_failed">Scan failed</string>
+    <string name="qr_scan_retry">Scan again</string>
+    <string name="qr_scan_invalid">Not a valid login QR code</string>
+    <string name="qr_scan_permission_message">Camera permission is required to scan the QR code</string>
+    <string name="qr_scan_permission_action">Grant camera permission</string>
 </resources>

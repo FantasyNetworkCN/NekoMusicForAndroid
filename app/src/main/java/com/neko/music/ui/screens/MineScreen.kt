@@ -59,6 +59,7 @@ fun MineScreen(
     onAccountInfoClick: () -> Unit = {},
     onUploadClick: () -> Unit = {},
     onVipCenterClick: () -> Unit = {},
+    onQrScanClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     username: String? = null,
     userId: Int = -1,
@@ -206,6 +207,7 @@ fun MineScreen(
                             MoreSettings(
                                 onAboutClick = onAboutClick,
                                 onNavigateToSettings = onNavigateToSettings,
+                                onQrScanClick = onQrScanClick,
                                 isLoggedIn = isLoggedIn,
                                 onLoginClick = onLoginClick,
                                 onLogoutClick = onLogoutClick,
@@ -702,6 +704,7 @@ fun MenuItem(
 fun MoreSettings(
     onAboutClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onQrScanClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     onLoginClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
@@ -720,6 +723,13 @@ fun MoreSettings(
             R.drawable.setting,
             RoseRed,
             onClick = onNavigateToSettings,
+            useElevatedSurface = useElevatedMenuItems
+        )
+        MenuItem(
+            stringResource(id = R.string.qr_scan),
+            R.drawable.ic_qr_scan,
+            SkyBlue,
+            onClick = onQrScanClick,
             useElevatedSurface = useElevatedMenuItems
         )
         MenuItem(
