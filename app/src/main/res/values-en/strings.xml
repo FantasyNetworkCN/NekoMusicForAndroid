@@ -446,13 +446,17 @@
     <string name="import_playlist_source_title">Import source</string>
     <string name="import_source_netease">NetEase Cloud Music</string>
     <string name="import_source_qq">QQ Music</string>
+    <string name="import_source_kugou">KuGou Music</string>
     <string name="not_supported">Not supported yet</string>
     <string name="import_netease_playlist_title">Import NetEase playlist</string>
     <string name="import_qq_playlist_title">Import QQ Music playlists</string>
+    <string name="import_kugou_playlist_title">Import KuGou Music playlists</string>
     <string name="playlist_id">Playlist ID</string>
     <string name="netease_playlist_id_hint">Paste share link or playlist ID</string>
     <string name="import_netease_playlist_id_invalid">Could not parse playlist ID. Paste a NetEase share link or enter a numeric ID.</string>
     <string name="import_qq_playlist_id_invalid">Playlist ID not found. Please paste the QQ Music share link or a numeric ID.</string>
+    <string name="kugou_playlist_id_hint">Paste the KuGou Music sharing link or playlist ID</string>
+    <string name="import_kugou_playlist_id_invalid">Playlist ID not found. Please paste the KuGou Music share link or playlist ID.</string>
     <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
     <string name="import_qq_fetch_failed">Playlist syncing failed, please try again later.</string>
     <string name="import_netease_matching">Matching tracks in library…</string>

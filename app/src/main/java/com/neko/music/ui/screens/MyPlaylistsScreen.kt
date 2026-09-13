@@ -50,6 +50,7 @@ import androidx.activity.compose.BackHandler
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.util.KugouMusicPlaylistImport
 import com.neko.music.util.NeteasePlaylistImport
 import com.neko.music.util.QqMusicPlaylistImport
 import com.neko.music.util.UrlConfig
@@ -338,13 +339,17 @@ fun MyPlaylistsScreen(
     var neteasePlaylistId by remember { mutableStateOf("") }
     var showQqPlaylistIdDialog by remember { mutableStateOf(false) }
     var qqPlaylistId by remember { mutableStateOf("") }
+    var showKugouPlaylistIdDialog by remember { mutableStateOf(false) }
+    var kugouPlaylistId by remember { mutableStateOf("") }
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
     var isQqImportLoading by remember { mutableStateOf(false) }
+    var isKugouImportLoading by remember { mutableStateOf(false) }
     var importProgress by remember { mutableStateOf(ImportProgress()) }
     val importNeteaseProcessing = stringResource(R.string.import_netease_processing)
     val importQqProcessing = stringResource(R.string.import_netease_processing)
+    val importKugouProcessing = stringResource(R.string.import_netease_processing)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
     val importDestinationOptions = remember(playlists, importNewPlaylistLabel) {
@@ -700,6 +705,13 @@ fun MyPlaylistsScreen(
                     importNewPlaylistName = ""
                     showQqPlaylistIdDialog = true
                 },
+                onKugouClick = {
+                    showImportSourceDialog = false
+                    kugouPlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                    showKugouPlaylistIdDialog = true
+                },
                 onDismiss = { showImportSourceDialog = false },
             )
         }
@@ -916,6 +928,116 @@ fun MyPlaylistsScreen(
                     if (isQqImportLoading) return@PlaylistIdDialog
                     showQqPlaylistIdDialog = false
                     qqPlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                },
+            )
+        }
+
+        TopLevelImportDialogVisibility(visible = showKugouPlaylistIdDialog) {
+            PlaylistIdDialog(
+                playlistId = kugouPlaylistId,
+                destinationOptions = importDestinationOptions,
+                selectedDestination = importDestination,
+                newPlaylistName = importNewPlaylistName,
+                isLoading = isKugouImportLoading,
+                loadingText = importLoadingText(importKugouProcessing, importProgress),
+                progressFraction = importProgress.fraction,
+                detailText = importDetailText(importProgress),
+                sampleBackdrop = pageBackdrop,
+                dialogTitleText = stringResource(R.string.import_kugou_playlist_title),
+                idHintText = stringResource(R.string.kugou_playlist_id_hint),
+                onIdChange = { kugouPlaylistId = KugouMusicPlaylistImport.normalizeListIdInput(it) },
+                onDestinationChange = { importDestination = it },
+                onNewPlaylistNameChange = { importNewPlaylistName = it },
+                onConfirm = {
+                    // 酷狗 listid 支持数字 ID / 网页链接 / 分享短码，后端会自行解析
+                    val sourceId = KugouMusicPlaylistImport.parseListId(kugouPlaylistId)
+                        ?: kugouPlaylistId.trim()
+                    if (sourceId.isEmpty() || sourceId.length > 255) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_kugou_playlist_id_invalid),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@PlaylistIdDialog
+                    }
+                    val destination = importDestination
+                    val targetPlaylistId =
+                        (destination as? ImportDestination.UserPlaylist)?.id
+                    val targetPlaylistName =
+                        (destination as? ImportDestination.NewPlaylist)
+                            ?.let { importNewPlaylistName.trim() }
+                            ?.takeIf { it.isNotEmpty() }
+                    val token = tokenManager.getToken()
+                    if (token == null) {
+                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    if (destination == null) {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.import_destination_label),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return@PlaylistIdDialog
+                    }
+                    scope.launch {
+                        isKugouImportLoading = true
+                        importProgress = ImportProgress()
+                        try {
+                            externalPullApi.pull(
+                                source = ExternalPlaylistPullApi.SOURCE_KUGOU,
+                                externalPlaylistId = sourceId,
+                                targetPlaylistId = targetPlaylistId,
+                                targetPlaylistName = targetPlaylistName,
+                                token = token,
+                                callbacks = ExternalPullCallbacks(
+                                    onStart = { start ->
+                                        importProgress = ImportProgress(total = start.total)
+                                    },
+                                    onTrack = { track ->
+                                        importProgress = applyPullTrack(importProgress, track)
+                                    },
+                                    onProgress = { progress ->
+                                        importProgress = applyPullProgress(importProgress, progress)
+                                    },
+                                    onDone = { summary ->
+                                        showImportSummaryToast(
+                                            context = context,
+                                            added = summary.imported + summary.existed,
+                                            failed = summary.failed,
+                                        )
+                                        scope.launch { refreshData() }
+                                    },
+                                    onError = { message ->
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(
+                                                R.string.import_netease_import_failed,
+                                                message,
+                                            ),
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    },
+                                ),
+                            ).also { result ->
+                                if (result.isSuccess) {
+                                    showKugouPlaylistIdDialog = false
+                                    kugouPlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                }
+                            }
+                        } finally {
+                            isKugouImportLoading = false
+                        }
+                    }
+                },
+                onDismiss = {
+                    if (isKugouImportLoading) return@PlaylistIdDialog
+                    showKugouPlaylistIdDialog = false
+                    kugouPlaylistId = ""
                     importDestination = null
                     importNewPlaylistName = ""
                 },
@@ -1255,11 +1377,13 @@ private fun ImportPlaylistSourceDialog(
     sampleBackdrop: LayerBackdrop,
     onNeteaseClick: () -> Unit,
     onQqClick: () -> Unit,
+    onKugouClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val title = stringResource(R.string.import_playlist_source_title)
     val neteaseLabel = stringResource(R.string.import_source_netease)
     val qqLabel = stringResource(R.string.import_source_qq)
+    val kugouLabel = stringResource(R.string.import_source_kugou)
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
@@ -1308,6 +1432,15 @@ private fun ImportPlaylistSourceDialog(
                     isDark = isDark,
                     textColor = titleColor,
                     onClick = onQqClick,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ImportSourceOptionRow(
+                    label = kugouLabel,
+                    sampleBackdrop = sampleBackdrop,
+                    optionGlass = optionGlass,
+                    isDark = isDark,
+                    textColor = titleColor,
+                    onClick = onKugouClick,
                 )
             }
         }

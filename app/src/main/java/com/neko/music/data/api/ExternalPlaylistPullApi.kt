@@ -76,6 +76,7 @@ class ExternalPlaylistPullApi {
 
         const val SOURCE_NETEASE = "netease"
         const val SOURCE_QQ = "qq"
+        const val SOURCE_KUGOU = "kugou"
     }
 
     private val json = Json {
@@ -95,7 +96,7 @@ class ExternalPlaylistPullApi {
     }
 
     /**
-     * @param externalPlaylistId 网易云歌单 ID 或 QQ disstid
+     * @param externalPlaylistId 网易云歌单 ID、QQ disstid 或酷狗 listid
      * @param targetPlaylistId   导入到的已有站内歌单 ID（与 targetPlaylistName 二选一）
      * @param targetPlaylistName 新建站内歌单名称（非空时后端会新建歌单）
      */
@@ -239,10 +240,12 @@ class ExternalPlaylistPullApi {
         token: String,
     ): String {
         return URLBuilder().takeFrom("${UrlConfig.getBaseUrl()}/loser/$source/pull").apply {
-            parameters.append(
-                if (source == SOURCE_QQ) "disstid" else "playlistId",
-                externalPlaylistId,
-            )
+            val idParam = when (source) {
+                SOURCE_QQ -> "disstid"
+                SOURCE_KUGOU -> "listid"
+                else -> "playlistId"
+            }
+            parameters.append(idParam, externalPlaylistId)
             val name = targetPlaylistName?.trim().orEmpty()
             if (name.isNotEmpty()) {
                 parameters.append("targetPlaylistName", name)
