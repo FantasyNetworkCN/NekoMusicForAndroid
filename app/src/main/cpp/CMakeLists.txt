@@ -12,9 +12,9 @@ if(DEFINED ANDROID_STL)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_STL=${ANDROID_STL}")
 endif()
 
-# 设置编译选项以确保16KB对齐
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdata-sections -ffunction-sections -ffunction-sections -fdata-sections")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdata-sections -ffunction-sections -ffunction-sections -fdata-sections")
+# 按函数/数据分节，配合链接期 --gc-sections 丢弃未引用代码，减小产物体积
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffunction-sections -fdata-sections")
 
 # 设置链接器选项确保16KB对齐
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
@@ -53,7 +53,11 @@ target_link_options(LrcParser PRIVATE
     LINKER:-z,max-page-size=16384
     LINKER:-z,separate-loadable-segments
     LINKER:--gc-sections
+    LINKER:--exclude-libs,ALL
 )
+
+# 体积优化：C 代码体积优先
+target_compile_options(LrcParser PRIVATE -Os)
 
 target_link_libraries(
         DesktopLyricRenderer
@@ -65,4 +69,17 @@ target_link_options(DesktopLyricRenderer PRIVATE
     LINKER:-z,max-page-size=16384
     LINKER:-z,separate-loadable-segments
     LINKER:--gc-sections
+    LINKER:--exclude-libs,ALL
+)
+
+# DesktopLyricRenderer 为纯 C 实现（不依赖 libc++），配合以下选项进一步压体积：
+# -Os 体积优先；-fno-exceptions/-fno-rtti 去掉异常与 RTTI 元数据；
+# -fvisibility=hidden 隐藏内部符号，避免导出 std/内部函数撑大 dynsym。
+target_compile_options(DesktopLyricRenderer PRIVATE
+    -Os
+    -fno-exceptions
+    -fno-rtti
+    -fvisibility=hidden
+    -ffunction-sections
+    -fdata-sections
 )
