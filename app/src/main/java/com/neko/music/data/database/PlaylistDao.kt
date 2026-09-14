@@ -44,6 +44,10 @@ interface PlaylistDao {
     
     @Query("SELECT * FROM playlist ORDER BY id ASC")
     suspend fun getAllPlaylistList(): List<PlaylistEntity>
+
+    /** 同一 musicId 只保留最后写入的一行，返回被删除的行数。 */
+    @Query("DELETE FROM playlist WHERE id NOT IN (SELECT MAX(id) FROM playlist GROUP BY musicId)")
+    suspend fun removeDuplicateRows(): Int
     
     @Query("SELECT * FROM playlist ORDER BY id DESC LIMIT 1")
     suspend fun getLastMusic(): PlaylistEntity?
