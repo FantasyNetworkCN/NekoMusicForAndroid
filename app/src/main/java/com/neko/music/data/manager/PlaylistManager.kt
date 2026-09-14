@@ -272,14 +272,19 @@ class PlaylistManager private constructor(context: Context) {
         }
     }
     
-    suspend fun getRandomMusic(excludeMusicId: Int): Music? {
-        val allMusic = getAllPlaylistList()
-        val filtered = allMusic.filter { it.id != excludeMusicId }
-        return if (filtered.isNotEmpty()) {
-            filtered.random()
-        } else {
-            null
+    /**
+     * 清理 [getAllPlaylistList] 里的重复行：同一个 musicId 只保留最后写入的一条。
+     *
+     * playlist 表以自增 id 为主键、musicId 无唯一约束，历史版本可能在队列里留下多行同一首歌，
+     * 会让"随机播放"在行上均匀取样时偏向重复的那几首（用户体感：40 首只有四五首在循环）。
+     */
+    suspend fun dedupePlaylist(): Int {
+        val removed = dao.removeDuplicateRows()
+        if (removed > 0) {
+            android.util.Log.w("PlaylistManager", "清理重复曲目 $removed 行")
+            _events.tryEmit(Unit)
         }
+        return removed
     }
     
     suspend fun getPlaylistMusicById(musicId: Int): Music? {

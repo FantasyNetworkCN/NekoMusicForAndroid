@@ -513,6 +513,9 @@ fun MainScreen() {
 
         // 初始化收藏管理器
         playerManager.initializeFavoriteManager()
+
+        // 清理历史遗留的重复曲目行（重复行会让随机播放偏向重复的那几首）
+        com.neko.music.data.manager.PlaylistManager.getInstance(context).dedupePlaylist()
     }
 
     // 已登录时从歌单接口刷新 VIP（与 Web 一致）

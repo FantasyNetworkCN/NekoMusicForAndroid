@@ -20,6 +20,7 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.neko.music.data.manager.PlaylistManager
+import com.neko.music.data.manager.ShuffleBag
 import com.neko.music.data.model.Music
 import com.neko.music.ui.screens.baseUrl
 import com.neko.music.util.UrlConfig
@@ -62,6 +63,7 @@ class MusicPlayerManager private constructor(context: Context) {
     // SharedPreferences 用于持久化播放模式
     private val prefs = appContext.getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
     private val KEY_PLAY_MODE = "play_mode"
+    private val KEY_SHUFFLE_STATE = "shuffle_state"
     
     private val player = ExoPlayer.Builder(context).build().apply {
         // 设置音频属性，确保后台播放
@@ -198,6 +200,18 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 播放历史记录栈（用于上一曲）
     private val playHistory = mutableListOf<Int>()
+
+    /**
+     * 随机播放洗牌袋：把整个曲库洗成一轮后逐个消费，保证一轮之内每首歌只播一次，
+     * 并把游标持久化到 [prefs]，重启/切后台回来后继续，而不是又从头几首开始。
+     */
+    private val shuffleBag = ShuffleBag().also {
+        it.restore(prefs.getString(KEY_SHUFFLE_STATE, null))
+    }
+
+    /** 最近一次读取到的随机池（避免 playMusic 里重复查库）。 */
+    @Volatile
+    private var shufflePoolCache: List<Int> = emptyList()
     
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
@@ -370,18 +384,26 @@ class MusicPlayerManager private constructor(context: Context) {
         // 保存播放模式到 SharedPreferences
         prefs.edit().putString(KEY_PLAY_MODE, _playMode.value.name).apply()
         _playModeChanged.value++
+        if (_playMode.value == PlayMode.SHUFFLE) registerShuffleStart()
     }
     
     fun setPlayMode(mode: PlayMode) {
         _playMode.value = mode
         // 保存播放模式到 SharedPreferences
         prefs.edit().putString(KEY_PLAY_MODE, _playMode.value.name).apply()
+        if (mode == PlayMode.SHUFFLE) registerShuffleStart()
     }
     
     // 下一曲
     fun next() {
         val currentId = _currentMusicId.value ?: return
         android.util.Log.d("MusicPlayerManager", "next() called, currentId: $currentId, playMode: ${_playMode.value}")
+
+        // 随机播放：由洗牌袋顺序决定，一轮内不重复
+        if (_playMode.value == PlayMode.SHUFFLE) {
+            nextInShuffle()
+            return
+        }
 
         // 检查是否有预加载的下一首音乐
         if (preloadedNextMusic != null && preloadedNextMusicUrl != null && preloadedNextMusicFullCoverUrl != null) {
@@ -458,19 +480,9 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                 }
                 PlayMode.SHUFFLE -> {
-                    // 随机播放：随机选择一首不同的歌曲
-                    android.util.Log.d("MusicPlayerManager", "SHUFFLE mode, getting random music")
-                    val randomMusic = playlistManager.getRandomMusic(currentId)
-                    android.util.Log.d("MusicPlayerManager", "randomMusic: $randomMusic")
-                    if (randomMusic != null) {
-                        val fullCoverUrl = buildPlayableCoverUrl(randomMusic)
-                        // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
-                        val musicApi = com.neko.music.data.api.MusicApi(appContext)
-                        val musicUrl = musicApi.getMusicFileUrl(randomMusic)
-                        playMusic(musicUrl, randomMusic.id, randomMusic.title, randomMusic.artist, randomMusic.coverFilePath ?: "", fullCoverUrl)
-                    } else {
-                        android.util.Log.d("MusicPlayerManager", "No random music found")
-                    }
+                    // 随机播放：兜底路径（正常已在 next() 开头由 nextInShuffle 处理）
+                    android.util.Log.d("MusicPlayerManager", "SHUFFLE mode, nextInShuffle")
+                    nextInShuffle()
                 }
             }
         }
@@ -480,6 +492,12 @@ class MusicPlayerManager private constructor(context: Context) {
     fun previous() {
         val currentId = _currentMusicId.value ?: return
         android.util.Log.d("MusicPlayerManager", "previous() called, currentId: $currentId, playHistory size: ${playHistory.size}")
+
+        // 随机播放：沿洗牌袋历史回退，"上一首"后再按"下一首"可回到原曲
+        if (_playMode.value == PlayMode.SHUFFLE) {
+            previousInShuffle()
+            return
+        }
 
         // 使用 runBlocking 同步执行 suspend 函数
         kotlinx.coroutines.runBlocking {
@@ -965,6 +983,12 @@ class MusicPlayerManager private constructor(context: Context) {
                 playHistory.add(id)
             }
 
+            // 随机播放：登记当前曲，用户手动点歌时从待播队列摘掉，避免本轮重复随到
+            if (_playMode.value == PlayMode.SHUFFLE && id != null && shufflePoolCache.isNotEmpty()) {
+                shuffleBag.onUserPicked(id, shufflePoolCache)
+                persistShuffleBag()
+            }
+
             // 立即更新 UI 状态
             _currentMusicUrl.value = normalizedUrl
             _currentMusicId.value = id
@@ -1168,9 +1192,109 @@ class MusicPlayerManager private constructor(context: Context) {
     // 注意：ExoPlayer 不再被释放，保持播放器始终活跃状态
     // 释放函数已被禁用以防止 "Ignoring messages sent after release" 错误
     
+    /** 随机池：按曲目 id 去重，避免列表里的重复行把概率偏向某几首。 */
+    private suspend fun shufflePool(): List<Int> {
+        val all = playlistManager.getAllPlaylistList()
+        val ids = all.map { it.id }.distinct()
+        shufflePoolCache = ids
+        if (all.size != ids.size) {
+            android.util.Log.w(
+                "MusicPlayerManager",
+                "随机池存在重复行：总行数=${all.size}，去重后=${ids.size}，已按去重结果随机"
+            )
+        }
+        return ids
+    }
+
+    private fun persistShuffleBag() {
+        prefs.edit().putString(KEY_SHUFFLE_STATE, shuffleBag.serialize()).apply()
+    }
+
+    /** 随机播放：由洗牌袋顺序决定下一首。 */
+    private fun nextInShuffle() {
+        // playMusic 与 getMusicFileUrl 都是同步语义（与 next()/previous() 一致），这里统一在 runBlocking 内完成
+        kotlinx.coroutines.runBlocking {
+            val pool = shufflePool()
+            if (pool.isEmpty()) {
+                android.util.Log.d("MusicPlayerManager", "随机播放：曲库为空，忽略切歌")
+                return@runBlocking
+            }
+            val nextId = shuffleBag.commitNext(pool)
+            persistShuffleBag()
+            if (nextId == null) {
+                android.util.Log.w("MusicPlayerManager", "随机播放：洗牌袋未给出下一首（池大小=${pool.size}）")
+                return@runBlocking
+            }
+            android.util.Log.d(
+                "MusicPlayerManager",
+                "随机播放：下一首 id=$nextId，池=${pool.size}，游标=${shuffleBag.cursorPosition}/${shuffleBag.totalSize}，待播=${shuffleBag.pendingCount}"
+            )
+
+            // 命中预加载时直接复用，避免重复解析播放地址
+            val preloaded = preloadedNextMusic
+            if (preloaded != null && preloaded.id == nextId &&
+                preloadedNextMusicUrl != null && preloadedNextMusicFullCoverUrl != null
+            ) {
+                playMusic(
+                    preloadedNextMusicUrl!!,
+                    preloaded.id,
+                    preloaded.title,
+                    preloaded.artist,
+                    preloaded.coverFilePath ?: "",
+                    preloadedNextMusicFullCoverUrl!!
+                )
+                return@runBlocking
+            }
+
+            val music = playlistManager.getPlaylistMusicById(nextId)
+            if (music == null) {
+                android.util.Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$nextId，忽略")
+                return@runBlocking
+            }
+            val fullCoverUrl = buildPlayableCoverUrl(music)
+            val musicApi = com.neko.music.data.api.MusicApi(appContext)
+            val musicUrl = musicApi.getMusicFileUrl(music)
+            playMusic(musicUrl, music.id, music.title, music.artist, music.coverFilePath ?: "", fullCoverUrl)
+        }
+    }
+
+    /** 随机播放：沿洗牌袋历史回退到上一首。 */
+    private fun previousInShuffle() {
+        kotlinx.coroutines.runBlocking {
+            val pool = shufflePool()
+            val prevId = shuffleBag.previous(pool)
+            persistShuffleBag()
+            if (prevId == null) {
+                android.util.Log.d("MusicPlayerManager", "随机播放：没有更早的历史，忽略上一首")
+                return@runBlocking
+            }
+            val music = playlistManager.getPlaylistMusicById(prevId)
+            if (music == null) {
+                android.util.Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$prevId，忽略")
+                return@runBlocking
+            }
+            android.util.Log.d("MusicPlayerManager", "随机播放：上一首 ${music.title}")
+            val fullCoverUrl = buildPlayableCoverUrl(music)
+            val musicApi = com.neko.music.data.api.MusicApi(appContext)
+            val musicUrl = musicApi.getMusicFileUrl(music)
+            playMusic(musicUrl, music.id, music.title, music.artist, music.coverFilePath ?: "", fullCoverUrl)
+        }
+    }
+
+    /** 开始随机播放时把当前曲登记进洗牌袋，避免它立刻又被随到。 */
+    private fun registerShuffleStart() {
+        val currentId = _currentMusicId.value ?: return
+        val pool = kotlinx.coroutines.runBlocking { shufflePool() }
+        if (pool.isEmpty()) return
+        shuffleBag.onUserPicked(currentId, pool)
+        persistShuffleBag()
+    }
+
     // 预加载下一首音乐
     private fun preloadNextMusic() {
         val currentId = _currentMusicId.value ?: return
+        // 幂等：同一首歌的 STATE_READY 可能触发多次，避免重复抽取并覆盖已有预加载
+        if (preloadedNextMusic != null) return
 
         scope.launch {
             try {
@@ -1180,7 +1304,10 @@ class MusicPlayerManager private constructor(context: Context) {
                         playlistManager.getNextMusic(currentId)
                     }
                     PlayMode.SHUFFLE -> {
-                        playlistManager.getRandomMusic(currentId)
+                        // 只 peek 不消费：真正切歌时再 commit，保证预加载与实际播放是同一首
+                        val pool = shufflePool()
+                        val nextShuffleId = shuffleBag.peekNext(pool)
+                        if (nextShuffleId == null) null else playlistManager.getPlaylistMusicById(nextShuffleId)
                     }
                     PlayMode.SINGLE_LOOP -> {
                         // 单曲循环不需要预加载
