@@ -549,6 +549,8 @@
     <!-- 播放器 -->
     <string name="playback_speed_format">播放速度: %.1fx</string>
     <string name="added_to_playlist_format">已添加到%s</string>
+    <string name="play_next">下一首播放</string>
+    <string name="play_next_added_format">「%1$s」已排到下一首</string>
     <string name="add_to_playlist_failed">添加失败: %s</string>
     <string name="create_playlist_failed">创建失败: %s</string>
     <string name="play_failed">播放失败: %s</string>

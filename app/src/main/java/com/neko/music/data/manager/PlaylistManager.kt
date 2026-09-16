@@ -118,6 +118,30 @@ class PlaylistManager private constructor(context: Context) {
     }
 
     /**
+     * 把 [music] 加入队列，并直接排在 [afterMusicId] 之后（「下一首播放」）。
+     *
+     * [afterMusicId] 为空、等于自身或已不在队列里时，退化为普通追加。
+     * @return true 表示已插到 [afterMusicId] 之后。
+     */
+    suspend fun addNextAfter(music: Music, afterMusicId: Int?): Boolean {
+        if (afterMusicId == null || afterMusicId == music.id) return false
+        addToPlaylist(music)
+        val all = dao.getAllPlaylistList()
+        if (all.none { it.musicId == music.id }) return false
+        val order = all.map { it.musicId }.toMutableList()
+        order.remove(music.id)
+        val anchorIndex = order.indexOf(afterMusicId)
+        if (anchorIndex < 0) return false
+        order.add(anchorIndex + 1, music.id)
+        applyQueueOrder(order)
+        android.util.Log.d(
+            "PlaylistManager",
+            "下一首播放插队: ${music.title}(${music.id}) 排到 $afterMusicId 之后"
+        )
+        return true
+    }
+
+    /**
      * 按 [musicIds] 的顺序重写待播队列（与列表 UI 一致）。
      */
     suspend fun applyQueueOrder(musicIds: List<Int>) {

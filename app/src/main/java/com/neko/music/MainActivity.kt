@@ -1024,6 +1024,15 @@ fun MainScreen() {
                             java.net.URLEncoder.encode(music.artist, "UTF-8")
                         navController.navigate("player/$id/$encodedTitle/$encodedArtist")
                     },
+                    onPlayNext = { music ->
+                        Log.d("MainActivity", "下一首播放: ${music.title}")
+                        playerManager.playNext(music)
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.play_next_added_format, music.title),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
                     onPlayAll = { musicList ->
                         // 清空播放列表并将歌单中的所有音乐添加进去
                         scope.launch {
@@ -1308,6 +1317,15 @@ fun MainScreen() {
                         val encodedArtist =
                             java.net.URLEncoder.encode(music.artist, "UTF-8")
                         navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                    },
+                    onPlayNext = { music ->
+                        Log.d("MainActivity", "搜索结果下一首播放: ${music.title}")
+                        playerManager.playNext(music)
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.play_next_added_format, music.title),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     },
                     onPlaylistClick = { playlistId, playlistName, playlistCover, playlistDescription, creatorUsername, creatorUserId ->
                         Log.d("MainActivity", "点击歌单: $playlistName (ID: $playlistId)")

@@ -573,6 +573,8 @@
 
     <string name="playback_speed_format">唱歌速度: %.1fx 喵</string>
     <string name="added_to_playlist_format">塞进 %s 啦喵</string>
+    <string name="play_next">排到下一只喵</string>
+    <string name="play_next_added_format">「%1$s」排到下一只啦喵</string>
     <string name="add_to_playlist_failed">塞不进去喵: %s</string>
     <string name="create_playlist_failed">写新本本失败了喵: %s</string>
     <string name="play_failed">唱不出来喵: %s</string>

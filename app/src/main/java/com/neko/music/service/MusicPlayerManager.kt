@@ -96,7 +96,22 @@ class MusicPlayerManager private constructor(context: Context) {
     private var preloadedSessionCoverUrl: String? = null
     private var preloadedSessionCoverMusicId: Int? = null
 
+    /**
+     * 「下一首播放」插播队列（FIFO）。
+     *
+     * 与随机、单曲循环、列表循环等播放模式无关：只要队列非空，[next] 以及播完后的自动切歌
+     * 都会先消费这里，保证用户标记的歌曲一定是接下来播放的那一首。
+     */
+    private val forcedNextQueue = java.util.concurrent.ConcurrentLinkedQueue<Music>()
+
     private fun isLocalMusicId(id: Int?): Boolean = id != null && id < 0
+
+    /** 丢弃已预加载的「下一首」，避免它抢在插播曲目前面播放。 */
+    private fun clearPreloadedNextCache() {
+        preloadedNextMusic = null
+        preloadedNextMusicUrl = null
+        preloadedNextMusicFullCoverUrl = null
+    }
 
     private fun buildPlayableCoverUrl(music: Music): String? {
         val cover = music.coverFilePath
@@ -396,6 +411,9 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 下一曲
     fun next() {
+        // 「下一首播放」优先：插播队列非空时忽略播放模式，直接播用户指定的那一首
+        if (playForcedNext()) return
+
         val currentId = _currentMusicId.value ?: return
         android.util.Log.d("MusicPlayerManager", "next() called, currentId: $currentId, playMode: ${_playMode.value}")
 
@@ -550,6 +568,104 @@ class MusicPlayerManager private constructor(context: Context) {
         }
     }
     
+    /**
+     * 「下一首播放」：把 [music] 加入播放列表（歌单），并强制排在当前歌曲之后。
+     *
+     * 无论当前是随机播放、单曲循环还是列表循环，下一首都会先播这一首；
+     * 若当前没有正在播放的歌曲，则直接开始播放。
+     */
+    fun playNext(music: Music) {
+        if (_currentMusicId.value == null) {
+            // 队列里还没有正在播放的歌曲，"下一首"就是现在这一首
+            scope.launch {
+                playlistManager.addToPlaylist(music)
+                try {
+                    val musicApi = com.neko.music.data.api.MusicApi(appContext)
+                    val url = musicApi.getMusicFileUrl(music)
+                    withContext(Dispatchers.Main.immediate) {
+                        playMusic(url, music.id, music.title, music.artist, music.coverFilePath ?: "", buildPlayableCoverUrl(music))
+                    }
+                } catch (e: Exception) {
+                    Log.e("MusicPlayerManager", "下一首播放失败: ${e.message}", e)
+                }
+            }
+            return
+        }
+
+        // 先入队（同步），保证紧接着的切歌（通知栏/自动切歌）就能拿到这一首
+        forcedNextQueue.add(music)
+        // 旧的预加载是"按播放模式算出来的下一首"，作废，改预加载插播曲目
+        clearPreloadedNextCache()
+
+        scope.launch {
+            try {
+                // 直接写进播放列表，并排到当前歌曲之后，列表里看到的就是下一首要播的
+                val currentId = _currentMusicId.value
+                val queuedNext = currentId != null && playlistManager.addNextAfter(music, currentId)
+                if (!queuedNext) playlistManager.addToPlaylist(music)
+                Log.d("MusicPlayerManager", "下一首播放入队: ${music.title}(id=${music.id})，待插播=${forcedNextQueue.size}")
+                preloadNextMusic()
+            } catch (e: Exception) {
+                Log.e("MusicPlayerManager", "下一首播放加入播放列表失败: ${e.message}", e)
+            }
+        }
+    }
+
+    /** 取消某首歌的插播标记（例如该曲目被移出播放列表时）。 */
+    fun cancelForcedNext(musicId: Int) {
+        forcedNextQueue.removeAll { it.id == musicId }
+    }
+
+    /** 清空插播队列（例如清空播放列表时）。 */
+    fun clearForcedNextQueue() {
+        forcedNextQueue.clear()
+    }
+
+    /**
+     * 消费「下一首播放」队列：有插播曲目时立即切过去并返回 true。
+     *
+     * 命中预加载时直接复用，避免重复解析播放地址。
+     */
+    private fun playForcedNext(): Boolean {
+        val forced = forcedNextQueue.poll() ?: return false
+
+        val preloaded = preloadedNextMusic
+        val preloadedUrl = preloadedNextMusicUrl
+        val preloadedCoverUrl = preloadedNextMusicFullCoverUrl
+        if (preloaded != null && preloadedUrl != null && preloadedCoverUrl != null && preloaded.id == forced.id) {
+            Log.d("MusicPlayerManager", "下一首播放（复用预加载）: ${forced.title}")
+            playMusic(
+                preloadedUrl,
+                preloaded.id,
+                preloaded.title,
+                preloaded.artist,
+                preloaded.coverFilePath ?: "",
+                preloadedCoverUrl
+            )
+            return true
+        }
+
+        // playMusic 与 getMusicFileUrl 都是同步语义（与 next()/previous() 一致），这里统一在 runBlocking 内完成
+        kotlinx.coroutines.runBlocking {
+            try {
+                val musicApi = com.neko.music.data.api.MusicApi(appContext)
+                val musicUrl = musicApi.getMusicFileUrl(forced)
+                Log.d("MusicPlayerManager", "下一首播放: ${forced.title}(id=${forced.id})")
+                playMusic(
+                    musicUrl,
+                    forced.id,
+                    forced.title,
+                    forced.artist,
+                    forced.coverFilePath ?: "",
+                    buildPlayableCoverUrl(forced)
+                )
+            } catch (e: Exception) {
+                Log.e("MusicPlayerManager", "下一首播放失败: ${e.message}", e)
+            }
+        }
+        return true
+    }
+
     private var updateJob: Job? = null
     private var fadeJob: Job? = null
     /** 为 MediaSession 拉取封面；勿在每次 updatePlaybackState 时无条件 cancel，否则系统媒体永远等不到位图 */
@@ -634,11 +750,16 @@ class MusicPlayerManager private constructor(context: Context) {
                         // 根据播放模式自动切歌（直接调用 next() 方法）
                         when (_playMode.value) {
                             PlayMode.SINGLE_LOOP -> {
-                                // 单曲循环：重新播放当前歌曲
-                                val currentUrl = _currentMusicUrl.value
-                                if (currentUrl != null) {
-                                    player.seekTo(0)
-                                    player.play()
+                                // 单曲循环：重新播放当前歌曲（有「下一首播放」插播时仍要先播插播曲目）
+                                if (forcedNextQueue.isNotEmpty()) {
+                                    Log.d("MusicPlayerManager", "单曲循环下检测到插播曲目，优先播放「下一首播放」")
+                                    next()
+                                } else {
+                                    val currentUrl = _currentMusicUrl.value
+                                    if (currentUrl != null) {
+                                        player.seekTo(0)
+                                        player.play()
+                                    }
                                 }
                             }
 
@@ -1145,6 +1266,8 @@ class MusicPlayerManager private constructor(context: Context) {
 
         try {
             playlistManager.replacePlaylist(musicList)
+            // 播放列表被整体替换，之前排的「下一首播放」不再有效
+            clearForcedNextQueue()
 
             // Play the requested item while keeping the imported order.
             val firstMusic = musicList[startIndex.coerceIn(0, musicList.size - 1)]
@@ -1298,8 +1421,8 @@ class MusicPlayerManager private constructor(context: Context) {
 
         scope.launch {
             try {
-                // 根据播放模式获取下一首音乐
-                val nextMusic = when (_playMode.value) {
+                // 有「下一首播放」插播时预加载插播曲目，保证预加载与实际播放是同一首
+                val nextMusic = forcedNextQueue.peek() ?: when (_playMode.value) {
                     PlayMode.LIST_LOOP -> {
                         playlistManager.getNextMusic(currentId)
                     }
