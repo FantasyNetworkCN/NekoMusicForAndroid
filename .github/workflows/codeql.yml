@@ -23,19 +23,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # GitHub Actions
           - language: actions
             build-mode: none
 
+          # Android Kotlin / Java
           - language: java-kotlin
             build-mode: manual
 
+          # Android JNI C / C++
           - language: c-cpp
             build-mode: manual
 
     steps:
+      # 检出代码
       - name: 检出代码
         uses: actions/checkout@v7
 
+      # Java / Kotlin / C++ 都需要 Gradle 构建
       - name: 设置 JDK
         if: matrix.language != 'actions'
         uses: actions/setup-java@v4
@@ -44,20 +49,55 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # GitHub Runner 已经预装 Android SDK
+      # 不使用 android-actions/setup-android，避免它尝试安装不存在的 "tools" 包
+      - name: 配置 Android SDK
+        if: matrix.language != 'actions'
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+
+          echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
+          echo "/usr/local/lib/android/sdk/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+
+      # 检查 Android SDK
+      - name: 检查 Android SDK
+        if: matrix.language != 'actions'
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          command -v sdkmanager
+          sdkmanager --version
+
+      # 接受 Android SDK 许可证
       - name: 接受 Android SDK 许可证
         if: matrix.language != 'actions'
-        run: yes | sdkmanager --licenses
+        run: |
+          yes | sdkmanager --licenses
 
+      # 初始化 CodeQL
       - name: 初始化 CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      # Android 项目构建
+      #
+      # 对 java-kotlin：
+      #   CodeQL 捕获 Kotlin / Java 编译过程
+      #
+      # 对 c-cpp：
+      #   Gradle 会触发 Android NDK / CMake
+      #   CodeQL 捕获 JNI C/C++ 编译过程
       - name: 构建 Android 项目
         if: matrix.language != 'actions'
-        run: ./gradlew --no-daemon assembleDebug
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
 
+      # 执行 CodeQL 分析
       - name: 执行 CodeQL 分析
         uses: github/codeql-action/analyze@v4
         with:
