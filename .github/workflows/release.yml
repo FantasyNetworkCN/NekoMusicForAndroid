@@ -1,4 +1,4 @@
-name: Android release
+name: release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,7 +29,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: 接受 Android SDK 许可证
-        run: yes | sdkmanager --licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: 安装 Android SDK 组件
         run: |
@@ -44,25 +44,33 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          test -n "$KEYSTORE_BASE64"
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neko-release.jks"
-          test -s "$RUNNER_TEMP/neko-release.jks"
 
-      - name: 构建签名 Release Bundle
+          test -n "$KEYSTORE_BASE64"
+
+          printf '%s' "$KEYSTORE_BASE64" \
+            | base64 --decode \
+            > neko_key.jks
+
+          test -s neko_key.jks
+          chmod 600 neko_key.jks
+
+      - name: 构建签名 Release APK
         env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/neko-release.jks
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/neko_key.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon bundleRelease
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease
 
-      - name: 上传 Release Bundle
-        uses: actions/upload-artifact@v4
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: neko-music-release
-          path: app/build/outputs/bundle/release/*.aab
-          if-no-files-found: error
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
 
-      - name: 删除临时签名密钥
+      - name: 删除签名密钥
         if: always()
-        run: rm -f -- "$RUNNER_TEMP/neko-release.jks"
+        run: |
+          rm -f -- neko_key.jks
