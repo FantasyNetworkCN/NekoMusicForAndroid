@@ -1,4 +1,4 @@
-name: "CodeQL"
+name: "CodeQL Advanced"
 
 on:
   push:
@@ -43,10 +43,6 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: gradle
-
-      - name: 设置 Android SDK
-        if: matrix.language != 'actions'
-        uses: android-actions/setup-android@v3
 
       - name: 接受 Android SDK 许可证
         if: matrix.language != 'actions'
