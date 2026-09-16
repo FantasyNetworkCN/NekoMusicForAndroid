@@ -12,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: release
 
     steps:
       - name: 检出代码
@@ -96,7 +97,7 @@ jobs:
             "build-tools;36.1.0-rc1"
 
       # =========================
-      # 签名密钥
+      # 签名
       # =========================
       - name: 恢复签名密钥
         env:
@@ -106,7 +107,10 @@ jobs:
           set -euo pipefail
           umask 077
 
-          test -n "$KEYSTORE_BASE64"
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 未获取到"
+            exit 1
+          fi
 
           printf '%s' "$KEYSTORE_BASE64" \
             | base64 --decode \
@@ -115,8 +119,10 @@ jobs:
           test -s "$GITHUB_WORKSPACE/neko_key.jks"
           chmod 600 "$GITHUB_WORKSPACE/neko_key.jks"
 
+          echo "JKS 恢复成功"
+
       # =========================
-      # 构建 APK
+      # 构建
       # =========================
       - name: 构建签名 Release APK
         env:
@@ -152,7 +158,7 @@ jobs:
           generate_release_notes: true
 
       # =========================
-      # 清理签名密钥
+      # 清理
       # =========================
       - name: 删除签名密钥
         if: always()
