@@ -3,6 +3,26 @@ import java.nio.charset.StandardCharsets
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// CI supplies signing values through environment variables. Local development
+// can continue using the ignored keystore.properties + neko_key.jks files.
+val signingPropertiesFile = rootProject.file("keystore.properties")
+val signingProperties = Properties()
+if (signingPropertiesFile.isFile) {
+    val signingPropertiesText = signingPropertiesFile
+        .readText(StandardCharsets.UTF_8)
+        .removePrefix("\uFEFF")
+    StringReader(signingPropertiesText).use { signingProperties.load(it) }
+}
+
+fun signingValue(environmentName: String, propertyName: String): String? =
+    System.getenv(environmentName)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: signingProperties.getProperty(propertyName)?.trim()?.takeIf { it.isNotEmpty() }
+
+val signingKeystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+    ?: "neko_key.jks"
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.ksp)
@@ -65,25 +85,17 @@ android {
 
     signingConfigs {
         create("neko") {
-            val jks = rootProject.file("neko_key.jks")
+            val jks = rootProject.file(signingKeystorePath)
             check(jks.exists()) {
-                "未找到 neko_key.jks，请放在项目根目录：${rootProject.projectDir}/neko_key.jks"
+                "未找到签名 keystore：$signingKeystorePath。请配置 ANDROID_KEYSTORE_FILE 或放置 neko_key.jks"
             }
-            val propsFile = rootProject.file("keystore.properties")
-            check(propsFile.exists()) {
-                "未找到 keystore.properties。请复制 keystore.properties.example 为 keystore.properties 并填写 storePassword、keyPassword、keyAlias"
-            }
-            // load(InputStream) 固定按 ISO-8859-1 解析，含中文等密码会读错 → validateSigningRelease 报密钥错误
-            val p = Properties()
-            val propsText = propsFile.readText(StandardCharsets.UTF_8).removePrefix("\uFEFF")
-            StringReader(propsText).use { p.load(it) }
             storeFile = jks
-            storePassword = p.getProperty("storePassword")?.trim()?.takeIf { it.isNotEmpty() }
-                ?: error("keystore.properties 缺少或为空: storePassword")
-            keyAlias = p.getProperty("keyAlias")?.trim()?.takeIf { it.isNotEmpty() }
-                ?: error("keystore.properties 缺少或为空: keyAlias")
-            keyPassword = p.getProperty("keyPassword")?.trim()?.takeIf { it.isNotEmpty() }
-                ?: error("keystore.properties 缺少或为空: keyPassword")
+            storePassword = signingValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+                ?: error("缺少签名密码：请配置 ANDROID_KEYSTORE_PASSWORD 或 keystore.properties")
+            keyAlias = signingValue("ANDROID_KEY_ALIAS", "keyAlias")
+                ?: error("缺少签名别名：请配置 ANDROID_KEY_ALIAS 或 keystore.properties")
+            keyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
+                ?: error("缺少密钥密码：请配置 ANDROID_KEY_PASSWORD 或 keystore.properties")
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
