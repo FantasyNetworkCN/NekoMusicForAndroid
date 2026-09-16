@@ -147,13 +147,41 @@ jobs:
       #   如果 Gradle 配置了 CMake / NDK，
       #   assembleDebug 会触发 JNI C/C++ 编译
       #
+      - name: 创建 CodeQL 临时签名密钥
+        if: matrix.language != 'actions'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          keytool -genkeypair \
+            -keystore "$RUNNER_TEMP/neko-codeql.jks" \
+            -storepass codeql \
+            -keypass codeql \
+            -alias codeql \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=CodeQL"
+
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/neko-codeql.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=codeql" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=codeql" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=codeql" >> "$GITHUB_ENV"
+
       - name: 构建 Android 项目
         if: matrix.language != 'actions'
         shell: bash
         run: |
+          set -euo pipefail
+
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug
 
+      - name: 删除 CodeQL 临时签名密钥
+        if: always() && matrix.language != 'actions'
+        shell: bash
+        run: |
+          rm -f -- "$RUNNER_TEMP/neko-codeql.jks"
       # =========================
       # CodeQL 分析
       # =========================
