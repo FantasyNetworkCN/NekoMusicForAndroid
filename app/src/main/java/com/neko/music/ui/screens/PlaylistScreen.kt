@@ -193,12 +193,14 @@ fun PlaylistContent(
     }
 
     fun removeFromQueue(music: Music) {
+        val player = MusicPlayerManager.getInstance(context)
         scope.launch {
             val wasCurrent = music.id == currentMusicId
             val nextBeforeRemove = if (wasCurrent) playlistManager.getNextMusic(music.id) else null
+            // 从待播列表拿掉的曲目不应再强制插播
+            player.cancelForcedNext(music.id)
             playlistManager.removeFromPlaylist(music.id)
             if (wasCurrent) {
-                val player = MusicPlayerManager.getInstance(context)
                 val api = MusicApi(context)
                 val target = nextBeforeRemove ?: playlistManager.getFirstMusic()
                 if (target != null && target.id != music.id) {
@@ -280,6 +282,8 @@ fun PlaylistContent(
                 onClick = {
                     scope.launch {
                         if (!isRemote) {
+                            // 清空待播列表时，之前排的「下一首播放」也一并作废
+                            MusicPlayerManager.getInstance(context).clearForcedNextQueue()
                             currentMusicId?.let { playlistManager.clearPlaylistExcept(it) }
                         }
                     }

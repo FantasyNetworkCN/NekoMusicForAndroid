@@ -46,12 +46,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -125,6 +128,8 @@ fun PlaylistDetailScreen(
     onBackClick: () -> Unit,
     onMusicClick: (com.neko.music.data.model.Music) -> Unit,
     onPlayAll: (List<PlaylistMusic>) -> Unit,
+    /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
+    onPlayNext: (com.neko.music.data.model.Music) -> Unit = {},
     /** 歌单批量编辑时请求宿主暂时隐藏底部迷你播放器与底栏，避免遮挡 */
     onPlaylistBatchModeChange: (inBatchEdit: Boolean) -> Unit = {}
 ) {
@@ -734,20 +739,9 @@ fun PlaylistDetailScreen(
                                                 else selectedIds + music.id
                                         },
                                         onClick = {
-                                            onMusicClick(
-                                                com.neko.music.data.model.Music(
-                                                    music.id,
-                                                    music.title,
-                                                    music.artist,
-                                                    music.coverPath ?: "",
-                                                    music.duration,
-                                                    "",
-                                                    "",
-                                                    0,
-                                                    ""
-                                                )
-                                            )
+                                            onMusicClick(music.toLocalMusic())
                                         },
+                                        onPlayNext = { onPlayNext(music.toLocalMusic()) },
                                         onRemove = { removeMusic(music) },
                                         showDeleteButton = isOwner && !batchMode,
                                         liquidGlass = liquidGlass,
@@ -1432,12 +1426,16 @@ fun PlaylistMusicItem(
     selected: Boolean = false,
     onToggleSelect: () -> Unit = {},
     onClick: () -> Unit,
+    onPlayNext: () -> Unit = {},
     onRemove: () -> Unit,
     showDeleteButton: Boolean = true,
     liquidGlass: PlaylistDetailLiquidGlassParams = LiquidGlassDefaults.playlistDetail,
 ) {
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val playNextText = stringResource(id = R.string.play_next)
+    val moreActionsText = stringResource(id = R.string.more)
+    var actionsExpanded by remember { mutableStateOf(false) }
 
     val coverUrl = remember(music.id) {
         UrlConfig.getMusicCoverUrl(music.id)
@@ -1588,6 +1586,44 @@ fun PlaylistMusicItem(
                 }
             )
 
+            if (!selectionMode) {
+                Box {
+                    IconButton(
+                        onClick = { actionsExpanded = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = moreActionsText,
+                            tint = if (isDarkTheme) {
+                                Color(0xFFB8B8D1).copy(alpha = 0.85f)
+                            } else {
+                                Color.Gray
+                            }
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = actionsExpanded,
+                        onDismissRequest = { actionsExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(playNextText, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onPlayNext()
+                            }
+                        )
+                    }
+                }
+            }
+
             if (showDeleteButton) {
                 IconButton(
                     onClick = onRemove,
@@ -1607,3 +1643,17 @@ fun PlaylistMusicItem(
         }
     }
 }
+
+/** 歌单接口返回的曲目转成播放队列使用的 [Music]。 */
+private fun PlaylistMusic.toLocalMusic(): Music =
+    Music(
+        id = id,
+        title = title,
+        artist = artist,
+        album = album,
+        duration = duration,
+        filePath = filePath,
+        coverFilePath = coverPath ?: "",
+        uploadUserId = 0,
+        createdAt = ""
+    )

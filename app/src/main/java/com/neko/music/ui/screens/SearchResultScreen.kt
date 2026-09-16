@@ -22,8 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -90,7 +94,9 @@ fun SearchResultScreen(
     onBackClick: () -> Unit,
     onMusicClick: (Music) -> Unit,
     onPlaylistClick: (Int, String, String?, String?, String?, Int?) -> Unit = { _, _, _, _, _, _ -> },
-    onArtistClick: (String, Int, String?) -> Unit = { _, _, _ -> }
+    onArtistClick: (String, Int, String?) -> Unit = { _, _, _ -> },
+    /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
+    onPlayNext: (Music) -> Unit = {}
 ) {
     val searchFailedText = stringResource(id = R.string.search_failed)
     val noSearchMusicText = stringResource(id = R.string.no_search_music)
@@ -292,7 +298,8 @@ fun SearchResultScreen(
                                 onMusicClick = { music ->
                                     historyManager.addSearchHistory(music.title, liquidBarState.searchQuery)
                                     onMusicClick(music)
-                                }
+                                },
+                                onPlayNext = onPlayNext
                             )
                         } else if (liquidBarState.searchType == "playlist") {
                             PlaylistList(
@@ -443,7 +450,8 @@ fun PlaylistItem(
 @Composable
 fun MusicList(
     musics: List<Music>,
-    onMusicClick: (Music) -> Unit
+    onMusicClick: (Music) -> Unit,
+    onPlayNext: (Music) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -453,7 +461,8 @@ fun MusicList(
         items(musics) { music ->
             MusicItem(
                 music = music,
-                onClick = { onMusicClick(music) }
+                onClick = { onMusicClick(music) },
+                onPlayNext = { onPlayNext(music) }
             )
         }
     }
@@ -462,16 +471,20 @@ fun MusicList(
 @Composable
 fun MusicItem(
     music: Music,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPlayNext: () -> Unit = {}
 ) {
     // Preload strings
     val coverText = stringResource(id = R.string.content_description_cover)
     val authorPrefixText = stringResource(id = R.string.author_prefix, music.artist)
+    val playNextText = stringResource(id = R.string.play_next)
+    val moreActionsText = stringResource(id = R.string.more)
     
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
     var coverUrl by remember { mutableStateOf<String?>(null) }
+    var actionsExpanded by remember { mutableStateOf(false) }
     val isDarkTheme = isAppDarkTheme()
     
     androidx.compose.runtime.LaunchedEffect(music.id) {
@@ -554,6 +567,39 @@ fun MusicItem(
                     color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
                     maxLines = 1
                 )
+            }
+
+            Box {
+                IconButton(
+                    onClick = { actionsExpanded = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = moreActionsText,
+                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.85f) else Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(playNextText, fontSize = 14.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onPlayNext()
+                        }
+                    )
+                }
             }
         }
     }
