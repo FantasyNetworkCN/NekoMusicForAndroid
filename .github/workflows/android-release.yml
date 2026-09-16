@@ -1,0 +1,55 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: release
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neko-release.jks"
+          test -s "$RUNNER_TEMP/neko-release.jks"
+
+      - name: Build signed release bundle
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/neko-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon bundleRelease
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: neko-music-release
+          path: app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/neko-release.jks"
