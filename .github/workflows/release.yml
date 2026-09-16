@@ -24,8 +24,63 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: 设置 Android SDK
-        uses: android-actions/setup-android@v3
+      # =========================
+      # Android SDK
+      # =========================
+      - name: 配置 Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_ROOT="/usr/local/lib/android/sdk"
+
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+          echo "正在查找 sdkmanager..."
+
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
+            -type f \
+            -name sdkmanager \
+            -print \
+            -quit)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::找不到 sdkmanager"
+
+            echo "Android SDK:"
+            ls -la "$SDK_ROOT" || true
+
+            echo "cmdline-tools:"
+            ls -la "$SDK_ROOT/cmdline-tools" || true
+
+            exit 1
+          fi
+
+          SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
+
+          echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
+
+          echo "找到 sdkmanager:"
+          echo "$SDKMANAGER"
+
+      - name: 检查 Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          echo
+          echo "sdkmanager:"
+          command -v sdkmanager
+
+          echo
+          echo "sdkmanager 版本:"
+          sdkmanager --version
 
       - name: 接受 Android SDK 许可证
         shell: bash
@@ -40,6 +95,9 @@ jobs:
             "platforms;android-36" \
             "build-tools;36.1.0-rc1"
 
+      # =========================
+      # 签名密钥
+      # =========================
       - name: 恢复签名密钥
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -57,6 +115,9 @@ jobs:
           test -s "$GITHUB_WORKSPACE/neko_key.jks"
           chmod 600 "$GITHUB_WORKSPACE/neko_key.jks"
 
+      # =========================
+      # 构建 APK
+      # =========================
       - name: 构建签名 Release APK
         env:
           ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/neko_key.jks
@@ -70,12 +131,19 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleRelease
 
+      # =========================
+      # 检查 APK
+      # =========================
       - name: 检查 APK
         shell: bash
         run: |
           set -euo pipefail
+
           ls -lh app/build/outputs/apk/release/*.apk
 
+      # =========================
+      # GitHub Releases
+      # =========================
       - name: 发布到 GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
@@ -83,6 +151,9 @@ jobs:
           files: app/build/outputs/apk/release/*.apk
           generate_release_notes: true
 
+      # =========================
+      # 清理签名密钥
+      # =========================
       - name: 删除签名密钥
         if: always()
         shell: bash
