@@ -23,19 +23,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # GitHub Actions
           - language: actions
             build-mode: none
 
+          # Android Kotlin / Java
           - language: java-kotlin
             build-mode: manual
 
+          # Android JNI C / C++
           - language: c-cpp
             build-mode: manual
 
     steps:
+      # =========================
+      # 检出代码
+      # =========================
       - name: 检出代码
         uses: actions/checkout@v7
 
+      # =========================
+      # JDK
+      # =========================
       - name: 设置 JDK
         if: matrix.language != 'actions'
         uses: actions/setup-java@v4
@@ -44,6 +53,9 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # =========================
+      # Android SDK
+      # =========================
       - name: 配置 Android SDK
         if: matrix.language != 'actions'
         shell: bash
@@ -57,28 +69,38 @@ jobs:
 
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
-          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          echo "正在查找 sdkmanager..."
+
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
+            -type f \
+            -name sdkmanager \
+            -print \
+            -quit)"
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "错误：找不到 sdkmanager"
+            echo "::error::找不到 sdkmanager"
             echo
-            echo "Android SDK 目录："
+            echo "Android SDK:"
             ls -la "$SDK_ROOT" || true
             echo
-            echo "cmdline-tools："
+            echo "cmdline-tools:"
             ls -la "$SDK_ROOT/cmdline-tools" || true
             exit 1
           fi
 
           SDKMANAGER_DIR="$(dirname "$SDKMANAGER")"
 
-          echo "找到 sdkmanager：$SDKMANAGER"
-          echo "SDK Manager 目录：$SDKMANAGER_DIR"
+          echo "找到 sdkmanager:"
+          echo "$SDKMANAGER"
+
+          echo "SDK Manager 目录:"
+          echo "$SDKMANAGER_DIR"
 
           echo "$SDKMANAGER_DIR" >> "$GITHUB_PATH"
 
-          echo "ANDROID SDK 配置完成"
-
+      # =========================
+      # 检查 Android SDK
+      # =========================
       - name: 检查 Android SDK
         if: matrix.language != 'actions'
         shell: bash
@@ -96,18 +118,35 @@ jobs:
           echo "sdkmanager 版本:"
           sdkmanager --version
 
+      # =========================
+      # 接受 SDK 许可证
+      # =========================
       - name: 接受 Android SDK 许可证
         if: matrix.language != 'actions'
         shell: bash
         run: |
-          yes | sdkmanager --licenses
+          yes | sdkmanager --licenses || true
 
+      # =========================
+      # 初始化 CodeQL
+      # =========================
       - name: 初始化 CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      # =========================
+      # 构建 Android
+      # =========================
+      #
+      # java-kotlin:
+      #   捕获 Kotlin / Java 编译过程
+      #
+      # c-cpp:
+      #   如果 Gradle 配置了 CMake / NDK，
+      #   assembleDebug 会触发 JNI C/C++ 编译
+      #
       - name: 构建 Android 项目
         if: matrix.language != 'actions'
         shell: bash
@@ -115,6 +154,9 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleDebug
 
+      # =========================
+      # CodeQL 分析
+      # =========================
       - name: 执行 CodeQL 分析
         uses: github/codeql-action/analyze@v4
         with:
