@@ -4,7 +4,7 @@ kotlin = "2.4.10"
 ksp = "2.3.6"
 # ✅ Room 升级到 2.7.0-alpha11 以解决与新版 Kotlin 的兼容性冲突
 room = "2.7.0-alpha11"
-coreKtx = "1.17.0"
+coreKtx = "1.19.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
