@@ -205,6 +205,11 @@
     <string name="please_confirm_new_password">再确认一次新暗号喵</string>
     <string name="new_password_length_error">新暗号太短了，会被抓走的喵</string>
     <string name="modifying">正在悄悄修改喵...</string>
+    <string name="change_nickname">改个名字喵</string>
+    <string name="please_enter_nickname">快输入新名字喵</string>
+    <string name="nickname_length_error">名字要 1-20 个字喵</string>
+    <string name="nickname_updated">名字改好啦喵！</string>
+    <string name="nickname_update_failed">改名字失败了喵</string>
     <string name="show_password">看清暗号喵</string>
     <string name="hide_password">藏好暗号喵</string>
     <string name="operation_success">搞定啦喵！</string>

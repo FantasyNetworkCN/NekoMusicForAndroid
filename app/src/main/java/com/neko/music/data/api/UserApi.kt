@@ -217,6 +217,40 @@ class UserApi(private val token: String? = null) {
     }
     
     /**
+     * 修改昵称
+     */
+    suspend fun changeNickname(nickname: String): UpdateNicknameResponse {
+        return try {
+            val response = client.post("$baseUrl/api/user/nickname/change") {
+                contentType(ContentType.Application.Json)
+                headers {
+                    token?.let { append("Authorization", "Bearer $it") }
+                }
+                setBody(UpdateNicknameRequest(nickname = nickname))
+            }
+
+            val responseText = response.body<String>()
+            Log.d("UserApi", "修改昵称响应: $responseText")
+
+            val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
+            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
+            val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
+            val savedNickname = jsonResponse["data"]
+                ?.let { it as? JsonObject }
+                ?.get("nickname")
+                ?.toString()
+                ?.removeSurrounding("\"")
+                ?.takeIf { it.isNotBlank() }
+                ?: nickname
+
+            UpdateNicknameResponse(success = success, message = message, nickname = savedNickname)
+        } catch (e: Exception) {
+            Log.e("UserApi", "修改昵称失败", e)
+            UpdateNicknameResponse(success = false, message = "网络错误: ${e.message}", nickname = nickname)
+        }
+    }
+
+    /**
      * 更换头像
      */
     suspend fun updateAvatar(imageData: ByteArray): UpdateAvatarResponse {
@@ -546,6 +580,18 @@ data class UpdatePasswordRequest(
 data class UpdatePasswordResponse(
     val success: Boolean,
     val message: String
+)
+
+@Serializable
+data class UpdateNicknameRequest(
+    val nickname: String
+)
+
+@Serializable
+data class UpdateNicknameResponse(
+    val success: Boolean,
+    val message: String,
+    val nickname: String = ""
 )
 
 @Serializable

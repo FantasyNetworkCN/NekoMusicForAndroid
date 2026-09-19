@@ -483,3 +483,146 @@ fun ChangePasswordGlassDialog(
         }
     }
 }
+
+@Composable
+fun ChangeNicknameGlassDialog(
+    sampleBackdrop: LayerBackdrop,
+    currentNickname: String,
+    onDismiss: () -> Unit,
+    onConfirm: suspend (nickname: String) -> Boolean,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = scheme.background.luminance() < 0.5f
+    val dialogGlass = LiquidGlassDefaults.appUpdateDialog
+    val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = titleColor,
+        unfocusedTextColor = titleColor,
+        focusedLabelColor = RoseRed,
+        unfocusedLabelColor = mutedColor,
+        focusedBorderColor = RoseRed.copy(alpha = 0.85f),
+        unfocusedBorderColor = if (isDark) Color.White.copy(alpha = 0.22f) else scheme.outline,
+        cursorColor = RoseRed,
+    )
+
+    var nickname by remember { mutableStateOf(currentNickname) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isUpdating by remember { mutableStateOf(false) }
+
+    suspend fun validateAndConfirm() {
+        val trimmed = nickname.trim()
+        when {
+            trimmed.isEmpty() -> errorMessage = context.getString(R.string.please_enter_nickname)
+            trimmed.length > 20 -> errorMessage = context.getString(R.string.nickname_length_error)
+            trimmed == currentNickname -> onDismiss()
+            else -> {
+                isUpdating = true
+                val success = onConfirm(trimmed)
+                isUpdating = false
+                if (success) onDismiss()
+            }
+        }
+    }
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(modifier = Modifier.padding(28.dp)) {
+                Text(
+                    text = stringResource(id = R.string.change_nickname),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoseRed,
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedTextField(
+                    value = nickname,
+                    onValueChange = {
+                        nickname = it
+                        errorMessage = null
+                    },
+                    label = { Text(stringResource(id = R.string.username)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = fieldColors,
+                    shape = RoundedCornerShape(14.dp),
+                )
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isUpdating) {
+                        Text(
+                            text = stringResource(id = R.string.cancel),
+                            fontSize = 16.sp,
+                            color = mutedColor,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clickable(enabled = !isUpdating) {
+                                scope.launch { validateAndConfirm() }
+                            },
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.background(isDark),
+                        borderAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.border(isDark),
+                        highlightAlpha = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton.highlight(isDark),
+                        liquidBlur = dialogGlass.liquid.blur,
+                        liquidLensHeight = dialogGlass.liquid.lensHeight,
+                        liquidLensAmount = dialogGlass.liquid.lensAmount,
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = if (isUpdating) {
+                                    stringResource(id = R.string.modifying)
+                                } else {
+                                    stringResource(id = R.string.confirm)
+                                },
+                                fontSize = 16.sp,
+                                color = if (isDark) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

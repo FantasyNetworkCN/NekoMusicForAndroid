@@ -40,6 +40,14 @@ class TokenManager(context: Context) {
         editor.apply()
     }
 
+    /**
+     * 更新本地缓存的昵称（服务端修改成功后调用）
+     */
+    fun updateUsername(username: String) {
+        editor.putString(KEY_USERNAME, username)
+        editor.apply()
+    }
+
     fun updateVipStatus(isVip: Boolean, vipExpiresAt: String?) {
         editor.putBoolean(KEY_IS_VIP, isVip)
         if (vipExpiresAt.isNullOrBlank()) {
