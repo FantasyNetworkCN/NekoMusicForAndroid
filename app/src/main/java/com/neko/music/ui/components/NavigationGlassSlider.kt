@@ -26,7 +26,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.opacity
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
@@ -132,7 +131,7 @@ fun NavigationGlassSlider(
                     backdrop = combinedBackdrop,
                     shape = { thumbShape },
                     effects = {
-                        opacity(0.94f)
+                        // 官方教程终稿不对采样层做 opacity：额外衰减会让折射看起来像「假磨砂」。
                         vibrancy()
                         blur(with(density) { (lerp(4f, 6f, p).dp * liquidUi.blurStrength).toPx() })
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -143,21 +142,20 @@ fun NavigationGlassSlider(
                             )
                         }
                     },
+                    // 静态也保留一圈边缘光：选中胶囊本身就该是一块玻璃，而不是「按下去才有高光」的色块。
                     highlight = {
-                        if (p > 0.02f) Highlight.Default.copy(alpha = p * 0.75f) else null
+                        Highlight.Default.copy(
+                            alpha = lerp(if (darkBarStyle) 0.30f else 0.48f, 0.92f, p)
+                        )
                     },
                     shadow = {
-                        if (p > 0.02f) Shadow.Default.copy(alpha = p * 0.55f) else null
+                        Shadow.Default.copy(alpha = lerp(0.06f, 0.50f, p))
                     },
                     innerShadow = {
-                        if (p > 0.02f) {
-                            InnerShadow(
-                                radius = lerpDp(2.dp, 8.dp, p),
-                                alpha = p
-                            )
-                        } else {
-                            null
-                        }
+                        InnerShadow(
+                            radius = lerpDp(4.dp, 12.dp, p),
+                            alpha = lerp(0.16f, 0.85f, p)
+                        )
                     },
                     layerBlock = if (p > 0.02f) {
                         {
