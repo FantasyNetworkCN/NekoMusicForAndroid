@@ -331,7 +331,7 @@ fun RegisterScreen(
                         errorMessage = pleaseFillAllFields
                         return@AuthPrimaryButton
                     }
-                    if (username.length < 3 || username.length > 20) {
+                    if (username.length < 1 || username.length > 20) {
                         errorMessage = usernameLengthError
                         return@AuthPrimaryButton
                     }
