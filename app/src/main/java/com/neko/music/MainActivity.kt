@@ -1290,6 +1290,46 @@ fun MainScreen() {
                             ).show()
                             false
                         }
+                    },
+                    onNicknameUpdate = { nickname ->
+                        try {
+                            val tokenManager =
+                                com.neko.music.data.manager.TokenManager(context)
+                            val userApi = com.neko.music.data.api.UserApi(
+                                tokenManager.getToken()
+                            )
+                            val response = userApi.changeNickname(nickname)
+
+                            if (response.success) {
+                                tokenManager.updateUsername(
+                                    response.nickname.ifBlank { nickname }
+                                )
+                                refreshUserSessionFromDisk()
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.nickname_updated),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                true
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    response.message.ifBlank {
+                                        context.getString(R.string.nickname_update_failed)
+                                    },
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                false
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "修改昵称失败", e)
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.nickname_update_failed),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            false
+                        }
                     }
                 )
             }

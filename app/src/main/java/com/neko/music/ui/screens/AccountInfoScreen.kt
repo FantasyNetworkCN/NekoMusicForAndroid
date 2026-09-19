@@ -55,6 +55,7 @@ import coil3.asDrawable
 import androidx.core.graphics.drawable.toBitmap
 import com.neko.music.R
 import com.neko.music.ui.components.ChangeAvatarGlassDialog
+import com.neko.music.ui.components.ChangeNicknameGlassDialog
 import com.neko.music.ui.components.ChangePasswordGlassDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -79,6 +80,7 @@ fun AccountInfoScreen(
     onVipCenterClick: () -> Unit = {},
     onAvatarUpdate: (ByteArray) -> Unit = {},
     onPasswordUpdate: suspend (oldPassword: String, newPassword: String) -> Boolean = { _, _ -> false },
+    onNicknameUpdate: suspend (nickname: String) -> Boolean = { false },
     onShowBottomControls: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -124,6 +126,9 @@ fun AccountInfoScreen(
     
     // 显示修改密码对话框
     var showPasswordDialog by remember { mutableStateOf(false) }
+
+    // 显示修改昵称对话框
+    var showNicknameDialog by remember { mutableStateOf(false) }
     
     // 显示加载状态
     var isLoading by remember { mutableStateOf(false) }
@@ -252,7 +257,8 @@ fun AccountInfoScreen(
                                 icon = R.drawable.user,
                                 title = stringResource(id = R.string.username),
                                 value = username,
-                                showArrow = false,
+                                showArrow = true,
+                                onClick = { showNicknameDialog = true },
                                 colorFilter = ColorFilter.tint(RoseRed),
                                 primaryTextColor = primaryTextColor,
                                 secondaryTextColor = secondaryTextColor,
@@ -347,6 +353,22 @@ fun AccountInfoScreen(
                 sampleBackdrop = pageBackdrop,
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = onPasswordUpdate
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showNicknameDialog,
+            enter = LiquidCenterModalTransitions.Enter,
+            exit = LiquidCenterModalTransitions.Exit,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(45f),
+        ) {
+            ChangeNicknameGlassDialog(
+                sampleBackdrop = pageBackdrop,
+                currentNickname = username,
+                onDismiss = { showNicknameDialog = false },
+                onConfirm = onNicknameUpdate
             )
         }
 

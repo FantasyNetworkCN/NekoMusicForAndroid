@@ -213,6 +213,11 @@
     <string name="please_confirm_new_password">Please confirm new password</string>
     <string name="new_password_length_error">New password must be at least 6 characters</string>
     <string name="modifying">Modifying...</string>
+    <string name="change_nickname">Change Nickname</string>
+    <string name="please_enter_nickname">Please enter a new nickname</string>
+    <string name="nickname_length_error">Nickname must be 1-20 characters</string>
+    <string name="nickname_updated">Nickname updated</string>
+    <string name="nickname_update_failed">Failed to update nickname</string>
     <string name="show_password">Show Password</string>
     <string name="hide_password">Hide Password</string>
     <string name="operation_success">Operation Successful</string>
