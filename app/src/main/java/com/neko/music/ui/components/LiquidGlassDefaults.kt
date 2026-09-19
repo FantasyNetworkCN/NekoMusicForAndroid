@@ -182,6 +182,51 @@ object LiquidGlassDefaults {
         highlightLight = 0.04f,
     )
 
+    // ---- 认证页（登录 / 注册 / 忘记密码）----
+
+    /** 分段输入组：一块玻璃包住全部输入行，行间用发丝线分隔（贴近系统分组列表）。 */
+    val authFieldGroup: LiquidGlassPanel = LiquidGlassPanel(
+        tint = LiquidGlassTint6(
+            backgroundDark = 0.26f,
+            backgroundLight = 0.30f,
+            borderDark = 0.14f,
+            borderLight = 0.18f,
+            highlightDark = 0.10f,
+            highlightLight = 0.14f,
+        ),
+        liquid = liquidSoft,
+    )
+
+    /** 主操作按钮：品牌色通过 [GlassSurface] 的 surfaceTint 叠在折射层之上。 */
+    val authPrimaryButton: LiquidGlassPanel = LiquidGlassPanel(
+        tint = LiquidGlassTint6(
+            backgroundDark = 0.22f,
+            backgroundLight = 0.24f,
+            borderDark = 0.20f,
+            borderLight = 0.22f,
+            highlightDark = 0.14f,
+            highlightLight = 0.16f,
+        ),
+        liquid = LiquidGlassLiquid3(10.dp, 18.dp, 34.dp),
+    )
+
+    /** 认证页顶部的圆形玻璃返回按钮。 */
+    val authIconButton: LiquidGlassPanel = LiquidGlassPanel(
+        tint = LiquidGlassTint6(
+            backgroundDark = 0.30f,
+            backgroundLight = 0.34f,
+            borderDark = 0.16f,
+            borderLight = 0.20f,
+            highlightDark = 0.10f,
+            highlightLight = 0.14f,
+        ),
+        liquid = liquidSoft,
+    )
+
+    /** 认证页输入组内的发丝分隔线（深色用白、浅色用黑）。 */
+    val authFieldDividerDarkAlpha: Float = 0.10f
+    val authFieldDividerLightAlpha: Float = 0.08f
+
     val searchHistoryRow: LiquidGlassTint6 = LiquidGlassTint6(
         backgroundDark = 0.22f,
         backgroundLight = 0.06f,

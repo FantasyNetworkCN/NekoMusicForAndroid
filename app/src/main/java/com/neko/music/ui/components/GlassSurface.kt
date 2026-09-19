@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -25,6 +26,9 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.opacity
 import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 
 /**
  * 玻璃容器：在 [LocalLiquidLayerBackdrop] 非空且 API 31+ 时使用 Kyant Backdrop（vibrancy + blur；**API 33+ 再加 lens** 折射，接近官方「液态玻璃」教程）。
@@ -45,6 +49,9 @@ import com.kyant.backdrop.effects.vibrancy
  * Kyant 要求效果顺序为 **color filter ⇒ blur ⇒ lens**；可选的 [opacity] 须在 vibrancy/blur 之前。
  * 官方 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 终稿 **未** 对采样层做 opacity，
  * 额外衰减易让模糊/折射看起来像「假磨砂」；默认 **1** 表示不应用该 color filter。
+ *
+ * 边缘光/阴影走 Kyant 原生 [Highlight] / [InnerShadow] / [Shadow]（见
+ * [API 文档](https://kyant.gitbook.io/backdrop/api/backdrop-effects)），比手绘 0.5dp 描边更接近系统玻璃。
  */
 @Composable
 fun GlassSurface(
@@ -68,6 +75,22 @@ fun GlassSurface(
     liquidBlur: Dp = 14.dp,
     liquidLensHeight: Dp = 16.dp,
     liquidLensAmount: Dp = 32.dp,
+    /**
+     * 叠在霜化层之上的整体着色（品牌色主按钮 / 选中态等）。
+     * 与 [overrideDrawSurface] 不同，它在 CPU 兜底路径同样生效。
+     */
+    surfaceTint: Color? = null,
+    /**
+     * Kyant [Highlight](https://kyant.gitbook.io/backdrop/api/backdrop-effects)：沿形状边缘的高光描边。
+     * `Highlight.Default` 需要 `CornerBasedShape`；Android 13+ 走 shader，以下退化为纯色描边。
+     */
+    kyantHighlight: Highlight? = null,
+    /** Kyant [InnerShadow](https://kyant.gitbook.io/backdrop/api/backdrop-effects)：玻璃内阴影，用于强调厚度。 */
+    kyantInnerShadow: InnerShadow? = null,
+    /** Kyant [Shadow](https://kyant.gitbook.io/backdrop/api/backdrop-effects)：玻璃外阴影，让浮层与背景分离。 */
+    kyantShadow: Shadow? = null,
+    /** 完全接管表面绘制；非空时忽略内部霜化与 [surfaceTint]（仅液态路径）。 */
+    overrideDrawSurface: (DrawScope.() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
@@ -109,35 +132,49 @@ fun GlassSurface(
                             lens(lensH, lensAmt)
                         }
                     },
-                    innerShadow = null,
+                    highlight = kyantHighlight?.let { h -> { h } },
+                    shadow = kyantShadow?.let { s -> { s } },
+                    innerShadow = kyantInnerShadow?.let { s -> { s } },
                     onDrawSurface = {
-                        if (isDarkTheme) {
-                            drawRect(Color.Black.copy(alpha = darkFrostBase))
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = darkFrostTop * 0.35f),
-                                        Color.Transparent
-                                    )
-                                )
-                            )
+                        val custom = overrideDrawSurface
+                        if (custom != null) {
+                            custom()
                         } else {
-                            drawRect(Color.White.copy(alpha = frostBase))
+                            if (isDarkTheme) {
+                                drawRect(Color.Black.copy(alpha = darkFrostBase))
+                            } else {
+                                drawRect(Color.White.copy(alpha = frostBase))
+                            }
+                            surfaceTint?.let { tint -> drawRect(tint) }
                             drawRect(
                                 brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = frostTop),
-                                        Color.White.copy(alpha = 0.04f)
-                                    )
+                                    colors = if (isDarkTheme) {
+                                        listOf(
+                                            Color.White.copy(alpha = darkFrostTop * 0.35f),
+                                            Color.Transparent
+                                        )
+                                    } else {
+                                        listOf(
+                                            Color.White.copy(alpha = frostTop),
+                                            Color.White.copy(alpha = 0.04f)
+                                        )
+                                    }
                                 )
                             )
                         }
                     }
                 )
-                .border(
-                    width = 0.5.dp,
-                    color = borderColor.copy(alpha = bdAlpha),
-                    shape = shape
+                .then(
+                    // 有 Kyant 边缘光时不再手绘描边，避免「双描边」的脏边。
+                    if (kyantHighlight == null) {
+                        Modifier.border(
+                            width = 0.5.dp,
+                            color = borderColor.copy(alpha = bdAlpha),
+                            shape = shape
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
             content()
@@ -153,6 +190,9 @@ fun GlassSurface(
             modifier = modifier
                 .clip(shape)
                 .background(fallbackFill)
+                .then(
+                    if (surfaceTint != null) Modifier.background(surfaceTint) else Modifier
+                )
                 .border(
                     width = 0.5.dp,
                     color = borderColor.copy(alpha = bdAlpha),

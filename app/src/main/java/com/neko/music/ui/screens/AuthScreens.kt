@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
@@ -40,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.R
 import com.neko.music.ui.components.AuthErrorText
+import com.neko.music.ui.components.AuthFieldDivider
+import com.neko.music.ui.components.AuthFieldGroup
 import com.neko.music.ui.components.AuthFooterPrompt
 import com.neko.music.ui.components.AuthGlassTextField
 import androidx.compose.material3.MaterialTheme
@@ -83,28 +86,30 @@ fun LoginScreen(
         subtitle = stringResource(id = R.string.welcome_back),
         onBack = onBackClick,
     ) { pageBackdrop ->
-        AuthGlassTextField(
-            value = username,
-            onValueChange = {
-                username = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.email),
-            leadingIcon = Icons.Default.Email,
-            autofillType = ContentType.Username,
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        AuthGlassTextField(
-            value = password,
-            onValueChange = {
-                password = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.password),
-            leadingIcon = Icons.Default.Lock,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        )
+        AuthFieldGroup(pageBackdrop = pageBackdrop) {
+            AuthGlassTextField(
+                value = username,
+                onValueChange = {
+                    username = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.email),
+                leadingIcon = Icons.Default.Email,
+                autofillType = ContentType.Username,
+            )
+            AuthFieldDivider()
+            AuthGlassTextField(
+                value = password,
+                onValueChange = {
+                    password = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.password),
+                leadingIcon = Icons.Default.Lock,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+        }
         AuthErrorText(message = errorMessage)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -225,88 +230,91 @@ fun RegisterScreen(
             },
             pageBackdrop = pageBackdrop,
         ) { backdrop ->
-            AuthGlassTextField(
-                value = username,
-                onValueChange = {
-                    username = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.username),
-                leadingIcon = Icons.Default.Person,
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            AuthGlassTextField(
-                value = email,
-                onValueChange = {
-                    email = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.email),
-                leadingIcon = Icons.Default.Email,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            AuthGlassTextField(
-                value = verificationCode,
-                onValueChange = {
-                    verificationCode = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.verification_code),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                trailingIcon = {
-                    TextButton(
-                        onClick = {
-                            if (email.isEmpty()) {
-                                errorMessage = pleaseEnterEmailFirst
-                                return@TextButton
-                            }
-                            if (!email.matches(EMAIL_REGEX)) {
-                                errorMessage = emailFormatError
-                                return@TextButton
-                            }
-                            if (countdown > 0 || showCaptchaDialog) return@TextButton
-                            errorMessage = ""
-                            showCaptchaDialog = true
-                        },
-                        enabled = !showCaptchaDialog && countdown == 0,
-                    ) {
-                        Text(
-                            text = if (countdown > 0) {
-                                stringResource(id = R.string.retry_after_seconds, countdown)
-                            } else {
-                                stringResource(id = R.string.send_verification_code)
+            AuthFieldGroup(pageBackdrop = backdrop) {
+                AuthGlassTextField(
+                    value = username,
+                    onValueChange = {
+                        username = it
+                        errorMessage = ""
+                    },
+                    label = stringResource(id = R.string.username),
+                    leadingIcon = Icons.Default.Person,
+                )
+                AuthFieldDivider()
+                AuthGlassTextField(
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        errorMessage = ""
+                    },
+                    label = stringResource(id = R.string.email),
+                    leadingIcon = Icons.Default.Email,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                )
+                AuthFieldDivider()
+                AuthGlassTextField(
+                    value = verificationCode,
+                    onValueChange = {
+                        verificationCode = it
+                        errorMessage = ""
+                    },
+                    label = stringResource(id = R.string.verification_code),
+                    leadingIcon = Icons.Default.CheckCircle,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    trailingIcon = {
+                        TextButton(
+                            onClick = {
+                                if (email.isEmpty()) {
+                                    errorMessage = pleaseEnterEmailFirst
+                                    return@TextButton
+                                }
+                                if (!email.matches(EMAIL_REGEX)) {
+                                    errorMessage = emailFormatError
+                                    return@TextButton
+                                }
+                                if (countdown > 0 || showCaptchaDialog) return@TextButton
+                                errorMessage = ""
+                                showCaptchaDialog = true
                             },
-                            color = if (countdown > 0) Color.Gray else RoseRed,
-                            fontSize = 12.sp,
-                        )
-                    }
-                },
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            AuthGlassTextField(
-                value = password,
-                onValueChange = {
-                    password = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.password),
-                leadingIcon = Icons.Default.Lock,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            AuthGlassTextField(
-                value = confirmPassword,
-                onValueChange = {
-                    confirmPassword = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.confirm_password),
-                leadingIcon = Icons.Default.Lock,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
+                            enabled = !showCaptchaDialog && countdown == 0,
+                        ) {
+                            Text(
+                                text = if (countdown > 0) {
+                                    stringResource(id = R.string.retry_after_seconds, countdown)
+                                } else {
+                                    stringResource(id = R.string.send_verification_code)
+                                },
+                                color = if (countdown > 0) Color.Gray else RoseRed,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    },
+                )
+                AuthFieldDivider()
+                AuthGlassTextField(
+                    value = password,
+                    onValueChange = {
+                        password = it
+                        errorMessage = ""
+                    },
+                    label = stringResource(id = R.string.password),
+                    leadingIcon = Icons.Default.Lock,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                )
+                AuthFieldDivider()
+                AuthGlassTextField(
+                    value = confirmPassword,
+                    onValueChange = {
+                        confirmPassword = it
+                        errorMessage = ""
+                    },
+                    label = stringResource(id = R.string.confirm_password),
+                    leadingIcon = Icons.Default.Lock,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                )
+            }
             AuthErrorText(message = errorMessage)
             Spacer(modifier = Modifier.height(8.dp))
             PrivacyAgreementRow(
@@ -471,95 +479,98 @@ fun ForgotPasswordScreen(
         subtitle = stringResource(id = R.string.enter_email_to_reset),
         onBack = onBackClick,
     ) { pageBackdrop ->
-        AuthGlassTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.email),
-            leadingIcon = Icons.Default.Email,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        AuthGlassTextField(
-            value = code,
-            onValueChange = {
-                code = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.verification_code),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            trailingIcon = {
-                TextButton(
-                    onClick = {
-                        if (email.isEmpty()) {
-                            errorMessage = pleaseEnterEmail
-                            return@TextButton
-                        }
-                        if (countdown > 0) return@TextButton
-                        isSendingCode = true
-                        scope.launch {
-                            try {
-                                val response = userApi.sendResetCode(email)
-                                isSendingCode = false
-                                if (response.success) {
-                                    countdown = 60
-                                } else {
-                                    errorMessage = response.message
-                                }
-                            } catch (e: Exception) {
-                                isSendingCode = false
-                                errorMessage = sendResetCodeFailed.format(e.message ?: "")
+        AuthFieldGroup(pageBackdrop = pageBackdrop) {
+            AuthGlassTextField(
+                value = email,
+                onValueChange = {
+                    email = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.email),
+                leadingIcon = Icons.Default.Email,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            )
+            AuthFieldDivider()
+            AuthGlassTextField(
+                value = code,
+                onValueChange = {
+                    code = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.verification_code),
+                leadingIcon = Icons.Default.CheckCircle,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                trailingIcon = {
+                    TextButton(
+                        onClick = {
+                            if (email.isEmpty()) {
+                                errorMessage = pleaseEnterEmail
+                                return@TextButton
                             }
+                            if (countdown > 0) return@TextButton
+                            isSendingCode = true
+                            scope.launch {
+                                try {
+                                    val response = userApi.sendResetCode(email)
+                                    isSendingCode = false
+                                    if (response.success) {
+                                        countdown = 60
+                                    } else {
+                                        errorMessage = response.message
+                                    }
+                                } catch (e: Exception) {
+                                    isSendingCode = false
+                                    errorMessage = sendResetCodeFailed.format(e.message ?: "")
+                                }
+                            }
+                        },
+                        enabled = !isSendingCode && countdown == 0,
+                    ) {
+                        if (isSendingCode) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = RoseRed,
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text(
+                                text = if (countdown > 0) {
+                                    stringResource(id = R.string.retry_after_seconds, countdown)
+                                } else {
+                                    stringResource(id = R.string.send_reset_code)
+                                },
+                                color = if (countdown > 0) Color.Gray else RoseRed,
+                                fontSize = 12.sp,
+                            )
                         }
-                    },
-                    enabled = !isSendingCode && countdown == 0,
-                ) {
-                    if (isSendingCode) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = RoseRed,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text(
-                            text = if (countdown > 0) {
-                                stringResource(id = R.string.retry_after_seconds, countdown)
-                            } else {
-                                stringResource(id = R.string.send_reset_code)
-                            },
-                            color = if (countdown > 0) Color.Gray else RoseRed,
-                            fontSize = 12.sp,
-                        )
                     }
-                }
-            },
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        AuthGlassTextField(
-            value = newPassword,
-            onValueChange = {
-                newPassword = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.new_password),
-            leadingIcon = Icons.Default.Lock,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-        AuthGlassTextField(
-            value = confirmPassword,
-            onValueChange = {
-                confirmPassword = it
-                errorMessage = ""
-            },
-            label = stringResource(id = R.string.confirm_new_password),
-            leadingIcon = Icons.Default.Lock,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        )
+                },
+            )
+            AuthFieldDivider()
+            AuthGlassTextField(
+                value = newPassword,
+                onValueChange = {
+                    newPassword = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.new_password),
+                leadingIcon = Icons.Default.Lock,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+            AuthFieldDivider()
+            AuthGlassTextField(
+                value = confirmPassword,
+                onValueChange = {
+                    confirmPassword = it
+                    errorMessage = ""
+                },
+                label = stringResource(id = R.string.confirm_new_password),
+                leadingIcon = Icons.Default.Lock,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            )
+        }
         AuthErrorText(message = errorMessage)
         Spacer(modifier = Modifier.height(20.dp))
         AuthPrimaryButton(
