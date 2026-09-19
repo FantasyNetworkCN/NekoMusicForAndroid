@@ -135,7 +135,7 @@
     <string name="retry_after_seconds">%d秒后才能再召唤喵</string>
     <string name="send_verification_code_failed">验证码迷路了喵: %s</string>
     <string name="please_fill_all_fields">要把空格子都填满喵</string>
-    <string name="username_length_error">名字要3-20个字才行喵</string>
+    <string name="username_length_error">名字要1-20个字才行喵</string>
     <string name="password_length_error">暗号要6-30位才够安全喵</string>
     <string name="password_mismatch">两次暗号对不上喵！</string>
     <string name="email_format_error">邮箱地址不对劲喵</string>

@@ -69,7 +69,7 @@ class TokenManager(context: Context) {
     }
 
     /**
-     * 获取用户名
+     * 获取昵称
      */
     fun getUsername(): String? {
         return sharedPref.getString(KEY_USERNAME, null)
