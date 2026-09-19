@@ -575,7 +575,7 @@
     <string name="removed_from_playlist_success">已从歌单中移除</string>
     <string name="email">邮箱</string>
     <string name="password">密码</string>
-    <string name="username">用户名</string>
+    <string name="username">昵称</string>
     <string name="confirm_password">确认密码</string>
     <string name="verification_code">验证码</string>
     <string name="register">注册</string>
