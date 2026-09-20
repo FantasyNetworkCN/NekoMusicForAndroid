@@ -225,7 +225,7 @@ data class FavoritePlaylistInfo(
 @Serializable
 data class CreatorInfo(
     val id: Int,
-    val username: String
+    val nickname: String
 )
 
 @Serializable

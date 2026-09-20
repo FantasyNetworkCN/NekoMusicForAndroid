@@ -61,7 +61,7 @@ fun MineScreen(
     onVipCenterClick: () -> Unit = {},
     onQrScanClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
-    username: String? = null,
+    nickname: String? = null,
     userId: Int = -1,
     isVip: Boolean = false,
     vipExpiresAt: String? = null,
@@ -123,7 +123,7 @@ fun MineScreen(
                     MineHeader(
                         onLoginClick = onLoginClick,
                         isLoggedIn = isLoggedIn,
-                        username = username,
+                        nickname = nickname,
                         userId = userId,
                         isVip = isVip,
                         vipExpiresAt = vipExpiresAt,
@@ -251,7 +251,7 @@ fun MineScreen(
 fun MineHeader(
     onLoginClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
-    username: String? = null,
+    nickname: String? = null,
     userId: Int = -1,
     isVip: Boolean = false,
     vipExpiresAt: String? = null,
@@ -400,7 +400,7 @@ fun MineHeader(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = if (isLoggedIn && username != null) username else stringResource(id = R.string.not_logged_in),
+                text = if (isLoggedIn && nickname != null) nickname else stringResource(id = R.string.not_logged_in),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFFF6B6B),

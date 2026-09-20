@@ -141,7 +141,6 @@
     <string name="retry_after_seconds">Retry in %d seconds</string>
     <string name="send_verification_code_failed">Failed to send verification code: %s</string>
     <string name="please_fill_all_fields">Please fill all fields</string>
-    <string name="username_length_error">Username length must be 1-20 characters</string>
     <string name="password_length_error">Password length must be 6-30 characters</string>
     <string name="password_mismatch">Passwords do not match</string>
     <string name="email_format_error">Email format is incorrect</string>
@@ -175,7 +174,7 @@
 
     <string name="email">Email</string>
     <string name="password">Password</string>
-    <string name="username">Username</string>
+    <string name="nickname">nickname</string>
     <string name="confirm_password">Confirm Password</string>
     <string name="verification_code">Verification Code</string>
     <string name="register">Register</string>

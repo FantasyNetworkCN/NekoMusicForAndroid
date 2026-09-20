@@ -110,7 +110,7 @@ fun RegisterSliderCaptchaDialog(
     sampleBackdrop: LayerBackdrop,
     userApi: UserApi,
     email: String,
-    username: String,
+    nickname: String,
     onDismiss: () -> Unit,
     onCodeSent: () -> Unit,
 ) {
@@ -226,7 +226,7 @@ fun RegisterSliderCaptchaDialog(
             }
             is SliderCaptchaVerifyResult.Ok -> {
                 status = sendingEmailText
-                val uname = username.ifBlank { "用户" }
+                val uname = nickname.ifBlank { "用户" }
                 val send = userApi.sendVerificationCode(
                     email,
                     uname,

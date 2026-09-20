@@ -48,11 +48,11 @@ class UserApi(private val token: String? = null) {
     /**
      * 用户登录
      */
-    suspend fun login(username: String, password: String): LoginResponse {
+    suspend fun login(nickname: String, password: String): LoginResponse {
         return try {
             val response = client.post("$baseUrl/api/user/login") {
                 contentType(ContentType.Application.Json)
-                setBody(LoginRequest(username = username, password = password))
+                setBody(LoginRequest(nickname = nickname, password = password))
             }
             response.body()
         } catch (e: Exception) {
@@ -64,12 +64,12 @@ class UserApi(private val token: String? = null) {
     /**
      * 用户注册
      */
-    suspend fun register(username: String, password: String, email: String, verificationCode: String): RegisterResponse {
+    suspend fun register(nickname: String, password: String, email: String, verificationCode: String): RegisterResponse {
         return try {
             val response = client.post("$baseUrl/api/user/register") {
                 contentType(ContentType.Application.Json)
                 setBody(RegisterRequest(
-                    username = username,
+                    nickname = nickname,
                     password = password,
                     email = email,
                     verificationCode = verificationCode
@@ -89,11 +89,11 @@ class UserApi(private val token: String? = null) {
     /**
      * 发送注册用邮箱验证码（须先完成滑块并取得 captchaPassToken）
      */
-    suspend fun sendVerificationCode(email: String, username: String, captchaPassToken: String): VerificationResponse {
+    suspend fun sendVerificationCode(email: String, nickname: String, captchaPassToken: String): VerificationResponse {
         return try {
             val response = client.post("$baseUrl/api/user/send-verification") {
                 contentType(ContentType.Application.Json)
-                setBody(VerificationRequest(email = email, username = username, captchaPassToken = captchaPassToken))
+                setBody(VerificationRequest(email = email, nickname = nickname, captchaPassToken = captchaPassToken))
             }
             response.body()
         } catch (e: Exception) {
@@ -466,13 +466,13 @@ class UserApi(private val token: String? = null) {
 // 数据模型
 @Serializable
 data class LoginRequest(
-    val username: String,
+    val nickname: String,
     val password: String
 )
 
 @Serializable
 data class RegisterRequest(
-    val username: String,
+    val nickname: String,
     val password: String,
     val email: String,
     val verificationCode: String
@@ -481,7 +481,7 @@ data class RegisterRequest(
 @Serializable
 data class VerificationRequest(
     val email: String,
-    val username: String,
+    val nickname: String,
     val captchaPassToken: String
 )
 
@@ -548,7 +548,7 @@ data class LoginData(
 @Serializable
 data class UserData(
     val id: Int,
-    val username: String,
+    val nickname: String,
     val email: String,
     val createdAt: String,
     val isVip: Boolean = false,
