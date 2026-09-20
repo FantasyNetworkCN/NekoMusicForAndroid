@@ -64,7 +64,7 @@ fun LoginScreen(
     onPrivacyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var nickname by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
@@ -88,14 +88,14 @@ fun LoginScreen(
     ) { pageBackdrop ->
         AuthFieldGroup(pageBackdrop = pageBackdrop) {
             AuthGlassTextField(
-                value = nickname,
+                value = email,
                 onValueChange = {
-                    nickname = it
+                    email = it
                     errorMessage = ""
                 },
                 label = stringResource(id = R.string.email),
                 leadingIcon = Icons.Default.Email,
-                autofillType = ContentType.Username,
+                autofillType = ContentType.EmailAddress,
             )
             AuthFieldDivider()
             AuthGlassTextField(
@@ -137,14 +137,14 @@ fun LoginScreen(
                     errorMessage = privacyAgreementRequired
                     return@AuthPrimaryButton
                 }
-                if (nickname.isEmpty() || password.isEmpty()) {
+                if (email.isEmpty() || password.isEmpty()) {
                     errorMessage = pleaseEnterEmailAndPassword
                     return@AuthPrimaryButton
                 }
                 isLoading = true
                 scope.launch {
                     try {
-                        val response = userApi.login(nickname, password)
+                        val response = userApi.login(email, password)
                         isLoading = false
                         if (response.success && response.data != null) {
                             tokenManager.saveToken(
