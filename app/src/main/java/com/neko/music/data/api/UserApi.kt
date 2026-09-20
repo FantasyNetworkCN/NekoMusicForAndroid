@@ -48,11 +48,11 @@ class UserApi(private val token: String? = null) {
     /**
      * 用户登录
      */
-    suspend fun login(nickname: String, password: String): LoginResponse {
+    suspend fun login(email: String, password: String): LoginResponse {
         return try {
             val response = client.post("$baseUrl/api/user/login") {
                 contentType(ContentType.Application.Json)
-                setBody(LoginRequest(nickname = nickname, password = password))
+                setBody(LoginRequest(email = email, password = password))
             }
             response.body()
         } catch (e: Exception) {
@@ -466,7 +466,7 @@ class UserApi(private val token: String? = null) {
 // 数据模型
 @Serializable
 data class LoginRequest(
-    val nickname: String,
+    val email: String,
     val password: String
 )
 
