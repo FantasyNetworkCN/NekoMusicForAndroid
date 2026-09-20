@@ -140,7 +140,7 @@
     <string name="retry_after_seconds">%d秒后重试</string>
     <string name="send_verification_code_failed">发送验证码失败: %s</string>
     <string name="please_fill_all_fields">请填写所有字段</string>
-    <string name="username_length_error">昵称长度必须在1-20个字符之间</string>
+    <string name="nickname_length_error">昵称长度必须在1-20个字符之间</string>
     <string name="password_length_error">密码长度必须在6-30个字符之间</string>
     <string name="password_mismatch">两次输入的密码不一致</string>
     <string name="email_format_error">邮箱格式不正确</string>
@@ -575,7 +575,7 @@
     <string name="removed_from_playlist_success">已从歌单中移除</string>
     <string name="email">邮箱</string>
     <string name="password">密码</string>
-    <string name="username">昵称</string>
+    <string name="nickname">昵称</string>
     <string name="confirm_password">确认密码</string>
     <string name="verification_code">验证码</string>
     <string name="register">注册</string>

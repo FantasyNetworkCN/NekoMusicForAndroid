@@ -10,7 +10,9 @@ class TokenManager(context: Context) {
     companion object {
         private const val KEY_TOKEN = "token"
         private const val KEY_USER_ID = "user_id"
-        private const val KEY_USERNAME = "username"
+        private const val KEY_NICKNAME = "nickname"
+        /** 旧版本昵称存在 "username" 键下，仅供读取时做一次性兼容 */
+        private const val LEGACY_KEY_NICKNAME = "username"
         private const val KEY_EMAIL = "email"
         private const val KEY_IS_VIP = "is_vip"
         private const val KEY_VIP_EXPIRES_AT = "vip_expires_at"
@@ -22,14 +24,14 @@ class TokenManager(context: Context) {
     fun saveToken(
         token: String,
         userId: Int,
-        username: String,
+        nickname: String,
         email: String,
         isVip: Boolean = false,
         vipExpiresAt: String? = null
     ) {
         editor.putString(KEY_TOKEN, token)
         editor.putInt(KEY_USER_ID, userId)
-        editor.putString(KEY_USERNAME, username)
+        editor.putString(KEY_NICKNAME, nickname)
         editor.putString(KEY_EMAIL, email)
         editor.putBoolean(KEY_IS_VIP, isVip)
         if (vipExpiresAt.isNullOrBlank()) {
@@ -43,8 +45,8 @@ class TokenManager(context: Context) {
     /**
      * 更新本地缓存的昵称（服务端修改成功后调用）
      */
-    fun updateUsername(username: String) {
-        editor.putString(KEY_USERNAME, username)
+    fun updateNickname(nickname: String) {
+        editor.putString(KEY_NICKNAME, nickname)
         editor.apply()
     }
 
@@ -79,8 +81,9 @@ class TokenManager(context: Context) {
     /**
      * 获取昵称
      */
-    fun getUsername(): String? {
-        return sharedPref.getString(KEY_USERNAME, null)
+    fun getNickname(): String? {
+        return sharedPref.getString(KEY_NICKNAME, null)
+            ?: sharedPref.getString(LEGACY_KEY_NICKNAME, null)
     }
 
     /**

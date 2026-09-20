@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 fun AccountInfoScreen(
     onBackClick: () -> Unit = {},
     userId: Int = -1,
-    username: String = "",
+    nickname: String = "",
     email: String = "",
     isVip: Boolean = false,
     vipExpiresAt: String? = null,
@@ -255,8 +255,8 @@ fun AccountInfoScreen(
                         Column {
                             InfoCard(
                                 icon = R.drawable.user,
-                                title = stringResource(id = R.string.username),
-                                value = username,
+                                title = stringResource(id = R.string.nickname),
+                                value = nickname,
                                 showArrow = true,
                                 onClick = { showNicknameDialog = true },
                                 colorFilter = ColorFilter.tint(RoseRed),
@@ -366,7 +366,7 @@ fun AccountInfoScreen(
         ) {
             ChangeNicknameGlassDialog(
                 sampleBackdrop = pageBackdrop,
-                currentNickname = username,
+                currentNickname = nickname,
                 onDismiss = { showNicknameDialog = false },
                 onConfirm = onNicknameUpdate
             )

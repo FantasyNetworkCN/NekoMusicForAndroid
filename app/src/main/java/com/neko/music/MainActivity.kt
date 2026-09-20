@@ -491,7 +491,7 @@ fun MainScreen() {
 
     // 登录状态，用于触发界面更新
     var isLoggedIn by androidx.compose.runtime.remember { mutableStateOf(false) }
-    var currentUsername by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
+    var currentNickname by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
     var currentUserId by androidx.compose.runtime.remember { mutableStateOf(-1) }
     var currentUserToken by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
     var currentUserIsVip by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -500,7 +500,7 @@ fun MainScreen() {
     fun refreshUserSessionFromDisk() {
         val tokenManager = com.neko.music.data.manager.TokenManager(context)
         isLoggedIn = tokenManager.isLoggedIn()
-        currentUsername = tokenManager.getUsername()
+        currentNickname = tokenManager.getNickname()
         currentUserId = tokenManager.getUserId()
         currentUserToken = tokenManager.getToken()
         currentUserIsVip = tokenManager.isVip()
@@ -846,7 +846,7 @@ fun MainScreen() {
                         }
                     },
                     isLoggedIn = isLoggedIn,
-                    username = currentUsername,
+                    nickname = currentNickname,
                     userId = currentUserId,
                     isVip = currentUserIsVip,
                     vipExpiresAt = currentVipExpiresAt,
@@ -856,12 +856,12 @@ fun MainScreen() {
             }
             composable(BottomNavItem.MyPlaylists.route) {
                 MyPlaylistsScreen(
-                    onNavigateToPlaylistDetail = { playlistId, playlistName, playlistCover, playlistDescription, creatorUsername, creatorUserId ->
+                    onNavigateToPlaylistDetail = { playlistId, playlistName, playlistCover, playlistDescription, creatorNickname, creatorUserId ->
                         val encodedName = java.net.URLEncoder.encode(playlistName, "UTF-8")
                         val encodedCover = if (playlistCover != null) java.net.URLEncoder.encode(playlistCover, "UTF-8") else "null"
                         val encodedDescription = java.net.URLEncoder.encode(playlistDescription ?: "", "UTF-8")
-                        val encodedCreatorUsername = java.net.URLEncoder.encode(creatorUsername ?: "", "UTF-8")
-                        navController.navigate("playlist_detail/$playlistId/$encodedName/$encodedCover/$encodedDescription/$encodedCreatorUsername/${creatorUserId ?: -1}/true")
+                        val encodedCreatorNickname = java.net.URLEncoder.encode(creatorNickname ?: "", "UTF-8")
+                        navController.navigate("playlist_detail/$playlistId/$encodedName/$encodedCover/$encodedDescription/$encodedCreatorNickname/${creatorUserId ?: -1}/true")
                     },
                     onNavigateToFavorite = {
                         navController.navigate("favorites")
@@ -962,7 +962,7 @@ fun MainScreen() {
                 )
             }
             composable(
-                route = "playlist_detail/{playlistId}/{playlistName}/{playlistCover}/{playlistDescription}/{creatorUsername}/{creatorUserId}/{isOwner}",
+                route = "playlist_detail/{playlistId}/{playlistName}/{playlistCover}/{playlistDescription}/{creatorNickname}/{creatorUserId}/{isOwner}",
                 arguments = listOf(
                     navArgument("playlistId") { type = NavType.IntType },
                     navArgument("playlistName") { type = NavType.StringType },
@@ -976,7 +976,7 @@ fun MainScreen() {
                         nullable = true
                         defaultValue = null
                     },
-                    navArgument("creatorUsername") {
+                    navArgument("creatorNickname") {
                         type = NavType.StringType
                         nullable = true
                         defaultValue = null
@@ -995,7 +995,7 @@ fun MainScreen() {
                 val playlistName = backStackEntry.arguments?.getString("playlistName") ?: ""
                 val playlistCover = backStackEntry.arguments?.getString("playlistCover")
                 val playlistDescription = backStackEntry.arguments?.getString("playlistDescription")
-                val creatorUsername = backStackEntry.arguments?.getString("creatorUsername")
+                val creatorNickname = backStackEntry.arguments?.getString("creatorNickname")
                 val creatorUserId = backStackEntry.arguments?.getInt("creatorUserId")
                 val isOwner = backStackEntry.arguments?.getBoolean("isOwner") ?: true
                 PlaylistDetailScreen(
@@ -1011,7 +1011,7 @@ fun MainScreen() {
                     } else {
                         ""
                     },
-                    creatorUsername = creatorUsername,
+                    creatorNickname = creatorNickname,
                     creatorUserId = if (creatorUserId == -1) null else creatorUserId,
                     isOwner = isOwner,
                     onBackClick = {
@@ -1212,7 +1212,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     userId = currentUserId,
-                    username = currentUsername ?: "",
+                    nickname = currentNickname ?: "",
                     email = com.neko.music.data.manager.TokenManager(context).getEmail()
                         ?: "",
                     isVip = currentUserIsVip,
@@ -1301,7 +1301,7 @@ fun MainScreen() {
                             val response = userApi.changeNickname(nickname)
 
                             if (response.success) {
-                                tokenManager.updateUsername(
+                                tokenManager.updateNickname(
                                     response.nickname.ifBlank { nickname }
                                 )
                                 refreshUserSessionFromDisk()
@@ -1367,13 +1367,13 @@ fun MainScreen() {
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     },
-                    onPlaylistClick = { playlistId, playlistName, playlistCover, playlistDescription, creatorUsername, creatorUserId ->
+                    onPlaylistClick = { playlistId, playlistName, playlistCover, playlistDescription, creatorNickname, creatorUserId ->
                         Log.d("MainActivity", "点击歌单: $playlistName (ID: $playlistId)")
                         val encodedName = java.net.URLEncoder.encode(playlistName, "UTF-8")
                         val encodedCover = if (playlistCover != null) java.net.URLEncoder.encode(playlistCover, "UTF-8") else "null"
                         val encodedDescription = java.net.URLEncoder.encode(playlistDescription ?: "", "UTF-8")
-                        val encodedCreatorUsername = java.net.URLEncoder.encode(creatorUsername ?: "", "UTF-8")
-                        navController.navigate("playlist_detail/$playlistId/$encodedName/$encodedCover/$encodedDescription/$encodedCreatorUsername/${creatorUserId ?: -1}/false")
+                        val encodedCreatorNickname = java.net.URLEncoder.encode(creatorNickname ?: "", "UTF-8")
+                        navController.navigate("playlist_detail/$playlistId/$encodedName/$encodedCover/$encodedDescription/$encodedCreatorNickname/${creatorUserId ?: -1}/false")
                     },
                     onArtistClick = { artistName, musicCount, coverPath ->
                         Log.d("MainActivity", "点击歌手: $artistName")

@@ -64,7 +64,7 @@ fun LoginScreen(
     onPrivacyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var username by remember { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
@@ -88,9 +88,9 @@ fun LoginScreen(
     ) { pageBackdrop ->
         AuthFieldGroup(pageBackdrop = pageBackdrop) {
             AuthGlassTextField(
-                value = username,
+                value = nickname,
                 onValueChange = {
-                    username = it
+                    nickname = it
                     errorMessage = ""
                 },
                 label = stringResource(id = R.string.email),
@@ -137,20 +137,20 @@ fun LoginScreen(
                     errorMessage = privacyAgreementRequired
                     return@AuthPrimaryButton
                 }
-                if (username.isEmpty() || password.isEmpty()) {
+                if (nickname.isEmpty() || password.isEmpty()) {
                     errorMessage = pleaseEnterEmailAndPassword
                     return@AuthPrimaryButton
                 }
                 isLoading = true
                 scope.launch {
                     try {
-                        val response = userApi.login(username, password)
+                        val response = userApi.login(nickname, password)
                         isLoading = false
                         if (response.success && response.data != null) {
                             tokenManager.saveToken(
                                 token = response.data.token,
                                 userId = response.data.user.id,
-                                username = response.data.user.username,
+                                nickname = response.data.user.nickname,
                                 email = response.data.user.email,
                                 isVip = response.data.user.isVip,
                                 vipExpiresAt = response.data.user.vipExpiresAt,
@@ -184,7 +184,7 @@ fun RegisterScreen(
     onLoginClick: () -> Unit,
     onPrivacyClick: () -> Unit = {},
 ) {
-    var username by remember { mutableStateOf("") }
+    var nickname by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -199,7 +199,7 @@ fun RegisterScreen(
     val userApi = com.neko.music.data.api.UserApi()
 
     val pleaseFillAllFields = stringResource(id = R.string.please_fill_all_fields)
-    val usernameLengthError = stringResource(id = R.string.username_length_error)
+    val nicknameLengthError = stringResource(id = R.string.nickname_length_error)
     val passwordLengthError = stringResource(id = R.string.password_length_error)
     val passwordMismatch = stringResource(id = R.string.password_mismatch)
     val emailFormatError = stringResource(id = R.string.email_format_error)
@@ -232,12 +232,12 @@ fun RegisterScreen(
         ) { backdrop ->
             AuthFieldGroup(pageBackdrop = backdrop) {
                 AuthGlassTextField(
-                    value = username,
+                    value = nickname,
                     onValueChange = {
-                        username = it
+                        nickname = it
                         errorMessage = ""
                     },
-                    label = stringResource(id = R.string.username),
+                    label = stringResource(id = R.string.nickname),
                     leadingIcon = Icons.Default.Person,
                 )
                 AuthFieldDivider()
@@ -333,14 +333,14 @@ fun RegisterScreen(
                         errorMessage = privacyAgreementRequired
                         return@AuthPrimaryButton
                     }
-                    if (username.isEmpty() || email.isEmpty() || password.isEmpty() ||
+                    if (nickname.isEmpty() || email.isEmpty() || password.isEmpty() ||
                         confirmPassword.isEmpty() || verificationCode.isEmpty()
                     ) {
                         errorMessage = pleaseFillAllFields
                         return@AuthPrimaryButton
                     }
-                    if (username.length < 1 || username.length > 20) {
-                        errorMessage = usernameLengthError
+                    if (nickname.length < 1 || nickname.length > 20) {
+                        errorMessage = nicknameLengthError
                         return@AuthPrimaryButton
                     }
                     if (password.length < 6 || password.length > 30) {
@@ -359,7 +359,7 @@ fun RegisterScreen(
                     scope.launch {
                         try {
                             val response = userApi.register(
-                                username.trim(),
+                                nickname.trim(),
                                 password,
                                 email.trim(),
                                 verificationCode.trim(),
@@ -393,7 +393,7 @@ fun RegisterScreen(
             sampleBackdrop = pageBackdrop,
             userApi = userApi,
             email = email.trim(),
-            username = username.trim().ifBlank { "用户" },
+            nickname = nickname.trim().ifBlank { "用户" },
             onDismiss = { showCaptchaDialog = false },
             onCodeSent = {
                 showCaptchaDialog = false

@@ -122,7 +122,7 @@ fun PlaylistDetailScreen(
     playlistName: String,
     playlistCover: String?,
     playlistDescription: String = "",
-    creatorUsername: String? = null,
+    creatorNickname: String? = null,
     creatorUserId: Int? = null,
     isOwner: Boolean = true,
     onBackClick: () -> Unit,
@@ -142,7 +142,7 @@ fun PlaylistDetailScreen(
     var musicList by remember { mutableStateOf<List<PlaylistMusic>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
-    var actualCreatorUsername by remember { mutableStateOf<String?>(null) }
+    var actualCreatorNickname by remember { mutableStateOf<String?>(null) }
     var actualCreatorUserId by remember { mutableStateOf<Int?>(null) }
     
     var currentDescription by remember { mutableStateOf(playlistDescription) }
@@ -169,9 +169,9 @@ fun PlaylistDetailScreen(
             val detailResponse: PlaylistResponse = playlistApi.getPlaylistDetail(playlistId)
             Log.d("PlaylistDetailScreen", "歌单详情: playlist=${detailResponse.playlist}")
             if (detailResponse.success && detailResponse.playlist != null) {
-                actualCreatorUsername = detailResponse.playlist.creator?.username
+                actualCreatorNickname = detailResponse.playlist.creator?.nickname
                 actualCreatorUserId = detailResponse.playlist.creator?.id ?: detailResponse.playlist.userId
-                Log.d("PlaylistDetailScreen", "创建者: username=$actualCreatorUsername, userId=$actualCreatorUserId")
+                Log.d("PlaylistDetailScreen", "创建者: nickname=$actualCreatorNickname, userId=$actualCreatorUserId")
             }
             
             // 再获取歌单音乐列表
@@ -581,7 +581,7 @@ fun PlaylistDetailScreen(
                             }
 
                             // 创建者信息
-                            val displayCreatorUsername = actualCreatorUsername ?: creatorUsername
+                            val displayCreatorNickname = actualCreatorNickname ?: creatorNickname
                             val displayCreatorUserId = actualCreatorUserId ?: creatorUserId
 
                             if (displayCreatorUserId != null && displayCreatorUserId != -1) {
@@ -603,10 +603,10 @@ fun PlaylistDetailScreen(
                                         error = painterResource(R.drawable.user)
                                     )
                                     Text(
-                                        text = if (displayCreatorUsername != null)
+                                        text = if (displayCreatorNickname != null)
                                             stringResource(
                                                 id = R.string.creator_info,
-                                                displayCreatorUsername
+                                                displayCreatorNickname
                                             )
                                         else
                                             stringResource(

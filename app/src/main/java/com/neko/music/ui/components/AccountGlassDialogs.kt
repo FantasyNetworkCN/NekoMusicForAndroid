@@ -559,7 +559,7 @@ fun ChangeNicknameGlassDialog(
                         nickname = it
                         errorMessage = null
                     },
-                    label = { Text(stringResource(id = R.string.username)) },
+                    label = { Text(stringResource(id = R.string.nickname)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = fieldColors,

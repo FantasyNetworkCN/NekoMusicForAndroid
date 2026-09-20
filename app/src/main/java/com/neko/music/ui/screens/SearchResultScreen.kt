@@ -305,7 +305,7 @@ fun SearchResultScreen(
                             PlaylistList(
                                 playlists = playlistResults,
                                 onPlaylistClick = { playlist ->
-                                    onPlaylistClick(playlist.id, playlist.name, playlist.coverPath, playlist.description, playlist.username, playlist.userId)
+                                    onPlaylistClick(playlist.id, playlist.name, playlist.coverPath, playlist.description, playlist.nickname, playlist.userId)
                                 }
                             )
                         } else {

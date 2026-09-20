@@ -131,13 +131,13 @@ fun MyPlaylistsScreen(
                     // 转换PlaylistInfo到Playlist
                     playlists = playlistResponse.playlists?.map { info ->
                         val creatorUserId = info.creator?.id ?: info.userId ?: 1
-                        val creatorUsername = info.creator?.username ?: info.username
-                        Log.d("MyPlaylistsScreen", "API返回歌单: id=${info.id}, name=${info.name}, userId=${info.userId}, creator=${info.creator}, creatorUsername=$creatorUsername")
-                        Playlist(info.id, info.name, info.musicCount, creatorUserId, info.createdAt, info.coverPath, info.description, creatorUsername)
+                        val creatorNickname = info.creator?.nickname ?: info.nickname
+                        Log.d("MyPlaylistsScreen", "API返回歌单: id=${info.id}, name=${info.name}, userId=${info.userId}, creator=${info.creator}, creatorNickname=$creatorNickname")
+                        Playlist(info.id, info.name, info.musicCount, creatorUserId, info.createdAt, info.coverPath, info.description, creatorNickname)
                     } ?: emptyList()
                     Log.d("MyPlaylistsScreen", "歌单列表: ${playlists.size}个")
                     playlists.forEach { 
-                        Log.d("MyPlaylistsScreen", "转换后歌单: id=${it.id}, name=${it.name}, userId=${it.userId}, username=${it.username}")
+                        Log.d("MyPlaylistsScreen", "转换后歌单: id=${it.id}, name=${it.name}, userId=${it.userId}, nickname=${it.nickname}")
                     }
                     
                     // 异步加载每个歌单的第一首音乐封面（仅当歌单没有封面时）
@@ -192,7 +192,7 @@ fun MyPlaylistsScreen(
                             java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(info.createdAt)),
                             null,
                             info.description,
-                            info.creator?.username
+                            info.creator?.nickname
                         )
                     }
                     Log.d("MyPlaylistsScreen", "收藏歌单列表: ${favoritePlaylists.size}个")
@@ -236,7 +236,7 @@ fun MyPlaylistsScreen(
                 Log.d("MyPlaylistsScreen", "刷新歌单API响应: success=${playlistResponse.success}")
                 if (playlistResponse.success) {
                     playlists = playlistResponse.playlists?.map { info ->
-                        Playlist(info.id, info.name, info.musicCount, 1, info.createdAt, info.coverPath, info.description, info.username)
+                        Playlist(info.id, info.name, info.musicCount, 1, info.createdAt, info.coverPath, info.description, info.nickname)
                     } ?: emptyList()
 
                     // 清空之前的封面缓存
@@ -289,7 +289,7 @@ fun MyPlaylistsScreen(
                             java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(info.createdAt)),
                             null,
                             info.description,
-                            info.creator?.username
+                            info.creator?.nickname
                         )
                     }
 
@@ -568,7 +568,7 @@ fun MyPlaylistsScreen(
                                                 playlist.name,
                                                 playlist.coverPath,
                                                 playlist.description,
-                                                playlist.username,
+                                                playlist.nickname,
                                                 playlist.userId
                                             )
                                         }

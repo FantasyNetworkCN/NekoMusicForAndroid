@@ -8,7 +8,7 @@ data class Playlist(
     val createdAt: String,
     val coverPath: String? = null,
     val description: String? = null,
-    val username: String? = null,
+    val nickname: String? = null,
     val creatorAvatar: String? = null
 )
 

@@ -46,7 +46,7 @@ data class PlaylistInfo(
     val createdAt: String,
     val updatedAt: String,
     val userId: Int? = null,
-    val username: String? = null,
+    val nickname: String? = null,
     val creatorAvatar: String? = null,
     val creator: CreatorInfo? = null,
     val firstMusicCover: String? = null
