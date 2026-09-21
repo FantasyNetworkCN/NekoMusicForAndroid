@@ -169,7 +169,7 @@ fun PlaylistDetailScreen(
             val detailResponse: PlaylistResponse = playlistApi.getPlaylistDetail(playlistId)
             Log.d("PlaylistDetailScreen", "歌单详情: playlist=${detailResponse.playlist}")
             if (detailResponse.success && detailResponse.playlist != null) {
-                actualCreatorNickname = detailResponse.playlist.creator?.nickname
+                actualCreatorNickname = detailResponse.playlist.creator?.displayName
                 actualCreatorUserId = detailResponse.playlist.creator?.id ?: detailResponse.playlist.userId
                 Log.d("PlaylistDetailScreen", "创建者: nickname=$actualCreatorNickname, userId=$actualCreatorUserId")
             }
