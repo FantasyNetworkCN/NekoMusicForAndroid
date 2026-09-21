@@ -16,28 +16,25 @@ object AuthErrorHandler {
 
     /**
      * 检测异常是否为认证错误
+     *
+     * 注意：JSON 结构/字段异常（[MissingFieldException]、[JsonConvertException]）属于接口数据问题，
+     * **不是**登录失效。历史上这里把它们当成认证错误处理，导致任意接口字段变动都会
+     * `clearToken()` 把用户踢下线（例如打开创建者为 `username` 字段的歌单）。
+     * 真正的登录失效由服务端返回 401 + `{"success":false,"message":"无效的认证令牌"}` 表达。
      */
     @OptIn(ExperimentalSerializationApi::class)
     fun isAuthError(exception: Exception): Boolean {
-        return when (exception) {
-            is JsonConvertException -> {
-                // 检查是否是缺少必需字段的反序列化错误（通常发生在认证失效时API返回了错误页面）
-                val message = exception.message ?: ""
-                message.contains("MissingFieldException", ignoreCase = true) ||
-                message.contains("Field.*is required", ignoreCase = true) ||
-                exception.cause is MissingFieldException
-            }
-            is MissingFieldException -> true
-            else -> {
-                // 检查异常消息中是否包含认证相关的关键词
-                val message = exception.message ?: ""
-                message.contains("Unauthorized", ignoreCase = true) ||
-                message.contains("401", ignoreCase = true) ||
-                message.contains("Invalid token", ignoreCase = true) ||
-                message.contains("认证", ignoreCase = true) ||
-                message.contains("令牌", ignoreCase = true)
-            }
+        // 反序列化失败只说明接口返回的字段与服务端实现不一致，不能据此清除登录态。
+        if (exception is MissingFieldException || exception is JsonConvertException) {
+            return false
         }
+        // 检查异常消息中是否包含认证相关的关键词
+        val message = exception.message ?: ""
+        return message.contains("Unauthorized", ignoreCase = true) ||
+            message.contains("401", ignoreCase = true) ||
+            message.contains("Invalid token", ignoreCase = true) ||
+            message.contains("认证", ignoreCase = true) ||
+            message.contains("令牌", ignoreCase = true)
     }
 
     /**

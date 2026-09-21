@@ -225,8 +225,19 @@ data class FavoritePlaylistInfo(
 @Serializable
 data class CreatorInfo(
     val id: Int,
-    val nickname: String
-)
+    /**
+     * 服务端对「创建者昵称」的字段名并不统一：自建歌单返回 `nickname`
+     * （如 `/api/playlist/1` → `{"id":4,"nickname":"哈基蜂"}`），
+     * 而外部导入的歌单返回 `username`（如 `/api/playlist/407` → `{"id":48,"username":"cxy"}`）。
+     * 两者都接收并统一兜底，避免直接抛 [kotlinx.serialization.MissingFieldException]。
+     */
+    val nickname: String? = null,
+    val username: String? = null,
+) {
+    /** 展示用昵称：优先 `nickname`，缺失时回退 `username`。 */
+    val displayName: String?
+        get() = nickname ?: username
+}
 
 @Serializable
 data class FavoritePlaylistListResponse(

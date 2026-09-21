@@ -131,7 +131,7 @@ fun MyPlaylistsScreen(
                     // 转换PlaylistInfo到Playlist
                     playlists = playlistResponse.playlists?.map { info ->
                         val creatorUserId = info.creator?.id ?: info.userId ?: 1
-                        val creatorNickname = info.creator?.nickname ?: info.nickname
+                        val creatorNickname = info.creator?.displayName ?: info.nickname
                         Log.d("MyPlaylistsScreen", "API返回歌单: id=${info.id}, name=${info.name}, userId=${info.userId}, creator=${info.creator}, creatorNickname=$creatorNickname")
                         Playlist(info.id, info.name, info.musicCount, creatorUserId, info.createdAt, info.coverPath, info.description, creatorNickname)
                     } ?: emptyList()
@@ -192,7 +192,7 @@ fun MyPlaylistsScreen(
                             java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(info.createdAt)),
                             null,
                             info.description,
-                            info.creator?.nickname
+                            info.creator?.displayName
                         )
                     }
                     Log.d("MyPlaylistsScreen", "收藏歌单列表: ${favoritePlaylists.size}个")
@@ -289,7 +289,7 @@ fun MyPlaylistsScreen(
                             java.text.SimpleDateFormat("yyyy-MM-dd").format(java.util.Date(info.createdAt)),
                             null,
                             info.description,
-                            info.creator?.nickname
+                            info.creator?.displayName
                         )
                     }
 
