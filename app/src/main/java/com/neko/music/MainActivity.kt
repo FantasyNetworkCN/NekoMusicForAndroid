@@ -518,17 +518,37 @@ fun MainScreen() {
         com.neko.music.data.manager.PlaylistManager.getInstance(context).dedupePlaylist()
     }
 
-    // 已登录时从歌单接口刷新 VIP（与 Web 一致）
+    // 启动时用 GET /api/user/info 拉取最新资料（昵称/邮箱/VIP），并在这里判定登录态是否失效。
+    // 服务端 Token 失效会返回 401：只有这种情况才清除本地登录态；
+    // 其它异常（断网、接口字段变化等）一律保留会话，避免误踢用户下线。
     androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken) {
         val t = currentUserToken
         if (!isLoggedIn || t.isNullOrBlank()) return@LaunchedEffect
-        try {
-            val pl = com.neko.music.data.api.PlaylistApi(t, context).getMyPlaylists()
-            if (pl.success) {
-                com.neko.music.data.manager.TokenManager(context).updateVipStatus(pl.isVip, pl.vipExpiresAt)
+        val tokenManager = com.neko.music.data.manager.TokenManager(context)
+        when (val result = com.neko.music.data.api.UserApi(t).getUserInfo()) {
+            is com.neko.music.data.api.UserInfoResult.Ok -> {
+                val user = result.user
+                tokenManager.updateProfile(
+                    nickname = user.nickname,
+                    email = user.email,
+                    isVip = user.isVip,
+                    vipExpiresAt = user.vipExpiresAt,
+                )
                 refreshUserSessionFromDisk()
             }
-        } catch (_: Exception) {
+            is com.neko.music.data.api.UserInfoResult.Unauthorized -> {
+                android.util.Log.w("MainActivity", "登录态失效（HTTP 401），清理本地会话: ${result.message}")
+                tokenManager.clearToken()
+                refreshUserSessionFromDisk()
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.auth_expired),
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+            is com.neko.music.data.api.UserInfoResult.Err -> {
+                android.util.Log.w("MainActivity", "刷新用户信息失败，保留本地会话: ${result.message}")
+            }
         }
     }
 

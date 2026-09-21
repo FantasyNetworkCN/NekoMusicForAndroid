@@ -16,6 +16,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
 import com.neko.music.util.UrlConfig
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -58,6 +59,44 @@ class UserApi(private val token: String? = null) {
         } catch (e: Exception) {
             Log.e("UserApi", "登录失败", e)
             LoginResponse(success = false, message = "网络错误: ${e.message}", data = null)
+        }
+    }
+
+    /**
+     * 获取当前登录用户信息（`GET /api/user/info`）。
+     *
+     * 文档约定：客户端只持久化 Token，昵称 / VIP 等资料在启动时用本接口拉取，避免本地缓存过期。
+     * 服务端在 Token 失效时返回 `401`，因此这里把 401/403 显式区分为 [UserInfoResult.Unauthorized]：
+     * 只有这种情况才允许清除本地登录态，网络异常等一律保留会话。
+     */
+    suspend fun getUserInfo(): UserInfoResult {
+        val authToken = token
+        if (authToken.isNullOrBlank()) {
+            return UserInfoResult.Unauthorized("未登录")
+        }
+        return try {
+            val response = client.get("$baseUrl/api/user/info") {
+                header("Authorization", authToken)
+            }
+            val body = response.body<UserInfoResponse>()
+            val user = body.data?.user
+            if (body.success && user != null) {
+                UserInfoResult.Ok(user)
+            } else {
+                UserInfoResult.Err(body.message.ifBlank { "获取用户信息失败" })
+            }
+        } catch (e: ClientRequestException) {
+            val status = e.response.status
+            if (status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden) {
+                Log.w("UserApi", "用户信息接口返回 HTTP ${status.value}，登录态已失效")
+                UserInfoResult.Unauthorized("登录状态失效")
+            } else {
+                Log.e("UserApi", "获取用户信息失败: HTTP ${status.value}", e)
+                UserInfoResult.Err("HTTP ${status.value}")
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "获取用户信息异常", e)
+            UserInfoResult.Err("网络错误: ${e.message}")
         }
     }
 
@@ -544,6 +583,31 @@ data class LoginData(
     val user: UserData,
     val token: String
 )
+
+/** `GET /api/user/info` 响应，`data.user` 与登录接口的 `data.user` 结构一致。 */
+@Serializable
+data class UserInfoResponse(
+    val success: Boolean,
+    val message: String = "",
+    val data: UserInfoData? = null
+)
+
+@Serializable
+data class UserInfoData(
+    val user: UserData
+)
+
+/**
+ * [UserApi.getUserInfo] 的语义化结果。
+ *
+ * 只有 [Unauthorized] 表示服务端明确判定 Token 失效（HTTP 401/403），
+ * 调用方据此清理登录态；[Err] 仅是网络/数据问题，不得影响登录态。
+ */
+sealed interface UserInfoResult {
+    data class Ok(val user: UserData) : UserInfoResult
+    data class Unauthorized(val message: String) : UserInfoResult
+    data class Err(val message: String) : UserInfoResult
+}
 
 @Serializable
 data class UserData(
