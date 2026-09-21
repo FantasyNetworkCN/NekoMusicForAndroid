@@ -677,6 +677,7 @@ fun PlayerScreen(
                                     Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.fillMaxSize(),
+                                bottomReserve = bottomGlassReserve,
                             )
                         }
 

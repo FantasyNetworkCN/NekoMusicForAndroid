@@ -755,4 +755,5 @@
     <string name="comment_time_minutes_format">%1$d min ago</string>
     <string name="comment_time_hours_format">%1$d h ago</string>
     <string name="comment_time_days_format">%1$d d ago</string>
+    <string name="comment_no_more">No more comments</string>
 </resources>
