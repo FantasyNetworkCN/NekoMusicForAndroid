@@ -277,10 +277,11 @@ fun PlayerScreen(
     val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val isFavorite by playerManager.isFavorite.collectAsState()
     val pagerState = rememberPagerState(
-        initialPage = 0,
-        pageCount = { 2 },
+        // 0 = 评论，1 = 封面，2 = 歌词
+        initialPage = 1,
+        pageCount = { 3 },
     )
-    val showLyrics = pagerState.currentPage == 1
+    val showLyrics = pagerState.currentPage == 2
     val playMode by playerManager.playMode.collectAsState()
     val playbackSpeed by playerManager.playbackSpeed.collectAsState()
     val sleepTimerMinutes by playerManager.sleepTimerMinutes.collectAsState()
@@ -657,7 +658,7 @@ fun PlayerScreen(
             // 顶栏移到 layerBackdrop 外以 GlassSurface 叠放，避免顶栏被录进底图导致玻璃无折射层次
             Spacer(modifier = Modifier.height(64.dp))
 
-                // 封面和歌词是同一个横向分页容器，避免点击内容触发页面导航。
+                // 评论 / 封面 / 歌词是同一个横向分页容器，避免点击内容触发页面导航。
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
@@ -667,7 +668,20 @@ fun PlayerScreen(
                     beyondViewportPageCount = 1,
                 ) { page ->
                     when (page) {
+                        // 左侧：评论页
                         0 -> {
+                            CommentPage(
+                                musicId = currentMusic.id,
+                                isDarkTheme = isDarkTheme,
+                                onRequestLogin = {
+                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        // 中间：封面
+                        1 -> {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -735,7 +749,8 @@ fun PlayerScreen(
                             }
                         }
 
-                        1 -> {
+                        // 右侧：歌词
+                        2 -> {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 androidx.compose.runtime.LaunchedEffect(Unit) {
                                     com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
@@ -1437,7 +1452,7 @@ private fun PlayerPageIndicator(
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        repeat(2) { index ->
+        repeat(3) { index ->
             Box(
                 modifier = Modifier
                     .size(if (index == currentPage) 6.dp else 5.dp)
