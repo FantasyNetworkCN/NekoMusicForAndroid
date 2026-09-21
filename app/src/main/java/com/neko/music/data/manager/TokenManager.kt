@@ -50,6 +50,17 @@ class TokenManager(context: Context) {
         editor.apply()
     }
 
+    /**
+     * 用服务端最新资料刷新本地缓存的昵称 / 邮箱 / VIP 状态（Token 不变）。
+     *
+     * 登录态是否有效由服务端判定（`GET /api/user/info` 的 401），本地缓存只用于首屏快速展示。
+     */
+    fun updateProfile(nickname: String, email: String, isVip: Boolean, vipExpiresAt: String?) {
+        editor.putString(KEY_NICKNAME, nickname)
+        editor.putString(KEY_EMAIL, email)
+        updateVipStatus(isVip, vipExpiresAt)
+    }
+
     fun updateVipStatus(isVip: Boolean, vipExpiresAt: String?) {
         editor.putBoolean(KEY_IS_VIP, isVip)
         if (vipExpiresAt.isNullOrBlank()) {
