@@ -749,4 +749,5 @@
     <string name="comment_time_minutes_format">%1$d 分钟前</string>
     <string name="comment_time_hours_format">%1$d 小时前</string>
     <string name="comment_time_days_format">%1$d 天前</string>
+    <string name="comment_no_more">没有更多评论了</string>
 </resources>

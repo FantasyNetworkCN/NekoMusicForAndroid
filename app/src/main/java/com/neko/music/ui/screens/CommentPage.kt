@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,6 +28,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -49,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -79,12 +85,15 @@ private data class DeleteTarget(val id: Int, val isFloor: Boolean, val replyCoun
  *
  * 打开 / 关闭动画与手势由 [com.neko.music.ui.screens.PlayerScreen] 负责，这里只画玻璃面板本身。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentPage(
     musicId: Int,
     isDarkTheme: Boolean,
     onRequestLogin: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 播放页底部控制条预留高度：键盘弹起时用它算出「还需要再往上顶多少」。 */
+    bottomReserve: Dp = 196.dp,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,6 +107,7 @@ fun CommentPage(
     var hasMore by remember(musicId) { mutableStateOf(false) }
     var isLoading by remember(musicId) { mutableStateOf(false) }
     var isLoadingMore by remember(musicId) { mutableStateOf(false) }
+    var isRefreshing by remember(musicId) { mutableStateOf(false) }
     var loadFailed by remember(musicId) { mutableStateOf(false) }
     var draft by remember(musicId) { mutableStateOf("") }
     var replyTarget by remember(musicId) { mutableStateOf<ReplyTarget?>(null) }
@@ -113,8 +123,8 @@ fun CommentPage(
         if (isDarkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.06f)
     val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.07f)
 
-    suspend fun loadComments(reset: Boolean) {
-        if (isLoading || isLoadingMore) return
+    suspend fun loadComments(reset: Boolean, force: Boolean = false) {
+        if (!force && (isLoading || isLoadingMore)) return
         if (!reset && !hasMore) return
         val targetPage = if (reset) 1 else loadedPage + 1
         if (reset) {
@@ -233,7 +243,12 @@ fun CommentPage(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().imePadding()) {
+    // 键盘弹起时，页面底部本来就有 bottomReserve 的留白；只补「键盘比它高出来的那部分」，
+    // 否则输入框会被抬起 bottomReserve（输入法与输入框之间露出一大段空隙）。
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    val keyboardLift = (imeBottom - bottomReserve).coerceAtLeast(0.dp)
+
+    Column(modifier = modifier.fillMaxSize().padding(bottom = keyboardLift)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -264,7 +279,18 @@ fun CommentPage(
                 .background(dividerColor)
         )
 
-        Box(modifier = Modifier.weight(1f)) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    loadComments(reset = true, force = true)
+                    isRefreshing = false
+                }
+            },
+            state = rememberPullToRefreshState(),
+            modifier = Modifier.weight(1f),
+        ) {
             when {
                 isLoading && comments.isEmpty() -> {
                     Box(
@@ -279,34 +305,41 @@ fun CommentPage(
                     }
                 }
 
+                // 用 LazyColumn 撑满，空态时也能下拉刷新
                 comments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = when {
-                                    musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
-                                    loadFailed -> stringResource(id = R.string.comment_load_failed)
-                                    else -> stringResource(id = R.string.comment_empty)
-                                },
-                                fontSize = 13.sp,
-                                color = textSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                            if (loadFailed && musicId >= 0) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Text(
-                                    text = stringResource(id = R.string.retry),
-                                    fontSize = 13.sp,
-                                    color = RoseRed,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { scope.launch { loadComments(reset = true) } }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                )
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxSize()
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = when {
+                                            musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
+                                            loadFailed -> stringResource(id = R.string.comment_load_failed)
+                                            else -> stringResource(id = R.string.comment_empty)
+                                        },
+                                        fontSize = 13.sp,
+                                        color = textSecondary,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
+                                    if (loadFailed && musicId >= 0) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.retry),
+                                            fontSize = 13.sp,
+                                            color = RoseRed,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable { scope.launch { loadComments(reset = true) } }
+                                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -367,7 +400,7 @@ fun CommentPage(
                                     )
 
                                     else -> Text(
-                                        text = stringResource(id = R.string.comment_empty),
+                                        text = stringResource(id = R.string.comment_no_more),
                                         fontSize = 12.sp,
                                         color = textSecondary.copy(alpha = 0.7f),
                                         modifier = Modifier.padding(vertical = 8.dp),
