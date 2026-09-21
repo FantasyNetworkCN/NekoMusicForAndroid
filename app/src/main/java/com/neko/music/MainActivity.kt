@@ -529,6 +529,7 @@ fun MainScreen() {
             is com.neko.music.data.api.UserInfoResult.Ok -> {
                 val user = result.user
                 tokenManager.updateProfile(
+                    userId = user.id,
                     nickname = user.nickname,
                     email = user.email,
                     isVip = user.isVip,
