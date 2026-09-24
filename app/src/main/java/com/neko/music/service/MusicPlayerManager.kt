@@ -287,6 +287,8 @@ class MusicPlayerManager private constructor(context: Context) {
 
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
     private var sleepTimerEndTime: Long = 0
+    /** 定时器已到期，但要等当前曲目自然播放完再停止。 */
+    private var sleepTimerWaitingForTrackEnd = false
 
     private val _sleepTimerMinutes = MutableStateFlow(0)
     val sleepTimerMinutes: StateFlow<Int> = _sleepTimerMinutes.asStateFlow()
@@ -296,6 +298,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
     fun setSleepTimer(minutes: Int) {
         sleepTimerJob?.cancel()
+        sleepTimerWaitingForTrackEnd = false
         _sleepTimerMinutes.value = minutes
 
         if (minutes > 0) {
@@ -305,11 +308,22 @@ class MusicPlayerManager private constructor(context: Context) {
                 while (true) {
                     val remaining = sleepTimerEndTime - System.currentTimeMillis()
                     if (remaining <= 0) {
-                        pause()
+                        sleepTimerWaitingForTrackEnd = player.isPlaying
+                        if (!sleepTimerWaitingForTrackEnd) {
+                            // 当前没有正在播放的曲目，不需要等待结束回调。
+                            pause()
+                        }
                         _sleepTimerMinutes.value = 0
                         _sleepTimerRemainingSeconds.value = 0
                         sleepTimerEndTime = 0
-                        Log.d("MusicPlayerManager", "定时关闭已触发")
+                        Log.d(
+                            "MusicPlayerManager",
+                            if (sleepTimerWaitingForTrackEnd) {
+                                "定时关闭已触发，等待当前曲目播放完成"
+                            } else {
+                                "定时关闭已触发"
+                            }
+                        )
                         break
                     }
                     _sleepTimerRemainingSeconds.value = (remaining / 1000).toInt()
@@ -746,6 +760,13 @@ class MusicPlayerManager private constructor(context: Context) {
                         _isPlaying.value = false
                         player.seekTo(0)
                         updatePlaybackState()
+
+                        if (sleepTimerWaitingForTrackEnd) {
+                            sleepTimerWaitingForTrackEnd = false
+                            Log.d("MusicPlayerManager", "当前曲目播放完成，执行定时关闭")
+                            pause()
+                            return
+                        }
 
                         // 根据播放模式自动切歌（直接调用 next() 方法）
                         when (_playMode.value) {
