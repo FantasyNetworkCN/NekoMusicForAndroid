@@ -341,15 +341,19 @@ fun MyPlaylistsScreen(
     var qqPlaylistId by remember { mutableStateOf("") }
     var showKugouPlaylistIdDialog by remember { mutableStateOf(false) }
     var kugouPlaylistId by remember { mutableStateOf("") }
+    var showQishuiPlaylistIdDialog by remember { mutableStateOf(false) }
+    var qishuiPlaylistId by remember { mutableStateOf("") }
     var importDestination by remember { mutableStateOf<ImportDestination?>(null) }
     var importNewPlaylistName by remember { mutableStateOf("") }
     var isNeteaseImportLoading by remember { mutableStateOf(false) }
     var isQqImportLoading by remember { mutableStateOf(false) }
     var isKugouImportLoading by remember { mutableStateOf(false) }
+    var isQishuiImportLoading by remember { mutableStateOf(false) }
     var importProgress by remember { mutableStateOf(ImportProgress()) }
     val importNeteaseProcessing = stringResource(R.string.import_netease_processing)
     val importQqProcessing = stringResource(R.string.import_netease_processing)
     val importKugouProcessing = stringResource(R.string.import_netease_processing)
+    val importQishuiProcessing = stringResource(R.string.import_netease_processing)
     val importNewPlaylistLabel = stringResource(R.string.import_destination_new_playlist)
 
     val importDestinationOptions = remember(playlists, importNewPlaylistLabel) {
@@ -712,6 +716,13 @@ fun MyPlaylistsScreen(
                     importNewPlaylistName = ""
                     showKugouPlaylistIdDialog = true
                 },
+                onQishuiClick = {
+                    showImportSourceDialog = false
+                    qishuiPlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                    showQishuiPlaylistIdDialog = true
+                },
                 onDismiss = { showImportSourceDialog = false },
             )
         }
@@ -1038,6 +1049,86 @@ fun MyPlaylistsScreen(
                     if (isKugouImportLoading) return@PlaylistIdDialog
                     showKugouPlaylistIdDialog = false
                     kugouPlaylistId = ""
+                    importDestination = null
+                    importNewPlaylistName = ""
+                },
+            )
+        }
+
+        TopLevelImportDialogVisibility(visible = showQishuiPlaylistIdDialog) {
+            PlaylistIdDialog(
+                playlistId = qishuiPlaylistId,
+                destinationOptions = importDestinationOptions,
+                selectedDestination = importDestination,
+                newPlaylistName = importNewPlaylistName,
+                isLoading = isQishuiImportLoading,
+                loadingText = importLoadingText(importQishuiProcessing, importProgress),
+                progressFraction = importProgress.fraction,
+                detailText = importDetailText(importProgress),
+                sampleBackdrop = pageBackdrop,
+                dialogTitleText = stringResource(R.string.import_qishui_playlist_title),
+                idHintText = stringResource(R.string.qishui_playlist_id_hint),
+                onIdChange = { qishuiPlaylistId = it },
+                onDestinationChange = { importDestination = it },
+                onNewPlaylistNameChange = { importNewPlaylistName = it },
+                onConfirm = {
+                    val sourceId = qishuiPlaylistId.trim()
+                    if (sourceId.isEmpty() || sourceId.length > 2048) {
+                        Toast.makeText(context, context.getString(R.string.import_qishui_playlist_id_invalid), Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    val destination = importDestination
+                    val targetPlaylistId = (destination as? ImportDestination.UserPlaylist)?.id
+                    val targetPlaylistName = (destination as? ImportDestination.NewPlaylist)
+                        ?.let { importNewPlaylistName.trim() }?.takeIf { it.isNotEmpty() }
+                    val token = tokenManager.getToken()
+                    if (token == null) {
+                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    if (destination == null) {
+                        Toast.makeText(context, context.getString(R.string.import_destination_label), Toast.LENGTH_SHORT).show()
+                        return@PlaylistIdDialog
+                    }
+                    scope.launch {
+                        isQishuiImportLoading = true
+                        importProgress = ImportProgress()
+                        try {
+                            externalPullApi.pull(
+                                source = ExternalPlaylistPullApi.SOURCE_QISHUI,
+                                externalPlaylistId = sourceId,
+                                targetPlaylistId = targetPlaylistId,
+                                targetPlaylistName = targetPlaylistName,
+                                token = token,
+                                callbacks = ExternalPullCallbacks(
+                                    onStart = { start -> importProgress = ImportProgress(total = start.total) },
+                                    onTrack = { track -> importProgress = applyPullTrack(importProgress, track) },
+                                    onProgress = { progress -> importProgress = applyPullProgress(importProgress, progress) },
+                                    onDone = { summary ->
+                                        showImportSummaryToast(context, summary.imported + summary.existed, summary.failed)
+                                        scope.launch { refreshData() }
+                                    },
+                                    onError = { message ->
+                                        Toast.makeText(context, context.getString(R.string.import_netease_import_failed, message), Toast.LENGTH_LONG).show()
+                                    },
+                                ),
+                            ).also { result ->
+                                if (result.isSuccess) {
+                                    showQishuiPlaylistIdDialog = false
+                                    qishuiPlaylistId = ""
+                                    importDestination = null
+                                    importNewPlaylistName = ""
+                                }
+                            }
+                        } finally {
+                            isQishuiImportLoading = false
+                        }
+                    }
+                },
+                onDismiss = {
+                    if (isQishuiImportLoading) return@PlaylistIdDialog
+                    showQishuiPlaylistIdDialog = false
+                    qishuiPlaylistId = ""
                     importDestination = null
                     importNewPlaylistName = ""
                 },
@@ -1378,12 +1469,14 @@ private fun ImportPlaylistSourceDialog(
     onNeteaseClick: () -> Unit,
     onQqClick: () -> Unit,
     onKugouClick: () -> Unit,
+    onQishuiClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val title = stringResource(R.string.import_playlist_source_title)
     val neteaseLabel = stringResource(R.string.import_source_netease)
     val qqLabel = stringResource(R.string.import_source_qq)
     val kugouLabel = stringResource(R.string.import_source_kugou)
+    val qishuiLabel = stringResource(R.string.import_source_qishui)
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
     val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
@@ -1441,6 +1534,15 @@ private fun ImportPlaylistSourceDialog(
                     isDark = isDark,
                     textColor = titleColor,
                     onClick = onKugouClick,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ImportSourceOptionRow(
+                    label = qishuiLabel,
+                    sampleBackdrop = sampleBackdrop,
+                    optionGlass = optionGlass,
+                    isDark = isDark,
+                    textColor = titleColor,
+                    onClick = onQishuiClick,
                 )
             }
         }

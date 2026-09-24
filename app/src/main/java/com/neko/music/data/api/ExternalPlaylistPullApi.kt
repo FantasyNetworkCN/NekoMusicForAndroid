@@ -77,6 +77,7 @@ class ExternalPlaylistPullApi {
         const val SOURCE_NETEASE = "netease"
         const val SOURCE_QQ = "qq"
         const val SOURCE_KUGOU = "kugou"
+        const val SOURCE_QISHUI = "qishui"
     }
 
     private val json = Json {
@@ -243,6 +244,7 @@ class ExternalPlaylistPullApi {
             val idParam = when (source) {
                 SOURCE_QQ -> "disstid"
                 SOURCE_KUGOU -> "listid"
+                SOURCE_QISHUI -> "playlist_id"
                 else -> "playlistId"
             }
             parameters.append(idParam, externalPlaylistId)
