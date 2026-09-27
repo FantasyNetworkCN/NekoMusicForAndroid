@@ -116,6 +116,7 @@
     <string name="pause">暂停</string>
     <string name="previous">上一首</string>
     <string name="next">下一首</string>
+    <string name="audio_quality_standard">标准</string>
     <string name="favorite">收藏</string>
     <string name="unfavorite">取消收藏</string>
     

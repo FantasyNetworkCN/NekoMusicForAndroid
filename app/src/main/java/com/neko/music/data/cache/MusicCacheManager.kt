@@ -80,7 +80,7 @@ private fun ensureCacheDirs() {
     /**
      * 获取音乐文件缓存路径
      */
-    fun getCachedMusicFile(musicId: Int): File? {
+    fun getCachedMusicFile(musicId: Int, quality: String = "hq"): File? {
         if (!isCacheEnabled()) return null
 
         // 检查是否正在缓存中
@@ -91,8 +91,9 @@ private fun ensureCacheDirs() {
         }
 
         // 从 SharedPreferences 获取该音乐的扩展名
-        val extension = prefs.getString("music_${musicId}_ext", "mp3") ?: "mp3"
-        val fileName = "music_$musicId.$extension"
+        val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
+        val extension = prefs.getString("music_${musicId}_${normalizedQuality}_ext", "mp3") ?: "mp3"
+        val fileName = "music_${musicId}_${normalizedQuality}.$extension"
         val file = File(musicDir, fileName)
 
         // 检查文件是否存在且大小合理（至少 1KB）
@@ -149,7 +150,7 @@ private fun ensureCacheDirs() {
     /**
      * 缓存音乐文件
      */
-    suspend fun cacheMusicFile(musicId: Int, url: String, title: String = "", artist: String = ""): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun cacheMusicFile(musicId: Int, url: String, title: String = "", artist: String = "", quality: String = "hq"): Result<File> = withContext(Dispatchers.IO) {
         if (!isCacheEnabled()) {
             return@withContext Result.failure(Exception("缓存未启用"))
         }
@@ -164,15 +165,16 @@ private fun ensureCacheDirs() {
                 .apply()
 
             // 下载文件并获取扩展名
-            val (extension, file) = downloadFileWithExtension(url, musicId)
+            val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
+            val (extension, file) = downloadFileWithExtension(url, musicId, normalizedQuality)
 
             // 记录缓存信息
             prefs.edit()
-                .putLong("music_${musicId}_time", System.currentTimeMillis())
-                .putLong("music_${musicId}_size", file.length())
-                .putString("music_${musicId}_title", title)
-                .putString("music_${musicId}_artist", artist)
-                .putString("music_${musicId}_ext", extension)
+                .putLong("music_${musicId}_${normalizedQuality}_time", System.currentTimeMillis())
+                .putLong("music_${musicId}_${normalizedQuality}_size", file.length())
+                .putString("music_${musicId}_${normalizedQuality}_title", title)
+                .putString("music_${musicId}_${normalizedQuality}_artist", artist)
+                .putString("music_${musicId}_${normalizedQuality}_ext", extension)
                 .putBoolean("music_${musicId}_caching", false)
                 .apply()
 
@@ -184,7 +186,7 @@ private fun ensureCacheDirs() {
                 .putBoolean("music_${musicId}_caching", false)
                 .apply()
             // 删除可能存在的不完整文件
-            musicDir.listFiles()?.filter { it.name.startsWith("music_$musicId.") }?.forEach { it.delete() }
+            musicDir.listFiles()?.filter { it.name.startsWith("music_${musicId}_") }?.forEach { it.delete() }
             Log.e(TAG, "缓存音乐文件失败: $musicId", e)
             Result.failure(e)
         }
@@ -448,7 +450,7 @@ private fun ensureCacheDirs() {
     /**
      * 下载文件并从 Content-Type 获取扩展名
      */
-    private fun downloadFileWithExtension(urlString: String, musicId: Int): Pair<String, File> {
+    private fun downloadFileWithExtension(urlString: String, musicId: Int, quality: String): Pair<String, File> {
         val url = URL(urlString)
         val connection = url.openConnection() as HttpURLConnection
         connection.connectTimeout = 30000
@@ -462,7 +464,7 @@ private fun ensureCacheDirs() {
         Log.d(TAG, "Content-Type: $contentType, 扩展名: $extension")
 
         // 创建具有正确扩展名的文件
-        val file = File(musicDir, "music_$musicId.$extension")
+        val file = File(musicDir, "music_${musicId}_${quality}.$extension")
 
         connection.inputStream.use { input ->
             FileOutputStream(file).use { output ->

@@ -117,6 +117,7 @@
     <string name="pause">Pause</string>
     <string name="previous">Previous</string>
     <string name="next">Next</string>
+    <string name="audio_quality_standard">Standard</string>
     <string name="favorite">Favorite</string>
     <string name="unfavorite">Unfavorite</string>
     

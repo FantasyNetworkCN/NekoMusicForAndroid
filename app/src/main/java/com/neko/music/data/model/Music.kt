@@ -16,6 +16,7 @@ data class Music(
     val playCount: Int? = null,
     /** 是否有有效歌词（单条 query 搜索响应字段） */
     val lrc: Boolean = false,
+    val maxQuality: String? = null,
     val albumArtist: String? = null,
     val composer: String? = null,
     val genre: String? = null,

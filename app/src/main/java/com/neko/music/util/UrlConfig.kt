@@ -23,7 +23,14 @@ object UrlConfig {
      * 获取音乐文件URL
      * @param musicId 音乐ID
      */
-    fun getMusicFileUrl(musicId: Int): String = "${BASE_URL}/api/music/file/$musicId"
+    fun getMusicFileUrl(musicId: Int, quality: String? = null): String {
+        val normalized = quality?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        return if (normalized == null) {
+            "${BASE_URL}/api/music/file/$musicId"
+        } else {
+            "${BASE_URL}/api/music/file/$musicId?quality=$normalized"
+        }
+    }
 
     fun isLocalUri(value: String?): Boolean {
         if (value.isNullOrBlank()) return false

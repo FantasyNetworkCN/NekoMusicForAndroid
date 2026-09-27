@@ -132,6 +132,7 @@ import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.PlayMode
+import com.neko.music.service.AudioQuality
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
@@ -263,6 +264,7 @@ fun PlayerScreen(
     val currentMusicArtist by playerManager.currentMusicArtist.collectAsState()
     val currentMusicCover by playerManager.currentMusicCover.collectAsState()
     val currentMusicUrl by playerManager.currentMusicUrl.collectAsState()
+    val audioQuality by playerManager.audioQuality.collectAsState()
 
     // 检查登录状态
     val isLoggedIn = tokenManager.isLoggedIn()
@@ -384,6 +386,16 @@ fun PlayerScreen(
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
     val isDarkTheme = isSystemInDarkTheme()
+    var maxQuality by remember { mutableStateOf("hq") }
+    val qualityMusicId = currentMusicId ?: music.id
+
+    LaunchedEffect(qualityMusicId) {
+        maxQuality = if (qualityMusicId > 0) {
+            musicApi.getMusicInfo(qualityMusicId).getOrNull()?.maxQuality?.lowercase() ?: "hq"
+        } else {
+            "standard"
+        }
+    }
 
     // 分享面板打开后再拉歌单，避免点击菜单被网络阻塞导致「卡一下才弹出」
     LaunchedEffect(showShareDialog) {
@@ -858,7 +870,10 @@ fun PlayerScreen(
                             onPreviousClick = { playerManager.previous() },
                             onNextClick = { playerManager.next() },
                             onPlaylistClick = onPlaylistClick,
-                            onPlayModeClick = { playerManager.togglePlayMode() }
+                            onPlayModeClick = { playerManager.togglePlayMode() },
+                            audioQuality = audioQuality,
+                            maxQuality = maxQuality,
+                            onAudioQualityChange = { playerManager.setAudioQuality(it) }
                         )
                     }
                 }
@@ -2385,7 +2400,10 @@ fun ProgressSlider(
             onPreviousClick: () -> Unit,
             onNextClick: () -> Unit,
             onPlaylistClick: () -> Unit,
-            onPlayModeClick: () -> Unit
+            onPlayModeClick: () -> Unit,
+            audioQuality: AudioQuality,
+            maxQuality: String,
+            onAudioQualityChange: (AudioQuality) -> Unit
         ) {
             val isDarkTheme = isSystemInDarkTheme()
             val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurface
@@ -2507,9 +2525,64 @@ fun ProgressSlider(
                             modifier = Modifier.size(22.dp)
                         )
                     }
+                    AudioQualitySelector(
+                        selected = audioQuality,
+                        maxQuality = maxQuality,
+                        onSelected = onAudioQualityChange
+                    )
                 }
             }
         }
+
+@Composable
+private fun AudioQualitySelector(
+    selected: AudioQuality,
+    maxQuality: String,
+    onSelected: (AudioQuality) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val maxRank = when (maxQuality.lowercase()) {
+        "standard" -> 0
+        "sq" -> 2
+        "hires" -> 3
+        else -> 1
+    }
+    Box {
+        Text(
+            text = when (selected) {
+                AudioQuality.STANDARD -> "标准"
+                AudioQuality.HQ -> "HQ"
+                AudioQuality.SQ -> "SQ"
+                AudioQuality.HIRES -> "Hi-Res"
+            },
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            AudioQuality.entries.forEachIndexed { index, quality ->
+                DropdownMenuItem(
+                    text = {
+                        Text(when (quality) {
+                            AudioQuality.STANDARD -> "标准"
+                            AudioQuality.HQ -> "HQ"
+                            AudioQuality.SQ -> "SQ"
+                            AudioQuality.HIRES -> "Hi-Res"
+                        })
+                    },
+                    enabled = index <= maxRank,
+                    onClick = {
+                        expanded = false
+                        onSelected(quality)
+                    }
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ShareDialog(
