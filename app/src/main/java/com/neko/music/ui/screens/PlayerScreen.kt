@@ -63,6 +63,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
@@ -2550,21 +2551,42 @@ private fun AudioQualitySelector(
         "hires" -> 3
         else -> 1
     }
+    val selectedLabel = when (selected) {
+        AudioQuality.STANDARD -> "标准"
+        AudioQuality.HQ -> "HQ"
+        AudioQuality.SQ -> "SQ"
+        AudioQuality.HIRES -> "Hi-Res"
+    }
     Box {
-        Text(
-            text = when (selected) {
-                AudioQuality.STANDARD -> "标准"
-                AudioQuality.HQ -> "HQ"
-                AudioQuality.SQ -> "SQ"
-                AudioQuality.HIRES -> "Hi-Res"
-            },
+        Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
                 .clickable { expanded = true }
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.72f),
+                    shape = RoundedCornerShape(9.dp)
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                    shape = RoundedCornerShape(9.dp)
+                )
+                .padding(horizontal = 9.dp, vertical = 5.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = selectedLabel,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             AudioQuality.entries.forEachIndexed { index, quality ->
                 DropdownMenuItem(
