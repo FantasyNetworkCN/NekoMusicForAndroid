@@ -396,6 +396,7 @@ fun PlayerScreen(
         } else {
             "standard"
         }
+        playerManager.updateMusicMaxQuality(maxQuality)
     }
 
     // 分享面板打开后再拉歌单，避免点击菜单被网络阻塞导致「卡一下才弹出」
