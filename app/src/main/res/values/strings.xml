@@ -113,6 +113,7 @@
     <string name="pause">停一下喵</string>
     <string name="previous">前一只喵</string>
     <string name="next">下一只喵</string>
+    <string name="audio_quality_standard">标准</string>
     <string name="favorite">心动喵</string>
     <string name="unfavorite">不心动了喵</string>
 

@@ -2,6 +2,7 @@ package com.neko.music.service
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Bitmap
 import android.os.PowerManager
 import android.support.v4.media.session.MediaSessionCompat
@@ -41,6 +42,14 @@ enum class PlayMode {
     SHUFFLE       // 随机播放
 }
 
+enum class AudioQuality(val id: String) {
+    STANDARD("standard"), HQ("hq"), SQ("sq"), HIRES("hires");
+
+    companion object {
+        fun from(value: String?): AudioQuality = entries.firstOrNull { it.id == value?.trim()?.lowercase() } ?: HQ
+    }
+}
+
 class MusicPlayerManager private constructor(context: Context) {
     
     private val playlistManager = PlaylistManager.getInstance(context)
@@ -64,6 +73,7 @@ class MusicPlayerManager private constructor(context: Context) {
     private val prefs = appContext.getSharedPreferences("player_prefs", Context.MODE_PRIVATE)
     private val KEY_PLAY_MODE = "play_mode"
     private val KEY_SHUFFLE_STATE = "shuffle_state"
+    private val KEY_AUDIO_QUALITY = "audio_quality"
     
     private val player = ExoPlayer.Builder(context).build().apply {
         // 设置音频属性，确保后台播放
@@ -251,6 +261,30 @@ class MusicPlayerManager private constructor(context: Context) {
 
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
+    private val _audioQuality = MutableStateFlow(
+        AudioQuality.from(prefs.getString(KEY_AUDIO_QUALITY, AudioQuality.HQ.id))
+    )
+    val audioQuality: StateFlow<AudioQuality> = _audioQuality.asStateFlow()
+
+    fun setAudioQuality(quality: AudioQuality) {
+        if (_audioQuality.value == quality)
+            return
+        _audioQuality.value = quality
+        prefs.edit().putString(KEY_AUDIO_QUALITY, quality.id).apply()
+
+        val id = _currentMusicId.value
+        if (id != null && id > 0) {
+            playMusic(
+                UrlConfig.getMusicFileUrl(id, quality.id),
+                id,
+                _currentMusicTitle.value,
+                _currentMusicArtist.value,
+                _currentMusicCover.value,
+                _currentMusicCover.value
+            )
+        }
+    }
 
     fun setPlaybackSpeed(speed: Float) {
         if (isReleased) {
@@ -1106,7 +1140,12 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun playMusic(url: String, id: Int? = null, title: String? = null, artist: String? = null, cover: String? = null, fullCoverUrl: String? = null) {
-        val normalizedUrl = if (UrlConfig.isLocalUri(url)) url else UrlConfig.buildFullUrl(url)
+        val baseUrl = if (UrlConfig.isLocalUri(url)) url else UrlConfig.buildFullUrl(url)
+        val normalizedUrl = if (id != null && id > 0 && baseUrl.contains("/api/music/file/")) {
+            UrlConfig.getMusicFileUrl(id, _audioQuality.value.id)
+        } else {
+            baseUrl
+        }
         Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$normalizedUrl")
         // 重置重试计数器
         retryCount = 0
@@ -1167,7 +1206,7 @@ class MusicPlayerManager private constructor(context: Context) {
             // 优先使用缓存文件
             val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
             val playUrl = if (id != null && !isLocalMusicId(id) && !UrlConfig.isLocalUri(normalizedUrl)) {
-                cacheManager.getCachedMusicFile(id)?.absolutePath ?: normalizedUrl
+                cacheManager.getCachedMusicFile(id, _audioQuality.value.id)?.absolutePath ?: normalizedUrl
             } else {
                 normalizedUrl
             }
@@ -1226,8 +1265,8 @@ class MusicPlayerManager private constructor(context: Context) {
                     
                     if (cacheManager.isCacheEnabled()) {
                         // 检查是否已缓存，如果没有则开始缓存
-                        if (cacheManager.getCachedMusicFile(id) == null) {
-                            cacheManager.cacheMusicFile(id, normalizedUrl, title, artist)
+                        if (cacheManager.getCachedMusicFile(id, _audioQuality.value.id) == null) {
+                            cacheManager.cacheMusicFile(id, normalizedUrl, title, artist, _audioQuality.value.id)
                                 .onSuccess { 
                                     Log.d("MusicPlayerManager", "音乐缓存成功: $title")
                                 }
@@ -1494,7 +1533,7 @@ class MusicPlayerManager private constructor(context: Context) {
         val lastPlayed = playlistManager.getLastPlayed()
         lastPlayed?.let { music ->
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
-            val url = musicApi.getMusicFileUrl(music)
+            val url = UrlConfig.getMusicFileUrl(music.id, _audioQuality.value.id)
             val fullCoverUrl = buildPlayableCoverUrl(music)
             
             _currentMusicUrl.value = url
