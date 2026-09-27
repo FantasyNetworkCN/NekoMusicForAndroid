@@ -74,6 +74,7 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_PLAY_MODE = "play_mode"
     private val KEY_SHUFFLE_STATE = "shuffle_state"
     private val KEY_AUDIO_QUALITY = "audio_quality"
+    private val KEY_PREFERRED_AUDIO_QUALITY = "preferred_audio_quality"
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
@@ -267,23 +268,56 @@ class MusicPlayerManager private constructor(context: Context) {
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
-    private val _audioQuality = MutableStateFlow(
-        AudioQuality.from(prefs.getString(KEY_AUDIO_QUALITY, AudioQuality.HQ.id))
+    private val initialQuality = AudioQuality.from(
+        prefs.getString(KEY_PREFERRED_AUDIO_QUALITY, prefs.getString(KEY_AUDIO_QUALITY, AudioQuality.HQ.id))
     )
+    private val _preferredAudioQuality = MutableStateFlow(
+        AudioQuality.from(prefs.getString(KEY_PREFERRED_AUDIO_QUALITY, initialQuality.id))
+    )
+    private val _audioQuality = MutableStateFlow(initialQuality)
     val audioQuality: StateFlow<AudioQuality> = _audioQuality.asStateFlow()
 
     fun setAudioQuality(quality: AudioQuality) {
+        _preferredAudioQuality.value = quality
+        prefs.edit()
+            .putString(KEY_PREFERRED_AUDIO_QUALITY, quality.id)
+            .putString(KEY_AUDIO_QUALITY, quality.id)
+            .apply()
         if (_audioQuality.value == quality)
             return
         val previousQuality = _audioQuality.value
         _audioQuality.value = quality
-        prefs.edit().putString(KEY_AUDIO_QUALITY, quality.id).apply()
 
         val id = _currentMusicId.value
         if (id != null && id > 0) {
             switchAudioQualityWithoutRestart(id, quality, previousQuality)
         }
     }
+
+    /** 根据当前歌曲支持的最高音质临时降级，歌曲能力恢复后自动回到用户偏好。 */
+    fun updateMusicMaxQuality(maxQuality: String?) {
+        if (maxQuality.isNullOrBlank()) return
+        val max = AudioQuality.from(maxQuality)
+        val preferred = _preferredAudioQuality.value
+        val target = if (qualityRank(preferred) > qualityRank(max)) max else preferred
+        if (_audioQuality.value == target) return
+
+        val previousQuality = _audioQuality.value
+        _audioQuality.value = target
+        val id = _currentMusicId.value
+        if (id != null && id > 0) {
+            switchAudioQualityWithoutRestart(id, target, previousQuality)
+        }
+    }
+
+    private fun qualityRank(quality: AudioQuality): Int = when (quality) {
+        AudioQuality.STANDARD -> 0
+        AudioQuality.HQ -> 1
+        AudioQuality.SQ -> 2
+        AudioQuality.HIRES -> 3
+    }
+
+    private fun qualityRank(value: String?): Int = qualityRank(AudioQuality.from(value))
 
     private fun switchAudioQualityWithoutRestart(
         musicId: Int,
