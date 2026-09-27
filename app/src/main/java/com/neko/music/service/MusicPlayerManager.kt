@@ -75,14 +75,19 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_SHUFFLE_STATE = "shuffle_state"
     private val KEY_AUDIO_QUALITY = "audio_quality"
     
-    private val player = ExoPlayer.Builder(context).build().apply {
+    private val player = createPlayer(context)
+    private var activePlayer: ExoPlayer = player
+    private var qualitySwitchPlayer: ExoPlayer? = null
+    private var qualitySwitchGeneration = 0
+
+    private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer = ExoPlayer.Builder(context).build().apply {
         // 设置音频属性，确保后台播放
         setAudioAttributes(
             com.google.android.exoplayer2.audio.AudioAttributes.Builder()
                 .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
                 .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
                 .build(),
-            true // handleAudioFocus = true
+            handleAudioFocus
         )
         // 设置唤醒模式，确保播放时 CPU 不会休眠
         setHandleAudioBecomingNoisy(true)
@@ -270,20 +275,66 @@ class MusicPlayerManager private constructor(context: Context) {
     fun setAudioQuality(quality: AudioQuality) {
         if (_audioQuality.value == quality)
             return
+        val previousQuality = _audioQuality.value
         _audioQuality.value = quality
         prefs.edit().putString(KEY_AUDIO_QUALITY, quality.id).apply()
 
         val id = _currentMusicId.value
         if (id != null && id > 0) {
-            playMusic(
-                UrlConfig.getMusicFileUrl(id, quality.id),
-                id,
-                _currentMusicTitle.value,
-                _currentMusicArtist.value,
-                _currentMusicCover.value,
-                _currentMusicCover.value
-            )
+            switchAudioQualityWithoutRestart(id, quality, previousQuality)
         }
+    }
+
+    private fun switchAudioQualityWithoutRestart(
+        musicId: Int,
+        quality: AudioQuality,
+        previousQuality: AudioQuality
+    ) {
+        val oldPlayer = activePlayer
+        val position = oldPlayer.currentPosition.coerceAtLeast(0L)
+        val wasPlaying = oldPlayer.isPlaying
+        val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
+        val generation = ++qualitySwitchGeneration
+
+        qualitySwitchPlayer?.release()
+        val candidate = createPlayer(appContext, handleAudioFocus = false)
+        qualitySwitchPlayer = candidate
+        candidate.volume = 0f
+        var handoffComplete = false
+        candidate.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state != Player.STATE_READY || generation != qualitySwitchGeneration || handoffComplete)
+                    return
+                handoffComplete = true
+                candidate.seekTo(position)
+                candidate.volume = 1f
+                if (wasPlaying)
+                    candidate.play()
+
+                activePlayer = candidate
+                qualitySwitchPlayer = null
+                oldPlayer.pause()
+                oldPlayer.stop()
+                oldPlayer.release()
+                candidate.addListener(playerListener)
+                _duration.value = candidate.duration
+                _currentMusicUrl.value = url
+                Log.d("MusicPlayerManager", "音质已无感切换: ${quality.id}, position=${position}ms")
+                updatePlaybackState()
+            }
+
+            override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
+                if (generation != qualitySwitchGeneration)
+                    return
+                Log.w("MusicPlayerManager", "新音质预加载失败，继续使用当前音质: ${quality.id}", error)
+                qualitySwitchPlayer = null
+                candidate.release()
+                _audioQuality.value = previousQuality
+                prefs.edit().putString(KEY_AUDIO_QUALITY, previousQuality.id).apply()
+            }
+        })
+        candidate.setMediaItem(MediaItem.fromUri(url))
+        candidate.prepare()
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -292,7 +343,7 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
         _playbackSpeed.value = speed
-        player.setPlaybackSpeed(speed)
+        activePlayer.setPlaybackSpeed(speed)
         Log.d("MusicPlayerManager", "播放速度设置为: $speed")
     }
 
@@ -310,7 +361,7 @@ class MusicPlayerManager private constructor(context: Context) {
         Log.d("MusicPlayerManager", "更新音频属性: 焦点锁定=$focusLockEnabled, 处理音频焦点=$handleAudioFocus")
 
         // 设置音频属性
-        player.setAudioAttributes(
+        activePlayer.setAudioAttributes(
             com.google.android.exoplayer2.audio.AudioAttributes.Builder()
                 .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
                 .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
@@ -342,7 +393,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 while (true) {
                     val remaining = sleepTimerEndTime - System.currentTimeMillis()
                     if (remaining <= 0) {
-                        sleepTimerWaitingForTrackEnd = player.isPlaying
+                        sleepTimerWaitingForTrackEnd = activePlayer.isPlaying
                         if (!sleepTimerWaitingForTrackEnd) {
                             // 当前没有正在播放的曲目，不需要等待结束回调。
                             pause()
@@ -722,12 +773,13 @@ class MusicPlayerManager private constructor(context: Context) {
     private var coverBitmap: Bitmap? = null
     /** 与 [coverBitmap] 对应的封面 URL，用于判断缓存位图是否仍适用于当前歌曲 */
     private var coverBitmapSourceUrl: String? = null
+    private lateinit var playerListener: Player.Listener
 
     init {
         // 设置 MediaSession 回调（如果 MediaSession 已初始化）
         setupMediaSessionCallback()
 
-        player.addListener(object : Player.Listener {
+        playerListener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 Log.d("MusicPlayerManager", "onIsPlayingChanged: isPlaying = $isPlaying")
                 if (!isReleased) {
@@ -753,12 +805,12 @@ class MusicPlayerManager private constructor(context: Context) {
                     // 延迟 500ms 后重试
                     mainHandler.postDelayed({
                         try {
-                            player.stop()
-                            player.clearMediaItems()
+                            activePlayer.stop()
+                            activePlayer.clearMediaItems()
                             val mediaItem = MediaItem.fromUri(currentUrl)
-                            player.setMediaItem(mediaItem)
-                            player.prepare()
-                            player.play()
+                            activePlayer.setMediaItem(mediaItem)
+                            activePlayer.prepare()
+                            activePlayer.play()
                         } catch (e: Exception) {
                             Log.e("MusicPlayerManager", "重试播放失败: ${e.message}", e)
                         }
@@ -780,9 +832,9 @@ class MusicPlayerManager private constructor(context: Context) {
                         Log.d("MusicPlayerManager", "ExoPlayer 正在缓冲数据...")
                     }
                     Player.STATE_READY -> {
-                        Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${player.duration} ms")
+                        Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${activePlayer.duration} ms")
                         if (!isReleased) {
-                            _duration.value = player.duration
+                            _duration.value = activePlayer.duration
                             // 音乐加载完成，预加载下一首
                             preloadNextMusic()
                         }
@@ -792,7 +844,7 @@ class MusicPlayerManager private constructor(context: Context) {
                         if (isReleased) return
 
                         _isPlaying.value = false
-                        player.seekTo(0)
+                        activePlayer.seekTo(0)
                         updatePlaybackState()
 
                         if (sleepTimerWaitingForTrackEnd) {
@@ -812,8 +864,8 @@ class MusicPlayerManager private constructor(context: Context) {
                                 } else {
                                     val currentUrl = _currentMusicUrl.value
                                     if (currentUrl != null) {
-                                        player.seekTo(0)
-                                        player.play()
+                                        activePlayer.seekTo(0)
+                                        activePlayer.play()
                                     }
                                 }
                             }
@@ -826,7 +878,8 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                 }
             }
-        })
+        }
+        activePlayer.addListener(playerListener)
 
         updatePlaybackState()
     }
@@ -849,7 +902,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 }
 
                 override fun onSeekTo(pos: Long) {
-                    player.seekTo(pos)
+                    activePlayer.seekTo(pos)
                 }
 
                 override fun onSkipToNext() {
@@ -986,7 +1039,7 @@ class MusicPlayerManager private constructor(context: Context) {
             coverBitmapSourceUrl = target
             val t2 = _currentMusicTitle.value ?: ""
             val a2 = _currentMusicArtist.value ?: ""
-            val d2 = player.duration.takeIf { it > 0 } ?: 0L
+            val d2 = activePlayer.duration.takeIf { it > 0 } ?: 0L
             mediaSession?.setMetadata(
                 buildSessionMetadataCompat(t2, a2, target, d2, bitmap)
             )
@@ -1023,8 +1076,8 @@ class MusicPlayerManager private constructor(context: Context) {
                 ).build()
             )
             .setState(
-                if (player.isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
-                player.currentPosition,
+                if (activePlayer.isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                activePlayer.currentPosition,
                 1.0f
             )
 
@@ -1037,7 +1090,7 @@ class MusicPlayerManager private constructor(context: Context) {
         val coverUrl = _currentMusicCover.value
 
         if (title.isNotEmpty() || artist.isNotEmpty()) {
-            val durationMs = player.duration.takeIf { it > 0 } ?: 0L
+            val durationMs = activePlayer.duration.takeIf { it > 0 } ?: 0L
 
             val bitmapForCover =
                 if (!coverUrl.isNullOrEmpty() && coverBitmapSourceUrl == coverUrl) coverBitmap else null
@@ -1054,8 +1107,8 @@ class MusicPlayerManager private constructor(context: Context) {
         updateJob = scope.launch {
             while (true) {
                 delay(100)
-                if (player.isPlaying) {
-                    _currentPosition.value = player.currentPosition
+                if (activePlayer.isPlaying) {
+                    _currentPosition.value = activePlayer.currentPosition
                 }
             }
         }
@@ -1073,8 +1126,8 @@ class MusicPlayerManager private constructor(context: Context) {
             // 获取 WakeLock 以保持 CPU 唤醒
             acquireWakeLock()
 
-            player.volume = 0f
-            player.play()
+            activePlayer.volume = 0f
+            activePlayer.play()
             _isPlaying.value = true
             startPositionUpdate()
             updatePlaybackState()
@@ -1083,9 +1136,9 @@ class MusicPlayerManager private constructor(context: Context) {
             val stepDelay = 300L / steps
             for (i in 1..steps) {
                 delay(stepDelay)
-                player.volume = i.toFloat() / steps
+                activePlayer.volume = i.toFloat() / steps
             }
-            player.volume = 1f
+            activePlayer.volume = 1f
         }
     }
     
@@ -1097,13 +1150,13 @@ class MusicPlayerManager private constructor(context: Context) {
             val stepDelay = 300L / steps
             for (i in steps downTo 1) {
                 delay(stepDelay)
-                player.volume = i.toFloat() / steps
+            activePlayer.volume = i.toFloat() / steps
             }
-            player.volume = 0f
-            player.pause()
+            activePlayer.volume = 0f
+            activePlayer.pause()
             _isPlaying.value = false
             stopPositionUpdate()
-            player.volume = 1f
+            activePlayer.volume = 1f
             updatePlaybackState()
 
             // 释放 WakeLock
@@ -1214,8 +1267,8 @@ class MusicPlayerManager private constructor(context: Context) {
             // 先停止当前播放，避免状态冲突
             try {
                 Log.d("MusicPlayerManager", "正在停止旧播放并清理队列...")
-                player.stop()
-                player.clearMediaItems()
+                activePlayer.stop()
+                activePlayer.clearMediaItems()
             } catch (e: Exception) {
                 Log.e("MusicPlayerManager", "停止播放失败: ${e.message}", e)
             }
@@ -1224,16 +1277,16 @@ class MusicPlayerManager private constructor(context: Context) {
             try {
                 Log.d("MusicPlayerManager", "正在设置 MediaItem 并准备播放: $playUrl")
                 val mediaItem = MediaItem.fromUri(playUrl)
-                player.setMediaItem(mediaItem)
-                player.prepare()
+                activePlayer.setMediaItem(mediaItem)
+                activePlayer.prepare()
             } catch (e: Exception) {
                 Log.e("MusicPlayerManager", "ExoPlayer 操作失败: ${e.message}", e)
                 // 如果准备失败，尝试重新设置
                 try {
                     Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $normalizedUrl")
                     val mediaItem = MediaItem.fromUri(normalizedUrl)
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
+                    activePlayer.setMediaItem(mediaItem)
+                    activePlayer.prepare()
                 } catch (e2: Exception) {
                     Log.e("MusicPlayerManager", "ExoPlayer 重试失败: ${e2.message}", e2)
                 }
@@ -1367,7 +1420,7 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun seekTo(position: Long) {
-        player.seekTo(position)
+        activePlayer.seekTo(position)
         _currentPosition.value = position
         updatePlaybackState()
     }
@@ -1553,8 +1606,8 @@ class MusicPlayerManager private constructor(context: Context) {
                 try {
                     Log.d("MusicPlayerManager", "正在主线程恢复最后播放的媒体源: $url")
                     val mediaItem = MediaItem.fromUri(url)
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
+                    activePlayer.setMediaItem(mediaItem)
+                    activePlayer.prepare()
                 } catch (e: Exception) {
                     Log.e("MusicPlayerManager", "恢复最后播放失败", e)
                 }
