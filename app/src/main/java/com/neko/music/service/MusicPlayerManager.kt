@@ -291,7 +291,6 @@ class MusicPlayerManager private constructor(context: Context) {
         previousQuality: AudioQuality
     ) {
         val oldPlayer = activePlayer
-        val position = oldPlayer.currentPosition.coerceAtLeast(0L)
         val wasPlaying = oldPlayer.isPlaying
         val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
         val generation = ++qualitySwitchGeneration
@@ -306,8 +305,8 @@ class MusicPlayerManager private constructor(context: Context) {
                 if (state != Player.STATE_READY || generation != qualitySwitchGeneration || handoffComplete)
                     return
                 handoffComplete = true
-                candidate.seekTo(position)
-                candidate.volume = 1f
+                val handoffPosition = oldPlayer.currentPosition.coerceAtLeast(0L)
+                candidate.seekTo(handoffPosition)
                 if (wasPlaying)
                     candidate.play()
 
@@ -316,10 +315,11 @@ class MusicPlayerManager private constructor(context: Context) {
                 oldPlayer.pause()
                 oldPlayer.stop()
                 oldPlayer.release()
+                candidate.volume = 1f
                 candidate.addListener(playerListener)
                 _duration.value = candidate.duration
                 _currentMusicUrl.value = url
-                Log.d("MusicPlayerManager", "音质已无感切换: ${quality.id}, position=${position}ms")
+                Log.d("MusicPlayerManager", "音质已无感切换: ${quality.id}, position=${handoffPosition}ms")
                 updatePlaybackState()
             }
 
