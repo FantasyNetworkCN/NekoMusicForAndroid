@@ -844,6 +844,20 @@ fun PlayerScreen(
 
                         if (showLyrics) Spacer(modifier = Modifier.height(6.dp))
 
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AudioQualitySelector(
+                                selected = audioQuality,
+                                maxQuality = maxQuality,
+                                onSelected = { playerManager.setAudioQuality(it) }
+                            )
+                        }
+
                         ProgressSlider(
                             progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
                             currentTime = currentTime,
@@ -870,10 +884,7 @@ fun PlayerScreen(
                             onPreviousClick = { playerManager.previous() },
                             onNextClick = { playerManager.next() },
                             onPlaylistClick = onPlaylistClick,
-                            onPlayModeClick = { playerManager.togglePlayMode() },
-                            audioQuality = audioQuality,
-                            maxQuality = maxQuality,
-                            onAudioQualityChange = { playerManager.setAudioQuality(it) }
+                            onPlayModeClick = { playerManager.togglePlayMode() }
                         )
                     }
                 }
@@ -2400,10 +2411,7 @@ fun ProgressSlider(
             onPreviousClick: () -> Unit,
             onNextClick: () -> Unit,
             onPlaylistClick: () -> Unit,
-            onPlayModeClick: () -> Unit,
-            audioQuality: AudioQuality,
-            maxQuality: String,
-            onAudioQualityChange: (AudioQuality) -> Unit
+            onPlayModeClick: () -> Unit
         ) {
             val isDarkTheme = isSystemInDarkTheme()
             val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.88f) else MaterialTheme.colorScheme.onSurface
@@ -2525,11 +2533,6 @@ fun ProgressSlider(
                             modifier = Modifier.size(22.dp)
                         )
                     }
-                    AudioQualitySelector(
-                        selected = audioQuality,
-                        maxQuality = maxQuality,
-                        onSelected = onAudioQualityChange
-                    )
                 }
             }
         }
