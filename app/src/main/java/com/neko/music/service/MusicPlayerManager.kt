@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.graphics.Bitmap
 import android.os.PowerManager
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
@@ -198,6 +199,16 @@ class MusicPlayerManager private constructor(context: Context) {
     fun getMediaSessionToken(): android.support.v4.media.session.MediaSessionCompat.Token? {
         return mediaSession?.sessionToken
     }
+
+    /**
+     * Registers a callback for notification updates after the artwork bitmap is decoded.
+     * Xiaomi HyperOS lock-screen controls generally prefer a concrete bitmap over a remote URI.
+     */
+    fun setMediaArtworkChangedListener(listener: (() -> Unit)?) {
+        mediaArtworkChangedListener = listener
+    }
+
+    fun getCurrentMediaArtwork(): Bitmap? = coverBitmap
 
     fun updateDesktopLyricState(enabled: Boolean) {
         isDesktopLyricEnabled = enabled
@@ -807,6 +818,7 @@ class MusicPlayerManager private constructor(context: Context) {
     private var coverBitmap: Bitmap? = null
     /** 与 [coverBitmap] 对应的封面 URL，用于判断缓存位图是否仍适用于当前歌曲 */
     private var coverBitmapSourceUrl: String? = null
+    private var mediaArtworkChangedListener: (() -> Unit)? = null
     private lateinit var playerListener: Player.Listener
 
     init {
@@ -1014,7 +1026,22 @@ class MusicPlayerManager private constructor(context: Context) {
                 .build()
             val result = imageLoader.execute(request)
             if (result is SuccessResult) {
-                result.image.asDrawable(appContext.resources).toBitmap()
+                val bitmap = result.image.asDrawable(appContext.resources).toBitmap()
+                // Keep MediaSession artwork small enough for the Binder transaction used
+                // by lock-screen providers. Notifications can handle a larger icon, but
+                // HyperOS may drop MediaMetadataCompat artwork when this bitmap is large.
+                val maxSide = maxOf(bitmap.width, bitmap.height)
+                if (maxSide > 256) {
+                    val scale = 256f / maxSide
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * scale).toInt().coerceAtLeast(1),
+                        (bitmap.height * scale).toInt().coerceAtLeast(1),
+                        true
+                    )
+                } else {
+                    bitmap
+                }
             } else {
                 null
             }
@@ -1033,13 +1060,22 @@ class MusicPlayerManager private constructor(context: Context) {
     ): android.support.v4.media.MediaMetadataCompat {
         val b = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, title)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, durationMs)
         if (!cover.isNullOrEmpty()) {
-            b.putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, cover)
+            // ART/ART_URI are the legacy lock-screen background keys. Some HyperOS
+            // builds ignore ALBUM_ART and DISPLAY_ICON for the lock screen, while the
+            // same keys are still used by notification rendering.
+            b.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, cover)
+            b.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, cover)
         }
         if (bitmap != null) {
-            b.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+            b.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+            b.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+            b.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap)
         }
         return b.build()
     }
@@ -1077,6 +1113,12 @@ class MusicPlayerManager private constructor(context: Context) {
             mediaSession?.setMetadata(
                 buildSessionMetadataCompat(t2, a2, target, d2, bitmap)
             )
+            // Re-assert the active session after metadata changes. HyperOS can keep a
+            // stale snapshot of an inactive compat session on the lock screen.
+            mediaSession?.isActive = true
+            // The foreground notification is what HyperOS often renders on the lock
+            // screen. Refresh it after decoding so its largeIcon is available too.
+            mediaArtworkChangedListener?.invoke()
         }
     }
 
