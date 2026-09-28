@@ -58,6 +58,12 @@ class MusicPlayerService : Service() {
         val focusLockEnabled = focusLockPrefs.getBoolean("focus_lock_enabled", false)
         playerManager.updateAudioAttributes(focusLockEnabled)
 
+        // HyperOS may render the foreground notification instead of reading the
+        // MediaSession artwork URI. Refresh it when the decoded bitmap is ready.
+        playerManager.setMediaArtworkChangedListener {
+            updateMusicNotification()
+        }
+
         // 启动前台服务以确保后台播放正常
         startForeground(NOTIFICATION_ID, createMusicNotification())
 
@@ -311,6 +317,9 @@ class MusicPlayerService : Service() {
             .setContentTitle(title)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.music)
+            // HyperOS lock-screen media controls reliably consume the notification
+            // large icon, while remote album-art URIs are not always fetched.
+            .setLargeIcon(playerManager.getCurrentMediaArtwork())
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
