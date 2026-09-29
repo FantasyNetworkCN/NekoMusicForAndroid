@@ -435,7 +435,7 @@ fun CacheManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        cacheManager.deleteMusicCache(musicId.toInt())
+                                cacheManager.deleteMusicCache(musicId.substringBefore('_').toIntOrNull() ?: musicId.toIntOrNull() ?: 0)
                         cacheSize = cacheManager.getCacheSizeFormatted()
                         cachedMusicCount = cacheManager.getCachedMusicCount()
                         cachedItems = cacheManager.getAllCachedItems()
@@ -481,7 +481,7 @@ fun CacheItem(
     val glassHighlight = glassTint.highlight(isDarkTheme)
     val context = androidx.compose.ui.platform.LocalContext.current
     val cacheManager = remember { com.neko.music.data.cache.MusicCacheManager.getInstance(context) }
-    val cachedCover = remember { cacheManager.getCachedCoverFile(musicId.toInt()) }
+    val cachedCover = remember { cacheManager.getCachedCoverFile(musicId.substringBefore('_').toIntOrNull() ?: musicId.toIntOrNull()?: 0) }
 
     GlassSurface(
         modifier = Modifier
