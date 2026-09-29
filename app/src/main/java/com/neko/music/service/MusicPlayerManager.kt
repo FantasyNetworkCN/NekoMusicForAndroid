@@ -219,6 +219,10 @@ class MusicPlayerManager private constructor(context: Context) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
     
+    /** ExoPlayer 是否处于缓冲加载阶段（切歌/拖动进度/网络缓冲时）。 */
+    private val _isBuffering = MutableStateFlow(false)
+    val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+    
     private val _currentPosition = MutableStateFlow(0L)
     val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
     
@@ -873,13 +877,17 @@ class MusicPlayerManager private constructor(context: Context) {
                 Log.d("MusicPlayerManager", "onPlaybackStateChanged: state = $playbackState (IDLE = 1, BUFFERING = 2, READY = 3, ENDED = 4)")
 
                 when (playbackState) {
-                    Player.STATE_IDLE -> {}
+                    Player.STATE_IDLE -> {
+                        _isBuffering.value = false
+                    }
                     Player.STATE_BUFFERING -> {
                         Log.d("MusicPlayerManager", "ExoPlayer 正在缓冲数据...")
+                        _isBuffering.value = true
                     }
                     Player.STATE_READY -> {
                         Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${activePlayer.duration} ms")
                         if (!isReleased) {
+                            _isBuffering.value = false
                             _duration.value = activePlayer.duration
                             // 音乐加载完成，预加载下一首
                             preloadNextMusic()
@@ -889,6 +897,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     Player.STATE_ENDED -> {
                         if (isReleased) return
 
+                        _isBuffering.value = false
                         _isPlaying.value = false
                         activePlayer.seekTo(0)
                         updatePlaybackState()

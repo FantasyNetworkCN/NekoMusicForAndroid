@@ -258,6 +258,7 @@ fun PlayerScreen(
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
 
     val isPlaying by playerManager.isPlaying.collectAsState()
+    val isBuffering by playerManager.isBuffering.collectAsState()
     val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
     val currentMusicId by playerManager.currentMusicId.collectAsState()
@@ -877,7 +878,7 @@ fun PlayerScreen(
 
                         PlaybackControls(
                             isPlaying = isPlaying,
-                            isLoading = isLoading,
+                            isLoading = isLoading || isBuffering,
                             musicFileUrl = musicFileUrl,
                             playMode = playMode,
                             onPlayPauseClick = {
@@ -2481,9 +2482,9 @@ fun ProgressSlider(
                 ) {
                     when {
                         isLoading -> {
-                            CircularProgressIndicator(
-                                color = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(22.dp)
+                            MusicLoadingIndicator(
+                                color = playIconColor,
+                                modifier = Modifier.size(width = 26.dp, height = 22.dp)
                             )
                         }
 
@@ -2538,6 +2539,55 @@ fun ProgressSlider(
                 }
             }
         }
+
+@Composable
+private fun MusicLoadingIndicator(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "music_loading")
+    val bar1 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 640, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "music_loading_bar1"
+    )
+    val bar2 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 640, delayMillis = 140, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "music_loading_bar2"
+    )
+    val bar3 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 640, delayMillis = 280, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "music_loading_bar3"
+    )
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        listOf(bar1, bar2, bar3).forEach { bar ->
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(22.dp * (0.42f + bar * 0.58f))
+                    .background(color, RoundedCornerShape(2.dp))
+            )
+        }
+    }
+}
 
 @Composable
 private fun AudioQualitySelector(
