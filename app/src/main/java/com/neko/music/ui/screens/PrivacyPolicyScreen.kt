@@ -102,7 +102,7 @@ fun PrivacyPolicyScreen(
 //                                context.startActivity(
 //                                    Intent(
 //                                        Intent.ACTION_VIEW,
-//                                        Uri.parse("https://music.cnmsb.xin/privacy")
+//                                        Uri.parse("https://music.nekocore.cn/privacy")
 //                                    )
 //                                )
 //                            }
@@ -240,7 +240,7 @@ fun PrivacyPolicyScreen(
                         body = listOf(
                             "未满 14 周岁的未成年人使用本服务，应事先取得父母或其他监护人的同意。如果监护人发现未成年人信息在未取得同意的情况下被处理，请联系我们。",
                             "我们可能根据产品功能、法律法规或运营情况更新本政策。重大变化会通过弹窗、公告、站内提示、邮件或其他显著方式通知您，并在法律法规要求时重新取得同意。",
-                            "联系方式：support@cnmsb.xin；官网：https://www.cnmsb.xin/"
+                            "联系方式：support@nekocore.cn；官网：https://www.nekocore.cn/"
                         ),
                         textColor = textColor,
                         mutedColor = mutedColor,

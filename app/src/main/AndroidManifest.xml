@@ -80,7 +80,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="music.cnmsb.xin" />
+                <data android:scheme="https" android:host="music.nekocore.cn" />
             </intent-filter>
         </activity>
         

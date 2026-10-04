@@ -139,7 +139,7 @@ fun AboutScreen(
                 title = stringResource(id = R.string.organization_info),
                 items = listOf(
                     stringResource(id = R.string.organization_name) to "Fantasy Network「梦幻网络」",
-                    stringResource(id = R.string.contact_info) to "support@cnmsb.xin"
+                    stringResource(id = R.string.contact_info) to "support@nekocore.cn"
                 ),
                 scale = scale
             )

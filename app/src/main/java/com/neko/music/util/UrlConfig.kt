@@ -6,7 +6,7 @@ package com.neko.music.util
  */
 object UrlConfig {
 
-    private const val BASE_URL = "https://music.cnmsb.xin"
+    private const val BASE_URL = "https://music.nekocore.cn"
 
     /**
      * 获取API基础URL

@@ -107,7 +107,7 @@
     <string name="remove_favorite">Unfavorite</string>
     
     <!-- Footer -->
-    <string name="footer_icp">黔ICP备2026007098号 For copyright issues contact support@cnmsb.xin</string>
+    <string name="footer_icp">黔ICP备2026007098号 For copyright issues contact support@nekocore.cn</string>
     <string name="footer_copyright">© 2025-2026 Fantasy Network All rights reserved.</string>
     <string name="api_docs">API Docs</string>
     <string name="github_repo">GitHub Repo</string>
@@ -384,7 +384,7 @@
     <string name="image_loading">Image Loading</string>
     <string name="copyright_info">Copyright Info</string>
     <string name="icp_license">黔ICP备2026007098号</string>
-    <string name="copyright_contact">For copyright issues contact support@cnmsb.xin</string>
+    <string name="copyright_contact">For copyright issues contact support@nekocore.cn</string>
     <string name="copyright_text">© 2025-2026 Fantasy Network</string>
     <string name="all_rights_reserved">All Rights Reserved</string>
 
@@ -599,8 +599,8 @@
     <string name="minutes_unit">minutes</string>
 
     <!-- Share -->
-    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko Music https://music.cnmsb.xin/detail/%3$d</string>
-    <string name="share_playlist_text" formatted="false">I found a treasure playlist on Neko Music %1$s - https://music.cnmsb.xin/playlist/%2$d, it is amazing! Come and listen meow~</string>
+    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko Music https://music.nekocore.cn/detail/%3$d</string>
+    <string name="share_playlist_text" formatted="false">I found a treasure playlist on Neko Music %1$s - https://music.nekocore.cn/playlist/%2$d, it is amazing! Come and listen meow~</string>
     <string name="share_playlist">Share Playlist</string>
     <string name="removed_from_playlist_success">Removed from playlist</string>
     <string name="upload_music">Upload music</string>

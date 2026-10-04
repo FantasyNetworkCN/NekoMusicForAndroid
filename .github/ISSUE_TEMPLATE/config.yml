@@ -3,7 +3,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: 官网（在线播放 / 账户）
-    url: https://music.cnmsb.xin/
+    url: https://music.nekocore.cn/
     about: Web 端、账户与会员等与浏览器相关的问题，请优先在官网侧排查。
   - name: PC 客户端仓库
     url: https://github.com/MinecraftNekoServer/NekoMusicForPc
