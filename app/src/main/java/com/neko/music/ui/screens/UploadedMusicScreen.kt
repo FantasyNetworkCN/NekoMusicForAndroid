@@ -104,7 +104,7 @@ import com.neko.music.ui.theme.SakuraPink
 import kotlinx.coroutines.launch
 import java.nio.charset.StandardCharsets
 
-const val baseUrl = "https://music.cnmsb.xin"
+const val baseUrl = "https://music.nekocore.cn"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -104,7 +104,7 @@
     <string name="add_favorite">收藏喵</string>
     <string name="remove_favorite">取消收藏喵</string>
 
-    <string name="footer_icp">黔ICP备2026007098号 如果被咬了请联系support@cnmsb.xin喵</string>
+    <string name="footer_icp">黔ICP备2026007098号 如果被咬了请联系support@nekocore.cn喵</string>
     <string name="footer_copyright">© 2025-2026 Fantasy Network「梦幻网络」 都是我们的喵.</string>
     <string name="api_docs">猫娘协议文档喵</string>
     <string name="github_repo">GitHub猫窝喵</string>
@@ -364,7 +364,7 @@
     <string name="image_loading">看图工具喵</string>
     <string name="copyright_info">版权领地喵</string>
     <string name="icp_license">黔ICP备2026007098号喵</string>
-    <string name="copyright_contact">被咬了找这： support@cnmsb.xin 喵</string>
+    <string name="copyright_contact">被咬了找这： support@nekocore.cn 喵</string>
     <string name="copyright_text">© 2025-2026 Fantasy Network「梦幻网络」</string>
     <string name="all_rights_reserved">地盘都是我们的喵</string>
 
@@ -600,8 +600,8 @@
     <string name="days_ago_format">%d天前喵</string>
     <string name="minutes_unit">分钟喵</string>
 
-    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko歌姬计划喵 https://music.cnmsb.xin/detail/%3$d</string>
-    <string name="share_playlist_text" formatted="false">我在Neko歌姬计划发现了宝藏本本 %1$s - https://music.cnmsb.xin/playlist/%2$d，里面超好听喵！快来听听看喵~</string>
+    <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko歌姬计划喵 https://music.nekocore.cn/detail/%3$d</string>
+    <string name="share_playlist_text" formatted="false">我在Neko歌姬计划发现了宝藏本本 %1$s - https://music.nekocore.cn/playlist/%2$d，里面超好听喵！快来听听看喵~</string>
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
     <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>

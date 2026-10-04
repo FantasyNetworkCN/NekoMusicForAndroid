@@ -83,7 +83,7 @@ class QqMusicPlaylistApi {
 
     suspend fun fetchPlaylistDetail(disstid: String): Result<QqSongListDetailResponse> {
         return try {
-            val url = "https://music.cnmsb.xin/loser1/getSongListDetail?disstid=$disstid"
+            val url = "https://music.nekocore.cn/loser1/getSongListDetail?disstid=$disstid"
             Log.d(TAG, "请求 QQ 歌单: disstid=$disstid url=$url")
             val response = client.get(url).body<QqSongListDetailResponse>()
             Result.success(response)
