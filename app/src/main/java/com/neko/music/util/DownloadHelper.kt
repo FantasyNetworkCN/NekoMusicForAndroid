@@ -52,6 +52,7 @@ class DownloadHelper(private val context: Context) {
             val downloadUri = Uri.parse(UrlConfig.getMusicFileUrl(music.id))
 
             val request = DownloadManager.Request(downloadUri).apply {
+                withNekoClientHeaders()
                 setAllowedNetworkTypes(
                     DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE
                 )
@@ -137,6 +138,7 @@ class DownloadHelper(private val context: Context) {
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
             connection.requestMethod = "GET"
+            connection.setRequestProperty(NEKO_CLIENT_HEADER, NEKO_CLIENT_VALUE)
             connection.setRequestProperty("Range", "bytes=0-0")  // 只请求第一个字节
             
             val contentType = connection.contentType ?: "audio/mpeg"

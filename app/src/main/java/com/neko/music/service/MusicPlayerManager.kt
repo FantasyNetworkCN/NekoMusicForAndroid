@@ -26,6 +26,8 @@ import com.neko.music.data.manager.ShuffleBag
 import com.neko.music.data.model.Music
 import com.neko.music.ui.screens.baseUrl
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
+import com.neko.music.util.nekoHttpDataSourceFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -58,7 +60,9 @@ class MusicPlayerManager private constructor(context: Context) {
 
     /** Coil 3 自定义 ImageLoader 必须注册网络 Fetcher，否则 https 封面无法解码（已缓存的本地文件不依赖网络故能显示）。 */
     private val playerCoverHttpClient by lazy {
-        HttpClient(OkHttp) {}
+        HttpClient(OkHttp) {
+            installNekoClientHeader()
+        }
     }
 
     private val imageLoader = ImageLoader.Builder(appContext)
@@ -82,18 +86,23 @@ class MusicPlayerManager private constructor(context: Context) {
     private var qualitySwitchPlayer: ExoPlayer? = null
     private var qualitySwitchGeneration = 0
 
-    private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer = ExoPlayer.Builder(context).build().apply {
-        // 设置音频属性，确保后台播放
-        setAudioAttributes(
-            com.google.android.exoplayer2.audio.AudioAttributes.Builder()
-                .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
-                .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
-                .build(),
-            handleAudioFocus
-        )
-        // 设置唤醒模式，确保播放时 CPU 不会休眠
-        setHandleAudioBecomingNoisy(true)
-    }
+    private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer =
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(
+                com.google.android.exoplayer2.source.DefaultMediaSourceFactory(nekoHttpDataSourceFactory())
+            )
+            .build().apply {
+                // 设置音频属性，确保后台播放
+                setAudioAttributes(
+                    com.google.android.exoplayer2.audio.AudioAttributes.Builder()
+                        .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
+                        .build(),
+                    handleAudioFocus
+                )
+                // 设置唤醒模式，确保播放时 CPU 不会休眠
+                setHandleAudioBecomingNoisy(true)
+            }
     private val scope = CoroutineScope(Dispatchers.Main.immediate + Job())
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 

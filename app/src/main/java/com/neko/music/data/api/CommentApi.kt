@@ -2,6 +2,7 @@ package com.neko.music.data.api
 
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.HttpClient
@@ -114,6 +115,7 @@ data class DeleteCommentResponse(
  */
 class CommentApi(private val context: android.content.Context) {
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         engine {
             config { preferHttp2AlpnOverHttp1() }
         }

@@ -12,11 +12,13 @@ import kotlinx.serialization.json.Json
 import android.util.Log
 import com.neko.music.data.model.Music
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffixOrEmpty
 
 class FavoriteApi(private val context: android.content.Context) {
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         engine {
             config { preferHttp2AlpnOverHttp1() }
         }

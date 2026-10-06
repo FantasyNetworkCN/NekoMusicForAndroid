@@ -2,6 +2,8 @@ package com.neko.music.data.cache
 
 import android.content.Context
 import android.util.Log
+import com.neko.music.util.NEKO_CLIENT_HEADER
+import com.neko.music.util.NEKO_CLIENT_VALUE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -439,6 +441,7 @@ private fun ensureCacheDirs() {
         connection.connectTimeout = 30000
         connection.readTimeout = 30000
         connection.requestMethod = "GET"
+        connection.setRequestProperty(NEKO_CLIENT_HEADER, NEKO_CLIENT_VALUE)
 
         connection.inputStream.use { input ->
             FileOutputStream(outputFile).use { output ->
@@ -456,6 +459,7 @@ private fun ensureCacheDirs() {
         connection.connectTimeout = 30000
         connection.readTimeout = 30000
         connection.requestMethod = "GET"
+        connection.setRequestProperty(NEKO_CLIENT_HEADER, NEKO_CLIENT_VALUE)
 
         // 从 Content-Type 获取文件格式
         val contentType = connection.contentType ?: "audio/mpeg"

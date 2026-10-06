@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.statement.bodyAsText
@@ -29,6 +30,7 @@ class UserApi(private val token: String? = null) {
     }
 
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true

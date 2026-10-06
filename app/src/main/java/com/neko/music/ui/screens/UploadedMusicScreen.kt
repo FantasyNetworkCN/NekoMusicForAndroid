@@ -1601,11 +1601,17 @@ private fun PreviewPlayDialog(
     
     // 创建ExoPlayer
     val exoPlayer = remember {
-        com.google.android.exoplayer2.ExoPlayer.Builder(context).build().apply {
-            val mediaItem = com.google.android.exoplayer2.MediaItem.fromUri(audioUri)
-            setMediaItem(mediaItem)
-            prepare()
-        }
+        com.google.android.exoplayer2.ExoPlayer.Builder(context)
+            .setMediaSourceFactory(
+                com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
+                    com.neko.music.util.nekoHttpDataSourceFactory()
+                )
+            )
+            .build().apply {
+                val mediaItem = com.google.android.exoplayer2.MediaItem.fromUri(audioUri)
+                setMediaItem(mediaItem)
+                prepare()
+            }
     }
     
     var isPlaying by remember { mutableStateOf(false) }

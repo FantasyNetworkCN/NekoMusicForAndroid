@@ -3,6 +3,7 @@ package com.neko.music.data.api
 import android.os.Build
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffixOrEmpty
 import io.ktor.client.HttpClient
@@ -68,6 +69,7 @@ class VipApi(private val bearerToken: String) {
     }
 
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         engine { config { preferHttp2AlpnOverHttp1() } }
         install(ContentNegotiation) { json(json) }
         install(io.ktor.client.plugins.HttpTimeout) {

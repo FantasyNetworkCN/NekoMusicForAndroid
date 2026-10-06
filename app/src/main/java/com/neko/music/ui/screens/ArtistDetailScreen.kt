@@ -61,6 +61,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -100,6 +101,7 @@ fun ArtistDetailScreen(
             try {
                 isLoading = true
                 val client = HttpClient(OkHttp) {
+                    installNekoClientHeader()
                     engine { config { preferHttp2AlpnOverHttp1() } }
                 }
                 val response = client.post("$baseUrl/api/artists/search") {
