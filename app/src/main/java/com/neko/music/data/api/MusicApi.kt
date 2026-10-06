@@ -8,6 +8,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchItem
 import com.neko.music.data.model.SearchRequest
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -51,6 +52,7 @@ class MusicApi(private val context: Context) {
     }
     
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         engine {
             config { preferHttp2AlpnOverHttp1() }
         }

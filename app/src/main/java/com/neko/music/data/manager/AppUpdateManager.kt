@@ -25,6 +25,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -72,6 +73,7 @@ class AppUpdateManager(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         expectSuccess = false
         engine {
             config { preferHttp2AlpnOverHttp1() }
@@ -83,6 +85,7 @@ class AppUpdateManager(private val context: Context) {
 
     /** 专用于 APK：无 ContentNegotiation，且对 CDN 使用 identity 编码，便于出现 Content-Length */
     private val downloadClient = HttpClient(OkHttp) {
+        installNekoClientHeader()
         expectSuccess = false
         engine {
             config {

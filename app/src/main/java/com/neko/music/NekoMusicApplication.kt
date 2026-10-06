@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -91,7 +92,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
      * 无法加载 https 封面、头像等远程图片。
      */
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val httpClient = HttpClient(OkHttp)
+        val httpClient = HttpClient(OkHttp) {
+            installNekoClientHeader()
+        }
         return ImageLoader.Builder(context)
             .components {
                 add(KtorNetworkFetcherFactory(httpClient = { httpClient }))

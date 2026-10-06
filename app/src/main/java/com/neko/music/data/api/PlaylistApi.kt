@@ -2,6 +2,7 @@ package com.neko.music.data.api
 
 import android.util.Log
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -130,6 +131,7 @@ class PlaylistApi(private val token: String?, private val context: android.conte
     }
 
     private val client = HttpClient(OkHttp) {
+        installNekoClientHeader()
         expectSuccess = false
         engine {
             config { preferHttp2AlpnOverHttp1() }

@@ -121,7 +121,8 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = false
+        // 需要 BuildConfig.VERSION_NAME 作为 X-Neko-Client / User-Agent 的版本号
+        buildConfig = true
     }
 
     lint {
@@ -139,6 +140,35 @@ android {
     ndkVersion = "29.0.14206865"
     buildToolsVersion = "36.1.0 rc1"
 }
+
+// ── 客户端标识标头守卫 ────────────────────────────────────────────────
+// 所有 Ktor 客户端都必须调用 installNekoClientHeader()，否则请求会漏掉
+// X-Neko-Client / User-Agent。这里在 preBuild 前扫描源码，发现遗漏直接失败。
+val verifyNekoClientHeader by tasks.registering {
+    group = "verification"
+    description = "校验所有 Ktor 客户端都注入了 X-Neko-Client / User-Agent"
+    val sourcesDir = layout.projectDirectory.dir("src/main/java")
+    inputs.dir(sourcesDir)
+    doLast {
+        val clientPattern = Regex("""HttpClient\(\s*OkHttp""")
+        val installPattern = Regex("""installNekoClientHeader\(\)""")
+        val offenders = sourcesDir.asFile.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .filter { file ->
+                val text = file.readText()
+                clientPattern.findAll(text).count() > installPattern.findAll(text).count()
+            }
+            .map { it.relativeTo(sourcesDir.asFile).path }
+            .toList()
+        if (offenders.isNotEmpty()) {
+            throw GradleException(
+                "以下文件创建了 Ktor 客户端却没有调用 installNekoClientHeader()：\n" +
+                    offenders.joinToString("\n") { "  - app/src/main/java/$it" }
+            )
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyNekoClientHeader) }
 
 dependencies {
     // AndroidX & Compose
