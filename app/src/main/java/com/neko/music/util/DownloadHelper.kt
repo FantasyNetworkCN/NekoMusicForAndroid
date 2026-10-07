@@ -158,12 +158,14 @@ class DownloadHelper(private val context: Context) {
             // 先解析为固定媒体地址，再探测其 Content-Type
             val resolved = MusicUrlResolver.resolveBlocking(UrlConfig.getMusicFileUrl(musicId))
             val url = java.net.URL(resolved)
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.connectTimeout = 5000
-            connection.readTimeout = 5000
-            connection.requestMethod = "GET"
-            connection.setRequestProperty(NEKO_CLIENT_HEADER, NEKO_CLIENT_VALUE)
-            connection.setRequestProperty("Range", "bytes=0-0")  // 只请求第一个字节
+            val connection = (url.openConnection() as java.net.HttpURLConnection)
+                .applyNekoClientHeaders()
+                .apply {
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                    requestMethod = "GET"
+                    setRequestProperty("Range", "bytes=0-0")  // 只请求第一个字节
+                }
             
             val contentType = connection.contentType ?: "audio/mpeg"
             val responseCode = connection.responseCode

@@ -8,6 +8,7 @@ import com.neko.music.BuildConfig
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
+import java.net.HttpURLConnection
 
 /**
  * 客户端标识：本应用所有出站请求（Ktor / ExoPlayer / DownloadManager 等）统一带上
@@ -77,4 +78,10 @@ fun nekoHttpDataSourceFactory(): ResolvingDataSource.Factory {
 fun DownloadManager.Request.withNekoClientHeaders(): DownloadManager.Request =
     apply {
         NEKO_REQUEST_HEADERS.forEach { (name, value) -> addRequestHeader(name, value) }
+    }
+
+/** 裸 [HttpURLConnection] 请求同样携带客户端标识标头，否则 Android 会默认发送 `Dalvik/2.1.0`。 */
+fun HttpURLConnection.applyNekoClientHeaders(): HttpURLConnection =
+    apply {
+        NEKO_REQUEST_HEADERS.forEach { (name, value) -> setRequestProperty(name, value) }
     }
