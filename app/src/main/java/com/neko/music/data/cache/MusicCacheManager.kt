@@ -2,6 +2,7 @@ package com.neko.music.data.cache
 
 import android.content.Context
 import android.util.Log
+import com.neko.music.util.MusicUrlResolver
 import com.neko.music.util.NEKO_CLIENT_HEADER
 import com.neko.music.util.NEKO_CLIENT_VALUE
 import kotlinx.coroutines.Dispatchers
@@ -166,9 +167,10 @@ private fun ensureCacheDirs() {
                 .putBoolean("music_${musicId}_caching", true)
                 .apply()
 
-            // 下载文件并获取扩展名
+            // 下载文件并获取扩展名；音质接口返回 JSON，需先解析成固定媒体地址
             val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
-            val (extension, file) = downloadFileWithExtension(url, musicId, normalizedQuality)
+            val resolvedUrl = MusicUrlResolver.resolveBlocking(url)
+            val (extension, file) = downloadFileWithExtension(resolvedUrl, musicId, normalizedQuality)
 
             // 记录缓存信息
             prefs.edit()

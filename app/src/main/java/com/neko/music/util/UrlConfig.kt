@@ -36,8 +36,10 @@ object UrlConfig {
         if (value.isNullOrBlank()) return false
         if (value.startsWith("content://") || value.startsWith("file://")) return true
         if (!value.startsWith("/")) return false
+        // /api/、/uploads/、/media/ 都是服务端地址，不是本地文件
         return !value.startsWith("/api/") &&
-            !value.startsWith("/uploads/")
+            !value.startsWith("/uploads/") &&
+            !value.startsWith("/media/")
     }
 
     /**
