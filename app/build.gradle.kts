@@ -166,6 +166,26 @@ val verifyNekoClientHeader by tasks.registering {
                     offenders.joinToString("\n") { "  - app/src/main/java/$it" }
             )
         }
+
+        // 除统一取值定义处外，禁止再硬编码 User-Agent / WebView userAgentString，
+        // 否则会出现后端认不出的 UA（例如 HttpURLConnection 的默认 Dalvik/2.1.0）。
+        val userAgentLiteral = Regex("""(?i)("user-agent"|userAgentString|HttpHeaders\.UserAgent)""")
+        val literalAllowed = setOf(
+            "com/neko/music/util/NekoClientHeader.kt",       // X-Neko-Client / User-Agent 的统一取值定义处
+            "com/neko/music/ui/screens/VipPayWebScreen.kt",  // 第三方支付 H5 依赖浏览器 UA，故意伪装成 Chrome
+        )
+        val literalOffenders = sourcesDir.asFile.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map { it.relativeTo(sourcesDir.asFile).path to it.readText() }
+            .filter { (path, text) -> path !in literalAllowed && userAgentLiteral.containsMatchIn(text) }
+            .map { (path, _) -> path }
+            .toList()
+        if (literalOffenders.isNotEmpty()) {
+            throw GradleException(
+                "以下文件硬编码了 User-Agent，请改用 NEKO_REQUEST_HEADERS / NEKO_USER_AGENT_VALUE：\n" +
+                    literalOffenders.joinToString("\n") { "  - app/src/main/java/$it" }
+            )
+        }
     }
 }
 tasks.named("preBuild") { dependsOn(verifyNekoClientHeader) }

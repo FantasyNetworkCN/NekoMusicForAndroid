@@ -24,6 +24,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import com.neko.music.util.NEKO_REQUEST_HEADERS
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
@@ -207,7 +208,7 @@ class AppUpdateManager(private val context: Context) {
     private fun HttpRequestBuilder.apkStreamHeaders() {
         accept(ContentType.Application.OctetStream)
         header(HttpHeaders.AcceptEncoding, "identity")
-        header(HttpHeaders.UserAgent, "NekoMusic-AppUpdate (Android)")
+        NEKO_REQUEST_HEADERS.forEach { (name, value) -> header(name, value) }
     }
 
     private fun resolveApkDownloadUrl(url: String): String = when {
