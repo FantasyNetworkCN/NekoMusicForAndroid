@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -1038,13 +1039,6 @@ fun MainScreen() {
                     onBackClick = {
                         navController.popBackStack()
                     },
-                    onMusicClick = { music ->
-                        val id = music.id
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist =
-                            java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/$id/$encodedTitle/$encodedArtist")
-                    },
                     onPlayNext = { music ->
                         Log.d("MainActivity", "下一首播放: ${music.title}")
                         playerManager.playNext(music)
@@ -1054,82 +1048,26 @@ fun MainScreen() {
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     },
-                    onPlayAll = { musicList ->
-                        // 清空播放列表并将歌单中的所有音乐添加进去
-                        scope.launch {
-                            try {
-                                val musicApi = com.neko.music.data.api.MusicApi(context)
-                                val playlistManager = com.neko.music.data.manager.PlaylistManager.getInstance(context)
-                                
-                                // 清空当前播放列表
-                                playlistManager.clearPlaylist()
-                                
-                                // 按顺序添加音乐到播放列表
-                                musicList.forEach { playlistMusic ->
-                                    val url = musicApi.getMusicFileUrl(
-                                        com.neko.music.data.model.Music(
-                                            playlistMusic.id,
-                                            playlistMusic.title,
-                                            playlistMusic.artist,
-                                            playlistMusic.coverPath ?: "",
-                                            playlistMusic.duration,
-                                            "",
-                                            "",
-                                            0,
-                                            ""
-                                        )
-                                    )
-                                    // coverFilePath设置为空字符串，让PlaylistScreen使用音乐ID生成封面URL
-                                    playlistManager.addToPlaylist(
-                                        com.neko.music.data.model.Music(
-                                            playlistMusic.id,
-                                            playlistMusic.title,
-                                            playlistMusic.artist,
-                                            "",
-                                            playlistMusic.duration,
-                                            url,
-                                            "",
-                                            0,
-                                            ""
-                                        )
-                                    )
-                                }
-                                
-                                // 播放第一首
-                                if (musicList.isNotEmpty()) {
-                                    val firstMusic = musicList[0]
-                                    val url = musicApi.getMusicFileUrl(
-                                        com.neko.music.data.model.Music(
-                                            firstMusic.id,
-                                            firstMusic.title,
-                                            firstMusic.artist,
-                                            firstMusic.coverPath ?: "",
-                                            firstMusic.duration,
-                                            "",
-                                            "",
-                                            0,
-                                            ""
-                                        )
-                                    )
-                                    val fullCoverUrl = UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                    playerManager.playMusic(
-                                        url,
-                                        firstMusic.id,
-                                        firstMusic.title,
-                                        firstMusic.artist,
-                                        firstMusic.coverPath ?: "",
-                                        fullCoverUrl
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MainActivity", "播放全部失败", e)
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "播放失败: ${e.message}",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                    onPlayAll = { musicList, startIndex ->
+                        val queue = musicList.map { playlistMusic ->
+                            Music(
+                                id = playlistMusic.id,
+                                title = playlistMusic.title,
+                                artist = playlistMusic.artist,
+                                album = playlistMusic.album,
+                                duration = playlistMusic.duration,
+                                filePath = playlistMusic.filePath,
+                                coverFilePath = playlistMusic.coverPath ?: "",
+                                uploadUserId = 0,
+                                createdAt = ""
+                            )
                         }
+                        playerManager.playMusicList(queue, startIndex)
+                        Toast.makeText(
+                            context,
+                            "已添加 ${queue.size} 首歌曲到播放列表",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     },
                     onPlaylistBatchModeChange = { inBatch ->
                         playlistBatchHidingChrome = inBatch

@@ -126,8 +126,8 @@ fun PlaylistDetailScreen(
     creatorUserId: Int? = null,
     isOwner: Boolean = true,
     onBackClick: () -> Unit,
-    onMusicClick: (com.neko.music.data.model.Music) -> Unit,
-    onPlayAll: (List<PlaylistMusic>) -> Unit,
+    /** 点击歌单曲目时，将整张歌单加入播放列表，并从点击的曲目开始播放。 */
+    onPlayAll: (List<PlaylistMusic>, Int) -> Unit,
     /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
     onPlayNext: (com.neko.music.data.model.Music) -> Unit = {},
     /** 歌单批量编辑时请求宿主暂时隐藏底部迷你播放器与底栏，避免遮挡 */
@@ -628,7 +628,7 @@ fun PlaylistDetailScreen(
                             Button(
                                 onClick = {
                                     if (musicList.isNotEmpty()) {
-                                        onPlayAll(musicList)
+                                        onPlayAll(musicList, 0)
                                     }
                                 },
                                 enabled = musicList.isNotEmpty(),
@@ -739,7 +739,7 @@ fun PlaylistDetailScreen(
                                                 else selectedIds + music.id
                                         },
                                         onClick = {
-                                            onMusicClick(music.toLocalMusic())
+                                            onPlayAll(musicList, index)
                                         },
                                         onPlayNext = { onPlayNext(music.toLocalMusic()) },
                                         onRemove = { removeMusic(music) },
