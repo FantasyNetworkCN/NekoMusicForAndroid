@@ -34,6 +34,12 @@ object MusicUrlResolver {
 
     private val cache = ConcurrentHashMap<String, Cached>()
 
+    /**
+     * 同一地址的解析「单飞」：切歌时 ExoPlayer 的加载线程、缓存下载线程、预加载可能同时解析同一首，
+     * 之前会对同一个接口并发打好几次请求，既浪费带宽也更容易被服务端限流、拖长切歌空窗。
+     */
+    private val inFlight = ConcurrentHashMap<String, java.util.concurrent.CompletableFuture<String?>>()
+
     private val client by lazy {
         HttpClient(OkHttp) {
             installNekoClientHeader()
@@ -59,18 +65,54 @@ object MusicUrlResolver {
         cache[url]?.let { cached ->
             if (System.currentTimeMillis() - cached.at < CACHE_TTL_MS) return cached.url
         }
+
+        // 已有同地址的解析在途中：等它，不再重复请求
+        val mine = java.util.concurrent.CompletableFuture<String?>()
+        val existing = inFlight.putIfAbsent(url, mine)
+        if (existing != null) {
+            return try {
+                existing.get(REQUEST_TIMEOUT_MS + 2_000L, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    ?: url
+            } catch (e: Exception) {
+                url
+            }
+        }
+
+        val startAt = android.os.SystemClock.elapsedRealtime()
         val resolved = try {
             runBlocking { fetch(url) }
         } catch (e: Exception) {
             Log.w(TAG, "解析音质地址异常: $url", e)
             null
+        } finally {
+            inFlight.remove(url)
         }
         if (resolved.isNullOrBlank()) {
             Log.w(TAG, "解析音质地址失败，回退原地址: $url")
+            mine.complete(null)
             return url
         }
         cache[url] = Cached(resolved, System.currentTimeMillis())
+        mine.complete(resolved)
+        Log.d(TAG, "解析音质地址成功: ${android.os.SystemClock.elapsedRealtime() - startAt}ms $url")
         return resolved
+    }
+
+    /**
+     * 预解析（切歌预热）：切歌路径上若现解析，用户要白等一次接口往返（实测 0.2~1.6s）。
+     * 预加载下一首时顺手把地址解析好放进缓存，切歌时命中缓存即 0ms。
+     */
+    fun prefetch(url: String?) {
+        if (!isMusicFileApiUrl(url)) return
+        val key = url!!
+        cache[key]?.let { cached ->
+            if (System.currentTimeMillis() - cached.at < CACHE_TTL_MS) return
+        }
+        try {
+            resolveBlocking(key)
+        } catch (e: Exception) {
+            Log.w(TAG, "预解析音质地址失败: $key", e)
+        }
     }
 
     private suspend fun fetch(url: String): String? {

@@ -83,8 +83,44 @@ class MusicPlayerManager private constructor(context: Context) {
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
-    private var qualitySwitchPlayer: ExoPlayer? = null
-    private var qualitySwitchGeneration = 0
+
+    /** 音频属性（USAGE_MEDIA / CONTENT_TYPE_MUSIC），创建与接管播放器时复用同一份。 */
+    private fun buildAudioAttributes(): com.google.android.exoplayer2.audio.AudioAttributes =
+        com.google.android.exoplayer2.audio.AudioAttributes.Builder()
+            .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
+            .build()
+
+    /**
+     * 是否交给 ExoPlayer 处理音频焦点：「焦点锁定」开启时为 false，表示忽略其他应用的打断。
+     *
+     * 记录它是为了让切歌 / 音质无感切换后接管播放的播放器保持同一套焦点策略——否则新播放器
+     * 可能全程不持有焦点，其他应用抢走焦点时我们既收不到通知也不会暂停。
+     */
+    private var handleAudioFocusByPlayer = true
+
+    /** 淡出令牌：新一轮淡入/淡出会让上一轮 fadeOut 的 pause() 失效，避免"切歌时被上一轮淡出暂停"。 */
+    private var fadeToken: Any? = null
+
+    /** 播放意图：true = 想让播放器出声（播放/切歌/回控播放），false = 想让播放器停下（暂停/淡出）。 */
+    @Volatile
+    private var playIntent = false
+
+    /** 最近一次主动 play() 的时刻，用来判断「playWhenReady 变 false」是不是我们刚请求过焦点导致的。 */
+    private var lastPlayRequestAt = 0L
+
+    /** 焦点申请失败后的连续重试次数；成功出声或用户重新点播放时清零，避免和其他应用无限抢焦点。 */
+    private var focusRetryCount = 0
+
+    /** 播放守护任务：处理「想播却不出声」的音频焦点抑制。 */
+    private var playbackGuardJob: kotlinx.coroutines.Job? = null
+
+    private val MAX_SUPPRESSION_RECOVER = 2
+    private val MAX_FOCUS_RETRY = 2
+    private val SUPPRESSION_STALE_MS = 30_000L
+    private val FOCUS_RETRY_GRACE_MS = 3_000L
+    private val FOCUS_RETRY_DELAY_MS = 800L
+    private val PLAYBACK_GUARD_INTERVAL_MS = 1_000L
 
     private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer =
         ExoPlayer.Builder(context)
@@ -93,13 +129,7 @@ class MusicPlayerManager private constructor(context: Context) {
             )
             .build().apply {
                 // 设置音频属性，确保后台播放
-                setAudioAttributes(
-                    com.google.android.exoplayer2.audio.AudioAttributes.Builder()
-                        .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
-                        .build(),
-                    handleAudioFocus
-                )
+                setAudioAttributes(buildAudioAttributes(), handleAudioFocus)
                 // 设置唤醒模式，确保播放时 CPU 不会休眠
                 setHandleAudioBecomingNoisy(true)
             }
@@ -343,56 +373,50 @@ class MusicPlayerManager private constructor(context: Context) {
 
     private fun qualityRank(value: String?): Int = qualityRank(AudioQuality.from(value))
 
+    /**
+     * 切换音质：在**同一个**播放器上原地换源，不新建第二个 ExoPlayer。
+     *
+     * 这里刻意不再使用「创建第二个播放器再无缝接管」的方案：那条路会在接管时重新申请音频焦点，
+     * 一旦系统没有立刻把焦点交回来（返回 DELAYED / 被其它应用占用），ExoPlayer 会把新播放器的
+     * playWhenReady 静默置回 false，结果是「界面显示播放中但一声不响」或直接停在暂停，
+     * 并且旧播放器已经被释放、无法恢复。
+     *
+     * 原地换源只替换媒体源，playWhenReady 完全不动，因此既不会重新申请焦点，也不会出现无声暂停；
+     * 代价只是切换瞬间要重新缓冲新音质的文件（通常几百毫秒）。
+     */
     private fun switchAudioQualityWithoutRestart(
         musicId: Int,
         quality: AudioQuality,
         previousQuality: AudioQuality
     ) {
-        val oldPlayer = activePlayer
-        val wasPlaying = oldPlayer.isPlaying
+        val player = activePlayer
         val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
-        val generation = ++qualitySwitchGeneration
+        val position = player.currentPosition.coerceAtLeast(0L)
+        // 播放意图完全以 playWhenReady 为准：原地换源不会改动它，所以既不重新申请音频焦点，
+        // 也不会出现"界面显示播放中但一声不响"（旧的双播放器接管方案正是在这里出的问题）。
+        val intentPlaying = player.playWhenReady
+        Log.d(
+            "MusicPlayerManager",
+            "音质切换（原地换源）: ${previousQuality.id} -> ${quality.id}, position=${position}ms, playWhenReady=$intentPlaying"
+        )
 
-        qualitySwitchPlayer?.release()
-        val candidate = createPlayer(appContext, handleAudioFocus = false)
-        qualitySwitchPlayer = candidate
-        candidate.volume = 0f
-        var handoffComplete = false
-        candidate.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(state: Int) {
-                if (state != Player.STATE_READY || generation != qualitySwitchGeneration || handoffComplete)
-                    return
-                handoffComplete = true
-                val handoffPosition = oldPlayer.currentPosition.coerceAtLeast(0L)
-                candidate.seekTo(handoffPosition)
-                if (wasPlaying)
-                    candidate.play()
+        try {
+            // resetPosition=false：位置由下一行的 seekTo 精确接管，避免回到 0
+            player.setMediaItem(MediaItem.fromUri(url), /* resetPosition = */ false)
+            player.seekTo(position)
+            player.prepare()
+        } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "音质切换失败，继续使用当前音质: ${quality.id}", e)
+            _audioQuality.value = previousQuality
+            prefs.edit().putString(KEY_AUDIO_QUALITY, previousQuality.id).apply()
+            return
+        }
 
-                activePlayer = candidate
-                qualitySwitchPlayer = null
-                oldPlayer.pause()
-                oldPlayer.stop()
-                oldPlayer.release()
-                candidate.volume = 1f
-                candidate.addListener(playerListener)
-                _duration.value = candidate.duration
-                _currentMusicUrl.value = url
-                Log.d("MusicPlayerManager", "音质已无感切换: ${quality.id}, position=${handoffPosition}ms")
-                updatePlaybackState()
-            }
-
-            override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
-                if (generation != qualitySwitchGeneration)
-                    return
-                Log.w("MusicPlayerManager", "新音质预加载失败，继续使用当前音质: ${quality.id}", error)
-                qualitySwitchPlayer = null
-                candidate.release()
-                _audioQuality.value = previousQuality
-                prefs.edit().putString(KEY_AUDIO_QUALITY, previousQuality.id).apply()
-            }
-        })
-        candidate.setMediaItem(MediaItem.fromUri(url))
-        candidate.prepare()
+        _currentMusicUrl.value = url
+        // 播放意图以切换前为准：本来在播就继续播，本来暂停就保持暂停（playWhenReady 未被改动，无需纠正）
+        playIntent = intentPlaying
+        if (intentPlaying) startPlaybackGuard() else stopPlaybackGuard()
+        syncPlayingState()
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -416,16 +440,18 @@ class MusicPlayerManager private constructor(context: Context) {
         }
 
         val handleAudioFocus = !focusLockEnabled
+        handleAudioFocusByPlayer = handleAudioFocus
         Log.d("MusicPlayerManager", "更新音频属性: 焦点锁定=$focusLockEnabled, 处理音频焦点=$handleAudioFocus")
 
         // 设置音频属性
-        activePlayer.setAudioAttributes(
-            com.google.android.exoplayer2.audio.AudioAttributes.Builder()
-                .setContentType(com.google.android.exoplayer2.C.AUDIO_CONTENT_TYPE_MUSIC)
-                .setUsage(com.google.android.exoplayer2.C.USAGE_MEDIA)
-                .build(),
-            handleAudioFocus
-        )
+        activePlayer.setAudioAttributes(buildAudioAttributes(), handleAudioFocus)
+
+        // 从「焦点锁定」切回「处理焦点」时，ExoPlayer 不会补申请焦点，要等下一次 play()/prepare() 才申请，
+        // 而那时若申请未立即通过就会静默暂停。这里立刻补一次（play() 内部会重新 requestAudioFocus）。
+        if (handleAudioFocus && playIntent) {
+            lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
+            activePlayer.play()
+        }
     }
 
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
@@ -841,9 +867,23 @@ class MusicPlayerManager private constructor(context: Context) {
         playerListener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 Log.d("MusicPlayerManager", "onIsPlayingChanged: isPlaying = $isPlaying")
+                if (isPlaying) {
+                    // 真的出声了，音频焦点问题解决，重试计数清零
+                    focusRetryCount = 0
+                }
                 if (!isReleased) {
-                    _isPlaying.value = isPlaying
-                    updatePlaybackState()
+                    syncPlayingState()
+                }
+            }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // 系统收回音频焦点时 ExoPlayer 会把 playWhenReady 静默置回 false（不抛 onPlayerError），
+                // 这是"播放中被自动暂停"的典型形态。
+                if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
+                    handlePlayWhenReadyLostByFocus()
+                }
+                if (!isReleased) {
+                    syncPlayingState()
                 }
             }
 
@@ -864,11 +904,12 @@ class MusicPlayerManager private constructor(context: Context) {
                     // 延迟 500ms 后重试
                     mainHandler.postDelayed({
                         try {
-                            activePlayer.stop()
-                            activePlayer.clearMediaItems()
                             val mediaItem = MediaItem.fromUri(currentUrl)
-                            activePlayer.setMediaItem(mediaItem)
+                            // 重试同样不能用 stop()：那会释放音频焦点，重试时焦点请求失败又会被静默暂停
+                            activePlayer.setMediaItem(mediaItem, true)
                             activePlayer.prepare()
+                            playIntent = true
+                            lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
                             activePlayer.play()
                         } catch (e: Exception) {
                             Log.e("MusicPlayerManager", "重试播放失败: ${e.message}", e)
@@ -885,6 +926,9 @@ class MusicPlayerManager private constructor(context: Context) {
                 if (isReleased) return
                 Log.d("MusicPlayerManager", "onPlaybackStateChanged: state = $playbackState (IDLE = 1, BUFFERING = 2, READY = 3, ENDED = 4)")
 
+                // 状态先同步一次：UI / 通知栏 / 媒体会话都从这里推导，避免出现"看起来在播其实没播"
+                syncPlayingState()
+
                 when (playbackState) {
                     Player.STATE_IDLE -> {
                         _isBuffering.value = false
@@ -895,6 +939,8 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                     Player.STATE_READY -> {
                         Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${activePlayer.duration} ms")
+                        // 本次曲目已经成功起播，重试计数必须清零，否则会累加到上限后误判为"重试失败"而跳歌
+                        retryCount = 0
                         if (!isReleased) {
                             _isBuffering.value = false
                             _duration.value = activePlayer.duration
@@ -907,7 +953,6 @@ class MusicPlayerManager private constructor(context: Context) {
                         if (isReleased) return
 
                         _isBuffering.value = false
-                        _isPlaying.value = false
                         activePlayer.seekTo(0)
                         updatePlaybackState()
 
@@ -962,6 +1007,8 @@ class MusicPlayerManager private constructor(context: Context) {
                 }
 
                 override fun onPause() {
+                    // 系统 / 蓝牙 / 车机回控暂停：正常走淡出，并记一条日志便于排查"莫名暂停"
+                    Log.d("MusicPlayerManager", "MediaSession.onPause（系统/蓝牙/车机回控）")
                     fadeOut {}
                 }
 
@@ -1140,12 +1187,42 @@ class MusicPlayerManager private constructor(context: Context) {
         }
     }
 
+    /**
+     * 「用户是否希望处于播放中」——由 ExoPlayer 真实的 playWhenReady + playbackState 推导。
+     *
+     * 刻意不用 [ExoPlayer.isPlaying]：切歌后的缓冲期 isPlaying 仍为 false，会被误判成暂停；
+     * 也不能用自己手写的标志位，那正是"界面显示播放中、实际没出声"的来源。
+     */
+    private fun isTransportPlaying(player: Player = activePlayer): Boolean {
+        val playbackState = player.playbackState
+        return player.playWhenReady &&
+            playbackState != Player.STATE_IDLE &&
+            playbackState != Player.STATE_ENDED &&
+            // 被音频焦点抑制（其他应用临时占用焦点）时 playWhenReady 仍是 true，但实际不会出声；
+            // 这里必须如实为 false，否则界面 / 通知栏 / 车机会显示"正在播放"而用户什么都听不到。
+            player.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
+    }
+
+    /**
+     * 播放状态的唯一真源：只从播放器状态推导，任何回调（onIsPlayingChanged /
+     * onPlayWhenReadyChanged / onPlaybackStateChanged）都走这里。
+     */
+    private fun syncPlayingState() {
+        val playing = isTransportPlaying()
+        if (_isPlaying.value != playing) {
+            Log.d("MusicPlayerManager", "播放状态同步: isPlaying = $playing")
+            _isPlaying.value = playing
+        }
+        updatePlaybackState()
+    }
+
     private fun updatePlaybackState() {
         // 检查 MediaSession 是否已初始化
         if (mediaSession == null) {
             return
         }
 
+        val publishingPlaying = isTransportPlaying()
         val stateBuilder = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -1170,7 +1247,9 @@ class MusicPlayerManager private constructor(context: Context) {
                 ).build()
             )
             .setState(
-                if (activePlayer.isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                // 用播放意图而不是 isPlaying：切歌/缓冲期间 isPlaying 为 false，
+                // 对外发布 STATE_PAUSED 会让通知栏、车机、蓝牙误判成"已被暂停"并回控暂停。
+                if (publishingPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
                 activePlayer.currentPosition,
                 1.0f
             )
@@ -1215,6 +1294,10 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 淡入效果
     private fun fadeIn() {
+        fadeToken = Any()
+        playIntent = true
+        lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
+        startPlaybackGuard()
         fadeJob?.cancel()
         fadeJob = scope.launch {
             // 获取 WakeLock 以保持 CPU 唤醒
@@ -1222,8 +1305,8 @@ class MusicPlayerManager private constructor(context: Context) {
 
             activePlayer.volume = 0f
             activePlayer.play()
-            _isPlaying.value = true
             startPositionUpdate()
+            // 播放状态一律由播放器回调同步（syncPlayingState），这里不再手写 _isPlaying
             updatePlaybackState()
 
             val steps = 20
@@ -1238,19 +1321,26 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 淡出效果
     private fun fadeOut(onComplete: () -> Unit) {
+        val token = Any()
+        fadeToken = token
+        playIntent = false
+        stopPlaybackGuard()
         fadeJob?.cancel()
         fadeJob = scope.launch {
             val steps = 20
             val stepDelay = 300L / steps
             for (i in steps downTo 1) {
                 delay(stepDelay)
-            activePlayer.volume = i.toFloat() / steps
+                activePlayer.volume = i.toFloat() / steps
             }
             activePlayer.volume = 0f
+            // 令牌已过期说明期间又发生了淡入/切歌，这一轮淡出必须作废，
+            // 否则 300ms 的淡出动画会在新歌起播之后又把它暂停掉（偶发"切歌后自动暂停"）。
+            if (fadeToken !== token) return@launch
             activePlayer.pause()
-            _isPlaying.value = false
             stopPositionUpdate()
             activePlayer.volume = 1f
+            // 播放状态一律由播放器回调同步（syncPlayingState），这里不再手写 _isPlaying
             updatePlaybackState()
 
             // 释放 WakeLock
@@ -1258,6 +1348,94 @@ class MusicPlayerManager private constructor(context: Context) {
 
             onComplete()
         }
+    }
+
+    /**
+     * 播放守护：只要「用户想播」，就周期性地检查有没有出现「想播却不出声」并自愈。
+     *
+     * 两种形态：
+     * 1. 音频焦点被其他应用临时占用（ExoPlayer 的 playWhenReady 仍为 true、也收不到 onPlayerError，
+     *    只是不出声，也就是"界面显示播放中但实际没播放"）。正常情况下系统会在对方释放焦点后
+     *    自动把 GAIN 还给我们并恢复播放，所以这里**只在抑制明显过期（[SUPPRESSION_STALE_MS]）**、
+     *    且没有别的应用在放音乐时才重新申请一次焦点——抑制期间贸然 play() 会把"暂时静音"变成
+     *    "硬暂停"，反而破坏系统正常的自动恢复。
+     * 2. playWhenReady 被焦点问题置回 false（见 [handlePlayWhenReadyLostByFocus]），由回调侧做有限重试。
+     */
+    private fun startPlaybackGuard() {
+        playbackGuardJob?.cancel()
+        playbackGuardJob = scope.launch {
+            var suppressedSince = 0L
+            var recoverAttempts = 0
+            var gaveUp = false
+            while (playIntent && !isReleased) {
+                delay(PLAYBACK_GUARD_INTERVAL_MS)
+                if (!playIntent) break
+                val player = activePlayer
+                val suppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
+                if (player.playWhenReady && suppressed && player.playbackState != Player.STATE_IDLE) {
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    if (suppressedSince == 0L) {
+                        suppressedSince = now
+                        Log.w("MusicPlayerManager", "播放守护：播放被音频焦点抑制，等待系统回收焦点")
+                    }
+                    val stale = now - suppressedSince >= SUPPRESSION_STALE_MS
+                    if (stale && recoverAttempts < MAX_SUPPRESSION_RECOVER && !isAnotherAppPlayingMusic()) {
+                        recoverAttempts++
+                        Log.w(
+                            "MusicPlayerManager",
+                            "播放守护：焦点抑制已持续 ${(now - suppressedSince) / 1000}s，重新申请音频焦点（第 $recoverAttempts/$MAX_SUPPRESSION_RECOVER 次）"
+                        )
+                        player.play()
+                    } else if (stale && recoverAttempts >= MAX_SUPPRESSION_RECOVER && !gaveUp) {
+                        gaveUp = true
+                        Log.w("MusicPlayerManager", "播放守护：音频焦点持续被其他应用占用，停止自愈")
+                    }
+                } else {
+                    suppressedSince = 0L
+                    recoverAttempts = 0
+                    gaveUp = false
+                }
+            }
+        }
+    }
+
+    private fun stopPlaybackGuard() {
+        playbackGuardJob?.cancel()
+        playbackGuardJob = null
+    }
+
+    /**
+     * playWhenReady 因焦点问题被系统置回 false（切歌瞬间请求焦点未立即通过时的典型形态）。
+     *
+     * 这里只做有限次重试：确实被别的应用长期占用焦点时就不再纠缠，如实停在暂停态，
+     * 避免出现"两个应用互相抢焦点"。
+     */
+    private fun handlePlayWhenReadyLostByFocus() {
+        val sinceRequest = android.os.SystemClock.elapsedRealtime() - lastPlayRequestAt
+        if (playIntent && sinceRequest in 0..FOCUS_RETRY_GRACE_MS && focusRetryCount < MAX_FOCUS_RETRY &&
+            !isAnotherAppPlayingMusic()
+        ) {
+            focusRetryCount++
+            Log.w(
+                "MusicPlayerManager",
+                "音频焦点申请未立即通过（请求后 ${sinceRequest}ms），${FOCUS_RETRY_DELAY_MS}ms 后重试（第 $focusRetryCount/$MAX_FOCUS_RETRY 次）"
+            )
+            mainHandler.postDelayed({
+                if (playIntent && !activePlayer.playWhenReady && !isAnotherAppPlayingMusic()) {
+                    activePlayer.play()
+                }
+            }, FOCUS_RETRY_DELAY_MS)
+        } else {
+            Log.w("MusicPlayerManager", "音频焦点被其他应用占用，播放已暂停（不自动抢回）")
+        }
+    }
+
+    /** 是否已有其他应用在出声（用于避免和别的播放器互相抢焦点）。 */
+    private fun isAnotherAppPlayingMusic(): Boolean = try {
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        audioManager.isMusicActive
+    } catch (e: Exception) {
+        false
     }
 
     // 获取 WakeLock 以保持 CPU 唤醒
@@ -1358,20 +1536,16 @@ class MusicPlayerManager private constructor(context: Context) {
                 normalizedUrl
             }
 
-            // 先停止当前播放，避免状态冲突
-            try {
-                Log.d("MusicPlayerManager", "正在停止旧播放并清理队列...")
-                activePlayer.stop()
-                activePlayer.clearMediaItems()
-            } catch (e: Exception) {
-                Log.e("MusicPlayerManager", "停止播放失败: ${e.message}", e)
-            }
-
-            // 立即执行 ExoPlayer 操作（同步）
+            // 直接替换 MediaItem，不要用 stop() + clearMediaItems()：
+            // ExoPlayer 的 stop() 会把状态置为 IDLE，而 AudioFocusManager.updateAudioFocus(playWhenReady, STATE_IDLE)
+            // 会真的调用 AudioManager.abandonAudioFocus() 释放音频焦点；紧接着 prepare() 重新请求焦点时，
+            // 一旦系统未立即返回 GRANTED（返回 DELAYED / 此刻被其他应用抢占），ExoPlayer 会静默把
+            // playWhenReady 置回 false 且不抛 onPlayerError，表现就是"切歌后偶发自动暂停"。
+            // setMediaItem() 不经过 IDLE（旧媒体由内部播放器原子替换），音频焦点得以保持。
             try {
                 Log.d("MusicPlayerManager", "正在设置 MediaItem 并准备播放: $playUrl")
                 val mediaItem = MediaItem.fromUri(playUrl)
-                activePlayer.setMediaItem(mediaItem)
+                activePlayer.setMediaItem(mediaItem, /* resetPosition = */ true)
                 activePlayer.prepare()
             } catch (e: Exception) {
                 Log.e("MusicPlayerManager", "ExoPlayer 操作失败: ${e.message}", e)
@@ -1379,7 +1553,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 try {
                     Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $normalizedUrl")
                     val mediaItem = MediaItem.fromUri(normalizedUrl)
-                    activePlayer.setMediaItem(mediaItem)
+                    activePlayer.setMediaItem(mediaItem, /* resetPosition = */ true)
                     activePlayer.prepare()
                 } catch (e2: Exception) {
                     Log.e("MusicPlayerManager", "ExoPlayer 重试失败: ${e2.message}", e2)
@@ -1666,6 +1840,15 @@ class MusicPlayerManager private constructor(context: Context) {
                                 preloadedSessionCoverMusicId = nextId
                             }
                         }
+                    }
+
+                    // 顺手把下一首的音质地址解析好（单飞去重），切歌时直接命中缓存，省掉 0.2~2.5s 空窗。
+                    // 注意必须用「和切歌时完全一致的、带音质参数的地址」当 key：preload 里拿到的 nextUrl
+                    // 不带 ?quality=，与真正播放用的地址不是同一个 key，预热会完全失效。
+                    launch(Dispatchers.IO) {
+                        com.neko.music.util.MusicUrlResolver.prefetch(
+                            UrlConfig.getMusicFileUrl(nextMusic.id, _audioQuality.value.id)
+                        )
                     }
 
                     Log.d("MusicPlayerManager", "预加载下一首音乐: ${nextMusic.title}")
