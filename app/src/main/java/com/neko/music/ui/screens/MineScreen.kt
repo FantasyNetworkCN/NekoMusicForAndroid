@@ -38,6 +38,7 @@ import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
 import com.neko.music.data.manager.AppBackgroundKind
+import com.neko.music.data.manager.NotificationCenter
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -60,6 +61,7 @@ fun MineScreen(
     onUploadClick: () -> Unit = {},
     onVipCenterClick: () -> Unit = {},
     onQrScanClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     nickname: String? = null,
     userId: Int = -1,
@@ -78,6 +80,9 @@ fun MineScreen(
     
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
+
+    // 未读数来自消息长连接推送帧，不轮询
+    val unreadCount by NotificationCenter.unread.collectAsState()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     val glassTint = LiquidGlassDefaults.screenListCard
     val glassBg = glassTint.background(isDarkTheme)
@@ -131,6 +136,8 @@ fun MineScreen(
                         onLogoutClick = onLogoutClick,
                         onAccountInfoClick = onAccountInfoClick,
                         onQrScanClick = onQrScanClick,
+                        onNotificationsClick = onNotificationsClick,
+                        unreadCount = unreadCount,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -259,6 +266,8 @@ fun MineHeader(
     onLogoutClick: () -> Unit = {},
     onAccountInfoClick: () -> Unit = {},
     onQrScanClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
+    unreadCount: Int = 0,
 ) {
     val context = LocalContext.current
     
@@ -290,24 +299,68 @@ fun MineHeader(
                     ),
                 ),
         )
-        // 右上角「扫一扫」：扫码登录电脑端的入口
-        Box(
+        // 右上角：站内消息入口（带未读徽标）+ 「扫一扫」（扫码登录电脑端）
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 10.dp, end = 16.dp)
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.3f))
-                .clickable(onClick = onQrScanClick),
-            contentAlignment = Alignment.Center
+                .padding(top = 10.dp, end = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_qr_scan),
-                contentDescription = stringResource(id = R.string.qr_scan),
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .clickable(onClick = onNotificationsClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_notification_message),
+                        contentDescription = stringResource(id = R.string.notifications_title),
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                if (unreadCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 3.dp, y = (-3).dp)
+                            .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                            .clip(CircleShape)
+                            .background(RoseRed),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 5.dp)
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .clickable(onClick = onQrScanClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_qr_scan),
+                    contentDescription = stringResource(id = R.string.qr_scan),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
         // 装饰圆圈

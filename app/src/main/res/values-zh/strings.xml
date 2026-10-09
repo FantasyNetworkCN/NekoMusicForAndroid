@@ -531,6 +531,12 @@
     <string name="music_playback">音乐播放</string>
     <string name="music_playback_notification">音乐播放通知</string>
 
+    <string name="notifications_title">消息中心</string>
+    <string name="notifications_channel">消息</string>
+    <string name="notifications_channel_desc">评论回复等站内消息提醒</string>
+    <string name="notifications_missed_fmt">断线期间收到 %1$d 条新消息</string>
+    <string name="notifications_empty">还没有收到消息</string>
+
     <!-- 最新音乐 -->
     <string name="latest_music">最新音乐</string>
     <string name="latest_music_title">最新音乐</string>

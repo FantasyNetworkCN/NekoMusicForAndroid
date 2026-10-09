@@ -38,6 +38,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
         // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
         checkAndCleanupUpdateFiles()
 
+        // 站内消息推送：登录后常驻 SSE 长连接，收到新消息发系统通知（不依赖任何推送 SDK）
+        com.neko.music.data.manager.NotificationCenter.install(this)
+
         // Android 15+：小组件选择器依赖 setWidgetPreview，仅靠 XML previewLayout 不会显示
         MusicWidgetPreviewRegistrar.register(this)
 
