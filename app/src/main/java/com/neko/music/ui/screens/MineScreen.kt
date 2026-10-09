@@ -299,67 +299,83 @@ fun MineHeader(
                     ),
                 ),
         )
-        // 右上角：站内消息入口（带未读徽标）+ 「扫一扫」（扫码登录电脑端）
-        Row(
+        // 右上角：站内消息（带未读徽标）与「扫一扫」合成一块玻璃胶囊，避免两个孤立圆点
+        val headerIsDark = isAppDarkTheme()
+        val headerGlassTint = LiquidGlassDefaults.screenListCard
+        GlassSurface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(top = 10.dp, end = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+            shape = RoundedCornerShape(50),
+            backgroundAlpha = headerGlassTint.background(headerIsDark),
+            borderAlpha = headerGlassTint.border(headerIsDark),
+            highlightAlpha = headerGlassTint.highlight(headerIsDark),
+            borderColor = if (headerIsDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                MaterialTheme.colorScheme.outline
+            },
         ) {
-            Box {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onNotificationsClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_notification_message),
+                            contentDescription = stringResource(id = R.string.notifications_title),
+                            tint = Color.White,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+
+                    if (unreadCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 7.dp, end = 7.dp)
+                                .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
+                                .clip(CircleShape)
+                                .background(RoseRed),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
+                    }
+                }
+
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .width(1.dp)
+                        .height(18.dp)
+                        .background(Color.White.copy(alpha = 0.22f))
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .clickable(onClick = onNotificationsClick),
+                        .clickable(onClick = onQrScanClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_notification_message),
-                        contentDescription = stringResource(id = R.string.notifications_title),
+                        painter = painterResource(id = R.drawable.ic_qr_scan),
+                        contentDescription = stringResource(id = R.string.qr_scan),
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(21.dp)
                     )
                 }
-
-                if (unreadCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 3.dp, y = (-3).dp)
-                            .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                            .clip(CircleShape)
-                            .background(RoseRed),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 5.dp)
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .clickable(onClick = onQrScanClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_qr_scan),
-                    contentDescription = stringResource(id = R.string.qr_scan),
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
             }
         }
 
