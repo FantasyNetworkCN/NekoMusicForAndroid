@@ -189,6 +189,12 @@ fun CommentPage(
             if (response.success) {
                 draft = ""
                 replyTarget = null
+                // 被回复的那条可能在折叠的楼层里，发完自动展开，别让用户找不到自己刚发的内容
+                if (parentId != null) {
+                    comments.firstOrNull { floor ->
+                        floor.id == parentId || floor.replies.any { it.id == parentId }
+                    }?.let { expandedFloors = expandedFloors + it.id }
+                }
                 Toast.makeText(context, context.getString(R.string.comment_post_success), Toast.LENGTH_SHORT).show()
                 loadComments(reset = true)
             } else {
@@ -371,7 +377,9 @@ fun CommentPage(
                                         expandedFloors + floor.id
                                     }
                                 },
-                                onReply = { target -> replyTarget = target },
+                                onReply = { target ->
+                                    if (isLoggedIn) replyTarget = target else onRequestLogin()
+                                },
                                 onDelete = { target -> deleteTarget = target },
                             )
                         }
@@ -548,9 +556,18 @@ private fun CommentFloorCard(
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
                     replyToUser = reply.replyToUser,
-                    showActions = false,
+                    showActions = true,
                     canDelete = reply.canDelete,
-                    onReply = {},
+                    onReply = {
+                        onReply(
+                            ReplyTarget(
+                                id = reply.id,
+                                nickname = reply.user?.nickname.orEmpty().ifBlank {
+                                    context.getString(R.string.comment_title)
+                                },
+                            )
+                        )
+                    },
                     onDelete = { onDelete(DeleteTarget(reply.id, isFloor = false, replyCount = 0)) },
                     modifier = Modifier.padding(start = 22.dp),
                 )
@@ -768,7 +785,9 @@ private fun CommentComposer(
                     )
                 } else {
                     Text(
-                        text = stringResource(id = R.string.comment_send),
+                        text = stringResource(
+                            id = if (replyTarget != null) R.string.comment_reply else R.string.comment_send
+                        ),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -776,6 +795,18 @@ private fun CommentComposer(
                 }
             }
         }
+
+        // 字数统计：接近上限时转成强调色，和网页一致
+        val remaining = COMMENT_MAX_LENGTH - draft.length
+        Text(
+            text = "${draft.length}/$COMMENT_MAX_LENGTH",
+            fontSize = 11.sp,
+            color = if (remaining < 30) RoseRed else textSecondary.copy(alpha = 0.85f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, end = 6.dp),
+        )
     }
 }
 
