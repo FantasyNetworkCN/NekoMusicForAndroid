@@ -68,6 +68,7 @@ class TokenManager(context: Context) {
         editor.putString(KEY_TOKEN, token)
         editor.apply()
         applyProfile(userId, nickname, email, isVip, vipExpiresAt)
+        NotificationCenter.onLogin()
     }
 
     /** 更新内存中的昵称（服务端修改成功后调用） */
@@ -164,5 +165,6 @@ class TokenManager(context: Context) {
         cachedEmail = null
         cachedIsVip = false
         cachedVipExpiresAt = null
+        NotificationCenter.onLogout()
     }
 }

@@ -560,6 +560,12 @@
     <string name="music_playback">Music Playback</string>
     <string name="music_playback_notification">Music Playback Notification</string>
 
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_channel">Messages</string>
+    <string name="notifications_channel_desc">In-app alerts such as replies to your comments</string>
+    <string name="notifications_missed_fmt">%1$d new messages arrived while reconnecting</string>
+    <string name="notifications_empty">No messages yet</string>
+
     <!-- Latest Music -->
     <string name="latest_music">Latest Music</string>
     <string name="latest_music_title">Latest Music</string>

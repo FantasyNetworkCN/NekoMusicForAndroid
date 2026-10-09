@@ -94,6 +94,7 @@ import com.neko.music.ui.screens.RegisterScreen
 import com.neko.music.ui.screens.ForgotPasswordScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
+import com.neko.music.ui.screens.NotificationInboxScreen
 import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.PrivacyPolicyScreen
@@ -867,6 +868,9 @@ fun MainScreen() {
                             navController.navigate(AuthRoutes.LOGIN)
                         }
                     },
+                    onNotificationsClick = {
+                        navController.navigate("notifications")
+                    },
                     isLoggedIn = isLoggedIn,
                     nickname = currentNickname,
                     userId = currentUserId,
@@ -888,6 +892,31 @@ fun MainScreen() {
                     onNavigateToFavorite = {
                         navController.navigate("favorites")
                     }
+                )
+            }
+            composable("notifications") {
+                NotificationInboxScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onMessageClick = { item ->
+                        // 与通知栏点击同一条路径：发 Deep Link 事件，由 MainActivity 取详情后进播放页
+                        val musicId = item.link
+                            .removePrefix("/detail/")
+                            .substringBefore("/")
+                            .substringBefore("?")
+                            .toIntOrNull()
+                        if (musicId != null) {
+                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(musicId)
+                            )
+                        }
+                    },
+                    onLoginClick = {
+                        navController.navigate(AuthRoutes.LOGIN)
+                    },
+                    isLoggedIn = isLoggedIn,
+                    token = currentUserToken
                 )
             }
             composable("recent_play") {
