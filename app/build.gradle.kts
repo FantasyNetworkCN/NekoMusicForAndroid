@@ -176,7 +176,7 @@ val verifyNekoClientHeader by tasks.registering {
         )
         val literalOffenders = sourcesDir.asFile.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
-            .map { it.relativeTo(sourcesDir.asFile).path to it.readText() }
+            .map { it.relativeTo(sourcesDir.asFile).path.replace('\\', '/') to it.readText() }
             .filter { (path, text) -> path !in literalAllowed && userAgentLiteral.containsMatchIn(text) }
             .map { (path, _) -> path }
             .toList()

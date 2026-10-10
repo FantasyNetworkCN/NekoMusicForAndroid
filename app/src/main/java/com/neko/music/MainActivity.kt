@@ -2,6 +2,7 @@ package com.neko.music
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.scale
@@ -43,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -127,6 +130,7 @@ import com.neko.music.ui.components.LocalLiquidGlassUiScale
 import com.neko.music.ui.components.readLiquidGlassUiScale
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 class MainActivity : ComponentActivity() {
     private val PREFS_NAME = "app_prefs"
@@ -1550,6 +1554,7 @@ fun MainScreen() {
         // 播放列表 zIndex 须高于底栏浮层；勿在 showPlaylist 时卸掉底栏/迷你条，否则会瞬间消失且与播放列表动画不同步
 
         // 迷你播放器 + 底栏：底部对齐后整体做 AnimatedVisibility，避免自定义 Layout 把内容画在测量区域外导致动画被裁切
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val bottomChromeVisible = showBottomControls &&
             !isPlayerScreen &&
             !isAuthScreen &&
@@ -1583,38 +1588,62 @@ fun MainScreen() {
                     exit = bottomChromeExit,
                     label = "bottomChrome",
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        MiniPlayer(
-                            isPlaying = isPlaying,
-                            songTitle = currentMusicTitle ?: "暂无播放",
-                            artist = currentMusicArtist ?: "",
-                            coverUrl = currentMusicCover,
-                            progress = progress.floatValue,
-                            onPlayPauseClick = {
-                                playerManager.togglePlayPause()
-                            },
-                            onPlayerClick = {
-                                val id = currentMusicId ?: 0
-                                val encodedTitle = java.net.URLEncoder.encode(
-                                    currentMusicTitle ?: "未知歌曲", "UTF-8"
-                                )
-                                val encodedArtist = java.net.URLEncoder.encode(
-                                    currentMusicArtist ?: "未知歌手", "UTF-8"
-                                )
-                                navController.navigate("player/$id/$encodedTitle/$encodedArtist")
-                            },
-                            onPlaylistClick = {
-                                showPlaylist = true
-                            },
-                        )
-                        BottomNavigationBar(navController = navController)
+                    if (isLandscape) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            MiniPlayer(
+                                modifier = Modifier.weight(1f),
+                                isPlaying = isPlaying,
+                                songTitle = currentMusicTitle ?: "暂无播放",
+                                artist = currentMusicArtist ?: "",
+                                coverUrl = currentMusicCover,
+                                progress = progress.floatValue,
+                                onPlayPauseClick = { playerManager.togglePlayPause() },
+                                onPlayerClick = {
+                                    val id = currentMusicId ?: 0
+                                    val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
+                                    val encodedArtist = URLEncoder.encode(currentMusicArtist ?: "未知歌手", "UTF-8")
+                                    navController.navigate("player/$id/$encodedTitle/$encodedArtist")
+                                },
+                                onPlaylistClick = { showPlaylist = true },
+                            )
+                            BottomNavigationBar(
+                                navController = navController,
+                                modifier = Modifier.width(220.dp),
+                            )
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            MiniPlayer(
+                                isPlaying = isPlaying,
+                                songTitle = currentMusicTitle ?: "暂无播放",
+                                artist = currentMusicArtist ?: "",
+                                coverUrl = currentMusicCover,
+                                progress = progress.floatValue,
+                                onPlayPauseClick = { playerManager.togglePlayPause() },
+                                onPlayerClick = {
+                                    val id = currentMusicId ?: 0
+                                    val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
+                                    val encodedArtist = URLEncoder.encode(currentMusicArtist ?: "未知歌手", "UTF-8")
+                                    navController.navigate("player/$id/$encodedTitle/$encodedArtist")
+                                },
+                                onPlaylistClick = { showPlaylist = true },
+                            )
+                            BottomNavigationBar(navController = navController)
+                        }
                     }
                 }
             }
