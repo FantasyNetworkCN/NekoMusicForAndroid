@@ -367,6 +367,7 @@ fun BottomNavigationBar(
 
 @Composable
 fun MiniPlayer(
+    modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
     songTitle: String = "",
     artist: String = "",
@@ -420,7 +421,7 @@ fun MiniPlayer(
     val miniTint = LiquidGlassDefaults.miniPlayerBar
     val miniLiq = LiquidGlassDefaults.liquidSoft
     GlassSurface(
-        modifier = Modifier.fillMaxWidth().height(68.dp),
+        modifier = modifier.fillMaxWidth().height(68.dp),
         // 与底栏同为「胶囊」，让底部两块 chrome 共用一套圆角语言。
         shape = RoundedCornerShape(34.dp),
         backgroundAlpha = miniTint.backgroundAlpha,
