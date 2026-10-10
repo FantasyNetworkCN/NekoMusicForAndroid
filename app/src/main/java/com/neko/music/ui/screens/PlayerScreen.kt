@@ -3,6 +3,7 @@ package com.neko.music.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -110,6 +111,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -619,8 +621,8 @@ fun PlayerScreen(
 
     val colorScheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(colorScheme.background)
-    // Apple Music 风格的底部控制区是无卡片的透明渐隐层。
-    val bottomGlassReserve = 196.dp
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val bottomGlassReserve = if (isLandscape) 148.dp else 196.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
@@ -706,9 +708,9 @@ fun PlayerScreen(
                                 CoverImage(
                                     music = currentMusic,
                                     modifier = Modifier
-                                        .fillMaxWidth(0.76f)
+                                        .fillMaxWidth(if (isLandscape) 0.34f else 0.76f)
                                         .aspectRatio(1f)
-                                        .widthIn(max = 310.dp)
+                                        .widthIn(max = if (isLandscape) 250.dp else 310.dp)
                                 )
                                 Spacer(modifier = Modifier.height(18.dp))
                                 NowPlayingIdentity(
@@ -793,7 +795,7 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .zIndex(2f)
                     .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .padding(horizontal = if (isLandscape) 28.dp else 14.dp, vertical = 4.dp)
             ) {
                 TopBar(
                     isDarkTheme = isDarkTheme,
