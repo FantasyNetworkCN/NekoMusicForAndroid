@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.content.res.Configuration
 import android.util.Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -93,6 +94,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalConfiguration
 import java.io.File
 
 @Composable
@@ -841,7 +843,13 @@ fun PlaylistCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(
+                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        1.65f
+                    } else {
+                        1f
+                    }
+                )
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,
@@ -1028,7 +1036,13 @@ fun RankingMusicCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(
+                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        1.65f
+                    } else {
+                        1f
+                    }
+                )
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,

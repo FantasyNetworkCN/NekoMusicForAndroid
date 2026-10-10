@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.content.res.Configuration
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -92,7 +94,13 @@ fun LatestMusicCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
+                .aspectRatio(
+                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        1.65f
+                    } else {
+                        1f
+                    }
+                )
                 .clip(RoundedCornerShape(20.dp))
                 .shadow(
                     elevation = 8.dp,
