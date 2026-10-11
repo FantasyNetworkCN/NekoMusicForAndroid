@@ -472,7 +472,7 @@
     <string name="enter_description">请输入歌单描述</string>
     <string name="description_updated_success">描述已更新</string>
     <string name="description_update_failed_msg">更新失败: %s</string>
-    <string name="remove_from_playlist_success">已从歌单中移除</string>
+    <string name="remove_from_playlist_success">从歌单中移除</string>
     <string name="remove_from_playlist_failed">移除失败: %s</string>
     <string name="load_failed_msg">加载失败: %s</string>
     <string name="add_to_favorites_success">收藏成功</string>
