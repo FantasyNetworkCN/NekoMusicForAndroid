@@ -158,11 +158,19 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    suspend fun verifySliderCaptcha(captchaToken: String, captchaOffsetX: Int): SliderCaptchaVerifyResult {
+    suspend fun verifySliderCaptcha(
+        captchaToken: String,
+        captchaOffsetX: Int,
+        dragTrace: List<SliderDragSample>,
+    ): SliderCaptchaVerifyResult {
         return try {
             val response = client.post("$baseUrl/api/captcha/slider/verify") {
                 contentType(ContentType.Application.Json)
-                setBody(SliderVerifyRequest(captchaToken = captchaToken, captchaOffsetX = captchaOffsetX))
+                setBody(SliderVerifyRequest(
+                    captchaToken = captchaToken,
+                    captchaOffsetX = captchaOffsetX,
+                    dragTrace = dragTrace,
+                ))
             }
             val raw = response.bodyAsText()
             Log.w(
@@ -549,6 +557,13 @@ data class SliderCaptchaChallengeDto(
 data class SliderVerifyRequest(
     val captchaToken: String,
     val captchaOffsetX: Int,
+    val dragTrace: List<SliderDragSample>,
+)
+
+@Serializable
+data class SliderDragSample(
+    val t: Long,
+    val x: Int,
 )
 
 @Serializable

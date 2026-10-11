@@ -1,6 +1,7 @@
 package com.neko.music.ui.screens
 
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -61,6 +62,7 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.data.api.SliderCaptchaChallengeDto
 import com.neko.music.data.api.SliderCaptchaLoadResult
+import com.neko.music.data.api.SliderDragSample
 import com.neko.music.data.api.SliderCaptchaVerifyResult
 import com.neko.music.data.api.UserApi
 import kotlinx.coroutines.delay
@@ -134,6 +136,8 @@ fun RegisterSliderCaptchaDialog(
     var challenge by remember { mutableStateOf<SliderCaptchaChallengeDto?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var thumbLeftPx by remember { mutableFloatStateOf(0f) }
+    var dragTrace by remember { mutableStateOf(listOf<SliderDragSample>()) }
+    var dragStartedAt by remember { mutableStateOf(0L) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     /** 发信成功等正向反馈，用于绿色文案 */
@@ -146,7 +150,26 @@ fun RegisterSliderCaptchaDialog(
 
     LaunchedEffect(challenge?.captchaToken) {
         thumbLeftPx = 0f
+        dragTrace = emptyList()
+        dragStartedAt = 0L
         statusPositive = false
+    }
+
+    fun recordDragSample(d: SliderCaptchaChallengeDto, railWpx: Float, thumbWpx: Float) {
+        if (dragStartedAt <= 0L) return
+        val offset = slideOffsetXIntFromThumb(
+            thumbLeftPx,
+            railWpx,
+            thumbWpx,
+            maxPieceOffset(d),
+        )
+        val elapsed = (SystemClock.uptimeMillis() - dragStartedAt).coerceAtLeast(0L)
+        val previous = dragTrace.lastOrNull()
+        if (previous != null && elapsed <= previous.t) return
+        dragTrace = dragTrace + SliderDragSample(
+            t = elapsed,
+            x = offset,
+        )
     }
 
     suspend fun reloadChallengeInitial() {
@@ -178,6 +201,8 @@ fun RegisterSliderCaptchaDialog(
                 is SliderCaptchaLoadResult.Ok -> {
                     challenge = r.data
                     thumbLeftPx = 0f
+                    dragTrace = emptyList()
+                    dragStartedAt = 0L
                     status = ""
                     statusPositive = false
                     Log.w(CAPTCHA_LOG_TAG, "已加载新拼图 tokenPrefix=${r.data.captchaToken.take(8)}")
@@ -213,7 +238,7 @@ fun RegisterSliderCaptchaDialog(
             CAPTCHA_LOG_TAG,
             "松手校验 off=$off mx=$mx thumbLeftPx=$thumbLeftPx railWpx=$railWpx thumbWpx=$thumbWpx",
         )
-        when (val v = userApi.verifySliderCaptcha(d.captchaToken, off)) {
+        when (val v = userApi.verifySliderCaptcha(d.captchaToken, off, dragTrace)) {
             is SliderCaptchaVerifyResult.Err -> {
                 val apiMsg = v.message.ifBlank { verifyFailedHint }
                 status = "$apiMsg\n$verifyFailedHint"
@@ -403,6 +428,9 @@ fun RegisterSliderCaptchaDialog(
                                                 if (!onThumb) {
                                                     thumbLeftPx = (start.x - thumbWpx / 2f).coerceIn(0f, tm)
                                                 }
+                                                dragStartedAt = SystemClock.uptimeMillis()
+                                                dragTrace = emptyList()
+                                                recordDragSample(d, railWpx, thumbWpx)
                                                 Log.w(
                                                     CAPTCHA_LOG_TAG,
                                                     "dragStart fingerX=${start.x} thumbLeftPx=$thumbLeftPx onThumb=$onThumb",
@@ -413,9 +441,11 @@ fun RegisterSliderCaptchaDialog(
                                                 val tm = (railWpx - thumbWpx).coerceAtLeast(1f)
                                                 thumbLeftPx = (thumbLeftPx + dragAmount.x).coerceIn(0f, tm)
                                                 change.consume()
+                                                recordDragSample(d, railWpx, thumbWpx)
                                             },
                                             onDragEnd = {
                                                 if (busy || reloadingChallenge || holdOutcomeUi) return@detectDragGestures
+                                                recordDragSample(d, railWpx, thumbWpx)
                                                 Log.w(CAPTCHA_LOG_TAG, "dragEnd thumbLeftPx=$thumbLeftPx")
                                                 scope.launch {
                                                     verifyAndSendAfterRelease(d, railWpx, thumbWpx)
