@@ -474,7 +474,7 @@
     <string name="enter_description">想写什么喵？</string>
     <string name="description_updated_success">介绍改好啦喵</string>
     <string name="description_update_failed_msg">没改掉喵: %s</string>
-    <string name="remove_from_playlist_success">从本本里踢出去了喵</string>
+    <string name="remove_from_playlist_success">从本本里踢出去喵</string>
     <string name="remove_from_playlist_failed">踢不动喵: %s</string>
     <string name="load_failed_msg">加载失败喵: %s</string>
     <string name="add_to_favorites_success">收藏好啦喵</string>

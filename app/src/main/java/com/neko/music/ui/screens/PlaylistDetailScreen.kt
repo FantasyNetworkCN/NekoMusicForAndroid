@@ -1630,24 +1630,28 @@ fun PlaylistMusicItem(
                                 onPlayNext()
                             }
                         )
-                    }
-                }
-            }
-
-            if (showDeleteButton) {
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "移除",
-                        tint = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                        } else {
-                            Color.Gray
+                        if (showDeleteButton) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = stringResource(id = R.string.remove_from_playlist_success),
+                                        fontSize = 14.sp
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    actionsExpanded = false
+                                    onRemove()
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
