@@ -122,6 +122,7 @@ import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
 import com.neko.music.data.lan.LanDeviceManager
+import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.PrivacyConsentManager
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko歌姬计划
@@ -1078,6 +1079,18 @@ fun MainScreen() {
                         android.widget.Toast.makeText(
                             context,
                             context.getString(R.string.play_next_added_format, music.title),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onAddToPlaylist = { music ->
+                        scope.launch {
+                            PlaylistManager
+                                .getInstance(context)
+                                .addToPlaylist(music)
+                        }
+                        Toast.makeText(
+                            context,
+                            "已将「${music.title}」添加到播放列表",
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     },

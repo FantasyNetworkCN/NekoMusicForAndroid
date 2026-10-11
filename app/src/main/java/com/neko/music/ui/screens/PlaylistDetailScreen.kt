@@ -19,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -130,6 +131,8 @@ fun PlaylistDetailScreen(
     onPlayAll: (List<PlaylistMusic>, Int) -> Unit,
     /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
     onPlayNext: (com.neko.music.data.model.Music) -> Unit = {},
+    /** 长按曲目时，仅将当前单曲追加到待播列表 */
+    onAddToPlaylist: (Music) -> Unit = {},
     /** 歌单批量编辑时请求宿主暂时隐藏底部迷你播放器与底栏，避免遮挡 */
     onPlaylistBatchModeChange: (inBatchEdit: Boolean) -> Unit = {}
 ) {
@@ -740,6 +743,9 @@ fun PlaylistDetailScreen(
                                         },
                                         onClick = {
                                             onPlayAll(musicList, index)
+                                        },
+                                        onLongClick = {
+                                            onAddToPlaylist(music.toLocalMusic())
                                         },
                                         onPlayNext = { onPlayNext(music.toLocalMusic()) },
                                         onRemove = { removeMusic(music) },
@@ -1426,6 +1432,7 @@ fun PlaylistMusicItem(
     selected: Boolean = false,
     onToggleSelect: () -> Unit = {},
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     onPlayNext: () -> Unit = {},
     onRemove: () -> Unit,
     showDeleteButton: Boolean = true,
@@ -1449,10 +1456,13 @@ fun PlaylistMusicItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clickable(
+            .combinedClickable(
                 interactionSource = remember(music.id, selectionMode) { MutableInteractionSource() },
                 indication = ripple(),
-                onClick = rowClick
+                onClick = rowClick,
+                onLongClick = {
+                    if (!selectionMode) onLongClick()
+                },
             ),
         shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
         backgroundAlpha = if (isDarkTheme) {
