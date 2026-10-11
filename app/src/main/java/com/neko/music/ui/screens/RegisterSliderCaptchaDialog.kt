@@ -420,14 +420,11 @@ fun RegisterSliderCaptchaDialog(
                                             onDragStart = { start ->
                                                 if (busy || reloadingChallenge || holdOutcomeUi) return@detectDragGestures
                                                 if (railWpx < thumbWpx + 2f) return@detectDragGestures
-                                                val tm = (railWpx - thumbWpx).coerceAtLeast(1f)
                                                 // 与 Web 一致：手指按在滑块上时不能把触点 x 当成滑块左缘（会偏最多约半滑块宽）；
                                                 // 仅当点在滑块外时，把滑块中心移到触点（等同 Web 点轨道）。
                                                 val onThumb =
                                                     start.x >= thumbLeftPx && start.x <= thumbLeftPx + thumbWpx
-                                                if (!onThumb) {
-                                                    thumbLeftPx = (start.x - thumbWpx / 2f).coerceIn(0f, tm)
-                                                }
+                                                if (!onThumb) return@detectDragGestures
                                                 dragStartedAt = SystemClock.uptimeMillis()
                                                 dragTrace = emptyList()
                                                 recordDragSample(d, railWpx, thumbWpx)
@@ -437,14 +434,14 @@ fun RegisterSliderCaptchaDialog(
                                                 )
                                             },
                                             onDrag = { change, dragAmount ->
-                                                if (busy || reloadingChallenge || holdOutcomeUi) return@detectDragGestures
+                                                if (busy || reloadingChallenge || holdOutcomeUi || dragStartedAt <= 0L) return@detectDragGestures
                                                 val tm = (railWpx - thumbWpx).coerceAtLeast(1f)
                                                 thumbLeftPx = (thumbLeftPx + dragAmount.x).coerceIn(0f, tm)
                                                 change.consume()
                                                 recordDragSample(d, railWpx, thumbWpx)
                                             },
                                             onDragEnd = {
-                                                if (busy || reloadingChallenge || holdOutcomeUi) return@detectDragGestures
+                                                if (busy || reloadingChallenge || holdOutcomeUi || dragStartedAt <= 0L) return@detectDragGestures
                                                 recordDragSample(d, railWpx, thumbWpx)
                                                 Log.w(CAPTCHA_LOG_TAG, "dragEnd thumbLeftPx=$thumbLeftPx")
                                                 scope.launch {
