@@ -1,0 +1,17 @@
+title = "NekoMusic Android secret scanning"
+
+# 以内置规则集为基础（AWS / 私钥 / 通用 API key 等），再补充 Android 签名机密规则。
+[extend]
+useDefault = true
+
+[[rules]]
+id = "android-keystore-password-property"
+description = "keystore.properties 中的明文签名口令（storePassword / keyPassword）"
+regex = '''(?i)(?:store|key)password\s*=\s*\S+'''
+keywords = ["storepassword", "keypassword"]
+
+[[rules]]
+id = "android-keystore-binary-file"
+description = "JKS / P12 密钥库本体不应提交进仓库"
+regex = '''(?i)\S'''
+path = '''(?i)\.(jks|keystore|p12|pfx)$'''
