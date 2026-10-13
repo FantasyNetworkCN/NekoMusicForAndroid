@@ -11,11 +11,32 @@ import android.content.SharedPreferences
  * （在别处改了昵称，客户端还显示旧的）。
  */
 class TokenManager(context: Context) {
-    private val sharedPref: SharedPreferences = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+    private val sharedPref: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val editor = sharedPref.edit()
 
     companion object {
+        /** 登录态落盘的 SharedPreferences 文件名 */
+        private const val PREFS_NAME = "user_prefs"
+
         private const val KEY_TOKEN = "token"
+
+        /**
+         * 进程内缓存的令牌：网络层（Ktor 插件）拿不到 Context，需要一个同步入口。
+         *
+         * 只在登录 / 登出 / [getToken] / 启动预热时更新，不落盘（落盘那份仍是唯一真相），
+         * 登出后立即清空，避免下一条请求带着上一个人的身份发出去。
+         */
+        @Volatile private var cachedToken: String? = null
+
+        /** 读取进程内缓存的令牌；未登录或尚未预热返回 null。 */
+        fun processToken(): String? = cachedToken
+
+        /** 应用启动时把落盘的令牌读进内存，省掉首个请求等不到令牌的问题。 */
+        fun primeProcessToken(context: Context) {
+            cachedToken = context.applicationContext
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_TOKEN, null)
+        }
 
         /** 旧版本曾把用户资料写进 SharedPreferences，这里仅用于清理 */
         private const val LEGACY_KEY_USER_ID = "user_id"
@@ -67,6 +88,7 @@ class TokenManager(context: Context) {
     ) {
         editor.putString(KEY_TOKEN, token)
         editor.apply()
+        cachedToken = token
         applyProfile(userId, nickname, email, isVip, vipExpiresAt)
         NotificationCenter.onLogin()
     }
@@ -123,7 +145,10 @@ class TokenManager(context: Context) {
      * 获取 Token
      */
     fun getToken(): String? {
-        return sharedPref.getString(KEY_TOKEN, null)
+        // 顺带刷新进程内缓存：没有走 saveToken / primeProcessToken 的路径（例如先读后写）也能补上
+        val token = sharedPref.getString(KEY_TOKEN, null)
+        cachedToken = token
+        return token
     }
 
     /**
@@ -160,6 +185,7 @@ class TokenManager(context: Context) {
     fun clearToken() {
         editor.clear()
         editor.apply()
+        cachedToken = null
         cachedUserId = -1
         cachedNickname = null
         cachedEmail = null

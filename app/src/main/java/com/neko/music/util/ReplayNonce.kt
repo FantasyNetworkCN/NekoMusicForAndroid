@@ -14,7 +14,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.Url
 import io.ktor.http.content.OutgoingContent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -102,8 +101,6 @@ private val EXEMPT_PREFIXES = listOf("/api/music/cover/", "/api/user/avatar/")
  */
 private val PROTECTED_PATHS = setOf("/version")
 
-/** 本站后端主机名；只对发往本站的请求附加 nonce，避免泄漏到第三方。 */
-private val BACKEND_HOST: String by lazy { Url(UrlConfig.getBaseUrl()).host }
 
 private class NonceEntry(val value: String, val issuedAt: Long)
 
@@ -351,7 +348,7 @@ private fun replayScopeOf(request: HttpRequestBuilder): String? {
         else -> return null
     }
     val url = request.url.build()
-    if (url.host != BACKEND_HOST) return null
+    if (url.host != NEKO_BACKEND_HOST) return null
     if (isMultipart(request)) return null
     val path = url.encodedPath
     if (path in EXEMPT_PATHS) return null

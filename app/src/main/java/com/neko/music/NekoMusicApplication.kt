@@ -35,6 +35,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
         // 应用语言设置
         applyLanguage()
 
+        // 把落盘的登录令牌读进进程内存：网络层（Ktor 令牌注入插件）没有 Context，靠这一份同步取用
+        com.neko.music.data.manager.TokenManager.primeProcessToken(this)
+
         // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
         checkAndCleanupUpdateFiles()
 

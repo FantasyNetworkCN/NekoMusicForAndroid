@@ -8,6 +8,7 @@ import com.neko.music.BuildConfig
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
+import io.ktor.http.Url
 import java.net.HttpURLConnection
 
 /**
@@ -35,6 +36,17 @@ val NEKO_REQUEST_HEADERS: Map<String, String> = mapOf(
     NEKO_USER_AGENT_HEADER to NEKO_USER_AGENT_VALUE,
 )
 
+/** 用户令牌标头名；值形如 `Bearer <token>` */
+const val NEKO_AUTHORIZATION_HEADER = "Authorization"
+
+/**
+ * 本站后端主机名（取自 [UrlConfig]）。
+ *
+ * 客户端标识只发给本站；用户令牌与防重放 nonce 同样只发给本站——发往第三方（更新检查 / CDN /
+ * 天气等）的请求一律不带，避免身份外泄。
+ */
+internal val NEKO_BACKEND_HOST: String by lazy { Url(UrlConfig.getBaseUrl()).host }
+
 /**
  * 给该 HttpClient 的所有请求加上 X-Neko-Client 与 User-Agent 标头，并安装通用防重放能力。
  *
@@ -46,6 +58,7 @@ fun HttpClientConfig<*>.installNekoClientHeader() {
         // 请求内已显式设置同名标头时以请求为准（DefaultRequest 不会覆盖已有标头）
         NEKO_REQUEST_HEADERS.forEach { (name, value) -> header(name, value) }
     }
+    installNekoUserToken()
     installNekoReplayProtection()
 }
 
