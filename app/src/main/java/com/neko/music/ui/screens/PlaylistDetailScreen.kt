@@ -742,10 +742,10 @@ fun PlaylistDetailScreen(
                                                 else selectedIds + music.id
                                         },
                                         onClick = {
-                                            onPlayAll(musicList, index)
+                                            onAddToPlaylist(music.toLocalMusic())
                                         },
                                         onLongClick = {
-                                            onAddToPlaylist(music.toLocalMusic())
+                                            onPlayAll(musicList, index)
                                         },
                                         onPlayNext = { onPlayNext(music.toLocalMusic()) },
                                         onRemove = { removeMusic(music) },
