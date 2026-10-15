@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.neko.music.util.installNekoClientHeader
+import com.neko.music.util.NekoAcceptLanguage
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -37,6 +38,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
         // 把落盘的登录令牌读进进程内存：网络层（Ktor 令牌注入插件）没有 Context，靠这一份同步取用
         com.neko.music.data.manager.TokenManager.primeProcessToken(this)
+
+        // 让网络层能读到用户的 App 语言设置（出站请求的 Accept-Language）
+        NekoAcceptLanguage.install(this)
 
         // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
         checkAndCleanupUpdateFiles()

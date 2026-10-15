@@ -15,6 +15,7 @@ import java.net.HttpURLConnection
  * 客户端标识：本应用所有出站请求（Ktor / ExoPlayer / DownloadManager 等）统一带上
  *   - `X-Neko-Client: android+<版本>`
  *   - `User-Agent: NekoMusic-android/<版本>`
+ *   - `Accept-Language: <用户当前设置的语言>`（见 [NekoAcceptLanguage]）
  * 便于后端按来源端与版本做统计、灰度或最低版本拦截。
  * 标头名与取值格式须与 web / pc 端保持一致。
  *
@@ -30,11 +31,17 @@ val NEKO_CLIENT_VALUE: String = "android+" + BuildConfig.VERSION_NAME
 /** User-Agent 取值：`NekoMusic-android/<版本>` */
 val NEKO_USER_AGENT_VALUE: String = "NekoMusic-android/" + BuildConfig.VERSION_NAME
 
-/** 所有出站请求统一携带的标头；各网络栈都复用这一份映射，避免取值漂移。 */
-val NEKO_REQUEST_HEADERS: Map<String, String> = mapOf(
-    NEKO_CLIENT_HEADER to NEKO_CLIENT_VALUE,
-    NEKO_USER_AGENT_HEADER to NEKO_USER_AGENT_VALUE,
-)
+/**
+ * 所有出站请求统一携带的标头；各网络栈都复用这一份映射，避免取值漂移。
+ *
+ * 用取值函数而不是固定 Map：[NekoAcceptLanguage.headerValue] 要实时反映用户在设置里选的语言。
+ */
+val NEKO_REQUEST_HEADERS: Map<String, String>
+    get() = mapOf(
+        NEKO_CLIENT_HEADER to NEKO_CLIENT_VALUE,
+        NEKO_USER_AGENT_HEADER to NEKO_USER_AGENT_VALUE,
+        NEKO_ACCEPT_LANGUAGE_HEADER to NekoAcceptLanguage.headerValue(),
+    )
 
 /** 用户令牌标头名；值形如 `Bearer <token>` */
 const val NEKO_AUTHORIZATION_HEADER = "Authorization"
