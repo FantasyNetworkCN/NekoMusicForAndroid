@@ -336,7 +336,7 @@ class MusicApi(private val context: Context) {
         // 没有缓存或缓存未启用，从服务器获取
         return try {
             Log.d("MusicApi", "Fetching lyrics for music: ${music.id}")
-            val response = client.get("$baseUrl/api/music/lyrics/${music.id}")
+            val response = client.get("$baseUrl/api/music/info/${music.id}")
             Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")
@@ -344,7 +344,7 @@ class MusicApi(private val context: Context) {
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-            val data = extractLyricsStringFromJson(jsonResponse)
+            val data = extractLyricsFromInfoJson(jsonResponse)
 
             Log.d("MusicApi", "Parsed lyrics: $data${response.protocolLogSuffix()}")
 
@@ -490,12 +490,13 @@ class MusicApi(private val context: Context) {
     }
 
     /**
-     * 从歌词接口 JSON 的 `data` 字段取出字符串。
+     * 从音乐详情接口 JSON 的 `data.lyrics` 字段取出歌词。
      * 必须使用 [JsonPrimitive.content] 解码，不能对 [JsonElement.toString] 再 `removeSurrounding("\"")`，
      * 否则 JSON 合法转义（如 `\/`、`\"`、`\n`）会残留在 LRC 正文中（下载到本地的 .lrc 亦同）。
      */
-    private fun extractLyricsStringFromJson(jsonResponse: JsonObject): String {
-        return when (val el = jsonResponse["data"]) {
+    private fun extractLyricsFromInfoJson(jsonResponse: JsonObject): String {
+        val data = jsonResponse["data"] as? JsonObject ?: return ""
+        return when (val el = data["lyrics"]) {
             null, JsonNull -> ""
             is JsonPrimitive -> el.content
             else -> try {
