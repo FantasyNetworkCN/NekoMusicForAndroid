@@ -14,6 +14,8 @@ data class Music(
     val uploadUserId: Int? = null,
     val createdAt: String? = null,
     val playCount: Int? = null,
+    /** 收藏数（音乐详情接口返回） */
+    val favoriteCount: Int? = null,
     /** 是否有有效歌词（单条 query 搜索响应字段） */
     val lrc: Boolean = false,
     val maxQuality: String? = null,

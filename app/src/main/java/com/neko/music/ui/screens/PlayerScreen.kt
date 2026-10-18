@@ -69,6 +69,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import com.neko.music.data.api.CommentApi
 import com.neko.music.data.api.VideoRenderApi
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -282,6 +283,9 @@ fun PlayerScreen(
     var lyrics by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
     val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val isFavorite by playerManager.isFavorite.collectAsState()
+    var favoriteCount by remember { mutableStateOf<Int?>(null) }
+    var commentCount by remember { mutableStateOf(0) }
+    val commentApi = remember { CommentApi(context) }
     val pagerState = rememberPagerState(
         // 0 = 评论，1 = 封面，2 = 歌词
         initialPage = 1,
@@ -394,10 +398,23 @@ fun PlayerScreen(
     val qualityMusicId = currentMusicId ?: music.id
 
     LaunchedEffect(qualityMusicId) {
-        maxQuality = if (qualityMusicId > 0) {
-            musicApi.getMusicInfo(qualityMusicId).getOrNull()?.maxQuality?.lowercase() ?: "hq"
+        favoriteCount = null
+        commentCount = 0
+        if (qualityMusicId > 0) {
+            val info = musicApi.getMusicInfo(qualityMusicId).getOrNull()
+            maxQuality = info?.maxQuality?.lowercase() ?: "hq"
+            favoriteCount = info?.favoriteCount
+            val comments = commentApi.getComments(
+                musicId = qualityMusicId,
+                page = 1,
+                pageSize = 1,
+                token = tokenManager.getToken(),
+            )
+            if (comments.success) {
+                commentCount = comments.data?.totalComments ?: 0
+            }
         } else {
-            "standard"
+            maxQuality = "standard"
         }
         playerManager.updateMusicMaxQuality(maxQuality)
     }
@@ -695,6 +712,7 @@ fun PlayerScreen(
                                 },
                                 modifier = Modifier.fillMaxSize(),
                                 bottomReserve = bottomGlassReserve,
+                                onCountChanged = { commentCount = it },
                             )
                         }
 
@@ -716,10 +734,19 @@ fun PlayerScreen(
                                 NowPlayingIdentity(
                                     music = currentMusic,
                                     isFavorite = isFavorite,
+                                    favoriteCount = favoriteCount,
+                                    commentCount = commentCount,
                                     onFavoriteClick = {
-                                        if (isLoggedIn) playerManager.toggleFavorite()
-                                        else Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                    }
+                                        if (isLoggedIn) {
+                                            favoriteCount?.let {
+                                                favoriteCount = (it + if (isFavorite) -1 else 1).coerceAtLeast(0)
+                                            }
+                                            playerManager.toggleFavorite()
+                                        } else {
+                                            Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onCommentClick = { scope.launch { pagerState.animateScrollToPage(0) } }
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                                 if (!isLocalCurrentMusic) {
@@ -833,8 +860,12 @@ fun PlayerScreen(
                         if (showLyrics) LyricSongInfoBar(
                             music = currentMusic,
                             isFavorite = isFavorite,
+                            favoriteCount = favoriteCount,
                             onFavoriteClick = {
                                 if (isLoggedIn) {
+                                    favoriteCount?.let {
+                                        favoriteCount = (it + if (isFavorite) -1 else 1).coerceAtLeast(0)
+                                    }
                                     playerManager.toggleFavorite()
                                 } else {
                                     Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
@@ -1503,10 +1534,35 @@ private fun PlayerPageIndicator(
 }
 
 @Composable
+private fun CountBadge(
+    count: Int?,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (count == null || count <= 0) return
+    Box(
+        modifier = modifier
+            .background(tint, CircleShape)
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            color = Color.White,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
 private fun NowPlayingIdentity(
     music: Music,
     isFavorite: Boolean,
+    favoriteCount: Int?,
+    commentCount: Int,
     onFavoriteClick: () -> Unit,
+    onCommentClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     val title = if (dark) Color.White else Color(0xFF151518)
@@ -1543,15 +1599,41 @@ private fun NowPlayingIdentity(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        IconButton(
-            onClick = onFavoriteClick,
-            modifier = Modifier.size(42.dp),
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
-                tint = if (isFavorite) RoseRed else secondary,
-                modifier = Modifier.size(22.dp),
+        Box {
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.size(42.dp),
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
+                    tint = if (isFavorite) RoseRed else secondary,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            CountBadge(
+                count = favoriteCount,
+                tint = RoseRed,
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = 2.dp),
+            )
+        }
+
+        Box {
+            IconButton(
+                onClick = onCommentClick,
+                modifier = Modifier.size(42.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_comment_bubble),
+                    contentDescription = stringResource(id = R.string.comment_title),
+                    tint = secondary,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+            CountBadge(
+                count = commentCount,
+                tint = RoseRed,
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = 2.dp),
             )
         }
     }
@@ -1754,6 +1836,7 @@ fun MusicInfo(
 fun LyricSongInfoBar(
             music: Music,
             isFavorite: Boolean,
+            favoriteCount: Int? = null,
             onFavoriteClick: () -> Unit,
             showLyrics: Boolean,
             isLoggedIn: Boolean = true,
@@ -1872,15 +1955,22 @@ fun LyricSongInfoBar(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = onFavoriteClick,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
-                                tint = favColor,
-                                modifier = Modifier.size(22.dp)
+                        Box {
+                            IconButton(
+                                onClick = onFavoriteClick,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
+                                    tint = favColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            CountBadge(
+                                count = favoriteCount,
+                                tint = RoseRed,
+                                modifier = Modifier.align(Alignment.TopEnd),
                             )
                         }
                         Box(

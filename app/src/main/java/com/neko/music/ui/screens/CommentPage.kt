@@ -94,6 +94,8 @@ fun CommentPage(
     modifier: Modifier = Modifier,
     /** 播放页底部控制条预留高度：键盘弹起时用它算出「还需要再往上顶多少」。 */
     bottomReserve: Dp = 196.dp,
+    /** 评论总数变化时通知宿主（用于播放页角标）。 */
+    onCountChanged: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -161,8 +163,15 @@ fun CommentPage(
 
     LaunchedEffect(musicId) {
         // 本地音乐没有云端评论
-        if (musicId < 0) return@LaunchedEffect
+        if (musicId < 0) {
+            onCountChanged(0)
+            return@LaunchedEffect
+        }
         loadComments(reset = true)
+    }
+
+    LaunchedEffect(totalCount) {
+        onCountChanged(totalCount)
     }
 
     fun submit() {
