@@ -1540,19 +1540,13 @@ private fun CountBadge(
     modifier: Modifier = Modifier,
 ) {
     if (count == null || count <= 0) return
-    Box(
-        modifier = modifier
-            .background(tint, CircleShape)
-            .padding(horizontal = 5.dp, vertical = 1.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = if (count > 99) "99+" else count.toString(),
-            color = Color.White,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+    Text(
+        text = if (count > 99) "99+" else count.toString(),
+        color = tint,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = modifier,
+    )
 }
 
 @Composable
