@@ -330,6 +330,8 @@
     <!-- 播放器 -->
     <string name="now_playing">正在播放</string>
     <string name="cover">封面</string>
+    <string name="player_tab_lyrics">歌词</string>
+    <string name="player_play_mode">播放模式</string>
     <string name="create_new">新建</string>
     <string name="custom">自定义</string>
     <string name="close">关闭</string>

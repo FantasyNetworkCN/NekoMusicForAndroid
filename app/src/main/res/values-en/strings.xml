@@ -355,6 +355,8 @@
     <!-- Player -->
     <string name="now_playing">Now Playing</string>
     <string name="cover">Cover</string>
+    <string name="player_tab_lyrics">Lyrics</string>
+    <string name="player_play_mode">Play mode</string>
     <string name="create_new">Create New</string>
     <string name="custom">Custom</string>
     <string name="close">Close</string>

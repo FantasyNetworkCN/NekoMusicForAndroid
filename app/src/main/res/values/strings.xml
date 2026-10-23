@@ -336,6 +336,8 @@
 
     <string name="now_playing">正在哼唱喵</string>
     <string name="cover">封面喵</string>
+    <string name="player_tab_lyrics">歌词</string>
+    <string name="player_play_mode">播放模式</string>
     <string name="create_new">新建喵</string>
     <string name="custom">主人说了算喵</string>
     <string name="close">关掉喵</string>
