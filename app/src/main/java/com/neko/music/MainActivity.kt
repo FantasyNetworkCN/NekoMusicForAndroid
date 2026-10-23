@@ -1084,17 +1084,25 @@ fun MainScreen() {
                             Toast.LENGTH_SHORT
                         ).show()
                     },
-                    onAddToPlaylist = { music ->
+                    onMusicClick = { music ->
                         scope.launch {
-                            PlaylistManager
-                                .getInstance(context)
-                                .addToPlaylist(music)
+                            PlaylistManager.getInstance(context).addToPlaylist(music)
+                            val musicApi = com.neko.music.data.api.MusicApi(context)
+                            val url = musicApi.getMusicFileUrl(music)
+                            val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
+                                UrlConfig.buildFullUrl(music.coverFilePath)
+                            } else {
+                                UrlConfig.getMusicCoverUrl(music.id)
+                            }
+                            playerManager.playMusic(
+                                url,
+                                music.id,
+                                music.title,
+                                music.artist,
+                                music.coverFilePath ?: "",
+                                fullCoverUrl
+                            )
                         }
-                        Toast.makeText(
-                            context,
-                            "已将「${music.title}」添加到播放列表",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
                     },
                     onAddAllToPlaylist = { musics ->
                         scope.launch {

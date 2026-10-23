@@ -138,8 +138,8 @@ fun PlaylistDetailScreen(
     onAddAllToPlaylist: (List<Music>) -> Unit = {},
     /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
     onPlayNext: (com.neko.music.data.model.Music) -> Unit = {},
-    /** 长按曲目时，仅将当前单曲追加到待播列表 */
-    onAddToPlaylist: (Music) -> Unit = {},
+    /** 单击曲目：加入待播列表并立即播放 */
+    onMusicClick: (Music) -> Unit = {},
     /** 歌单批量编辑时请求宿主暂时隐藏底部迷你播放器与底栏，避免遮挡 */
     onPlaylistBatchModeChange: (inBatchEdit: Boolean) -> Unit = {}
 ) {
@@ -813,12 +813,7 @@ fun PlaylistDetailScreen(
                                                 if (music.id in selectedIds) selectedIds - music.id
                                                 else selectedIds + music.id
                                         },
-                                        onClick = {
-                                            onAddToPlaylist(music.toLocalMusic())
-                                        },
-                                        onLongClick = {
-                                            onPlayAll(musicList, index)
-                                        },
+                                        onClick = { onMusicClick(music.toLocalMusic()) },
                                         onPlayNext = { onPlayNext(music.toLocalMusic()) },
                                         onRemove = { removeMusic(music) },
                                         showDeleteButton = isOwner && !batchMode,
@@ -1666,7 +1661,6 @@ fun PlaylistMusicItem(
     selected: Boolean = false,
     onToggleSelect: () -> Unit = {},
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {},
     onPlayNext: () -> Unit = {},
     onRemove: () -> Unit,
     showDeleteButton: Boolean = true,
@@ -1695,7 +1689,7 @@ fun PlaylistMusicItem(
                 indication = ripple(),
                 onClick = rowClick,
                 onLongClick = {
-                    if (!selectionMode) onLongClick()
+                    if (!selectionMode) actionsExpanded = true
                 },
             ),
         shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
