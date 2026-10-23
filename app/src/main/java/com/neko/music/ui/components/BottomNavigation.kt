@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shadow as TextShadow
@@ -218,11 +219,28 @@ private fun LiquidBottomTabs(
     content: @Composable RowScope.() -> Unit,
 ) {
     val safeTabCount = tabsCount.coerceAtLeast(1)
-    val containerColor = if (isDark) {
-        Color(0xFF121212).copy(alpha = 0.4f)
-    } else {
-        Color(0xFFFAFAFA).copy(alpha = 0.4f)
-    }
+    val uiScale = LocalLiquidGlassUiScale.current
+    val glass = LiquidGlassDefaults.bottomNavigation
+    fun tintedAlpha(base: Float) = (base * uiScale.tintStrength).coerceIn(0f, 1f)
+    val frost = liquidGlassFrost(
+        isDarkTheme = isDark,
+        backgroundAlpha = tintedAlpha(glass.tint.background(isDark)),
+        highlightAlpha = tintedAlpha(glass.tint.highlight(isDark)),
+    )
+    val selectedSurfaceColor = (if (isDark) glass.selectedSurfaceColorDark else glass.selectedSurfaceColorLight)
+        .copy(
+            alpha = tintedAlpha(
+                if (isDark) glass.selectedSurfaceAlphaDark else glass.selectedSurfaceAlphaLight,
+            ),
+        )
+    val mainBlur = glass.mainLiquid.blur.scaledBy(uiScale.blurStrength)
+    val mainLensHeight = glass.mainLiquid.lensHeight.scaledBy(uiScale.lensHeightStrength)
+    val mainLensAmount = glass.mainLiquid.lensAmount.scaledBy(uiScale.lensAmountStrength)
+    val pressedBlur = glass.pressedLiquid.blur.scaledBy(uiScale.blurStrength)
+    val pressedLensHeight = glass.pressedLiquid.lensHeight.scaledBy(uiScale.lensHeightStrength)
+    val pressedLensAmount = glass.pressedLiquid.lensAmount.scaledBy(uiScale.lensAmountStrength)
+    val selectedLensHeight = glass.selectedLiquid.lensHeight.scaledBy(uiScale.lensHeightStrength)
+    val selectedLensAmount = glass.selectedLiquid.lensAmount.scaledBy(uiScale.lensAmountStrength)
     val tabsBackdrop = rememberLayerBackdrop()
     val latestOnTabSelected by rememberUpdatedState(onTabSelected)
 
@@ -304,10 +322,10 @@ private fun LiquidBottomTabs(
                     shape = { Capsule() },
                     effects = {
                         vibrancy()
-                        blur(with(density) { 8.dp.toPx() })
+                        blur(with(density) { mainBlur.toPx() })
                         lens(
-                            refractionHeight = with(density) { 24.dp.toPx() },
-                            refractionAmount = with(density) { 24.dp.toPx() },
+                            refractionHeight = with(density) { mainLensHeight.toPx() },
+                            refractionAmount = with(density) { mainLensAmount.toPx() },
                         )
                     },
                     layerBlock = {
@@ -318,7 +336,10 @@ private fun LiquidBottomTabs(
                             scaleY = scale
                         }
                     },
-                    onDrawSurface = { drawRect(containerColor) },
+                    onDrawSurface = {
+                        drawRect(frost.base)
+                        drawRect(Brush.verticalGradient(listOf(frost.top, frost.bottom)))
+                    },
                 )
                 .then(interactiveHighlight.modifier)
                 .height(BottomNavigationBarHeight)
@@ -345,16 +366,19 @@ private fun LiquidBottomTabs(
                         effects = {
                             val progress = dragAnimation.pressProgress
                             vibrancy()
-                            blur(with(density) { 8.dp.toPx() })
+                            blur(with(density) { pressedBlur.toPx() })
                             lens(
-                                refractionHeight = with(density) { 24.dp.toPx() } * progress,
-                                refractionAmount = with(density) { 24.dp.toPx() } * progress,
+                                refractionHeight = with(density) { pressedLensHeight.toPx() } * progress,
+                                refractionAmount = with(density) { pressedLensAmount.toPx() } * progress,
                             )
                         },
                         highlight = {
                             Highlight.Default.copy(alpha = dragAnimation.pressProgress)
                         },
-                        onDrawSurface = { drawRect(containerColor) },
+                        onDrawSurface = {
+                            drawRect(frost.base)
+                            drawRect(Brush.verticalGradient(listOf(frost.top, frost.bottom)))
+                        },
                     )
                     .then(interactiveHighlight.modifier)
                     .height(BottomNavigationBarHeight - 8.dp)
@@ -384,8 +408,8 @@ private fun LiquidBottomTabs(
                     effects = {
                         val progress = dragAnimation.pressProgress
                         lens(
-                            refractionHeight = with(density) { 10.dp.toPx() } * progress,
-                            refractionAmount = with(density) { 14.dp.toPx() } * progress,
+                            refractionHeight = with(density) { selectedLensHeight.toPx() } * progress,
+                            refractionAmount = with(density) { selectedLensAmount.toPx() } * progress,
                             chromaticAberration = true,
                         )
                     },
@@ -411,11 +435,7 @@ private fun LiquidBottomTabs(
                     },
                     onDrawSurface = {
                         val progress = dragAnimation.pressProgress
-                        drawRect(
-                            if (isDark) Color.White.copy(alpha = 0.1f)
-                            else Color.Black.copy(alpha = 0.1f),
-                            alpha = 1f - progress,
-                        )
+                        drawRect(selectedSurfaceColor, alpha = 1f - progress)
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     },
                 )
@@ -491,11 +511,28 @@ private fun BottomNavigationFallback(
 ) {
     val shape = Capsule()
     val safeCount = items.size.coerceAtLeast(1)
+    val uiScale = LocalLiquidGlassUiScale.current
+    val glass = LiquidGlassDefaults.bottomNavigation
+    fun tintedAlpha(base: Float) = (base * uiScale.tintStrength).coerceIn(0f, 1f)
+    val bgAlpha = tintedAlpha(glass.tint.background(isDark))
     val surface = if (isDark) {
-        Color(0xFF121212).copy(alpha = 0.92f)
+        glass.fallbackSurfaceColorDark.copy(alpha = bgAlpha)
     } else {
-        Color(0xFFFAFAFA).copy(alpha = 0.92f)
+        MaterialTheme.colorScheme.surface.copy(alpha = (bgAlpha * 1.15f).coerceIn(0.35f, 0.92f))
     }
+    val selectedSurface = (if (isDark) glass.selectedSurfaceColorDark else glass.selectedSurfaceColorLight)
+        .copy(
+            alpha = tintedAlpha(
+                if (isDark) glass.fallbackSelectedSurfaceAlphaDark
+                else glass.fallbackSelectedSurfaceAlphaLight,
+            ),
+        )
+    val selectedBorder = (if (isDark) glass.selectedSurfaceColorDark else glass.selectedSurfaceColorLight)
+        .copy(
+            alpha = tintedAlpha(
+                if (isDark) glass.fallbackBorderAlphaDark else glass.fallbackBorderAlphaLight,
+            ),
+        )
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val tabWidth = ((maxWidth - 8.dp) / safeCount).coerceAtLeast(0.dp)
@@ -508,20 +545,24 @@ private fun BottomNavigationFallback(
             label = "fallbackNavThumb",
         )
 
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(4.dp)
+                .clip(shape)
+                .background(surface),
+        ) {}
+
         Box(
             Modifier
                 .offset(x = thumbLeft, y = 4.dp)
                 .width(tabWidth)
                 .height(BottomNavigationBarHeight - 8.dp)
                 .clip(shape)
-                .background(
-                    if (isDark) Color.White.copy(alpha = 0.12f)
-                    else Color.Black.copy(alpha = 0.07f),
-                )
+                .background(selectedSurface)
                 .border(
                     width = 0.5.dp,
-                    color = if (isDark) Color.White.copy(alpha = 0.16f)
-                    else Color.Black.copy(alpha = 0.08f),
+                    color = selectedBorder,
                     shape = shape,
                 ),
         )
@@ -529,9 +570,7 @@ private fun BottomNavigationFallback(
         Row(
             Modifier
                 .fillMaxSize()
-                .padding(4.dp)
-                .clip(shape)
-                .background(surface),
+                .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEachIndexed { index, item ->

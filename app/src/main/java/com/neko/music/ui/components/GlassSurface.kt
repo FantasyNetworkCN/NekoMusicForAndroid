@@ -30,6 +30,35 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 
+internal data class LiquidGlassFrost(
+    val base: Color,
+    val top: Color,
+    val bottom: Color,
+)
+
+/** 所有液态玻璃控件共用的表面霜化公式，保证底栏、迷你播放器与卡片的色调一致。 */
+internal fun liquidGlassFrost(
+    isDarkTheme: Boolean,
+    backgroundAlpha: Float,
+    highlightAlpha: Float,
+): LiquidGlassFrost {
+    return if (isDarkTheme) {
+        LiquidGlassFrost(
+            base = Color.Black.copy(alpha = (backgroundAlpha * 0.12f).coerceIn(0.04f, 0.11f)),
+            top = Color.White.copy(
+                alpha = (highlightAlpha * 0.55f).coerceIn(0.03f, 0.08f) * 0.35f,
+            ),
+            bottom = Color.Transparent,
+        )
+    } else {
+        LiquidGlassFrost(
+            base = Color.White.copy(alpha = (backgroundAlpha * 0.16f).coerceIn(0.05f, 0.13f)),
+            top = Color.White.copy(alpha = (highlightAlpha * 0.75f).coerceIn(0.04f, 0.11f)),
+            bottom = Color.White.copy(alpha = 0.04f),
+        )
+    }
+}
+
 /**
  * 玻璃容器：在 [LocalLiquidLayerBackdrop] 非空且 API 31+ 时使用 Kyant Backdrop（vibrancy + blur；**API 33+ 再加 lens** 折射，接近官方「液态玻璃」教程）。
  *
@@ -112,10 +141,7 @@ fun GlassSurface(
         val lensH = with(density) { liqLensH.toPx() }
         val lensAmt = with(density) { liqLensAmt.toPx() }
         // 教程 onDrawSurface 约半透明白；过厚会盖住 vibrancy/blur/lens。
-        val frostTop = (hiAlpha * 0.75f).coerceIn(0.04f, 0.11f)
-        val frostBase = (bgAlpha * 0.16f).coerceIn(0.05f, 0.13f)
-        val darkFrostBase = (bgAlpha * 0.12f).coerceIn(0.04f, 0.11f)
-        val darkFrostTop = (hiAlpha * 0.55f).coerceIn(0.03f, 0.08f)
+        val frost = liquidGlassFrost(isDarkTheme, bgAlpha, hiAlpha)
         val opacitySample = liquidBackdropOpacity.coerceIn(0f, 1f)
         Box(
             modifier = modifier
@@ -140,25 +166,11 @@ fun GlassSurface(
                         if (custom != null) {
                             custom()
                         } else {
-                            if (isDarkTheme) {
-                                drawRect(Color.Black.copy(alpha = darkFrostBase))
-                            } else {
-                                drawRect(Color.White.copy(alpha = frostBase))
-                            }
+                            drawRect(frost.base)
                             surfaceTint?.let { tint -> drawRect(tint) }
                             drawRect(
                                 brush = Brush.verticalGradient(
-                                    colors = if (isDarkTheme) {
-                                        listOf(
-                                            Color.White.copy(alpha = darkFrostTop * 0.35f),
-                                            Color.Transparent
-                                        )
-                                    } else {
-                                        listOf(
-                                            Color.White.copy(alpha = frostTop),
-                                            Color.White.copy(alpha = 0.04f)
-                                        )
-                                    }
+                                    colors = listOf(frost.top, frost.bottom),
                                 )
                             )
                         }

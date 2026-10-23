@@ -600,7 +600,6 @@ fun PersonalizationScreen(
                                             enabled
                                         )
                                         .apply()
-                                    (context as? Activity)?.recreate()
                                 }
                             )
                             HorizontalDivider(
@@ -622,25 +621,45 @@ fun PersonalizationScreen(
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_tint),
                             value = liqTint,
-                            onValueChange = { liqTint = it },
+                            onValueChange = {
+                                liqTint = it
+                                prefs.edit()
+                                    .putFloat(AppConfig.PrefConfig.KEY_LIQUID_GLASS_TINT, it)
+                                    .apply()
+                            },
                             isDarkChrome = isDarkChrome
                         )
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_blur),
                             value = liqBlur,
-                            onValueChange = { liqBlur = it },
+                            onValueChange = {
+                                liqBlur = it
+                                prefs.edit()
+                                    .putFloat(AppConfig.PrefConfig.KEY_LIQUID_GLASS_BLUR, it)
+                                    .apply()
+                            },
                             isDarkChrome = isDarkChrome
                         )
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_lens_height),
                             value = liqLensH,
-                            onValueChange = { liqLensH = it },
+                            onValueChange = {
+                                liqLensH = it
+                                prefs.edit()
+                                    .putFloat(AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_HEIGHT, it)
+                                    .apply()
+                            },
                             isDarkChrome = isDarkChrome
                         )
                         LiquidGlassStrengthSlider(
                             label = stringResource(id = R.string.liquid_glass_lens_amount),
                             value = liqLensA,
-                            onValueChange = { liqLensA = it },
+                            onValueChange = {
+                                liqLensA = it
+                                prefs.edit()
+                                    .putFloat(AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_AMOUNT, it)
+                                    .apply()
+                            },
                             isDarkChrome = isDarkChrome
                         )
 
@@ -659,7 +678,14 @@ fun PersonalizationScreen(
                                         .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_AMOUNT)
                                         .remove(AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS)
                                         .apply()
-                                    (context as? Activity)?.recreate()
+                                    val defaultStrength = AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_STRENGTH
+                                        .coerceIn(liqRange.start, liqRange.endInclusive)
+                                    liqTint = defaultStrength
+                                    liqBlur = defaultStrength
+                                    liqLensH = defaultStrength
+                                    liqLensA = defaultStrength
+                                    liquidHardwareEffects =
+                                        AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -685,7 +711,6 @@ fun PersonalizationScreen(
                                             liqLensA.coerceIn(liqRange.start, liqRange.endInclusive)
                                         )
                                         .apply()
-                                    (context as? Activity)?.recreate()
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {

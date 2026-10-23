@@ -1,6 +1,7 @@
 package com.neko.music.ui.components
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -30,6 +31,35 @@ data class LiquidGlassLiquid3(
 data class LiquidGlassPanel(
     val tint: LiquidGlassTint6,
     val liquid: LiquidGlassLiquid3,
+)
+
+/**
+ * 底栏液态玻璃基线，数值对齐 AndroidLiquidGlass Catalog 的 `LiquidBottomTabs`。
+ * 用户设置的强度倍率由 [LiquidGlassUiScale] 在运行时叠加，不能直接改写这里。
+ */
+@Immutable
+data class BottomNavigationLiquidGlassParams(
+    /** 与 [GlassSurface] 共用霜化 tint，避免底栏成为一块独立的深色板。 */
+    val tint: LiquidGlassTint6 = LiquidGlassTint6(
+        backgroundDark = 0.32f,
+        backgroundLight = 0.30f,
+        borderDark = 0.15f,
+        borderLight = 0.20f,
+        highlightDark = 0.08f,
+        highlightLight = 0.12f,
+    ),
+    val fallbackSurfaceColorDark: Color = Color(0xFF1A1A2E),
+    val selectedSurfaceColorDark: Color = Color.White,
+    val selectedSurfaceColorLight: Color = Color.Black,
+    val selectedSurfaceAlphaDark: Float = 0.1f,
+    val selectedSurfaceAlphaLight: Float = 0.1f,
+    val fallbackSelectedSurfaceAlphaDark: Float = 0.12f,
+    val fallbackSelectedSurfaceAlphaLight: Float = 0.07f,
+    val fallbackBorderAlphaDark: Float = 0.16f,
+    val fallbackBorderAlphaLight: Float = 0.08f,
+    val mainLiquid: LiquidGlassLiquid3 = LiquidGlassLiquid3(8.dp, 24.dp, 24.dp),
+    val pressedLiquid: LiquidGlassLiquid3 = LiquidGlassLiquid3(8.dp, 24.dp, 24.dp),
+    val selectedLiquid: LiquidGlassLiquid3 = LiquidGlassLiquid3(0.dp, 10.dp, 14.dp),
 )
 
 /** 不区分深浅的固定 alpha（如迷你播放器条） */
@@ -170,6 +200,8 @@ object LiquidGlassDefaults {
     val liquidPlaylistModal: LiquidGlassLiquid3 = LiquidGlassLiquid3(14.dp, 20.dp, 34.dp)
     val liquidAppUpdate: LiquidGlassLiquid3 = LiquidGlassLiquid3(6.dp, 16.dp, 32.dp)
     val liquidShareSection: LiquidGlassLiquid3 = LiquidGlassLiquid3(9.dp, 12.dp, 22.dp)
+
+    val bottomNavigation: BottomNavigationLiquidGlassParams = BottomNavigationLiquidGlassParams()
 
     val playlistDetail: PlaylistDetailLiquidGlassParams = PlaylistDetailLiquidGlassParams()
 

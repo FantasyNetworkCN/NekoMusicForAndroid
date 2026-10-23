@@ -2,6 +2,7 @@ package com.neko.music
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -36,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -2036,14 +2038,41 @@ private fun AppThemeWrapper(content: @Composable () -> Unit) {
     )
     val darkTheme = com.neko.music.ui.theme.resolveAppDarkTheme(themeMode, systemDark)
     Neko歌姬计划(darkTheme = darkTheme, dynamicColor = dynamicColor) {
-        val liquidScale = remember(prefs) { prefs.readLiquidGlassUiScale() }
-        val liquidHardware = prefs.getBoolean(
-            AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
-            AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS
-        )
+        val liquidScale = remember(prefs) { mutableStateOf(prefs.readLiquidGlassUiScale()) }
+        val liquidHardware = remember(prefs) {
+            mutableStateOf(
+                prefs.getBoolean(
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
+                    AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS,
+                ),
+            )
+        }
+        DisposableEffect(prefs) {
+            val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                when (key) {
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_TINT,
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_BLUR,
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_HEIGHT,
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_AMOUNT -> {
+                        liquidScale.value = prefs.readLiquidGlassUiScale()
+                    }
+
+                    AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS -> {
+                        liquidHardware.value = prefs.getBoolean(
+                            AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS,
+                            AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS,
+                        )
+                    }
+                }
+            }
+            prefs.registerOnSharedPreferenceChangeListener(listener)
+            onDispose {
+                prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            }
+        }
         CompositionLocalProvider(
-            LocalLiquidGlassUiScale provides liquidScale,
-            LocalLiquidGlassHardwareEffectsEnabled provides liquidHardware,
+            LocalLiquidGlassUiScale provides liquidScale.value,
+            LocalLiquidGlassHardwareEffectsEnabled provides liquidHardware.value,
         ) {
             content()
         }
