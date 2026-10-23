@@ -956,13 +956,6 @@ fun MainScreen() {
                 FavoriteScreen(
                     onBackClick = {
                         navController.popBackStack()
-                    },
-                    onMusicClick = { music ->
-                        val id = music.id
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist =
-                            java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/$id/$encodedTitle/$encodedArtist")
                     }
                 )
             }

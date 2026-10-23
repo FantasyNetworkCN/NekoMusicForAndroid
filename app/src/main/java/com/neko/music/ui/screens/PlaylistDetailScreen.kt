@@ -1492,7 +1492,7 @@ internal fun PlaylistShareSheet(
 }
 
 @Composable
-private fun PlaylistSearchBar(
+internal fun PlaylistSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     liquidGlass: PlaylistDetailLiquidGlassParams,
@@ -1590,7 +1590,7 @@ private fun PlaylistSearchBar(
 }
 
 @Composable
-private fun PlaylistAddToQueueButton(
+internal fun PlaylistAddToQueueButton(
     enabled: Boolean,
     onClick: () -> Unit,
     liquidGlass: PlaylistDetailLiquidGlassParams,
