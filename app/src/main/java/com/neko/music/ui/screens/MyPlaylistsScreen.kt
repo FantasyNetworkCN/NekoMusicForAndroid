@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -332,6 +334,8 @@ fun MyPlaylistsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var dialogPlaylistName by remember { mutableStateOf("") }
     var editingPlaylist by remember { mutableStateOf<Playlist?>(null) }
+    var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
+    var playlistToShare by remember { mutableStateOf<Playlist?>(null) }
 
     // 外部导入
     var showImportSourceDialog by remember { mutableStateOf(false) }
@@ -557,9 +561,10 @@ fun MyPlaylistsScreen(
                                     },
                                     onDelete = {
                                         if (playlist.id != 0) { // "我的收藏"不能删除
-                                            deletePlaylist(playlist)
+                                            playlistPendingDelete = playlist
                                         }
                                     },
+                                    onShare = { playlistToShare = playlist },
                                     onClick = {
                                         // 点击歌单
                                         if (playlist.id == 0) {
@@ -1157,6 +1162,30 @@ fun MyPlaylistsScreen(
                 }
             )
         }
+
+        TopLevelImportDialogVisibility(visible = playlistPendingDelete != null) {
+            playlistPendingDelete?.let { playlist ->
+                PlaylistDeleteConfirmDialog(
+                    playlistName = playlist.name,
+                    sampleBackdrop = pageBackdrop,
+                    onConfirm = {
+                        playlistPendingDelete = null
+                        deletePlaylist(playlist)
+                    },
+                    onDismiss = { playlistPendingDelete = null },
+                )
+            }
+        }
+
+        playlistToShare?.let { playlist ->
+            PlaylistShareSheet(
+                playlistName = playlist.name,
+                playlistId = playlist.id,
+                liquidBackdrop = pageBackdrop,
+                liquidGlass = LiquidGlassDefaults.playlistDetail,
+                onDismiss = { playlistToShare = null },
+            )
+        }
         
         // 错误提示
         if (showError) {
@@ -1204,12 +1233,16 @@ fun PlaylistItem(
     firstMusicCover: String? = null,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onShare: () -> Unit,
     onClick: () -> Unit = {}
 ) {
     val coverText = stringResource(id = R.string.content_description_cover)
     val songsCountLabelText = stringResource(id = R.string.songs_count_label, playlist.musicCount)
     val editText = stringResource(id = R.string.edit_playlist)
     val deleteText = stringResource(id = R.string.delete)
+    val shareText = stringResource(id = R.string.share_playlist)
+    val moreText = stringResource(id = R.string.more)
+    var actionsExpanded by remember { mutableStateOf(false) }
 
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1330,21 +1363,19 @@ fun PlaylistItem(
                 )
             }
 
-            // 操作按钮
+            // 单个更多入口：编辑 / 分享 / 删除
             if (!isMyFavorites) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Box {
                     IconButton(
-                        onClick = onEdit,
+                        onClick = { actionsExpanded = true },
                         modifier = Modifier.size(40.dp),
                         colors = IconButtonDefaults.iconButtonColors(
                             containerColor = Color.Transparent
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Create,
-                            contentDescription = editText,
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = moreText,
                             tint = if (isDarkTheme) {
                                 MyPlaylistsDarkSecondaryText
                             } else {
@@ -1352,20 +1383,57 @@ fun PlaylistItem(
                             }
                         )
                     }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(40.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Transparent
-                        )
+                    DropdownMenu(
+                        expanded = actionsExpanded,
+                        onDismissRequest = { actionsExpanded = false },
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = deleteText,
-                            tint = if (isDarkTheme) {
-                                RoseRed.copy(alpha = 0.92f)
-                            } else {
-                                itemScheme.onSurfaceVariant
+                        DropdownMenuItem(
+                            text = { Text(editText, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Create,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onEdit()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(shareText, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onShare()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = deleteText,
+                                    fontSize = 14.sp,
+                                    color = RoseRed,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = RoseRed,
+                                )
+                            },
+                            onClick = {
+                                actionsExpanded = false
+                                onDelete()
                             }
                         )
                     }
@@ -1922,6 +1990,97 @@ private fun ImportDestinationRow(
                     tint = RoseRed,
                     modifier = Modifier.size(20.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistDeleteConfirmDialog(
+    playlistName: String,
+    sampleBackdrop: LayerBackdrop,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
+    val dialogGlass = LiquidGlassDefaults.myPlaylistsDialog
+    val confirmGlass = LiquidGlassDefaults.myPlaylistsDialogPrimaryButton
+    val mutedColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
+
+    GlassDialogOverlay(sampleBackdrop = sampleBackdrop, onDismiss = onDismiss) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            backgroundAlpha = dialogGlass.tint.background(isDark),
+            borderAlpha = dialogGlass.tint.border(isDark),
+            highlightAlpha = dialogGlass.tint.highlight(isDark),
+            borderColor = if (isDark) {
+                SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
+            } else {
+                scheme.outline
+            },
+            liquidBlur = dialogGlass.liquid.blur,
+            liquidLensHeight = dialogGlass.liquid.lensHeight,
+            liquidLensAmount = dialogGlass.liquid.lensAmount,
+        ) {
+            Column(modifier = Modifier.padding(28.dp)) {
+                Text(
+                    text = stringResource(id = R.string.delete_playlist_title),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RoseRed,
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = stringResource(id = R.string.delete_playlist_confirm_message, playlistName),
+                    fontSize = 16.sp,
+                    color = mutedColor,
+                    lineHeight = 22.sp,
+                )
+                Spacer(modifier = Modifier.height(28.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = stringResource(id = R.string.cancel),
+                            fontSize = 16.sp,
+                            color = mutedColor,
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    GlassSurface(
+                        modifier = Modifier
+                            .height(44.dp)
+                            .clickable(onClick = onConfirm),
+                        shape = RoundedCornerShape(14.dp),
+                        sampleBackdrop = sampleBackdrop,
+                        backgroundAlpha = confirmGlass.background(isDark),
+                        borderAlpha = confirmGlass.border(isDark),
+                        highlightAlpha = confirmGlass.highlight(isDark),
+                        borderColor = RoseRed.copy(alpha = if (isDark) 0.55f else 0.35f),
+                        liquidBlur = dialogGlass.liquid.blur,
+                        liquidLensHeight = dialogGlass.liquid.lensHeight,
+                        liquidLensAmount = dialogGlass.liquid.lensAmount,
+                        surfaceTint = RoseRed.copy(alpha = 0.62f),
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.delete),
+                                fontSize = 16.sp,
+                                color = Color.White.copy(alpha = 0.96f),
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 20.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

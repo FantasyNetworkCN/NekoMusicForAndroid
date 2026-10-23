@@ -464,6 +464,8 @@
     <string name="import_new_playlist_name">新本本名称</string>
     <string name="import_new_playlist_name_hint">起个新本本名字喵</string>
     <string name="edit_playlist">涂改本本喵</string>
+    <string name="delete_playlist_title">要把本本删掉吗喵？</string>
+    <string name="delete_playlist_confirm_message">确定要删除歌单「%1$s」吗？删掉之后就找不回来啦喵。</string>
     <string name="create_playlist_dialog">创建新本本喵</string>
     <string name="loading_failed">搬不动了喵: %s</string>
     <string name="delete_failed_msg">删不掉喵: %s</string>

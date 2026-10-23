@@ -461,6 +461,8 @@
     <string name="import_new_playlist_name">新歌单名称</string>
     <string name="import_new_playlist_name_hint">请输入新歌单名称</string>
     <string name="edit_playlist">编辑歌单</string>
+    <string name="delete_playlist_title">删除歌单</string>
+    <string name="delete_playlist_confirm_message">确定删除歌单“%1$s”吗？此操作无法撤销。</string>
     <string name="create_playlist_dialog">创建歌单</string>
     <string name="loading_failed">加载失败: %s</string>
     <string name="delete_failed_msg">删除失败: %s</string>

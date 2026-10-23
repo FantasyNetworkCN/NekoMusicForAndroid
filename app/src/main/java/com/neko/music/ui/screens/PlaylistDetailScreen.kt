@@ -1201,7 +1201,7 @@ private fun PlaylistBatchDeleteGlassDialog(
 }
 
 @Composable
-private fun PlaylistShareSheet(
+internal fun PlaylistShareSheet(
     playlistName: String,
     playlistId: Int,
     liquidBackdrop: LayerBackdrop,

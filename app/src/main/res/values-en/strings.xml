@@ -490,6 +490,8 @@
     <string name="import_new_playlist_name">New playlist name</string>
     <string name="import_new_playlist_name_hint">Enter a name for the new playlist</string>
     <string name="edit_playlist">Edit Playlist</string>
+    <string name="delete_playlist_title">Delete playlist</string>
+    <string name="delete_playlist_confirm_message">Delete “%1$s”? This cannot be undone.</string>
     <string name="create_playlist_dialog">Create Playlist</string>
     <string name="loading_failed">Load failed: %s</string>
     <string name="delete_failed_msg">Delete failed: %s</string>
