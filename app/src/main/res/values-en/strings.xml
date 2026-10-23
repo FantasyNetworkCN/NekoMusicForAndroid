@@ -79,6 +79,10 @@
     <!-- Mine Screen -->
     <string name="mine">Mine</string>
     <string name="not_logged_in">Not Logged In</string>
+    <string name="mine_section_music">Music</string>
+    <string name="mine_section_account">Account &amp; Settings</string>
+    <string name="mine_account_id_format">ID: %d</string>
+    <string name="mine_login_subtitle">Sign in to sync favorites, playlists and history</string>
     <string name="upload">Upload</string>
     <string name="my_music">My Music</string>
     <string name="my_favorites">My Favorites</string>

@@ -5,8 +5,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -21,16 +24,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -46,7 +49,6 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
-import kotlinx.coroutines.delay
 
 @Composable
 fun MineScreen(
@@ -69,7 +71,6 @@ fun MineScreen(
     onLoginSuccess: () -> Unit = {},
     token: String? = null
 ) {
-    val context = LocalContext.current
     val view = LocalView.current
     SideEffect {
         val window = (view.context as android.app.Activity).window
@@ -78,7 +79,7 @@ fun MineScreen(
     }
     
     val scheme = MaterialTheme.colorScheme
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
 
     // 未读数来自消息长连接推送帧，不轮询
     val unreadCount by NotificationCenter.unread.collectAsState()
@@ -87,13 +88,34 @@ fun MineScreen(
     val glassBg = glassTint.background(isDarkTheme)
     val glassBorder = glassTint.border(isDarkTheme)
     val glassHighlight = glassTint.highlight(isDarkTheme)
-    val dialogLiquid = LiquidGlassDefaults.appUpdateDialog.liquid
+    val glassLiquid = LiquidGlassDefaults.liquidMedium
     val glassBorderColor = if (isDarkTheme) {
         SakuraPink.copy(alpha = LiquidGlassDefaults.appUpdateDialogDarkBorderSakuraAlpha)
     } else {
         scheme.outline
     }
-    val scrimAlpha = if (isDarkTheme) 0.42f else 0.28f
+    val listState = rememberLazyListState()
+    val collapsedTopBarThreshold = with(LocalDensity.current) { 180.dp.roundToPx() }
+    val showCollapsedTopBar by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 ||
+                listState.firstVisibleItemScrollOffset > collapsedTopBarThreshold
+        }
+    }
+
+    var uploadCount by remember(token) { mutableStateOf<Int?>(null) }
+    LaunchedEffect(token) {
+        if (token == null) {
+            uploadCount = null
+            return@LaunchedEffect
+        }
+        try {
+            val response = com.neko.music.data.api.UserApi(token).getUploadedMusic()
+            uploadCount = if (response.success) response.total else null
+        } catch (e: Exception) {
+            uploadCount = null
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -104,23 +126,13 @@ fun MineScreen(
             AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = scrimAlpha * 0.35f),
-                                Color.Black.copy(alpha = scrimAlpha),
-                            ),
-                        ),
-                    ),
-            )
+            com.neko.music.ui.components.PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                state = listState,
                 contentPadding = PaddingValues(bottom = 160.dp),
             ) {
                 item {
@@ -139,117 +151,128 @@ fun MineScreen(
                         unreadCount = unreadCount,
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                    GlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        sampleBackdrop = pageBackdrop,
-                        backgroundAlpha = glassBg,
-                        borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight,
-                        borderColor = glassBorderColor,
-                        liquidBlur = dialogLiquid.blur,
-                        liquidLensHeight = dialogLiquid.lensHeight,
-                        liquidLensAmount = dialogLiquid.lensAmount,
-                    ) {
-                        MineStats(
-                            onUploadClick = onUploadClick,
-                            token = token,
-                            useOuterPadding = false,
-                            embeddedInGlass = true
-                        )
-                    }
+                        MineSectionLabel(stringResource(id = R.string.mine_section_music))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    GlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        sampleBackdrop = pageBackdrop,
-                        backgroundAlpha = glassBg,
-                        borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight,
-                        borderColor = glassBorderColor,
-                        liquidBlur = dialogLiquid.blur,
-                        liquidLensHeight = dialogLiquid.lensHeight,
-                        liquidLensAmount = dialogLiquid.lensAmount,
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            MineMenu(
-                                onRecentPlayClick = onRecentPlayClick,
-                                onLocalMusicClick = onLocalMusicClick,
-                                onVipCenterClick = onVipCenterClick,
-                                isLoggedIn = isLoggedIn,
-                                onLogoutClick = onLogoutClick,
-                                onLoginClick = onLoginClick,
-                                useElevatedMenuItems = false,
-                                contentHorizontalPadding = 0.dp
-                            )
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            sampleBackdrop = pageBackdrop,
+                            backgroundAlpha = glassBg,
+                            borderAlpha = glassBorder,
+                            highlightAlpha = glassHighlight,
+                            borderColor = glassBorderColor,
+                            liquidBlur = glassLiquid.blur,
+                            liquidLensHeight = glassLiquid.lensHeight,
+                            liquidLensAmount = glassLiquid.lensAmount,
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                MineMenu(
+                                    onRecentPlayClick = onRecentPlayClick,
+                                    onLocalMusicClick = onLocalMusicClick,
+                                    onVipCenterClick = onVipCenterClick,
+                                    onUploadClick = onUploadClick,
+                                    uploadCount = uploadCount,
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
-                    GlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        sampleBackdrop = pageBackdrop,
-                        backgroundAlpha = glassBg,
-                        borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight,
-                        borderColor = glassBorderColor,
-                        liquidBlur = dialogLiquid.blur,
-                        liquidLensHeight = dialogLiquid.lensHeight,
-                        liquidLensAmount = dialogLiquid.lensAmount,
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            MoreSettings(
-                                onAboutClick = onAboutClick,
-                                onNavigateToSettings = onNavigateToSettings,
-                                isLoggedIn = isLoggedIn,
-                                onLoginClick = onLoginClick,
-                                onLogoutClick = onLogoutClick,
-                                useElevatedMenuItems = false,
-                                contentHorizontalPadding = 0.dp,
-                                showFooter = false,
-                            )
+                        MineSectionLabel(stringResource(id = R.string.mine_section_account))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        GlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            sampleBackdrop = pageBackdrop,
+                            backgroundAlpha = glassBg,
+                            borderAlpha = glassBorder,
+                            highlightAlpha = glassHighlight,
+                            borderColor = glassBorderColor,
+                            liquidBlur = glassLiquid.blur,
+                            liquidLensHeight = glassLiquid.lensHeight,
+                            liquidLensAmount = glassLiquid.lensAmount,
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                                MoreSettings(
+                                    onAboutClick = onAboutClick,
+                                    onNavigateToSettings = onNavigateToSettings,
+                                    onAccountInfoClick = onAccountInfoClick,
+                                    isLoggedIn = isLoggedIn,
+                                    userId = userId,
+                                    onLoginClick = onLoginClick,
+                                    onLogoutClick = onLogoutClick,
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    GlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        sampleBackdrop = pageBackdrop,
-                        backgroundAlpha = glassBg * 0.92f,
-                        borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight,
-                        borderColor = glassBorderColor,
-                        liquidBlur = dialogLiquid.blur,
-                        liquidLensHeight = dialogLiquid.lensHeight,
-                        liquidLensAmount = dialogLiquid.lensAmount,
-                    ) {
                         MineScreenFooter(
                             isDarkTheme = isDarkTheme,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = showCollapsedTopBar,
+                enter = fadeIn(animationSpec = tween(durationMillis = 180)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 140)),
+            ) {
+                GlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
+                    sampleBackdrop = pageBackdrop,
+                    backgroundAlpha = glassBg,
+                    borderAlpha = glassBorder,
+                    highlightAlpha = glassHighlight,
+                    borderColor = glassBorderColor,
+                    liquidBlur = glassLiquid.blur,
+                    liquidLensHeight = glassLiquid.lensHeight,
+                    liquidLensAmount = glassLiquid.lensAmount,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .height(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.mine),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = scheme.onSurface,
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MineSectionLabel(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.padding(horizontal = 8.dp),
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.3.sp,
+        color = if (isAppDarkTheme()) {
+            Color.White.copy(alpha = 0.62f)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+    )
 }
 
 @Composable
@@ -280,20 +303,21 @@ fun MineHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(268.dp)
+            .height(300.dp)
     ) {
         AppPageBackgroundImage(
-            kind = com.neko.music.data.manager.AppBackgroundKind.MineHeader,
+            kind = AppBackgroundKind.MineHeader,
             modifier = Modifier.fillMaxSize(),
         )
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-                .align(Alignment.BottomCenter)
+                .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f)),
+                        0f to Color.Black.copy(alpha = 0.34f),
+                        0.34f to Color.Transparent,
+                        0.66f to Color.Black.copy(alpha = 0.18f),
+                        1f to Color.Black.copy(alpha = 0.78f),
                     ),
                 ),
         )
@@ -377,57 +401,49 @@ fun MineHeader(
             }
         }
 
-        // 装饰圆圈
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            drawCircle(
-                color = SakuraPink.copy(alpha = 0.15f),
-                radius = 100.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(size.width * 0.85f, size.height * 0.3f)
-            )
-            drawCircle(
-                color = SkyBlue.copy(alpha = 0.1f),
-                radius = 70.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.6f)
-            )
-        }
-        
-        Column(
+        Text(
+            text = stringResource(id = R.string.mine),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 20.dp, top = 14.dp),
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            letterSpacing = 0.2.sp,
+        )
+
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // 头像容器（会员金色描边，与 Web 资料页 VIP 感一致）
-            val avatarShape = RoundedCornerShape(24.dp)
             val vipRingBrush = Brush.linearGradient(
                 colors = listOf(Color(0xFFFFE082), Color(0xFFFFB300), Color(0xFFFFA000))
             )
-            val avatarOuter = if (isLoggedIn && isVip) 96.dp else 90.dp
-            val avatarInner = if (isLoggedIn && isVip) 88.dp else 90.dp
             Box(
-                modifier = Modifier.size(avatarOuter),
+                modifier = Modifier.size(88.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (isLoggedIn && isVip) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .border(width = 2.5.dp, brush = vipRingBrush, shape = avatarShape)
+                            .border(width = 2.5.dp, brush = vipRingBrush, shape = CircleShape)
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .size(avatarInner)
-                        .clip(avatarShape)
+                        .size(80.dp)
+                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surface)
+                        .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                         .shadow(
-                            elevation = 8.dp,
+                            elevation = 10.dp,
                             spotColor = if (isVip) Color(0xFFFFB300).copy(alpha = 0.45f) else RoseRed.copy(alpha = 0.4f),
-                            ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                            ambientColor = Color.Black.copy(alpha = 0.28f)
                         )
                         .clickable {
                             if (isLoggedIn) {
@@ -464,183 +480,52 @@ fun MineHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isLoggedIn && !nickname.isNullOrBlank()) {
+                        nickname
+                    } else {
+                        stringResource(id = R.string.not_logged_in)
+                    },
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isLoggedIn && userId != -1) {
+                            stringResource(id = R.string.mine_account_id_format, userId)
+                        } else {
+                            stringResource(id = R.string.mine_login_subtitle)
+                        },
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.72f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (isLoggedIn) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        VipPill(
+                            isVip = isVip,
+                            onClick = onVipEntryClick,
+                            compact = true,
+                        )
+                    }
+                }
+            }
 
             Text(
-                text = if (isLoggedIn && nickname != null) nickname else stringResource(id = R.string.not_logged_in),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFFF6B6B),
-                maxLines = 1,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                text = "›",
+                fontSize = 24.sp,
+                color = Color.White.copy(alpha = 0.55f),
+                modifier = Modifier.padding(start = 6.dp),
             )
-
-            if (isLoggedIn) {
-                Spacer(modifier = Modifier.height(10.dp))
-                VipPill(
-                    isVip = isVip,
-                    onClick = onVipEntryClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun MineStats(
-    onUploadClick: () -> Unit = {},
-    token: String? = null,
-    useOuterPadding: Boolean = true,
-    embeddedInGlass: Boolean = false
-) {
-    var uploadCount by remember { mutableStateOf(0) }
-    val context = LocalContext.current
-    
-    LaunchedEffect(token) {
-        if (token != null) {
-            try {
-                val userApi = com.neko.music.data.api.UserApi(token)
-                val response = userApi.getUploadedMusic()
-                if (response.success) {
-                    uploadCount = response.total
-                }
-            } catch (e: Exception) {
-                // 静默失败，保持默认值0
-            }
-        }
-    }
-
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .then(
-            if (useOuterPadding) {
-                Modifier.padding(horizontal = 20.dp)
-            } else {
-                Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-            }
-        )
-        .then(
-            if (embeddedInGlass) {
-                Modifier
-            } else {
-                Modifier
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                RoseRed.copy(alpha = 0.12f),
-                                SakuraPink.copy(alpha = 0.12f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = RoseRed.copy(alpha = 0.2f),
-                        ambientColor = Color.Gray.copy(alpha = 0.1f)
-                    )
-            }
-        )
-        .padding(vertical = 16.dp, horizontal = 16.dp)
-
-    Row(
-        modifier = rowModifier,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        StatItem(uploadCount.toString(), stringResource(id = R.string.upload), onUploadClick = onUploadClick)
-    }
-}
-
-@Composable
-fun StatItem(count: String, label: String, onUploadClick: () -> Unit = {}) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            delay(140)
-            isPressed = false
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .scale(scale)
-            .clickable {
-                isPressed = true
-                onUploadClick()
-            },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = count,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = RoseRed
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
-
-@Composable
-fun NekoMemberBanner() {
-    var isVisible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.95f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .height(100.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        RoseRed.copy(alpha = 0.15f),
-                        SakuraPink.copy(alpha = 0.15f)
-                    )
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .scale(scale)
-            .shadow(
-                elevation = 4.dp,
-                spotColor = RoseRed.copy(alpha = 0.2f),
-                ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
-            )
-            .clickable {
-                // 暂未实现
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 内容已移除
         }
     }
 }
@@ -650,50 +535,37 @@ fun MineMenu(
     onRecentPlayClick: () -> Unit = {},
     onLocalMusicClick: () -> Unit = {},
     onVipCenterClick: () -> Unit = {},
-    isLoggedIn: Boolean = false,
-    onLogoutClick: () -> Unit = {},
-    onLoginClick: () -> Unit = {},
-    useElevatedMenuItems: Boolean = true,
-    /** 嵌入 [GlassSurface] 时由外层留白，此处传 0.dp */
-    contentHorizontalPadding: Dp = 20.dp
+    onUploadClick: () -> Unit = {},
+    uploadCount: Int? = null,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = contentHorizontalPadding)
-    ) {
-        Text(
-            text = stringResource(id = R.string.mine),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-
+    Column(modifier = Modifier.fillMaxWidth()) {
         MenuItem(
-            stringResource(id = R.string.local_music),
-            R.drawable.music,
-            SkyBlue,
-            onClick = onLocalMusicClick,
-            useElevatedSurface = useElevatedMenuItems
-        )
-        
-        MenuItem(
-            stringResource(id = R.string.vip_menu_entry),
-            R.drawable.ic_vip_star,
-            Color(0xFFFFB300),
-            onClick = {
-                if (isLoggedIn) onVipCenterClick() else onLoginClick()
-            },
-            useElevatedSurface = useElevatedMenuItems
-        )
-        MenuItem(
-            stringResource(id = R.string.recent_play),
-            R.drawable.recently_played,
-            SkyBlue,
+            title = stringResource(id = R.string.recent_play),
+            iconResId = R.drawable.recently_played,
+            iconColor = RoseRed,
             onClick = onRecentPlayClick,
-            useElevatedSurface = useElevatedMenuItems
+        )
+        MineMenuDivider()
+        MenuItem(
+            title = stringResource(id = R.string.local_music),
+            iconResId = R.drawable.music,
+            iconColor = SkyBlue,
+            onClick = onLocalMusicClick,
+        )
+        MineMenuDivider()
+        MenuItem(
+            title = stringResource(id = R.string.vip_menu_entry),
+            iconResId = R.drawable.ic_vip_star,
+            iconColor = Color(0xFFFFB300),
+            onClick = onVipCenterClick,
+        )
+        MineMenuDivider()
+        MenuItem(
+            title = stringResource(id = R.string.my_music),
+            iconResId = R.drawable.music,
+            iconColor = Lilac,
+            trailingText = uploadCount?.let { stringResource(R.string.songs_count_label, it) },
+            onClick = onUploadClick,
         )
     }
 }
@@ -703,144 +575,163 @@ fun MenuItem(
     title: String,
     iconResId: Int,
     iconColor: Color = RoseRed,
+    subtitle: String? = null,
+    trailingText: String? = null,
     onClick: () -> Unit = {},
-    useElevatedSurface: Boolean = true
 ) {
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
+        targetValue = if (isPressed) 0.985f else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
     )
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            delay(120)
-            isPressed = false
-        }
-    }
-
-    val rowShape = RoundedCornerShape(16.dp)
-    val elevatedModifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 6.dp)
-        .background(
-            color = MaterialTheme.colorScheme.surface,
-            shape = rowShape
-        )
-        .padding(16.dp)
-        .shadow(
-            elevation = 2.dp,
-            spotColor = RoseRed.copy(alpha = 0.15f),
-            ambientColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-        )
-    val flatModifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp)
-        .padding(horizontal = 4.dp)
 
     Row(
         modifier = Modifier
-            .then(if (useElevatedSurface) elevatedModifier else flatModifier)
+            .fillMaxWidth()
+            .heightIn(min = 58.dp)
             .scale(scale)
-            .clickable {
-                isPressed = true
-                onClick()
-            },
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
+                .size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(iconColor.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
         ) {
             Image(
                 painter = painterResource(id = iconResId),
                 contentDescription = title,
-                modifier = Modifier.size(28.dp),
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(iconColor)
+                modifier = Modifier.size(23.dp),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(iconColor),
             )
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
+
+        Spacer(modifier = Modifier.width(13.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    fontSize = 11.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        if (!trailingText.isNullOrBlank()) {
+            Text(
+                text = trailingText,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.76f),
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
         Text(
             text = "›",
             fontSize = 20.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.52f),
         )
     }
+}
+
+@Composable
+private fun MineMenuDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 65.dp, end = 14.dp),
+        thickness = 0.5.dp,
+        color = if (isAppDarkTheme()) {
+            Color.White.copy(alpha = 0.10f)
+        } else {
+            Color.Black.copy(alpha = 0.08f)
+        },
+    )
 }
 
 @Composable
 fun MoreSettings(
     onAboutClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onAccountInfoClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
+    userId: Int = -1,
     onLoginClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    useElevatedMenuItems: Boolean = true,
-    showFooter: Boolean = true,
-    /** 嵌入 [GlassSurface] 时由外层留白 */
-    contentHorizontalPadding: Dp = 20.dp
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = contentHorizontalPadding)
-    ) {
-        MenuItem(
-            stringResource(id = R.string.settings_title),
-            R.drawable.setting,
-            RoseRed,
-            onClick = onNavigateToSettings,
-            useElevatedSurface = useElevatedMenuItems
-        )
-        MenuItem(
-            stringResource(id = R.string.about_us),
-            R.drawable.about,
-            StarYellow,
-            onClick = onAboutClick,
-            useElevatedSurface = useElevatedMenuItems
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
+    Column(modifier = Modifier.fillMaxWidth()) {
         if (isLoggedIn) {
             MenuItem(
-                stringResource(id = R.string.logout),
-                R.drawable.logout,
-                Lilac,
+                title = stringResource(id = R.string.account_info),
+                iconResId = R.drawable.user,
+                iconColor = SkyBlue,
+                subtitle = if (userId != -1) {
+                    stringResource(id = R.string.mine_account_id_format, userId)
+                } else {
+                    null
+                },
+                onClick = onAccountInfoClick,
+            )
+            MineMenuDivider()
+        }
+        MenuItem(
+            title = stringResource(id = R.string.settings_title),
+            iconResId = R.drawable.setting,
+            iconColor = RoseRed,
+            onClick = onNavigateToSettings,
+        )
+        MineMenuDivider()
+        MenuItem(
+            title = stringResource(id = R.string.about_us),
+            iconResId = R.drawable.about,
+            iconColor = StarYellow,
+            onClick = onAboutClick,
+        )
+        MineMenuDivider()
+        if (isLoggedIn) {
+            MenuItem(
+                title = stringResource(id = R.string.logout),
+                iconResId = R.drawable.logout,
+                iconColor = Color(0xFFFF6B6B),
                 onClick = onLogoutClick,
-                useElevatedSurface = useElevatedMenuItems
             )
         } else {
             MenuItem(
-                stringResource(id = R.string.login),
-                R.drawable.login,
-                Peach,
+                title = stringResource(id = R.string.login),
+                iconResId = R.drawable.login,
+                iconColor = Peach,
                 onClick = onLoginClick,
-                useElevatedSurface = useElevatedMenuItems
             )
         }
-    }
-
-    if (showFooter) {
-        MineScreenFooter()
     }
 }
 
 @Composable
 private fun MineScreenFooter(
-    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    isDarkTheme: Boolean = isAppDarkTheme(),
     modifier: Modifier = Modifier,
 ) {
     val muted = if (isDarkTheme) {
@@ -892,15 +783,16 @@ fun ExternalLinkButton(
     text: String,
     url: String,
     icon: Int,
-    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    isDarkTheme: Boolean = isAppDarkTheme(),
 ) {
     val context = LocalContext.current
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow,
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
         ),
     )
     val chipBg = if (isDarkTheme) {
@@ -925,8 +817,10 @@ fun ExternalLinkButton(
             .clip(RoundedCornerShape(12.dp))
             .background(chipBg)
             .border(1.dp, chipBorder, RoundedCornerShape(12.dp))
-            .clickable {
-                isPressed = true
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+            ) {
                 val intent = android.content.Intent(
                     android.content.Intent.ACTION_VIEW,
                     android.net.Uri.parse(url),

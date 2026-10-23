@@ -77,6 +77,10 @@
 
     <string name="mine">我的喵</string>
     <string name="not_logged_in">还没认领猫娘喵</string>
+    <string name="mine_section_music">音乐喵</string>
+    <string name="mine_section_account">账户与设置喵</string>
+    <string name="mine_account_id_format">ID：%d 喵</string>
+    <string name="mine_login_subtitle">登录后同步收藏、歌单与最近播放喵</string>
     <string name="upload">上交音乐喵</string>
     <string name="my_music">我的音乐仓库喵</string>
     <string name="my_favorites">我的心动收藏喵</string>
