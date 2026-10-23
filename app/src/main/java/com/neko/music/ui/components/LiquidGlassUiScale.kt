@@ -27,7 +27,7 @@ data class LiquidGlassUiScale(
 val LocalLiquidGlassUiScale = compositionLocalOf { LiquidGlassUiScale() }
 
 /**
- * 为 false 时 [GlassSurface]、[NavigationGlassSlider] 不使用 Kyant 硬件录屏折射（磨砂卡片 / 拇指占位）。
+ * 为 false 时 [GlassSurface] 等液态组件不使用 Kyant 硬件录屏折射（改为磨砂占位）。
  * 由 [AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS] 驱动，默认 true。
  */
 val LocalLiquidGlassHardwareEffectsEnabled = compositionLocalOf { true }

@@ -2,14 +2,11 @@ package com.neko.music.ui.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.MutatorMutex
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
@@ -53,18 +50,24 @@ class DampedDragAnimation(
     val scaleY: Float get() = scaleYAnimation.value
     val velocity: Float get() = velocityAnimation.value
 
+    private val mutatorMutex = MutatorMutex()
+
     val modifier: Modifier = Modifier.pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            onDragStarted(Offset(down.position.x, down.position.y))
-            press()
-            drag(down.id) { change ->
-                val delta = change.positionChange()
-                onDrag(size, delta)
-                change.consume()
-            }
-            onDragStopped()
-            release()
+        inspectDragGestures(
+            onDragStart = { down ->
+                onDragStarted(down.position)
+                press()
+            },
+            onDragEnd = {
+                onDragStopped()
+                release()
+            },
+            onDragCancel = {
+                onDragStopped()
+                release()
+            },
+        ) { _, dragAmount ->
+            onDrag(size, dragAmount)
         }
     }
 
@@ -101,10 +104,14 @@ class DampedDragAnimation(
 
     fun animateToValue(value: Float) {
         animationScope.launch {
-            val targetValue = value.coerceIn(valueRange)
-            launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) }
-            if (velocity != 0f) {
-                launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+            mutatorMutex.mutate {
+                press()
+                val targetValue = value.coerceIn(valueRange)
+                launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) }
+                if (velocity != 0f) {
+                    launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
+                }
+                release()
             }
         }
     }

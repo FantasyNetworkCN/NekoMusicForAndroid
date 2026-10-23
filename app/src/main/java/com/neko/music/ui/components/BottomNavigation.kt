@@ -10,6 +10,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -19,23 +20,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -54,36 +55,57 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shadow as TextShadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow as BackdropShadow
+import com.kyant.shapes.Capsule
 import com.neko.music.R
 import com.neko.music.ui.theme.isAppDarkTheme
 import kotlin.math.abs
+import kotlin.math.sign
 import kotlinx.coroutines.launch
 
 /** 底栏高度；迷你播放器等底部 chrome 以此为基准留白。 */
@@ -103,12 +125,13 @@ sealed class BottomNavItem(
     )
 }
 
+private val LocalLiquidBottomTabScale = staticCompositionLocalOf<() -> Float> { { 1f } }
+
 /**
- * 悬浮胶囊底栏：图标 + 文字，整条是一块「液态玻璃」。
+ * 悬浮胶囊底栏：按 AndroidLiquidGlass Catalog 的 `LiquidBottomTabs` 完整移植。
  *
- * 玻璃参数对齐 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar)：
- * `vibrancy() → blur(4dp) → lens(16dp, 32dp)`，并额外用 Kyant [Highlight] 描边；
- * 选中态不是实色块，而是一枚带折射与内阴影的玻璃胶囊（见 [NavigationGlassSlider]）。
+ * 页面在 [MainActivity] 中先铺底色再 `layerBackdrop` 录屏，这里作为兄弟层直接 `drawBackdrop` 采样。
+ * 包含整条按压缩放、拖动选中胶囊、速度形变、选中内容二次折射、径向按压高光与松手回弹。
  */
 @Composable
 fun BottomNavigationBar(
@@ -120,246 +143,404 @@ fun BottomNavigationBar(
         BottomNavItem.Mine,
         BottomNavItem.MyPlaylists,
     )
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    // 计算选中项的索引
-    val selectedIndex = items.indexOfFirst { it.route == currentRoute }
-
+    val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val pageBackdrop = LocalLiquidLayerBackdrop.current
+    val isDarkBar = isAppDarkTheme()
+    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
+    val useLiquidGlass =
+        hardwareLiquid && pageBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val view = LocalView.current
 
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(BottomNavigationBarHeight),
-    ) {
-        val colorScheme = MaterialTheme.colorScheme
-        /** 与主题背景一致（含动态色 / 深浅色），避免底栏写死成「深色玻璃 + 白字」 */
-        val isDarkBar = isAppDarkTheme()
+    fun navigateToItem(index: Int) {
+        val item = items[index.coerceIn(0, items.lastIndex)]
+        if (currentRoute != item.route) {
+            navController.navigate(item.route) {
+                popUpTo(item.route) { inclusive = true }
+                launchSingleTop = true
+            }
+            @Suppress("DEPRECATION")
+            val haptic = if (Build.VERSION.SDK_INT >= 30) {
+                HapticFeedbackConstants.SEGMENT_TICK
+            } else {
+                HapticFeedbackConstants.CONTEXT_CLICK
+            }
+            view.performHapticFeedback(haptic)
+        } else {
+            navController.popBackStack(item.route, inclusive = false)
+        }
+    }
+
+    if (useLiquidGlass) {
+        LiquidBottomTabs(
+            selectedTabIndex = selectedIndex,
+            onTabSelected = ::navigateToItem,
+            backdrop = pageBackdrop,
+            tabsCount = items.size,
+            isDark = isDarkBar,
+            accentColor = MaterialTheme.colorScheme.primary,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(BottomNavigationBarHeight),
+        ) {
+            items.forEachIndexed { index, item ->
+                BottomNavigationTab(
+                    item = item,
+                    selected = index == selectedIndex,
+                    isDark = isDarkBar,
+                    onClick = { navigateToItem(index) },
+                )
+            }
+        }
+    } else {
+        BottomNavigationFallback(
+            items = items,
+            selectedIndex = selectedIndex,
+            isDark = isDarkBar,
+            onTabSelected = ::navigateToItem,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(BottomNavigationBarHeight),
+        )
+    }
+}
+
+@Composable
+private fun LiquidBottomTabs(
+    selectedTabIndex: Int,
+    onTabSelected: (index: Int) -> Unit,
+    backdrop: Backdrop,
+    tabsCount: Int,
+    isDark: Boolean,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val safeTabCount = tabsCount.coerceAtLeast(1)
+    val containerColor = if (isDark) {
+        Color(0xFF121212).copy(alpha = 0.4f)
+    } else {
+        Color(0xFFFAFAFA).copy(alpha = 0.4f)
+    }
+    val tabsBackdrop = rememberLayerBackdrop()
+    val latestOnTabSelected by rememberUpdatedState(onTabSelected)
+
+    BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
-        val view = LocalView.current
-        val scope = rememberCoroutineScope()
-        var isDragging by remember { mutableStateOf(false) }
-        val latestRoute by rememberUpdatedState(currentRoute)
-
-        val thumbPosPx = remember { Animatable(0f) }
-        /** 与 LiquidBottomTabs 一致：累积拖动手势，整栏用 [panelOffset] 轻微跟手，松手回弹 */
-        val dragPanelSlip = remember { Animatable(0f) }
-        val panelOffsetPx by remember(density, maxWidth) {
-            derivedStateOf<Float> {
-                val denom = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
-                val fraction = (dragPanelSlip.value / denom).coerceIn(-1f, 1f)
-                val dir = when {
-                    fraction > 0f -> 1f
-                    fraction < 0f -> -1f
-                    else -> 0f
-                }
+        val tabWidth = with(density) {
+            ((constraints.maxWidth.toFloat() - 8.dp.toPx()) / safeTabCount).coerceAtLeast(1f)
+        }
+        val offsetAnimation = remember { Animatable(0f) }
+        val panelOffset by remember(density, constraints.maxWidth) {
+            derivedStateOf {
+                val fraction = (offsetAnimation.value / constraints.maxWidth.coerceAtLeast(1))
+                    .fastCoerceIn(-1f, 1f)
                 with(density) {
-                    4.dp.toPx() * dir * EaseOut.transform(abs(fraction))
+                    4.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
                 }
             }
         }
-        var thumbLeftUi by remember { mutableStateOf(0.dp) }
-        val thumbSquish by animateFloatAsState(
-            targetValue = if (isDragging) 1f else 0f,
-            animationSpec = tween(140),
-            label = "thumbSquish",
+        val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+        val animationScope = rememberCoroutineScope()
+
+        val dragAnimation = remember(animationScope, safeTabCount, constraints.maxWidth, isLtr) {
+            DampedDragAnimation(
+                animationScope = animationScope,
+                initialValue = selectedTabIndex.toFloat(),
+                valueRange = 0f..(safeTabCount - 1).toFloat(),
+                visibilityThreshold = 0.001f,
+                initialScale = 1f,
+                pressedScale = 78f / 56f,
+                onDragStarted = {},
+                onDragStopped = {
+                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, safeTabCount - 1)
+                    animateToValue(targetIndex.toFloat())
+                    latestOnTabSelected(targetIndex)
+                    animationScope.launch {
+                        offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                    }
+                },
+                onDrag = { _, dragAmount ->
+                    updateValue(
+                        (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
+                            .fastCoerceIn(0f, (safeTabCount - 1).toFloat()),
+                    )
+                    animationScope.launch {
+                        offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
+                    }
+                },
+            )
+        }
+
+        LaunchedEffect(selectedTabIndex, dragAnimation) {
+            val target = selectedTabIndex.toFloat()
+            if (dragAnimation.value != target || dragAnimation.targetValue != target) {
+                dragAnimation.animateToValue(target)
+            }
+        }
+
+        val interactiveHighlight = remember(animationScope, dragAnimation, tabWidth, isLtr) {
+            InteractiveHighlight(
+                animationScope = animationScope,
+                position = { size, _ ->
+                    Offset(
+                        if (isLtr) {
+                            (dragAnimation.value + 0.5f) * tabWidth + panelOffset
+                        } else {
+                            size.width - (dragAnimation.value + 0.5f) * tabWidth + panelOffset
+                        },
+                        size.height / 2f,
+                    )
+                },
+            )
+        }
+
+        Row(
+            Modifier
+                .graphicsLayer { translationX = panelOffset }
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { Capsule() },
+                    effects = {
+                        vibrancy()
+                        blur(with(density) { 8.dp.toPx() })
+                        lens(
+                            refractionHeight = with(density) { 24.dp.toPx() },
+                            refractionAmount = with(density) { 24.dp.toPx() },
+                        )
+                    },
+                    layerBlock = {
+                        val progress = dragAnimation.pressProgress
+                        if (size.width > 0f) {
+                            val scale = lerp(1f, 1f + 16.dp.toPx() / size.width, progress)
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                    },
+                    onDrawSurface = { drawRect(containerColor) },
+                )
+                .then(interactiveHighlight.modifier)
+                .height(BottomNavigationBarHeight)
+                .fillMaxWidth()
+                .padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
         )
 
-        LaunchedEffect(thumbPosPx) {
-            snapshotFlow { thumbPosPx.value }.collect { px ->
-                thumbLeftUi = with(density) { px.toDp() }
-            }
-        }
-
-        fun navigateToItem(item: BottomNavItem) {
-            if (currentRoute != item.route) {
-                navController.navigate(item.route) {
-                    popUpTo(item.route) { inclusive = true }
-                    launchSingleTop = true
-                }
-                @Suppress("DEPRECATION")
-                val haptic =
-                    if (Build.VERSION.SDK_INT >= 30) {
-                        HapticFeedbackConstants.SEGMENT_TICK
-                    } else {
-                        HapticFeedbackConstants.CONTEXT_CLICK
-                    }
-                view.performHapticFeedback(haptic)
-            } else {
-                navController.popBackStack(item.route, inclusive = false)
-            }
-        }
-
-        LaunchedEffect(maxWidth, selectedIndex, isDragging) {
-            if (maxWidth <= 0.dp || isDragging) return@LaunchedEffect
-            val destPx = navTabThumbLeftPxForIndex(
-                maxWidth,
-                items.size,
-                selectedIndex.coerceAtLeast(0),
-                density,
-            )
-            thumbPosPx.animateTo(
-                destPx,
-                spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium,
-                ),
-            )
-        }
-
-        val dragState = rememberDraggableState { delta ->
-            scope.launch {
-                val nextPx = navTabThumbClampLeftPx(
-                    thumbPosPx.value + delta,
-                    maxWidth,
-                    items.size,
-                    density,
-                )
-                thumbPosPx.snapTo(nextPx)
-                dragPanelSlip.snapTo(dragPanelSlip.value + delta)
-                val nextDp = with(density) { nextPx.toDp() }
-                val newIdx = navTabIndexForThumbLeft(nextDp, maxWidth, items.size, density)
-                if (items[newIdx].route != latestRoute) {
-                    navigateToItem(items[newIdx])
-                }
-            }
-        }
-
-        val dockGlass = LiquidGlassDefaults.bottomNavigationDock
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { translationX = panelOffsetPx },
-            shape = RoundedCornerShape(BottomNavigationBarHeight / 2),
-            backgroundAlpha = dockGlass.tint.background(isDarkBar),
-            borderAlpha = dockGlass.tint.border(isDarkBar),
-            highlightAlpha = dockGlass.tint.highlight(isDarkBar),
-            borderColor = if (isDarkBar) Color.White else colorScheme.outline,
-            liquidBlur = dockGlass.liquid.blur,
-            liquidLensHeight = dockGlass.liquid.lensHeight,
-            liquidLensAmount = dockGlass.liquid.lensAmount,
-            kyantHighlight = Highlight.Default.copy(alpha = if (isDarkBar) 0.44f else 0.62f),
+        CompositionLocalProvider(
+            LocalLiquidBottomTabScale provides {
+                lerp(1f, 1.2f, dragAnimation.pressProgress)
+            },
         ) {
-            NavigationGlassSlider(
-                modifier = Modifier.fillMaxSize(),
-                mainBackdrop = pageBackdrop,
-                tabCount = items.size,
-                thumbLeftDp = thumbLeftUi,
-                thumbSquishProgress = thumbSquish,
-                darkBarStyle = isDarkBar,
-            )
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .draggable(
-                        state = dragState,
-                        orientation = Orientation.Horizontal,
-                        onDragStarted = {
-                            isDragging = true
-                            thumbPosPx.stop()
+                Modifier
+                    .clearAndSetSemantics { }
+                    .alpha(0f)
+                    .layerBackdrop(tabsBackdrop)
+                    .graphicsLayer { translationX = panelOffset }
+                    .drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { Capsule() },
+                        effects = {
+                            val progress = dragAnimation.pressProgress
+                            vibrancy()
+                            blur(with(density) { 8.dp.toPx() })
+                            lens(
+                                refractionHeight = with(density) { 24.dp.toPx() } * progress,
+                                refractionAmount = with(density) { 24.dp.toPx() } * progress,
+                            )
                         },
-                        onDragStopped = {
-                            isDragging = false
-                            scope.launch {
-                                dragPanelSlip.animateTo(
-                                    0f,
-                                    spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow,
-                                    ),
-                                )
-                            }
+                        highlight = {
+                            Highlight.Default.copy(alpha = dragAnimation.pressProgress)
                         },
-                    ),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                        onDrawSurface = { drawRect(containerColor) },
+                    )
+                    .then(interactiveHighlight.modifier)
+                    .height(BottomNavigationBarHeight - 8.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+                    .graphicsLayer { colorFilter = ColorFilter.tint(accentColor) },
                 verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val selectedIconColor =
-                    if (isDarkBar) Color.White.copy(alpha = 0.98f)
-                    else colorScheme.onSurface.copy(alpha = 0.96f)
-                val unselectedIconColor =
-                    if (isDarkBar) Color.White.copy(alpha = 0.70f)
-                    else colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
-                val selectedLabelColor = selectedIconColor
-                val unselectedLabelColor = unselectedIconColor
-                val labelShadowSelected =
-                    if (isDarkBar) {
-                        Shadow(
-                            color = Color.Black.copy(alpha = 0.42f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f,
-                        )
+                content = content,
+            )
+        }
+
+        Box(
+            Modifier
+                .padding(horizontal = 4.dp)
+                .graphicsLayer {
+                    translationX = if (isLtr) {
+                        dragAnimation.value * tabWidth + panelOffset
                     } else {
-                        Shadow(
-                            color = Color.Black.copy(alpha = 0.14f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 3f,
-                        )
-                    }
-
-                items.forEach { item ->
-                    val isSelected = currentRoute == item.route
-                    val interactionSource = remember(item.route) { MutableInteractionSource() }
-                    val tabPressed by interactionSource.collectIsPressedAsState()
-
-                    val scaleValue by animateFloatAsState(
-                        targetValue = if (isSelected) 1f else 0.97f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
-                        label = "tabSelect",
-                    )
-                    val pressScale by animateFloatAsState(
-                        targetValue = if (tabPressed) 0.9f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
-                        label = "tabPress",
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                            ) {
-                                navigateToItem(item)
-                            }
-                            .scale(scaleValue * pressScale),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = null,
-                                tint = if (isSelected) selectedIconColor else unselectedIconColor,
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = stringResource(id = item.titleResId),
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                color = if (isSelected) selectedLabelColor else unselectedLabelColor,
-                                letterSpacing = if (isSelected) 0.3.sp else 0.1.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = TextStyle(
-                                    shadow = if (isSelected) labelShadowSelected else null,
-                                ),
-                            )
-                        }
+                        size.width - (dragAnimation.value + 1f) * tabWidth + panelOffset
                     }
                 }
+                .then(interactiveHighlight.gestureModifier)
+                .then(dragAnimation.modifier)
+                .drawBackdrop(
+                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                    shape = { Capsule() },
+                    effects = {
+                        val progress = dragAnimation.pressProgress
+                        lens(
+                            refractionHeight = with(density) { 10.dp.toPx() } * progress,
+                            refractionAmount = with(density) { 14.dp.toPx() } * progress,
+                            chromaticAberration = true,
+                        )
+                    },
+                    highlight = {
+                        Highlight.Default.copy(alpha = dragAnimation.pressProgress)
+                    },
+                    shadow = {
+                        BackdropShadow(alpha = dragAnimation.pressProgress)
+                    },
+                    innerShadow = {
+                        val progress = dragAnimation.pressProgress
+                        InnerShadow(
+                            radius = 8.dp * progress,
+                            alpha = progress,
+                        )
+                    },
+                    layerBlock = {
+                        scaleX = dragAnimation.scaleX
+                        scaleY = dragAnimation.scaleY
+                        val velocity = dragAnimation.velocity / 10f
+                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                    },
+                    onDrawSurface = {
+                        val progress = dragAnimation.pressProgress
+                        drawRect(
+                            if (isDark) Color.White.copy(alpha = 0.1f)
+                            else Color.Black.copy(alpha = 0.1f),
+                            alpha = 1f - progress,
+                        )
+                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                    },
+                )
+                .height(BottomNavigationBarHeight - 8.dp)
+                .fillMaxWidth(1f / safeTabCount),
+        )
+    }
+}
+
+@Composable
+private fun RowScope.BottomNavigationTab(
+    item: BottomNavItem,
+    selected: Boolean,
+    isDark: Boolean,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (isDark) Color.White else Color.Black
+    LiquidBottomTab(onClick = onClick) {
+        Icon(
+            imageVector = item.icon,
+            contentDescription = null,
+            tint = contentColor.copy(alpha = if (selected) 0.96f else 0.62f),
+            modifier = Modifier.size(22.dp),
+        )
+        Text(
+            text = stringResource(id = item.titleResId),
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = contentColor.copy(alpha = if (selected) 0.96f else 0.62f),
+            letterSpacing = if (selected) 0.2.sp else 0.1.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun RowScope.LiquidBottomTab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scale = LocalLiquidBottomTabScale.current
+    Column(
+        modifier
+            .clip(Capsule())
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            )
+            .fillMaxHeight()
+            .weight(1f)
+            .graphicsLayer {
+                val tabScale = scale()
+                scaleX = tabScale
+                scaleY = tabScale
+            },
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        content = content,
+    )
+}
+
+@Composable
+private fun BottomNavigationFallback(
+    items: List<BottomNavItem>,
+    selectedIndex: Int,
+    isDark: Boolean,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = Capsule()
+    val safeCount = items.size.coerceAtLeast(1)
+    val surface = if (isDark) {
+        Color(0xFF121212).copy(alpha = 0.92f)
+    } else {
+        Color(0xFFFAFAFA).copy(alpha = 0.92f)
+    }
+
+    BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
+        val tabWidth = ((maxWidth - 8.dp) / safeCount).coerceAtLeast(0.dp)
+        val thumbLeft by animateDpAsState(
+            targetValue = 4.dp + tabWidth * selectedIndex.coerceIn(0, items.lastIndex),
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+            label = "fallbackNavThumb",
+        )
+
+        Box(
+            Modifier
+                .offset(x = thumbLeft, y = 4.dp)
+                .width(tabWidth)
+                .height(BottomNavigationBarHeight - 8.dp)
+                .clip(shape)
+                .background(
+                    if (isDark) Color.White.copy(alpha = 0.12f)
+                    else Color.Black.copy(alpha = 0.07f),
+                )
+                .border(
+                    width = 0.5.dp,
+                    color = if (isDark) Color.White.copy(alpha = 0.16f)
+                    else Color.Black.copy(alpha = 0.08f),
+                    shape = shape,
+                ),
+        )
+
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(4.dp)
+                .clip(shape)
+                .background(surface),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items.forEachIndexed { index, item ->
+                BottomNavigationTab(
+                    item = item,
+                    selected = index == selectedIndex,
+                    isDark = isDark,
+                    onClick = { onTabSelected(index) },
+                )
             }
         }
     }
@@ -501,13 +682,13 @@ fun MiniPlayer(
                             overflow = TextOverflow.Ellipsis,
                             style = androidx.compose.ui.text.TextStyle(
                                 shadow = if (isDarkTheme) {
-                                    Shadow(
+                                    TextShadow(
                                         color = Color.Black.copy(alpha = 0.5f),
                                         offset = Offset(0f, 1f),
                                         blurRadius = 4f
                                     )
                                 } else {
-                                    Shadow(
+                                    TextShadow(
                                         color = Color.Black.copy(alpha = 0.08f),
                                         offset = Offset(0f, 1f),
                                         blurRadius = 2f
@@ -523,13 +704,13 @@ fun MiniPlayer(
                             overflow = TextOverflow.Ellipsis,
                             style = androidx.compose.ui.text.TextStyle(
                                 shadow = if (isDarkTheme) {
-                                    Shadow(
+                                    TextShadow(
                                         color = Color.Black.copy(alpha = 0.4f),
                                         offset = Offset(0f, 1f),
                                         blurRadius = 3f
                                     )
                                 } else {
-                                    Shadow(
+                                    TextShadow(
                                         color = Color.Black.copy(alpha = 0.06f),
                                         offset = Offset(0f, 1f),
                                         blurRadius = 2f

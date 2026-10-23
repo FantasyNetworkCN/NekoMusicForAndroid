@@ -375,18 +375,6 @@ object LiquidGlassDefaults {
         liquid = liquidSharePanel,
     )
 
-    val bottomNavigationDock: LiquidGlassPanel = LiquidGlassPanel(
-        tint = LiquidGlassTint6(
-            backgroundDark = 0.32f,
-            backgroundLight = 0.26f,
-            borderDark = 0.15f,
-            borderLight = 0.20f,
-            highlightDark = 0.08f,
-            highlightLight = 0.12f,
-        ),
-        liquid = liquidSoft,
-    )
-
     val miniPlayerBar: LiquidGlassFixedTint = LiquidGlassFixedTint(
         backgroundAlpha = 0.32f,
         borderAlpha = 0.15f,
