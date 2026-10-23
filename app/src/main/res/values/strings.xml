@@ -724,6 +724,7 @@
     <string name="comment_replies_count_format">%1$d 条回复喵</string>
     <string name="comment_view_replies_format">查看 %1$d 条回复喵</string>
     <string name="comment_collapse_replies">收起回复喵</string>
+    <string name="comment_view_more">查看更多喵</string>
     <string name="comment_time_just_now">刚刚喵</string>
     <string name="comment_time_minutes_format">%1$d 分钟前喵</string>
     <string name="comment_time_hours_format">%1$d 小时前喵</string>

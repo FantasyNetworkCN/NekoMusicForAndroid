@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +62,7 @@ import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.data.api.CommentApi
 import com.neko.music.data.api.CommentItem
+import com.neko.music.data.api.CommentReply
 import com.neko.music.data.api.CommentUser
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.ui.theme.RoseRed
@@ -76,9 +78,21 @@ private const val COMMENT_PAGE_SIZE = 20
 /** 评论内容长度上限，与后端校验一致。 */
 private const val COMMENT_MAX_LENGTH = 500
 
+/** 楼层默认直接展示的回复数，其余回复通过「查看更多」展开。 */
+private const val COMMENT_INITIAL_REPLY_COUNT = 2
+
 private data class ReplyTarget(val id: Int, val nickname: String)
 
 private data class DeleteTarget(val id: Int, val isFloor: Boolean, val replyCount: Int)
+
+/** 评论页中性色板：保持 YouTube 式平面、克制，不用卡片和重阴影。 */
+private data class CommentPalette(
+    val primary: Color,
+    val secondary: Color,
+    val tertiary: Color,
+    val divider: Color,
+    val field: Color,
+)
 
 /**
  * 播放页左侧滑出的评论抽屉面板。
@@ -114,16 +128,18 @@ fun CommentPage(
     var draft by remember(musicId) { mutableStateOf("") }
     var replyTarget by remember(musicId) { mutableStateOf<ReplyTarget?>(null) }
     var isSending by remember(musicId) { mutableStateOf(false) }
-    var expandedFloors by remember(musicId) { mutableStateOf(emptySet<Int>()) }
+    var expandedReplyFloors by remember(musicId) { mutableStateOf(emptySet<Int>()) }
     var deleteTarget by remember(musicId) { mutableStateOf<DeleteTarget?>(null) }
     var isDeleting by remember(musicId) { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    val textPrimary = if (isDarkTheme) Color.White else Color(0xFF17171A)
-    val textSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.58f) else Color(0xFF5B5B63)
-    val inputBackground =
-        if (isDarkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.06f)
-    val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.07f)
+    val palette = CommentPalette(
+        primary = if (isDarkTheme) Color.White else Color(0xFF17171A),
+        secondary = if (isDarkTheme) Color.White.copy(alpha = 0.62f) else Color(0xFF62626A),
+        tertiary = if (isDarkTheme) Color.White.copy(alpha = 0.38f) else Color(0xFF8A8A91),
+        divider = if (isDarkTheme) Color.White.copy(alpha = 0.07f) else Color.Black.copy(alpha = 0.06f),
+        field = if (isDarkTheme) Color.White.copy(alpha = 0.085f) else Color.Black.copy(alpha = 0.045f),
+    )
 
     suspend fun loadComments(reset: Boolean, force: Boolean = false) {
         if (!force && (isLoading || isLoadingMore)) return
@@ -198,11 +214,11 @@ fun CommentPage(
             if (response.success) {
                 draft = ""
                 replyTarget = null
-                // 被回复的那条可能在折叠的楼层里，发完自动展开，别让用户找不到自己刚发的内容
+                // 被回复的楼层可能还没展开全部回复，发完后自动展开，别让用户找不到自己刚发的内容
                 if (parentId != null) {
                     comments.firstOrNull { floor ->
                         floor.id == parentId || floor.replies.any { it.id == parentId }
-                    }?.let { expandedFloors = expandedFloors + it.id }
+                    }?.let { expandedReplyFloors = expandedReplyFloors + it.id }
                 }
                 Toast.makeText(context, context.getString(R.string.comment_post_success), Toast.LENGTH_SHORT).show()
                 loadComments(reset = true)
@@ -267,21 +283,22 @@ fun CommentPage(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 2.dp, bottom = 10.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(id = R.string.comment_title),
-                fontSize = 16.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = textPrimary,
+                letterSpacing = (-0.2).sp,
+                color = palette.primary,
             )
             if (totalCount > 0) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = stringResource(id = R.string.comment_count_format, totalCount),
-                    fontSize = 11.5.sp,
-                    color = textSecondary,
+                    text = totalCount.toString(),
+                    fontSize = 13.sp,
+                    color = palette.tertiary,
                 )
             }
         }
@@ -289,9 +306,9 @@ fun CommentPage(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp)
+                .padding(horizontal = 20.dp)
                 .height(1.dp)
-                .background(dividerColor)
+                .background(palette.divider)
         )
 
         PullToRefreshBox(
@@ -307,55 +324,25 @@ fun CommentPage(
             modifier = Modifier.weight(1f),
         ) {
             when {
-                isLoading && comments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = RoseRed,
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
+                isLoading && comments.isEmpty() -> CommentLoadingState(palette = palette)
 
                 // 用 LazyColumn 撑满，空态时也能下拉刷新
                 comments.isEmpty() -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         item {
-                            Box(
+                            CommentEmptyState(
                                 modifier = Modifier
                                     .fillParentMaxSize()
-                                    .padding(horizontal = 24.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = when {
-                                            musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
-                                            loadFailed -> stringResource(id = R.string.comment_load_failed)
-                                            else -> stringResource(id = R.string.comment_empty)
-                                        },
-                                        fontSize = 13.sp,
-                                        color = textSecondary,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                    )
-                                    if (loadFailed && musicId >= 0) {
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        Text(
-                                            text = stringResource(id = R.string.retry),
-                                            fontSize = 13.sp,
-                                            color = RoseRed,
-                                            fontWeight = FontWeight.Medium,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .clickable { scope.launch { loadComments(reset = true) } }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        )
-                                    }
-                                }
-                            }
+                                    .padding(horizontal = 20.dp),
+                                message = when {
+                                    musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
+                                    loadFailed -> stringResource(id = R.string.comment_load_failed)
+                                    else -> stringResource(id = R.string.comment_empty)
+                                },
+                                showRetry = loadFailed && musicId >= 0,
+                                onRetry = { scope.launch { loadComments(reset = true) } },
+                                palette = palette,
+                            )
                         }
                     }
                 }
@@ -365,26 +352,20 @@ fun CommentPage(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            start = 22.dp,
-                            end = 22.dp,
-                            top = 2.dp,
-                            bottom = 12.dp,
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 12.dp,
+                            bottom = 20.dp,
                         ),
-                        verticalArrangement = Arrangement.spacedBy(13.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
                         items(items = comments, key = { it.id }) { floor ->
                             CommentFloorCard(
                                 floor = floor,
-                                isDarkTheme = isDarkTheme,
-                                textPrimary = textPrimary,
-                                textSecondary = textSecondary,
-                                expanded = expandedFloors.contains(floor.id),
-                                onToggleReplies = {
-                                    expandedFloors = if (expandedFloors.contains(floor.id)) {
-                                        expandedFloors - floor.id
-                                    } else {
-                                        expandedFloors + floor.id
-                                    }
+                                palette = palette,
+                                showAllReplies = expandedReplyFloors.contains(floor.id),
+                                onShowAllReplies = {
+                                    expandedReplyFloors = expandedReplyFloors + floor.id
                                 },
                                 onReply = { target ->
                                     if (isLoggedIn) replyTarget = target else onRequestLogin()
@@ -406,20 +387,21 @@ fun CommentPage(
 
                                     hasMore -> Text(
                                         text = stringResource(id = R.string.comment_load_more),
-                                        fontSize = 13.sp,
-                                        color = textSecondary,
+                                        fontSize = 12.5.sp,
+                                        color = RoseRed.copy(alpha = 0.9f),
+                                        fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(14.dp))
+                                            .clip(RoundedCornerShape(10.dp))
                                             .clickable(enabled = !isLoadingMore) {
                                                 scope.launch { loadComments(reset = false) }
                                             }
-                                            .padding(horizontal = 20.dp, vertical = 10.dp),
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
                                     )
 
                                     else -> Text(
                                         text = stringResource(id = R.string.comment_no_more),
-                                        fontSize = 12.sp,
-                                        color = textSecondary.copy(alpha = 0.7f),
+                                        fontSize = 11.5.sp,
+                                        color = palette.tertiary,
                                         modifier = Modifier.padding(vertical = 8.dp),
                                     )
                                 }
@@ -438,15 +420,10 @@ fun CommentPage(
                 replyTarget = replyTarget,
                 onClearReply = { replyTarget = null },
                 isSending = isSending,
-                isDarkTheme = isDarkTheme,
-                textPrimary = textPrimary,
-                textSecondary = textSecondary,
-                inputBackground = inputBackground,
+                palette = palette,
                 onRequestLogin = onRequestLogin,
                 onSubmit = { submit() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 22.dp, end = 22.dp, top = 6.dp, bottom = 10.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -455,27 +432,32 @@ fun CommentPage(
         AlertDialog(
             onDismissRequest = { if (!isDeleting) deleteTarget = null },
             containerColor = if (isDarkTheme) Color(0xFF1C1C20) else Color.White,
+            tonalElevation = 0.dp,
+            shape = RoundedCornerShape(26.dp),
             title = {
                 Text(
                     text = stringResource(id = R.string.comment_delete_title),
-                    color = textPrimary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    color = palette.primary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.15).sp,
                 )
             },
             text = {
                 Column {
                     Text(
                         text = stringResource(id = R.string.comment_delete_message),
-                        color = textSecondary,
+                        color = palette.secondary,
                         fontSize = 13.sp,
+                        lineHeight = 19.sp,
                     )
                     if (target.isFloor && target.replyCount > 0) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = stringResource(id = R.string.comment_delete_floor_message),
-                            color = textSecondary,
+                            color = palette.secondary,
                             fontSize = 13.sp,
+                            lineHeight = 19.sp,
                         )
                     }
                 }
@@ -485,12 +467,27 @@ fun CommentPage(
                     onClick = { deleteComment(target) },
                     enabled = !isDeleting,
                 ) {
-                    Text(text = stringResource(id = R.string.delete), color = RoseRed)
+                    if (isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = RoseRed,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(id = R.string.delete),
+                            color = RoseRed,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) {
-                    Text(text = stringResource(id = R.string.cancel), color = textSecondary)
+                TextButton(
+                    onClick = { deleteTarget = null },
+                    enabled = !isDeleting,
+                ) {
+                    Text(text = stringResource(id = R.string.cancel), color = palette.secondary)
                 }
             },
         )
@@ -498,17 +495,83 @@ fun CommentPage(
 }
 
 @Composable
+private fun CommentLoadingState(palette: CommentPalette) {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = RoseRed,
+                strokeWidth = 2.dp,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(id = R.string.loading),
+                fontSize = 12.sp,
+                color = palette.tertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommentEmptyState(
+    message: String,
+    showRetry: Boolean,
+    onRetry: () -> Unit,
+    palette: CommentPalette,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                painter = painterResource(R.drawable.ic_comments_glass),
+                contentDescription = null,
+                tint = palette.tertiary,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = palette.secondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            if (showRetry) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onRetry)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.retry),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = RoseRed.copy(alpha = 0.9f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CommentFloorCard(
     floor: CommentItem,
-    isDarkTheme: Boolean,
-    textPrimary: Color,
-    textSecondary: Color,
-    expanded: Boolean,
-    onToggleReplies: () -> Unit,
+    palette: CommentPalette,
+    showAllReplies: Boolean,
+    onShowAllReplies: () -> Unit,
     onReply: (ReplyTarget) -> Unit,
     onDelete: (DeleteTarget) -> Unit,
 ) {
     val context = LocalContext.current
+    val initialReplies = floor.replies.take(COMMENT_INITIAL_REPLY_COUNT)
+    val moreReplies = floor.replies.drop(COMMENT_INITIAL_REPLY_COUNT)
     Column(modifier = Modifier.fillMaxWidth()) {
         CommentRow(
             nickname = floor.user?.nickname.orEmpty(),
@@ -516,11 +579,10 @@ private fun CommentFloorCard(
             content = floor.content,
             createdAt = floor.createdAt,
             ipRegion = floor.ipRegion,
-            isDarkTheme = isDarkTheme,
-            textPrimary = textPrimary,
-            textSecondary = textSecondary,
+            palette = palette,
             showActions = true,
             canDelete = floor.canDelete,
+            avatarSize = 38.dp,
             onReply = {
                 onReply(
                     ReplyTarget(
@@ -534,55 +596,79 @@ private fun CommentFloorCard(
             onDelete = { onDelete(DeleteTarget(floor.id, isFloor = true, replyCount = floor.replyCount)) },
         )
 
-        if (floor.replies.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = if (expanded) {
-                    stringResource(id = R.string.comment_collapse_replies)
-                } else {
-                    stringResource(id = R.string.comment_view_replies_format, floor.replies.size)
-                },
-                fontSize = 12.sp,
-                color = textSecondary,
-                fontWeight = FontWeight.Medium,
+        if (initialReplies.isNotEmpty()) {
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { onToggleReplies() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-
-        if (expanded) {
-            floor.replies.forEach { reply ->
-                Spacer(modifier = Modifier.height(10.dp))
-                CommentRow(
-                    nickname = reply.user?.nickname.orEmpty(),
-                    userId = reply.user?.id ?: 0,
-                    content = reply.content,
-                    createdAt = reply.createdAt,
-                    ipRegion = reply.ipRegion,
-                    isDarkTheme = isDarkTheme,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    replyToUser = reply.replyToUser,
-                    showActions = true,
-                    canDelete = reply.canDelete,
-                    onReply = {
-                        onReply(
-                            ReplyTarget(
-                                id = reply.id,
-                                nickname = reply.user?.nickname.orEmpty().ifBlank {
-                                    context.getString(R.string.comment_title)
-                                },
-                            )
+                    .fillMaxWidth()
+                    .padding(start = 46.dp, top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                initialReplies.forEach { reply ->
+                    CommentReplyRow(
+                        reply = reply,
+                        palette = palette,
+                        onReply = onReply,
+                        onDelete = onDelete,
+                    )
+                }
+                if (showAllReplies) {
+                    moreReplies.forEach { reply ->
+                        CommentReplyRow(
+                            reply = reply,
+                            palette = palette,
+                            onReply = onReply,
+                            onDelete = onDelete,
                         )
-                    },
-                    onDelete = { onDelete(DeleteTarget(reply.id, isFloor = false, replyCount = 0)) },
-                    modifier = Modifier.padding(start = 22.dp),
-                )
+                    }
+                }
+                if (!showAllReplies && moreReplies.isNotEmpty()) {
+                    Text(
+                        text = stringResource(id = R.string.comment_view_more),
+                        fontSize = 12.sp,
+                        color = RoseRed.copy(alpha = 0.88f),
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onShowAllReplies)
+                            .padding(horizontal = 4.dp, vertical = 4.dp),
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun CommentReplyRow(
+    reply: CommentReply,
+    palette: CommentPalette,
+    onReply: (ReplyTarget) -> Unit,
+    onDelete: (DeleteTarget) -> Unit,
+) {
+    val context = LocalContext.current
+    CommentRow(
+        nickname = reply.user?.nickname.orEmpty(),
+        userId = reply.user?.id ?: 0,
+        content = reply.content,
+        createdAt = reply.createdAt,
+        ipRegion = reply.ipRegion,
+        palette = palette,
+        replyToUser = reply.replyToUser,
+        showActions = true,
+        canDelete = reply.canDelete,
+        avatarSize = 28.dp,
+        onReply = {
+            onReply(
+                ReplyTarget(
+                    id = reply.id,
+                    nickname = reply.user?.nickname.orEmpty().ifBlank {
+                        context.getString(R.string.comment_title)
+                    },
+                )
+            )
+        },
+        onDelete = { onDelete(DeleteTarget(reply.id, isFloor = false, replyCount = 0)) },
+    )
 }
 
 @Composable
@@ -592,95 +678,105 @@ private fun CommentRow(
     content: String,
     createdAt: String,
     ipRegion: String,
-    isDarkTheme: Boolean,
-    textPrimary: Color,
-    textSecondary: Color,
+    palette: CommentPalette,
     showActions: Boolean,
     canDelete: Boolean,
     onReply: () -> Unit,
     onDelete: () -> Unit,
     replyToUser: CommentUser? = null,
+    avatarSize: Dp = 34.dp,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val compact = avatarSize < 34.dp
+    val meta = buildString {
+        append(formatCommentTime(context, createdAt))
+        if (ipRegion.isNotBlank()) {
+            if (isNotEmpty()) append(" · ")
+            append(ipRegion)
+        }
+    }
     Row(modifier = modifier.fillMaxWidth()) {
         AsyncImage(
             model = UrlConfig.getUserAvatarUrl(userId),
             contentDescription = null,
             modifier = Modifier
-                .size(if (showActions) 34.dp else 28.dp)
-                .clip(CircleShape),
+                .size(avatarSize)
+                .clip(CircleShape)
+                .background(palette.field),
             contentScale = ContentScale.Crop,
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(if (compact) 10.dp else 12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = nickname,
-                    fontSize = 12.5.sp,
+                    fontSize = if (compact) 12.sp else 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = textSecondary,
+                    color = palette.primary.copy(alpha = 0.94f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                if (meta.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = meta,
+                        fontSize = 11.sp,
+                        color = palette.tertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             if (replyToUser != null && replyToUser.nickname.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = context.getString(R.string.comment_reply_hint_format, replyToUser.nickname),
-                    fontSize = 11.5.sp,
-                    color = RoseRed.copy(alpha = 0.85f),
+                    fontSize = 11.sp,
+                    color = RoseRed.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             if (content.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(if (compact) 3.dp else 4.dp))
                 Text(
                     text = content,
-                    fontSize = 13.5.sp,
-                    color = textPrimary,
-                    lineHeight = 19.sp,
+                    fontSize = if (compact) 13.sp else 13.5.sp,
+                    color = palette.primary.copy(alpha = 0.92f),
+                    lineHeight = if (compact) 18.5.sp else 19.5.sp,
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = buildString {
-                        if (ipRegion.isNotBlank()) {
-                            append(ipRegion)
-                            append(" · ")
-                        }
-                        append(formatCommentTime(context, createdAt))
-                    },
-                    fontSize = 11.sp,
-                    color = textSecondary.copy(alpha = 0.85f),
-                )
                 if (showActions) {
-                    Spacer(modifier = Modifier.width(14.dp))
                     Text(
                         text = stringResource(id = R.string.comment_reply),
                         fontSize = 11.5.sp,
-                        color = textSecondary,
-                        fontWeight = FontWeight.Medium,
+                        color = palette.secondary,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { onReply() }
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                     )
                 }
                 if (canDelete) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(id = R.string.delete),
-                        tint = textSecondary.copy(alpha = 0.8f),
+                    Box(
                         modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .clickable { onDelete() }
-                            .padding(2.dp),
-                    )
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onDelete() },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = stringResource(id = R.string.delete),
+                            tint = palette.tertiary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
         }
@@ -695,127 +791,140 @@ private fun CommentComposer(
     replyTarget: ReplyTarget?,
     onClearReply: () -> Unit,
     isSending: Boolean,
-    isDarkTheme: Boolean,
-    textPrimary: Color,
-    textSecondary: Color,
-    inputBackground: Color,
+    palette: CommentPalette,
     onRequestLogin: () -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        if (!isLoggedIn) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(inputBackground)
-                    .clickable { onRequestLogin() }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Text(
-                    text = stringResource(id = R.string.comment_login_hint),
-                    fontSize = 13.sp,
-                    color = textSecondary,
-                )
-            }
-            return@Column
-        }
-
-        if (replyTarget != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(id = R.string.comment_reply_hint_format, replyTarget.nickname),
-                    fontSize = 12.sp,
-                    color = textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(id = R.string.comment_cancel_reply),
-                    fontSize = 12.sp,
-                    color = RoseRed,
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+            if (!isLoggedIn) {
+                Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onClearReply() }
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
-        }
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 40.dp, max = 104.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(inputBackground)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                contentAlignment = Alignment.TopStart,
-            ) {
-                if (draft.isEmpty()) {
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onRequestLogin() }
+                        .padding(horizontal = 2.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = stringResource(id = R.string.comment_input_hint),
-                        fontSize = 13.5.sp,
-                        color = textSecondary.copy(alpha = 0.8f),
-                    )
-                }
-                BasicTextField(
-                    value = draft,
-                    onValueChange = { value ->
-                        if (value.length <= COMMENT_MAX_LENGTH) onDraftChange(value)
-                    },
-                    textStyle = TextStyle(fontSize = 13.5.sp, color = textPrimary),
-                    cursorBrush = SolidColor(RoseRed),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            val canSend = draft.isNotBlank() && !isSending
-            Box(
-                modifier = Modifier
-                    .height(40.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(if (canSend) RoseRed else RoseRed.copy(alpha = 0.35f))
-                    .clickable(enabled = canSend) { onSubmit() }
-                    .padding(horizontal = 18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isSending) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(
-                            id = if (replyTarget != null) R.string.comment_reply else R.string.comment_send
-                        ),
+                        text = stringResource(id = R.string.comment_login_hint),
                         fontSize = 13.sp,
+                        color = palette.secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(id = R.string.login_now),
+                        fontSize = 12.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                        color = RoseRed.copy(alpha = 0.9f),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                }
+                return@Column
+            }
+
+            if (replyTarget != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.comment_reply_hint_format, replyTarget.nickname),
+                        fontSize = 11.5.sp,
+                        color = palette.secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = stringResource(id = R.string.comment_cancel_reply),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = RoseRed.copy(alpha = 0.9f),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onClearReply() }
+                            .padding(horizontal = 6.dp, vertical = 3.dp),
                     )
                 }
             }
-        }
 
-        // 字数统计：接近上限时转成强调色，和网页一致
-        val remaining = COMMENT_MAX_LENGTH - draft.length
-        Text(
-            text = "${draft.length}/$COMMENT_MAX_LENGTH",
-            fontSize = 11.sp,
-            color = if (remaining < 30) RoseRed else textSecondary.copy(alpha = 0.85f),
-            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp, end = 6.dp),
-        )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 42.dp, max = 112.dp)
+                        .padding(horizontal = 2.dp, vertical = 11.dp),
+                    contentAlignment = Alignment.TopStart,
+                ) {
+                    if (draft.isEmpty()) {
+                        Text(
+                            text = stringResource(id = R.string.comment_input_hint),
+                            fontSize = 13.5.sp,
+                            color = palette.tertiary,
+                        )
+                    }
+                    BasicTextField(
+                        value = draft,
+                        onValueChange = { value ->
+                            if (value.length <= COMMENT_MAX_LENGTH) onDraftChange(value)
+                        },
+                        textStyle = TextStyle(fontSize = 13.5.sp, lineHeight = 19.sp, color = palette.primary),
+                        cursorBrush = SolidColor(RoseRed),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                val canSend = draft.isNotBlank() && !isSending
+                Box(
+                    modifier = Modifier
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(enabled = canSend) { onSubmit() }
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = RoseRed,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(
+                                id = if (replyTarget != null) R.string.comment_reply else R.string.comment_send
+                            ),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (canSend) RoseRed.copy(alpha = 0.92f) else palette.tertiary,
+                        )
+                    }
+                }
+            }
+
+            if (draft.isNotEmpty()) {
+                val remaining = COMMENT_MAX_LENGTH - draft.length
+                Text(
+                    text = "${draft.length}/$COMMENT_MAX_LENGTH",
+                    fontSize = 10.sp,
+                    color = if (remaining < 30) RoseRed else palette.tertiary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, end = 2.dp),
+                )
+            }
+        }
     }
 }
 

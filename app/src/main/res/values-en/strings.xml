@@ -764,6 +764,7 @@
     <string name="comment_replies_count_format">%1$d replies</string>
     <string name="comment_view_replies_format">View %1$d replies</string>
     <string name="comment_collapse_replies">Collapse replies</string>
+    <string name="comment_view_more">View more</string>
     <string name="comment_time_just_now">Just now</string>
     <string name="comment_time_minutes_format">%1$d min ago</string>
     <string name="comment_time_hours_format">%1$d h ago</string>
