@@ -1096,6 +1096,22 @@ fun MainScreen() {
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     },
+                    onAddAllToPlaylist = { musics ->
+                        scope.launch {
+                            val playlistManager = PlaylistManager.getInstance(context)
+                            musics.forEach { music ->
+                                playlistManager.addToPlaylist(music)
+                            }
+                            Toast.makeText(
+                                context,
+                                context.getString(
+                                    R.string.playlist_added_to_queue_format,
+                                    musics.size
+                                ),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
                     onPlayAll = { musicList, startIndex ->
                         val queue = musicList.map { playlistMusic ->
                             Music(

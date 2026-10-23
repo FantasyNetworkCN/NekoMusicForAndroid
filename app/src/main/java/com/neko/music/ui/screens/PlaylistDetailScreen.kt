@@ -21,6 +21,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
 import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,11 +45,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -88,6 +92,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -129,6 +134,8 @@ fun PlaylistDetailScreen(
     onBackClick: () -> Unit,
     /** 点击歌单曲目时，将整张歌单加入播放列表，并从点击的曲目开始播放。 */
     onPlayAll: (List<PlaylistMusic>, Int) -> Unit,
+    /** 「添加到播放列表」：将整张歌单追加到当前待播队列。 */
+    onAddAllToPlaylist: (List<Music>) -> Unit = {},
     /** 「下一首播放」：加入播放列表并强制排在当前歌曲之后 */
     onPlayNext: (com.neko.music.data.model.Music) -> Unit = {},
     /** 长按曲目时，仅将当前单曲追加到待播列表 */
@@ -160,10 +167,12 @@ fun PlaylistDetailScreen(
     var batchMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(playlistId) {
         batchMode = false
         selectedIds = emptySet()
+        searchQuery = ""
         try {
             isLoading = true
             isCheckingFavorite = true
@@ -218,6 +227,18 @@ fun PlaylistDetailScreen(
                 UrlConfig.getMusicCoverUrl(firstMusic.id)
             } else {
                 UrlConfig.getDefaultAvatarUrl()
+            }
+        }
+    }
+    val filteredMusicList = remember(musicList, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            musicList.withIndex().toList()
+        } else {
+            musicList.withIndex().filter { (_, music) ->
+                music.title.contains(query, ignoreCase = true) ||
+                    music.artist.contains(query, ignoreCase = true) ||
+                    music.album.contains(query, ignoreCase = true)
             }
         }
     }
@@ -444,7 +465,11 @@ fun PlaylistDetailScreen(
                                 TextButton(
                                     onClick = {
                                         batchMode = !batchMode
-                                        if (!batchMode) selectedIds = emptySet()
+                                        if (batchMode) {
+                                            searchQuery = ""
+                                        } else {
+                                            selectedIds = emptySet()
+                                        }
                                     },
                                     modifier = Modifier.padding(end = 2.dp)
                                 ) {
@@ -495,6 +520,18 @@ fun PlaylistDetailScreen(
                                 )
                             }
                         }
+                    }
+
+                    if (!isLoading && errorMessage.isEmpty() && musicList.isNotEmpty() && !batchMode) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistSearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            liquidGlass = liquidGlass,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -626,45 +663,58 @@ fun PlaylistDetailScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Button(
-                                onClick = {
-                                    if (musicList.isNotEmpty()) {
-                                        onPlayAll(musicList, 0)
-                                    }
-                                },
-                                enabled = musicList.isNotEmpty(),
-                                modifier = Modifier.height(36.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RoseRed,
-                                    disabledContainerColor = RoseRed.copy(alpha = 0.3f)
-                                ),
-                                shape = RoundedCornerShape(18.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = if (isDarkTheme) {
-                                        Color.White.copy(alpha = 0.95f)
-                                    } else {
-                                        Color.White
-                                    },
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(id = R.string.play_all),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (isDarkTheme) {
-                                        Color.White.copy(alpha = 0.95f)
-                                    } else {
-                                        Color.White
-                                    }
-                                )
-                            }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                if (musicList.isNotEmpty()) {
+                                    onPlayAll(musicList, 0)
+                                }
+                            },
+                            enabled = musicList.isNotEmpty(),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = RoseRed,
+                                disabledContainerColor = RoseRed.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(21.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = if (musicList.isEmpty()) 0.5f else 0.95f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = stringResource(id = R.string.play_all),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White.copy(alpha = if (musicList.isEmpty()) 0.5f else 0.95f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        PlaylistAddToQueueButton(
+                            enabled = musicList.isNotEmpty(),
+                            onClick = { onAddAllToPlaylist(musicList.map { it.toLocalMusic() }) },
+                            liquidGlass = liquidGlass,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -712,6 +762,23 @@ fun PlaylistDetailScreen(
                                 }
                             )
                         }
+                    } else if (filteredMusicList.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.no_search_results),
+                                fontSize = 16.sp,
+                                color = if (isDarkTheme) {
+                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                } else {
+                                    Color.Gray
+                                }
+                            )
+                        }
                     } else {
                         Column(
                             modifier = Modifier
@@ -730,7 +797,12 @@ fun PlaylistDetailScreen(
                                     bottom = if (isOwnPlaylist && batchMode) 108.dp else 150.dp
                                 )
                             ) {
-                                itemsIndexed(musicList) { index, music ->
+                                itemsIndexed(
+                                    items = filteredMusicList,
+                                    key = { _, indexedMusic -> indexedMusic.value.id }
+                                ) { _, indexedMusic ->
+                                    val music = indexedMusic.value
+                                    val index = indexedMusic.index
                                     PlaylistMusicItem(
                                         music = music,
                                         position = index + 1,
@@ -1420,6 +1492,168 @@ internal fun PlaylistShareSheet(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
+    modifier: Modifier = Modifier,
+) {
+    val isDarkTheme = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val textColor = if (isDarkTheme) {
+        Color(0xFFF0F0F5).copy(alpha = 0.95f)
+    } else {
+        scheme.onSurface
+    }
+    val secondaryColor = if (isDarkTheme) {
+        Color(0xFFB8B8D1).copy(alpha = 0.72f)
+    } else {
+        scheme.onSurfaceVariant
+    }
+
+    GlassSurface(
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(22.dp),
+        backgroundAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBackgroundAlphaDark
+        } else {
+            liquidGlass.musicRowBackgroundAlphaLight
+        },
+        borderAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBorderAlphaDark
+        } else {
+            liquidGlass.musicRowBorderAlphaLight
+        },
+        highlightAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowHighlightAlphaDark
+        } else {
+            liquidGlass.musicRowHighlightAlphaLight
+        },
+        borderColor = if (isDarkTheme) Color.White else scheme.outline,
+        liquidBlur = liquidGlass.musicRowLiquidBlur,
+        liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+        liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 14.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = secondaryColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.weight(1f),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    color = textColor
+                ),
+                singleLine = true,
+                cursorBrush = SolidColor(RoseRed),
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (query.isEmpty()) {
+                            Text(
+                                text = stringResource(id = R.string.playlist_search_hint),
+                                fontSize = 14.sp,
+                                color = secondaryColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = stringResource(id = R.string.clear),
+                        tint = secondaryColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistAddToQueueButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
+    modifier: Modifier = Modifier,
+) {
+    val isDarkTheme = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(21.dp)
+    val contentColor = RoseRed.copy(alpha = if (enabled) 1f else 0.38f)
+
+    GlassSurface(
+        modifier = modifier
+            .height(42.dp)
+            .clip(shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = shape,
+        backgroundAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBackgroundAlphaDark
+        } else {
+            liquidGlass.musicRowBackgroundAlphaLight
+        },
+        borderAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBorderAlphaDark
+        } else {
+            liquidGlass.musicRowBorderAlphaLight
+        },
+        highlightAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowHighlightAlphaDark
+        } else {
+            liquidGlass.musicRowHighlightAlphaLight
+        },
+        borderColor = if (isDarkTheme) Color.White else scheme.outline,
+        liquidBlur = liquidGlass.musicRowLiquidBlur,
+        liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+        liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = stringResource(id = R.string.playlist_add_to_queue),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

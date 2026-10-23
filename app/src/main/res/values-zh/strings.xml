@@ -472,6 +472,9 @@
 
     <!-- 歌单详情 -->
     <string name="songs_count_label">%d 首歌曲</string>
+    <string name="playlist_search_hint">搜索歌单内歌曲</string>
+    <string name="playlist_add_to_queue">添加到播放列表</string>
+    <string name="playlist_added_to_queue_format">已将 %d 首歌曲添加到播放列表</string>
     <string name="edit_description">编辑歌单描述</string>
     <string name="enter_description">请输入歌单描述</string>
     <string name="description_updated_success">描述已更新</string>

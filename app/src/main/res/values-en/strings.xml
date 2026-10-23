@@ -501,6 +501,9 @@
 
     <!-- Playlist Detail -->
     <string name="songs_count_label">%d songs</string>
+    <string name="playlist_search_hint">Search this playlist</string>
+    <string name="playlist_add_to_queue">Add to Queue</string>
+    <string name="playlist_added_to_queue_format">Added %d songs to the queue</string>
     <string name="edit_description">Edit Playlist Description</string>
     <string name="enter_description">Enter playlist description</string>
     <string name="description_updated_success">Description updated</string>

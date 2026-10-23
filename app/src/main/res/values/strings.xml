@@ -474,6 +474,9 @@
     <string name="refresh_failed">洗不动了喵: %s</string>
 
     <string name="songs_count_label">%d 首曲子喵</string>
+    <string name="playlist_search_hint">在本本里翻歌喵...</string>
+    <string name="playlist_add_to_queue">全塞进播放列表喵</string>
+    <string name="playlist_added_to_queue_format">已经把 %d 首曲子塞进播放列表啦喵</string>
     <string name="edit_description">修改介绍喵</string>
     <string name="enter_description">想写什么喵？</string>
     <string name="description_updated_success">介绍改好啦喵</string>
