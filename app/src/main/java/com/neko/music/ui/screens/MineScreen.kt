@@ -53,7 +53,6 @@ fun MineScreen(
     onRecentPlayClick: () -> Unit = {},
     onLoginClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    onFavoriteClick: () -> Unit = {},
     onLocalMusicClick: () -> Unit = {},
     onAboutClick: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
@@ -183,7 +182,6 @@ fun MineScreen(
                         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                             MineMenu(
                                 onRecentPlayClick = onRecentPlayClick,
-                                onFavoriteClick = onFavoriteClick,
                                 onLocalMusicClick = onLocalMusicClick,
                                 onVipCenterClick = onVipCenterClick,
                                 isLoggedIn = isLoggedIn,
@@ -650,7 +648,6 @@ fun NekoMemberBanner() {
 @Composable
 fun MineMenu(
     onRecentPlayClick: () -> Unit = {},
-    onFavoriteClick: () -> Unit = {},
     onLocalMusicClick: () -> Unit = {},
     onVipCenterClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
@@ -682,13 +679,6 @@ fun MineMenu(
             useElevatedSurface = useElevatedMenuItems
         )
         
-        MenuItem(
-            stringResource(id = R.string.my_favorites),
-            R.drawable.ic_favorite_filled,
-            SakuraPink,
-            onClick = onFavoriteClick,
-            useElevatedSurface = useElevatedMenuItems
-        )
         MenuItem(
             stringResource(id = R.string.vip_menu_entry),
             R.drawable.ic_vip_star,

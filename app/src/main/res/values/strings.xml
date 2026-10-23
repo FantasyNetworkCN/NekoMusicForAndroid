@@ -419,6 +419,8 @@
     <string name="no_play_history">欸？主人最近没听过歌喵？</string>
     <string name="no_related_songs">没找到相关的喵~</string>
     <string name="search_songs">搜搜曲子喵</string>
+    <string name="remove_from_recent_play">从最近播放里拿掉喵</string>
+    <string name="remove_from_recent_play_success">已经从最近播放里拿掉了喵</string>
 
     <string name="no_playlists_yet">还没有本本，去写一个喵</string>
     <string name="create_new_playlist">写个新本本喵</string>

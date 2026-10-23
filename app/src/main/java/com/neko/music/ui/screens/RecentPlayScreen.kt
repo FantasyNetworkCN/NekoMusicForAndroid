@@ -1,9 +1,9 @@
 package com.neko.music.ui.screens
 
-import androidx.compose.foundation.Image
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,92 +18,157 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
-import com.neko.music.ui.theme.isAppDarkTheme
+import com.neko.music.data.api.MusicApi
+import com.neko.music.data.manager.PlaylistManager
+import com.neko.music.data.manager.RecentPlayManager
+import com.neko.music.data.model.Music
+import com.neko.music.service.MusicPlayerManager
+import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import com.neko.music.ui.components.AppPageBackgroundImage
-import androidx.compose.runtime.CompositionLocalProvider
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.neko.music.util.UrlConfig
-import com.neko.music.data.model.Music
-import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.theme.RoseRed
-import androidx.compose.material3.MaterialTheme
+import com.neko.music.ui.theme.isAppDarkTheme
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 
 @Composable
 fun RecentPlayScreen(
-    onBackClick: () -> Unit,
-    onMusicClick: (Music) -> Unit
+    onBackClick: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val playerManager = MusicPlayerManager.getInstance(context)
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val isDarkTheme = isAppDarkTheme()
-    val scheme = MaterialTheme.colorScheme
-    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
-    val glassTint = LiquidGlassDefaults.screenListCard
-    val glassBg = glassTint.background(isDarkTheme)
-    val glassBorder = glassTint.border(isDarkTheme)
-    val glassHighlight = glassTint.highlight(isDarkTheme)
+    val recentPlayManager = remember(context) { RecentPlayManager(context) }
+    val playerManager = remember(context) { MusicPlayerManager.getInstance(context) }
+    val playlistManager = remember(context) { PlaylistManager.getInstance(context) }
+    val musicApi = remember(context) { MusicApi(context) }
 
     var playHistory by remember { mutableStateOf<List<Music>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
-    
-    // 加载最近播放历史
+
     LaunchedEffect(Unit) {
         isLoading = true
-        scope.launch {
-            val recentPlayManager = com.neko.music.data.manager.RecentPlayManager(context)
-            playHistory = recentPlayManager.getRecentPlays()
-            isLoading = false
-        }
+        playHistory = recentPlayManager.getRecentPlays()
+        isLoading = false
     }
-    
-    // 过滤后的列表
+
     val filteredList = if (searchQuery.isEmpty()) {
         playHistory
     } else {
         playHistory.filter { music ->
             music.title.contains(searchQuery, ignoreCase = true) ||
-            music.artist.contains(searchQuery, ignoreCase = true)
+                music.artist.contains(searchQuery, ignoreCase = true)
         }
     }
-    
+
+    suspend fun playAllRecent() {
+        playlistManager.clearPlaylist()
+        filteredList.forEach { music ->
+            playlistManager.addToPlaylist(music)
+        }
+
+        filteredList.firstOrNull()?.let { music ->
+            playerManager.playMusic(
+                musicApi.getMusicFileUrl(music),
+                music.id,
+                music.title,
+                music.artist,
+                music.coverFilePath,
+                music.displayCoverUrl()
+            )
+        }
+    }
+
+    suspend fun playRecent(music: Music) {
+        playlistManager.addToPlaylist(music)
+        playerManager.playMusic(
+            musicApi.getMusicFileUrl(music),
+            music.id,
+            music.title,
+            music.artist,
+            music.coverFilePath,
+            music.displayCoverUrl()
+        )
+    }
+
+    val addAllRecentToQueue: () -> Unit = {
+        if (filteredList.isNotEmpty()) {
+            scope.launch {
+                filteredList.forEach { music ->
+                    playlistManager.addToPlaylist(music)
+                }
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.playlist_added_to_queue_format, filteredList.size),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    val removeRecent: (Music) -> Unit = { music ->
+        recentPlayManager.removeRecentPlay(music.id)
+        playHistory = playHistory.filterNot { it.id == music.id }
+        Toast.makeText(
+            context,
+            context.getString(R.string.remove_from_recent_play_success),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    val isDarkTheme = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val liquidGlass = LiquidGlassDefaults.playlistDetail
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val collectionCoverUrl = remember(playHistory) {
+        playHistory.firstOrNull()?.displayCoverUrl().orEmpty()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -113,84 +178,139 @@ fun RecentPlayScreen(
             AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
             )
-            PlaylistPageDarkTintOverlay()
+            PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .statusBarsPadding()
             ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier.size(48.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(id = R.string.back),
-                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(id = R.string.back),
+                            tint = if (isDarkTheme) {
+                                Color(0xFFB8B8D1).copy(alpha = 0.9f)
+                            } else {
+                                Color.Black
+                            }
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.recent_play),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) {
+                                Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                            } else {
+                                Color.Black
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (!isLoading && playHistory.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PlaylistSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        liquidGlass = liquidGlass,
+                        placeholder = stringResource(id = R.string.search_songs),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
                 }
 
-                Text(
-                    text = stringResource(id = R.string.recent_play),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                )
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = RoseRed)
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.size(48.dp))
-            }
-
-            RecentPlaySearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                isDarkTheme = isDarkTheme,
-                glassBg = glassBg,
-                glassBorder = glassBorder,
-                glassHighlight = glassHighlight,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                    when {
-                        isLoading -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
                             Box(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isDarkTheme) {
+                                            Color(0xFF252545).copy(alpha = 0.6f)
+                                        } else {
+                                            Color(0xFFF5F5F5)
+                                        }
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(color = RoseRed)
+                                AsyncImage(
+                                    model = collectionCoverUrl,
+                                    contentDescription = stringResource(id = R.string.recent_play),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = painterResource(R.drawable.music),
+                                    error = painterResource(R.drawable.music)
+                                )
                             }
-                        }
-                        filteredList.isEmpty() -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = if (searchQuery.isEmpty()) {
-                                        stringResource(id = R.string.no_play_history)
+                                    text = stringResource(id = R.string.recent_play),
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDarkTheme) {
+                                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
                                     } else {
-                                        stringResource(id = R.string.no_related_songs)
+                                        Color.Black
                                     },
-                                    fontSize = 16.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = stringResource(
+                                        R.string.songs_count_label,
+                                        playHistory.size
+                                    ),
+                                    fontSize = 14.sp,
                                     color = if (isDarkTheme) {
                                         Color(0xFFB8B8D1).copy(alpha = 0.8f)
                                     } else {
@@ -199,31 +319,132 @@ fun RecentPlayScreen(
                                 )
                             }
                         }
-                        else -> {
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { scope.launch { playAllRecent() } },
+                                enabled = filteredList.isNotEmpty(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = RoseRed,
+                                    disabledContainerColor = RoseRed.copy(alpha = 0.3f)
+                                ),
+                                shape = RoundedCornerShape(21.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(
+                                        alpha = if (filteredList.isEmpty()) 0.5f else 0.95f
+                                    ),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = stringResource(id = R.string.play_all),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(
+                                        alpha = if (filteredList.isEmpty()) 0.5f else 0.95f
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            PlaylistAddToQueueButton(
+                                enabled = filteredList.isNotEmpty(),
+                                onClick = addAllRecentToQueue,
+                                liquidGlass = liquidGlass,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        if (filteredList.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = if (searchQuery.isBlank()) {
+                                            stringResource(id = R.string.no_play_history)
+                                        } else {
+                                            stringResource(id = R.string.no_search_results)
+                                        },
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDarkTheme) {
+                                            Color.White.copy(alpha = 0.68f)
+                                        } else {
+                                            scheme.onSurface
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = if (searchQuery.isBlank()) {
+                                            stringResource(id = R.string.go_discover)
+                                        } else {
+                                            stringResource(id = R.string.try_other_keywords)
+                                        },
+                                        fontSize = 14.sp,
+                                        color = if (isDarkTheme) {
+                                            Color.White.copy(alpha = 0.45f)
+                                        } else {
+                                            scheme.onSurfaceVariant
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
                             LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
                                 contentPadding = PaddingValues(
                                     start = 16.dp,
                                     end = 16.dp,
                                     top = 16.dp,
                                     bottom = 150.dp
-                                )
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(filteredList) { music ->
+                                itemsIndexed(
+                                    items = filteredList,
+                                    key = { _, music -> music.id }
+                                ) { _, music ->
                                     RecentPlayItem(
                                         music = music,
-                                        onClick = { onMusicClick(music) },
-                                        glassBg = glassBg,
-                                        glassBorder = glassBorder,
-                                        glassHighlight = glassHighlight
+                                        position = playHistory.indexOfFirst {
+                                            it.id == music.id
+                                        } + 1,
+                                        onClick = { scope.launch { playRecent(music) } },
+                                        onPlayNext = { playerManager.playNext(music) },
+                                        onRemove = { removeRecent(music) },
+                                        liquidGlass = liquidGlass
                                     )
                                 }
                             }
                         }
                     }
+                }
             }
-        }
         }
     }
 }
@@ -231,165 +452,194 @@ fun RecentPlayScreen(
 @Composable
 fun RecentPlayItem(
     music: Music,
+    position: Int,
     onClick: () -> Unit,
-    glassBg: Float = 0.28f,
-    glassBorder: Float = 0.14f,
-    glassHighlight: Float = 0.08f
+    onPlayNext: () -> Unit,
+    onRemove: () -> Unit,
+    liquidGlass: PlaylistDetailLiquidGlassParams = LiquidGlassDefaults.playlistDetail,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val playerManager = MusicPlayerManager.getInstance(context)
-    val scope = rememberCoroutineScope()
+    val coverUrl = remember(music.id, music.coverFilePath) { music.displayCoverUrl() }
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
-
-    val currentMusicId by playerManager.currentMusicId.collectAsState()
-
-    val fullCoverUrl = if (!music.coverFilePath.isNullOrEmpty()) {
-        UrlConfig.buildFullUrl("${music.coverFilePath}")
-    } else {
-        UrlConfig.getMusicCoverUrl(music.id)
-    }
-
-    val isCurrent = currentMusicId == music.id
-    val shape = RoundedCornerShape(12.dp)
+    var actionsExpanded by remember { mutableStateOf(false) }
+    val playNextText = stringResource(id = R.string.play_next)
+    val moreActionsText = stringResource(id = R.string.more)
+    val removeRecentText = stringResource(id = R.string.remove_from_recent_play)
 
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (isCurrent) {
-                    Modifier.border(1.dp, RoseRed.copy(alpha = 0.55f), shape)
-                } else {
-                    Modifier
-                }
-            )
-            .clickable(onClick = onClick),
-        shape = shape,
-        backgroundAlpha = glassBg,
-        borderAlpha = glassBorder,
-        highlightAlpha = glassHighlight
+            .height(64.dp)
+            .combinedClickable(
+                interactionSource = remember(music.id) { MutableInteractionSource() },
+                indication = ripple(),
+                onClick = onClick,
+                onLongClick = { actionsExpanded = true },
+            ),
+        shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
+        backgroundAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBackgroundAlphaDark
+        } else {
+            liquidGlass.musicRowBackgroundAlphaLight
+        },
+        borderAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowBorderAlphaDark
+        } else {
+            liquidGlass.musicRowBorderAlphaLight
+        },
+        highlightAlpha = if (isDarkTheme) {
+            liquidGlass.musicRowHighlightAlphaDark
+        } else {
+            liquidGlass.musicRowHighlightAlphaLight
+        },
+        borderColor = if (isDarkTheme) Color.White else scheme.outline,
+        liquidBlur = liquidGlass.musicRowLiquidBlur,
+        liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+        liquidLensAmount = liquidGlass.musicRowLiquidLensAmount
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Text(
+                text = "$position",
+                fontSize = 14.sp,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    Color.Gray
+                },
+                modifier = Modifier.width(24.dp),
+                textAlign = TextAlign.Center
+            )
+
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(
-                        RoseRed.copy(alpha = 0.1f),
-                        RoundedCornerShape(8.dp)
+                        if (isDarkTheme) {
+                            Color(0xFF353558).copy(alpha = 0.6f)
+                        } else {
+                            Color(0xFFE0E0E0)
+                        }
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = fullCoverUrl,
+                    model = coverUrl,
                     contentDescription = stringResource(id = R.string.cover),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.music),
+                    error = painterResource(R.drawable.music)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = music.title,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
-                    maxLines = 1
+                    color = if (isDarkTheme) {
+                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
+                    } else {
+                        Color.Black
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = music.artist,
-                    fontSize = 14.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
-                    maxLines = 1
+                    fontSize = 13.sp,
+                    color = if (isDarkTheme) {
+                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                    } else {
+                        Color.Gray
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        val musicApi = com.neko.music.data.api.MusicApi(context)
-                        val url = musicApi.getMusicFileUrl(music)
-                        playerManager.playMusic(
-                            url,
-                            music.id,
-                            music.title,
-                            music.artist,
-                            music.coverFilePath,
-                            fullCoverUrl
-                        )
-                    }
+            Text(
+                text = formatDuration(music.duration),
+                fontSize = 13.sp,
+                color = if (isDarkTheme) {
+                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                } else {
+                    Color.Gray
                 }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = stringResource(id = R.string.play),
-                    tint = RoseRed,
-                    modifier = Modifier.size(32.dp)
-                )
+            )
+
+            Box {
+                IconButton(
+                    onClick = { actionsExpanded = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = moreActionsText,
+                        tint = if (isDarkTheme) {
+                            Color(0xFFB8B8D1).copy(alpha = 0.85f)
+                        } else {
+                            Color.Gray
+                        }
+                    )
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(playNextText, fontSize = 14.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onPlayNext()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(removeRecentText, fontSize = 14.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onRemove()
+                        }
+                    )
+                }
             }
         }
     }
 }
 
-@Composable
-private fun RecentPlaySearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    isDarkTheme: Boolean,
-    glassBg: Float,
-    glassBorder: Float,
-    glassHighlight: Float,
-    modifier: Modifier = Modifier
-) {
-    val scheme = MaterialTheme.colorScheme
-    GlassSurface(
-        modifier = modifier.height(40.dp),
-        shape = RoundedCornerShape(20.dp),
-        backgroundAlpha = glassBg,
-        borderAlpha = glassBorder,
-        highlightAlpha = glassHighlight
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = stringResource(id = R.string.search),
-                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else scheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            androidx.compose.foundation.text.BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 14.sp,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                ),
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = stringResource(id = R.string.search_songs),
-                            fontSize = 14.sp,
-                            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant
-                        )
-                    }
-                    innerTextField()
-                }
-            )
-        }
-    }
+private fun Music.displayCoverUrl(): String =
+    coverFilePath
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { UrlConfig.buildFullUrl(it) }
+        ?: UrlConfig.getMusicCoverUrl(id)
+
+private fun formatDuration(seconds: Int): String {
+    val minutes = seconds / 60
+    val remainingSeconds = seconds % 60
+    return String.format("%d:%02d", minutes, remainingSeconds)
 }

@@ -1496,6 +1496,7 @@ internal fun PlaylistSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     liquidGlass: PlaylistDetailLiquidGlassParams,
+    placeholder: String = stringResource(id = R.string.playlist_search_hint),
     modifier: Modifier = Modifier,
 ) {
     val isDarkTheme = isAppDarkTheme()
@@ -1561,7 +1562,7 @@ internal fun PlaylistSearchBar(
                     Box {
                         if (query.isEmpty()) {
                             Text(
-                                text = stringResource(id = R.string.playlist_search_hint),
+                                text = placeholder,
                                 fontSize = 14.sp,
                                 color = secondaryColor,
                                 maxLines = 1,

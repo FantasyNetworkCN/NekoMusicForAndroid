@@ -53,6 +53,16 @@ class RecentPlayManager(private val context: Context) {
             emptyList()
         }
     }
+
+    /**
+     * 从最近播放列表移除单条记录
+     */
+    fun removeRecentPlay(musicId: Int) {
+        val recentPlays = getRecentPlays().toMutableList()
+        if (recentPlays.removeAll { it.id == musicId }) {
+            saveRecentPlays(recentPlays)
+        }
+    }
     
     /**
      * 清空最近播放列表

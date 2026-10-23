@@ -445,6 +445,8 @@
     <string name="no_play_history">Hmm? No play history yet</string>
     <string name="no_related_songs">No related songs found meow</string>
     <string name="search_songs">Search songs</string>
+    <string name="remove_from_recent_play">Remove from recently played</string>
+    <string name="remove_from_recent_play_success">Removed from recently played</string>
 
     <!-- My Playlists -->
     <string name="no_playlists_yet">No playlists yet</string>
