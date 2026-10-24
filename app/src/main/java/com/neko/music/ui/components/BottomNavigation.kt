@@ -311,34 +311,127 @@ internal fun LiquidTabStrip(
                 },
             )
         }
+        val frostBrush = remember(frost) {
+            Brush.verticalGradient(listOf(frost.top, frost.bottom))
+        }
+        val selectedPillBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
+        val mainBarModifier = remember(
+            backdrop,
+            density,
+            mainBlur,
+            mainLensHeight,
+            mainLensAmount,
+            frost,
+            frostBrush,
+            dragAnimation,
+        ) {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { Capsule() },
+                effects = {
+                    vibrancy()
+                    blur(with(density) { mainBlur.toPx() })
+                    lens(
+                        refractionHeight = with(density) { mainLensHeight.toPx() },
+                        refractionAmount = with(density) { mainLensAmount.toPx() },
+                    )
+                },
+                layerBlock = {
+                    val progress = dragAnimation.pressProgress
+                    if (size.width > 0f) {
+                        val scale = lerp(1f, 1f + 16.dp.toPx() / size.width, progress)
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                },
+                onDrawSurface = {
+                    drawRect(frost.base)
+                    drawRect(frostBrush)
+                },
+            )
+        }
+        val pressedBarModifier = remember(
+            backdrop,
+            density,
+            pressedBlur,
+            pressedLensHeight,
+            pressedLensAmount,
+            frost,
+            frostBrush,
+            dragAnimation,
+        ) {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { Capsule() },
+                effects = {
+                    val progress = dragAnimation.pressProgress
+                    vibrancy()
+                    blur(with(density) { pressedBlur.toPx() })
+                    lens(
+                        refractionHeight = with(density) { pressedLensHeight.toPx() } * progress,
+                        refractionAmount = with(density) { pressedLensAmount.toPx() } * progress,
+                    )
+                },
+                highlight = {
+                    Highlight.Default.copy(alpha = dragAnimation.pressProgress)
+                },
+                onDrawSurface = {
+                    drawRect(frost.base)
+                    drawRect(frostBrush)
+                },
+            )
+        }
+        val selectedPillModifier = remember(
+            selectedPillBackdrop,
+            density,
+            selectedLensHeight,
+            selectedLensAmount,
+            selectedSurfaceColor,
+            dragAnimation,
+        ) {
+            Modifier.drawBackdrop(
+                backdrop = selectedPillBackdrop,
+                shape = { Capsule() },
+                effects = {
+                    val progress = dragAnimation.pressProgress
+                    lens(
+                        refractionHeight = with(density) { selectedLensHeight.toPx() } * progress,
+                        refractionAmount = with(density) { selectedLensAmount.toPx() } * progress,
+                        chromaticAberration = true,
+                    )
+                },
+                highlight = {
+                    Highlight.Default.copy(alpha = dragAnimation.pressProgress)
+                },
+                shadow = {
+                    BackdropShadow(alpha = dragAnimation.pressProgress)
+                },
+                innerShadow = {
+                    val progress = dragAnimation.pressProgress
+                    InnerShadow(
+                        radius = 8.dp * progress,
+                        alpha = progress,
+                    )
+                },
+                layerBlock = {
+                    scaleX = dragAnimation.scaleX
+                    scaleY = dragAnimation.scaleY
+                    val velocity = dragAnimation.velocity / 10f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                },
+                onDrawSurface = {
+                    val progress = dragAnimation.pressProgress
+                    drawRect(selectedSurfaceColor, alpha = 1f - progress)
+                    drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                },
+            )
+        }
 
         Row(
             Modifier
                 .graphicsLayer { translationX = panelOffset }
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { Capsule() },
-                    effects = {
-                        vibrancy()
-                        blur(with(density) { mainBlur.toPx() })
-                        lens(
-                            refractionHeight = with(density) { mainLensHeight.toPx() },
-                            refractionAmount = with(density) { mainLensAmount.toPx() },
-                        )
-                    },
-                    layerBlock = {
-                        val progress = dragAnimation.pressProgress
-                        if (size.width > 0f) {
-                            val scale = lerp(1f, 1f + 16.dp.toPx() / size.width, progress)
-                            scaleX = scale
-                            scaleY = scale
-                        }
-                    },
-                    onDrawSurface = {
-                        drawRect(frost.base)
-                        drawRect(Brush.verticalGradient(listOf(frost.top, frost.bottom)))
-                    },
-                )
+                .then(mainBarModifier)
                 .then(interactiveHighlight.modifier)
                 .height(barHeight)
                 .fillMaxWidth()
@@ -358,26 +451,7 @@ internal fun LiquidTabStrip(
                     .alpha(0f)
                     .layerBackdrop(tabsBackdrop)
                     .graphicsLayer { translationX = panelOffset }
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { Capsule() },
-                        effects = {
-                            val progress = dragAnimation.pressProgress
-                            vibrancy()
-                            blur(with(density) { pressedBlur.toPx() })
-                            lens(
-                                refractionHeight = with(density) { pressedLensHeight.toPx() } * progress,
-                                refractionAmount = with(density) { pressedLensAmount.toPx() } * progress,
-                            )
-                        },
-                        highlight = {
-                            Highlight.Default.copy(alpha = dragAnimation.pressProgress)
-                        },
-                        onDrawSurface = {
-                            drawRect(frost.base)
-                            drawRect(Brush.verticalGradient(listOf(frost.top, frost.bottom)))
-                        },
-                    )
+                    .then(pressedBarModifier)
                     .then(interactiveHighlight.modifier)
                     .height(barHeight - 8.dp)
                     .fillMaxWidth()
@@ -400,43 +474,7 @@ internal fun LiquidTabStrip(
                 }
                 .then(interactiveHighlight.gestureModifier)
                 .then(dragAnimation.modifier)
-                .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
-                    shape = { Capsule() },
-                    effects = {
-                        val progress = dragAnimation.pressProgress
-                        lens(
-                            refractionHeight = with(density) { selectedLensHeight.toPx() } * progress,
-                            refractionAmount = with(density) { selectedLensAmount.toPx() } * progress,
-                            chromaticAberration = true,
-                        )
-                    },
-                    highlight = {
-                        Highlight.Default.copy(alpha = dragAnimation.pressProgress)
-                    },
-                    shadow = {
-                        BackdropShadow(alpha = dragAnimation.pressProgress)
-                    },
-                    innerShadow = {
-                        val progress = dragAnimation.pressProgress
-                        InnerShadow(
-                            radius = 8.dp * progress,
-                            alpha = progress,
-                        )
-                    },
-                    layerBlock = {
-                        scaleX = dragAnimation.scaleX
-                        scaleY = dragAnimation.scaleY
-                        val velocity = dragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
-                    onDrawSurface = {
-                        val progress = dragAnimation.pressProgress
-                        drawRect(selectedSurfaceColor, alpha = 1f - progress)
-                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
-                    },
-                )
+                .then(selectedPillModifier)
                 .height(barHeight - 8.dp)
                 .fillMaxWidth(1f / safeTabCount),
         )
@@ -560,7 +598,7 @@ fun MiniPlayer(
     songTitle: String = "",
     artist: String = "",
     coverUrl: String? = null,
-    progress: Float = 0f,
+    progress: () -> Float = { 0f },
     onPlayPauseClick: () -> Unit = {},
     onPlayerClick: () -> Unit = {},
     onPlaylistClick: () -> Unit = {}
@@ -818,11 +856,12 @@ fun MiniPlayer(
                                     )
                                 )
 
-                                if (progress > 0f) {
+                                val progressValue = progress().coerceIn(0f, 1f)
+                                if (progressValue > 0f) {
                                     drawArc(
                                         color = progressActiveColor,
                                         startAngle = -90f,
-                                        sweepAngle = 360f * progress,
+                                        sweepAngle = 360f * progressValue,
                                         useCenter = false,
                                         style = Stroke(
                                             width = strokeWidth,
@@ -887,23 +926,37 @@ fun MiniPlayer(
 
             // Material 3 迷你播放器使用贴底的线性进度，不再用播放键外圈的装饰环。
             if (!useLiquidStyle) {
-                Box(
+                MiniPlayerLinearProgress(
+                    progress = progress,
+                    trackColor = colorScheme.surfaceVariant,
+                    activeColor = colorScheme.primary,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .background(colorScheme.surfaceVariant),
-                ) {
-                    if (progress > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress.coerceIn(0f, 1f))
-                                .fillMaxHeight()
-                                .background(colorScheme.primary),
-                        )
-                    }
-                }
+                        .height(2.dp),
+                )
             }
+        }
+    }
+}
+
+/** 单独隔开 M3 回退进度，避免进度变化重组整个迷你播放器。 */
+@Composable
+private fun MiniPlayerLinearProgress(
+    progress: () -> Float,
+    trackColor: Color,
+    activeColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val value = progress().coerceIn(0f, 1f)
+    Box(modifier = modifier.background(trackColor)) {
+        if (value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(value)
+                    .fillMaxHeight()
+                    .background(activeColor),
+            )
         }
     }
 }

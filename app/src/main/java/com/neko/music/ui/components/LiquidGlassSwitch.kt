@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -155,6 +156,68 @@ private fun LiquidGlassSwitchLiquid(
     val trackBackdrop = rememberLayerBackdrop()
     val trackShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
     val thumbShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 50)
+    val trackSampleTransform: DrawScope.(DrawScope.() -> Unit) -> Unit =
+        remember(dampedDragAnimation) {
+            { drawBackdrop ->
+                val progress = dampedDragAnimation.pressProgress
+                val scaleX = lerp(2f / 3f, 0.75f, progress)
+                val scaleY = lerp(0f, 0.75f, progress)
+                scale(scaleX, scaleY) {
+                    drawBackdrop()
+                }
+            }
+        }
+    val sampledTrack = rememberBackdrop(trackBackdrop, trackSampleTransform)
+    val thumbBackdrop = rememberCombinedBackdrop(backdrop, sampledTrack)
+    val thumbModifier = remember(thumbBackdrop, density, dampedDragAnimation) {
+        Modifier.drawBackdrop(
+            backdrop = thumbBackdrop,
+            shape = { thumbShape },
+            effects = {
+                val progress = dampedDragAnimation.pressProgress
+                blur(with(density) { (8.dp * (1f - progress)).toPx() })
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    lens(
+                        refractionHeight = with(density) { (5.dp * progress).toPx() },
+                        refractionAmount = with(density) { (10.dp * progress).toPx() },
+                        chromaticAberration = true
+                    )
+                }
+            },
+            highlight = {
+                val progress = dampedDragAnimation.pressProgress
+                Highlight.Ambient.copy(
+                    width = Highlight.Ambient.width / 1.5f,
+                    blurRadius = Highlight.Ambient.blurRadius / 1.5f,
+                    alpha = progress
+                )
+            },
+            shadow = {
+                Shadow(
+                    radius = 4.dp,
+                    color = Color.Black.copy(alpha = 0.05f)
+                )
+            },
+            innerShadow = {
+                val progress = dampedDragAnimation.pressProgress
+                InnerShadow(
+                    radius = 4.dp * progress,
+                    alpha = progress
+                )
+            },
+            layerBlock = {
+                scaleX = dampedDragAnimation.scaleX
+                scaleY = dampedDragAnimation.scaleY
+                val velocity = dampedDragAnimation.velocity / 50f
+                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+            },
+            onDrawSurface = {
+                val progress = dampedDragAnimation.pressProgress
+                drawRect(Color.White.copy(alpha = 1f - progress))
+            }
+        )
+    }
 
     Box(
         modifier = modifier.semantics { role = Role.Switch },
@@ -181,63 +244,7 @@ private fun LiquidGlassSwitchLiquid(
                         else lerp(-padding, -(padding + dragWidth), f)
                 }
                 .then(dampedDragAnimation.modifier)
-                .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(
-                        backdrop,
-                        rememberBackdrop(trackBackdrop) { drawBackdrop ->
-                            val progress = dampedDragAnimation.pressProgress
-                            val scaleX = lerp(2f / 3f, 0.75f, progress)
-                            val scaleY = lerp(0f, 0.75f, progress)
-                            scale(scaleX, scaleY) {
-                                drawBackdrop()
-                            }
-                        }
-                    ),
-                    shape = { thumbShape },
-                    effects = {
-                        val progress = dampedDragAnimation.pressProgress
-                        blur(with(density) { (8.dp * (1f - progress)).toPx() })
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            lens(
-                                refractionHeight = with(density) { (5.dp * progress).toPx() },
-                                refractionAmount = with(density) { (10.dp * progress).toPx() },
-                                chromaticAberration = true
-                            )
-                        }
-                    },
-                    highlight = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Highlight.Ambient.copy(
-                            width = Highlight.Ambient.width / 1.5f,
-                            blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = progress
-                        )
-                    },
-                    shadow = {
-                        Shadow(
-                            radius = 4.dp,
-                            color = Color.Black.copy(alpha = 0.05f)
-                        )
-                    },
-                    innerShadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(
-                            radius = 4.dp * progress,
-                            alpha = progress
-                        )
-                    },
-                    layerBlock = {
-                        scaleX = dampedDragAnimation.scaleX
-                        scaleY = dampedDragAnimation.scaleY
-                        val velocity = dampedDragAnimation.velocity / 50f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
-                    onDrawSurface = {
-                        val progress = dampedDragAnimation.pressProgress
-                        drawRect(Color.White.copy(alpha = 1f - progress))
-                    }
-                )
+                .then(thumbModifier)
                 .size(ThumbWidth, ThumbHeight)
         )
     }

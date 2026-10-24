@@ -23,12 +23,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -38,7 +41,6 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastFirstOrNull
-import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -216,17 +218,85 @@ fun LiquidGlassSlider(
 
             Box(
                 modifier = Modifier
-                    .clip(Capsule())
-                    .background(if (enabled) accentColor else accentColor.copy(alpha = 0.38f))
                     .height(TrackHeight)
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        val width = (constraints.maxWidth * dragAnimation.progress)
-                            .fastRoundToInt()
-                        layout(width, placeable.height) {
-                            placeable.place(0, 0)
+                    .fillMaxWidth()
+                    .drawBehind {
+                        val width = size.width * dragAnimation.progress
+                        if (width > 0f) {
+                            drawRoundRect(
+                                color = if (enabled) {
+                                    accentColor
+                                } else {
+                                    accentColor.copy(alpha = 0.38f)
+                                },
+                                size = Size(width, size.height),
+                                cornerRadius = CornerRadius(minOf(width, size.height) / 2f),
+                            )
                         }
                     },
+            )
+        }
+
+        val trackSampleTransform: DrawScope.(DrawScope.() -> Unit) -> Unit =
+            remember(dragAnimation) {
+                { drawBackdrop ->
+                    val progress = dragAnimation.pressProgress
+                    val scaleX = lerp(2f / 3f, 1f, progress)
+                    val scaleY = lerp(0f, 1f, progress)
+                    scale(scaleX, scaleY) {
+                        drawBackdrop()
+                    }
+                }
+            }
+        val sampledTrack = rememberBackdrop(trackBackdrop, trackSampleTransform)
+        val thumbBackdrop = rememberCombinedBackdrop(backdrop, sampledTrack)
+        val thumbModifier = remember(thumbBackdrop, density, dragAnimation) {
+            Modifier.drawBackdrop(
+                backdrop = thumbBackdrop,
+                shape = { Capsule() },
+                effects = {
+                    val progress = dragAnimation.pressProgress
+                    blur(with(density) { 8.dp.toPx() * (1f - progress) })
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        lens(
+                            refractionHeight = with(density) { 10.dp.toPx() * progress },
+                            refractionAmount = with(density) { 14.dp.toPx() * progress },
+                            chromaticAberration = true,
+                        )
+                    }
+                },
+                highlight = {
+                    val progress = dragAnimation.pressProgress
+                    Highlight.Ambient.copy(
+                        width = Highlight.Ambient.width / 1.5f,
+                        blurRadius = Highlight.Ambient.blurRadius / 1.5f,
+                        alpha = progress,
+                    )
+                },
+                shadow = {
+                    Shadow(
+                        radius = 4.dp,
+                        color = Color.Black.copy(alpha = 0.05f),
+                    )
+                },
+                innerShadow = {
+                    val progress = dragAnimation.pressProgress
+                    InnerShadow(
+                        radius = 4.dp * progress,
+                        alpha = progress,
+                    )
+                },
+                layerBlock = {
+                    scaleX = dragAnimation.scaleX
+                    scaleY = dragAnimation.scaleY
+                    val velocity = dragAnimation.velocity / 10f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                },
+                onDrawSurface = {
+                    val progress = dragAnimation.pressProgress
+                    drawRect(Color.White.copy(alpha = 1f - progress))
+                },
             )
         }
 
@@ -240,63 +310,7 @@ fun LiquidGlassSlider(
                         maximumValue = trackWidth - size.width * 3f / 4f,
                     ) * if (isLtr) 1f else -1f
                 }
-                .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(
-                        backdrop,
-                        rememberBackdrop(trackBackdrop) { drawBackdrop ->
-                            val progress = dragAnimation.pressProgress
-                            val scaleX = lerp(2f / 3f, 1f, progress)
-                            val scaleY = lerp(0f, 1f, progress)
-                            scale(scaleX, scaleY) {
-                                drawBackdrop()
-                            }
-                        },
-                    ),
-                    shape = { Capsule() },
-                    effects = {
-                        val progress = dragAnimation.pressProgress
-                        blur(with(density) { 8.dp.toPx() * (1f - progress) })
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            lens(
-                                refractionHeight = with(density) { 10.dp.toPx() * progress },
-                                refractionAmount = with(density) { 14.dp.toPx() * progress },
-                                chromaticAberration = true,
-                            )
-                        }
-                    },
-                    highlight = {
-                        val progress = dragAnimation.pressProgress
-                        Highlight.Ambient.copy(
-                            width = Highlight.Ambient.width / 1.5f,
-                            blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = progress,
-                        )
-                    },
-                    shadow = {
-                        Shadow(
-                            radius = 4.dp,
-                            color = Color.Black.copy(alpha = 0.05f),
-                        )
-                    },
-                    innerShadow = {
-                        val progress = dragAnimation.pressProgress
-                        InnerShadow(
-                            radius = 4.dp * progress,
-                            alpha = progress,
-                        )
-                    },
-                    layerBlock = {
-                        scaleX = dragAnimation.scaleX
-                        scaleY = dragAnimation.scaleY
-                        val velocity = dragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
-                    onDrawSurface = {
-                        val progress = dragAnimation.pressProgress
-                        drawRect(Color.White.copy(alpha = 1f - progress))
-                    },
-                )
+                .then(thumbModifier)
                 .size(ThumbWidth, ThumbHeight),
         )
     }

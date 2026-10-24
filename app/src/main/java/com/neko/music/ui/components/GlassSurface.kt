@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -152,39 +153,55 @@ fun GlassSurface(
         // 教程 onDrawSurface 约半透明白；过厚会盖住 vibrancy/blur/lens。
         val frost = liquidGlassFrost(isDarkTheme, bgAlpha, hiAlpha)
         val opacitySample = liquidBackdropOpacity.coerceIn(0f, 1f)
+        val frostBrush = remember(frost) {
+            Brush.verticalGradient(colors = listOf(frost.top, frost.bottom))
+        }
+        val liquidModifier = remember(
+            backdrop,
+            shape,
+            blurPx,
+            lensH,
+            lensAmt,
+            opacitySample,
+            frost,
+            frostBrush,
+            surfaceTint,
+            overrideDrawSurface,
+            kyantHighlight,
+            kyantShadow,
+            kyantInnerShadow,
+        ) {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { shape },
+                effects = {
+                    if (opacitySample < 0.999f) {
+                        opacity(opacitySample)
+                    }
+                    vibrancy()
+                    blur(blurPx)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        lens(lensH, lensAmt)
+                    }
+                },
+                highlight = kyantHighlight?.let { h -> { h } },
+                shadow = kyantShadow?.let { s -> { s } },
+                innerShadow = kyantInnerShadow?.let { s -> { s } },
+                onDrawSurface = {
+                    val custom = overrideDrawSurface
+                    if (custom != null) {
+                        custom()
+                    } else {
+                        drawRect(frost.base)
+                        surfaceTint?.let { tint -> drawRect(tint) }
+                        drawRect(brush = frostBrush)
+                    }
+                },
+            )
+        }
         Box(
             modifier = modifier
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { shape },
-                    effects = {
-                        if (opacitySample < 0.999f) {
-                            opacity(opacitySample)
-                        }
-                        vibrancy()
-                        blur(blurPx)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            lens(lensH, lensAmt)
-                        }
-                    },
-                    highlight = kyantHighlight?.let { h -> { h } },
-                    shadow = kyantShadow?.let { s -> { s } },
-                    innerShadow = kyantInnerShadow?.let { s -> { s } },
-                    onDrawSurface = {
-                        val custom = overrideDrawSurface
-                        if (custom != null) {
-                            custom()
-                        } else {
-                            drawRect(frost.base)
-                            surfaceTint?.let { tint -> drawRect(tint) }
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(frost.top, frost.bottom),
-                                )
-                            )
-                        }
-                    }
-                )
+                .then(liquidModifier)
                 .then(
                     // 有 Kyant 边缘光时不再手绘描边，避免「双描边」的脏边。
                     if (kyantHighlight == null) {

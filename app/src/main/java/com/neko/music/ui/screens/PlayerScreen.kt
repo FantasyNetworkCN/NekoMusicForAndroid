@@ -79,6 +79,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -309,7 +310,7 @@ fun PlayerScreen(
 
     val isPlaying by playerManager.isPlaying.collectAsState()
     val isBuffering by playerManager.isBuffering.collectAsState()
-    val currentPosition by playerManager.currentPosition.collectAsState()
+    val currentPosition = playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
     val currentMusicId by playerManager.currentMusicId.collectAsState()
     val currentMusicTitle by playerManager.currentMusicTitle.collectAsState()
@@ -321,9 +322,11 @@ fun PlayerScreen(
     // 检查登录状态
     val isLoggedIn = tokenManager.isLoggedIn()
 
-    val currentTime by remember { derivedStateOf { formatTime(currentPosition) } }
-    val totalTime by remember { derivedStateOf { formatTime(duration) } }
-    val currentProgressSeconds by remember { derivedStateOf { currentPosition / 1000f } }
+    // 播放位置每 100ms 更新一次。这里保留 State 而不在 PlayerScreen 顶层解包，
+    // 让订阅只发生在进度条与当前歌词行，避免封面、评论和整页玻璃层跟着重组。
+    val currentProgressSeconds = remember(currentPosition) {
+        derivedStateOf { currentPosition.value / 1000f }
+    }
 
     var musicFileUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -940,9 +943,8 @@ fun PlayerScreen(
                     .zIndex(1f),
                 isLandscape = isLandscape,
                 isDarkTheme = isDarkTheme,
-                progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
-                currentTime = currentTime,
-                totalTime = totalTime,
+                positionMillis = currentPosition,
+                durationMillis = duration,
                 isLoading = isLoading,
                 isBuffering = isBuffering,
                 isPlaying = isPlaying,
@@ -2236,9 +2238,8 @@ private fun PlayerBottomBar(
     modifier: Modifier = Modifier,
     isLandscape: Boolean,
     isDarkTheme: Boolean,
-    progress: Float,
-    currentTime: String,
-    totalTime: String,
+    positionMillis: State<Long>,
+    durationMillis: Long,
     isLoading: Boolean,
     isBuffering: Boolean,
     isPlaying: Boolean,
@@ -2296,9 +2297,8 @@ private fun PlayerBottomBar(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     ProgressSlider(
-                        progress = progress,
-                        currentTime = currentTime,
-                        totalTime = totalTime,
+                        positionMillis = positionMillis,
+                        durationMillis = durationMillis,
                         isLoading = isLoading,
                         compact = true,
                         onProgressChange = onProgressChange,
@@ -2338,9 +2338,8 @@ private fun PlayerBottomBar(
                     .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 28.dp),
             ) {
                 ProgressSlider(
-                    progress = progress,
-                    currentTime = currentTime,
-                    totalTime = totalTime,
+                    positionMillis = positionMillis,
+                    durationMillis = durationMillis,
                     isLoading = isLoading,
                     onProgressChange = onProgressChange,
                 )
@@ -2443,13 +2442,20 @@ private fun PlayerUtilityRow(
 
 @Composable
 fun ProgressSlider(
-    progress: Float,
-    currentTime: String,
-    totalTime: String,
+    positionMillis: State<Long>,
+    durationMillis: Long,
     isLoading: Boolean,
     compact: Boolean = false,
     onProgressChange: (Float) -> Unit,
 ) {
+    val position = positionMillis.value
+    val progress = if (durationMillis > 0) {
+        (position.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val currentTime = formatTime(position)
+    val totalTime = formatTime(durationMillis)
     val scheme = MaterialTheme.colorScheme
     val liquidBackdrop = LocalLiquidLayerBackdrop.current
     val useLiquidStyle = isLiquidGlassEffectActive(liquidBackdrop)

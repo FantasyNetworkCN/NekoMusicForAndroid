@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,7 +86,7 @@ import kotlin.math.roundToInt
 @Composable
 fun AmllLyricsView(
     lyrics: List<LrcLine>,
-    currentProgressSeconds: Float,
+    currentProgressSeconds: State<Float>,
     isLoading: Boolean,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
@@ -116,8 +117,10 @@ fun AmllLyricsView(
             lyrics
         }
     }
-    val currentIndex = remember(displayLyrics, currentProgressSeconds) {
-        displayLyrics.indexOfLast { it.time <= currentProgressSeconds }
+    val currentIndex by remember(displayLyrics, currentProgressSeconds) {
+        androidx.compose.runtime.derivedStateOf {
+            displayLyrics.indexOfLast { it.time <= currentProgressSeconds.value }
+        }
     }
 
     var isUserBrowsing by remember { mutableStateOf(false) }
@@ -220,7 +223,7 @@ fun AmllLyricsView(
                             val lineEndTime = displayLyrics.getOrNull(index + 1)?.time
                                 ?: (line.time + 4f)
                             val rawLineProgress = if (isCurrentLine) {
-                                ((currentProgressSeconds - line.time) /
+                                ((currentProgressSeconds.value - line.time) /
                                     (lineEndTime - line.time).coerceAtLeast(0.2f))
                                     .coerceIn(0f, 1f)
                             } else {
@@ -253,7 +256,7 @@ fun AmllLyricsView(
                                 if (line.text.isBlank()) {
                                     InstrumentalDots(
                                         isCurrentLine = isCurrentLine,
-                                        elapsedSeconds = (currentProgressSeconds - line.time).coerceAtLeast(0f),
+                                        elapsedSeconds = (currentProgressSeconds.value - line.time).coerceAtLeast(0f),
                                         durationSeconds = (lineEndTime - line.time).coerceAtLeast(0.2f),
                                         baseColor = baseTextColor,
                                         highlightColor = highlightColor,

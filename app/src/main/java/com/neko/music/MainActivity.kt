@@ -465,19 +465,25 @@ fun MainScreen() {
     val currentMusicArtist by playerManager.currentMusicArtist.collectAsState()
     val currentMusicCover by playerManager.currentMusicCover.collectAsState()
     val currentMusicId by playerManager.currentMusicId.collectAsState()
-    val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
 
     // 计算播放进度
     val progress =
         androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
 
-    // 更新播放进度
-    androidx.compose.runtime.LaunchedEffect(currentPosition, duration) {
-        if (duration > 0) {
-            progress.floatValue = currentPosition.toFloat() / duration.toFloat()
+    // 进度是 10Hz 高频状态。直接在组合作用域读取 currentPosition 会让整个 MainActivity
+    // （包括所有液态玻璃层）每 100ms 重组一次，因此只在协程中合并两个 Flow。
+    androidx.compose.runtime.LaunchedEffect(playerManager) {
+        kotlinx.coroutines.flow.combine(
+            playerManager.currentPosition,
+            playerManager.duration,
+        ) { position, trackDuration ->
+            if (trackDuration > 0) position.toFloat() / trackDuration else 0f
+        }.collect { value ->
+            progress.floatValue = value
         }
     }
+    val miniPlayerProgress = remember(progress) { { progress.floatValue } }
 
     // 播放列表显示状态
     var showPlaylist by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -1630,7 +1636,7 @@ fun MainScreen() {
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
-                                progress = progress.floatValue,
+                                progress = miniPlayerProgress,
                                 onPlayPauseClick = { playerManager.togglePlayPause() },
                                 onPlayerClick = {
                                     val id = currentMusicId ?: 0
@@ -1661,7 +1667,7 @@ fun MainScreen() {
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
-                                progress = progress.floatValue,
+                                progress = miniPlayerProgress,
                                 onPlayPauseClick = { playerManager.togglePlayPause() },
                                 onPlayerClick = {
                                     val id = currentMusicId ?: 0
