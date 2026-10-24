@@ -739,6 +739,18 @@
     <string name="recognition_start">Start music identification</string>
     <string name="recognition_stop">Stop recording</string>
     <string name="recognition_open_result">Open identified song</string>
+    <string name="recognition_hero_title">What song is\nplaying right now?</string>
+    <string name="recognition_hero_subtitle">Move your phone closer to the music and Neko will find it</string>
+    <string name="recognition_ready_hint">Tap the center to listen for up to 20 seconds</string>
+    <string name="recognition_recording_hint">Listening to the room. Tap the button below to stop</string>
+    <string name="recognition_matched_hint">Tap the match to play it</string>
+    <string name="recognition_no_match_hint">Try again in a quieter place or move closer to the source</string>
+    <string name="recognition_action_listen">Start listening</string>
+    <string name="recognition_action_stop">Stop listening</string>
+    <string name="recognition_action_retry">Try again</string>
+    <string name="recognition_action_again">Identify again</string>
+    <string name="recognition_result_title">Match</string>
+    <string name="recognition_privacy_hint">The microphone is used only while identifying. Recordings are not kept</string>
 
     <!-- QR login -->
     <string name="qr_scan">Scan QR</string>
