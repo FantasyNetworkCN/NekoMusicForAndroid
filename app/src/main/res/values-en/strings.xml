@@ -434,6 +434,10 @@
 
     <!-- Ranking -->
     <string name="hot_music">Hot Music</string>
+    <string name="ranking_hero_eyebrow">TOP CHART</string>
+    <string name="ranking_hero_title">Top Songs</string>
+    <string name="ranking_empty_hint">Check back when the chart heats up</string>
+    <string name="ranking_play_count_short">%s plays</string>
     <string name="loading_hot_music">Loading hot music...</string>
     <string name="no_hot_music">No hot music</string>
 
@@ -592,6 +596,11 @@
     <!-- Latest Music -->
     <string name="latest_music">Latest Music</string>
     <string name="latest_music_title">Latest Music</string>
+    <string name="latest_hero_eyebrow">JUST IN</string>
+    <string name="latest_hero_title">Fresh Drops</string>
+    <string name="latest_hero_desc">The newest uploads, ready to play</string>
+    <string name="latest_new_badge">NEW</string>
+    <string name="latest_empty_hint">Check back when new songs arrive</string>
     <string name="click_latest_music_info">Click latest music, total %d songs</string>
     <string name="songs_count_format">%d songs</string>
     <string name="loading_latest_music">Loading latest music...</string>

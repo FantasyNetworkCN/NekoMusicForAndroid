@@ -410,6 +410,10 @@
     <string name="ranking_number">第 %d 名榜单喵</string>
 
     <string name="hot_music">最火的曲子喵</string>
+    <string name="ranking_hero_eyebrow">热度榜单喵</string>
+    <string name="ranking_hero_title">热度爆表喵</string>
+    <string name="ranking_empty_hint">等大家听热起来，再来看看喵</string>
+    <string name="ranking_play_count_short">%s 次播放喵</string>
     <string name="loading_hot_music">正在看谁最火喵...</string>
     <string name="no_hot_music">大家最近都好安静喵</string>
 
@@ -599,6 +603,11 @@
 
     <string name="latest_music">新抓来的曲子喵</string>
     <string name="latest_music_title">新鲜曲子喵</string>
+    <string name="latest_hero_eyebrow">刚出炉喵</string>
+    <string name="latest_hero_title">新歌速递喵</string>
+    <string name="latest_hero_desc">刚上传的声音，趁热听听喵</string>
+    <string name="latest_new_badge">NEW</string>
+    <string name="latest_empty_hint">等有新歌上传，再来看看喵</string>
     <string name="click_latest_music_info">看新曲子，一共%d首喵</string>
     <string name="loading_latest_music">正在看新曲子喵...</string>
     <string name="load_failed">搬不动喵</string>

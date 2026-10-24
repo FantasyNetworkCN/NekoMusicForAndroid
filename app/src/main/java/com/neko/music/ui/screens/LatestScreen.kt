@@ -1,20 +1,35 @@
 package com.neko.music.ui.screens
 
 import android.util.Log
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.Image
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,9 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -42,31 +56,38 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
-import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
-import com.kyant.backdrop.backdrops.layerBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.EditorialCollectionHero
+import com.neko.music.ui.components.EditorialCollectionLoading
+import com.neko.music.ui.components.EditorialCollectionStateCard
+import com.neko.music.ui.components.EditorialPlayAllButton
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.LrcBadge
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.list.LatestLiquidBarState
+import com.neko.music.ui.theme.LightRose
+import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.isAppDarkTheme
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
 @Composable
 fun LatestScreen(
     liquidBarState: LatestLiquidBarState,
     onBackClick: () -> Unit = {},
-    onNavigateToPlayer: (Music) -> Unit = {}
+    onNavigateToPlayer: (Music) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -74,56 +95,75 @@ fun LatestScreen(
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
     val listState = rememberLazyListState()
     val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
 
     var musicList by remember { mutableStateOf<List<Music>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var refreshing by remember { mutableStateOf(false) }
     var loadError by remember { mutableStateOf(false) }
-    
+
     fun loadData() {
         loading = true
         scope.launch {
             try {
-                Log.d("LatestScreen", "开始加载最新音乐...")
-                val result = musicApi.getLatest(300)
-                result.onSuccess { list ->
-                    musicList = list
-                    Log.d("LatestScreen", "最新音乐加载成功: ${list.size}首")
-                }.onFailure { error ->
-                    Log.e("LatestScreen", "最新音乐加载失败: ${error.message}")
-                    loadError = true
-                }
+                musicApi.getLatest(300)
+                    .onSuccess { list ->
+                        musicList = list
+                        loadError = false
+                    }
+                    .onFailure {
+                        loadError = true
+                    }
             } catch (e: Exception) {
-                Log.e("LatestScreen", "最新音乐异常: ${e.message}", e)
+                Log.e("LatestScreen", "最新音乐加载异常", e)
                 loadError = true
             } finally {
                 loading = false
             }
         }
     }
-    
+
     fun refreshData() {
         refreshing = true
         scope.launch {
             try {
-                val result = musicApi.getLatest(300)
-                result.onSuccess { list ->
-                    musicList = list
-                    loadError = false
-                    Log.d("LatestScreen", "刷新成功: ${list.size}首")
-                }.onFailure { error ->
-                    Log.e("LatestScreen", "刷新失败: ${error.message}")
-                    loadError = true
-                }
+                musicApi.getLatest(300)
+                    .onSuccess { list ->
+                        musicList = list
+                        loadError = false
+                    }
+                    .onFailure {
+                        loadError = true
+                    }
             } catch (e: Exception) {
-                Log.e("LatestScreen", "刷新异常: ${e.message}", e)
+                Log.e("LatestScreen", "最新音乐刷新异常", e)
                 loadError = true
             } finally {
                 refreshing = false
             }
         }
     }
-    
+
+    fun playMusic(music: Music) {
+        scope.launch {
+            try {
+                val url = musicApi.getMusicFileUrl(music)
+                val fullCoverUrl = UrlConfig.getMusicCoverUrl(music.id)
+                playerManager.playMusic(
+                    url,
+                    music.id,
+                    music.title,
+                    music.artist,
+                    music.coverFilePath ?: "",
+                    fullCoverUrl,
+                )
+                onNavigateToPlayer(music)
+            } catch (e: Exception) {
+                Log.e("LatestScreen", "播放失败", e)
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         loadData()
     }
@@ -138,113 +178,142 @@ fun LatestScreen(
     val topBarInsetDp = remember(liquidBarState.barInsetPx, density) {
         if (liquidBarState.barInsetPx > 0) with(density) { liquidBarState.barInsetPx.toDp() } else 88.dp
     }
-
-    // 仅底图进 pageBackdrop；列表在兄弟层可 Kyant 液态。顶栏在 MainActivity 与 NavHost 同级，采主 liquidBackdrop。
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val accent = if (isDark) LightRose else RoseRed
+    val newestMusic = musicList.firstOrNull()
+    val newestAge = remember(newestMusic?.createdAt) {
+        newestMusic?.createdAt
+            ?.toLongOrNull()
+            ?.let { formatUploadTime(context, it) }
+            .orEmpty()
+    }
+    val heroCoverUrl = remember(newestMusic?.id, newestMusic?.coverFilePath) {
+        newestMusic?.latestCoverUrl().orEmpty()
+    }
+    val countText = stringResource(id = R.string.songs_count_short, musicList.size)
+    val heroMeta = listOf(countText, newestAge)
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(pageBackdrop)
+                .layerBackdrop(pageBackdrop),
         ) {
-            AppPageBackgroundImage(
-                modifier = Modifier.fillMaxSize(),
-            )
-            PlaylistPageDarkTintOverlay()
+            AppPageBackgroundImage(modifier = Modifier.fillMaxSize())
+            PlaylistPageDarkTintOverlay(enabled = isDark)
         }
+
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    loading && musicList.isEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = topBarInsetDp + 20.dp)
+            when {
+                loading && musicList.isEmpty() -> {
+                    EditorialCollectionLoading(
+                        isDark = isDark,
+                        message = stringResource(id = R.string.loading_latest_music),
+                        accent = accent,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = topBarInsetDp),
+                    )
+                }
+                loadError && musicList.isEmpty() -> {
+                    EditorialCollectionStateCard(
+                        icon = Icons.Default.Info,
+                        title = stringResource(id = R.string.load_failed),
+                        message = stringResource(id = R.string.network_error),
+                        actionLabel = stringResource(id = R.string.retry),
+                        onAction = { loadData() },
+                        accent = accent,
+                        isDark = isDark,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = topBarInsetDp),
+                    )
+                }
+                musicList.isEmpty() -> {
+                    EditorialCollectionStateCard(
+                        icon = Icons.Default.Info,
+                        title = stringResource(id = R.string.no_latest_music),
+                        message = stringResource(id = R.string.latest_empty_hint),
+                        actionLabel = stringResource(id = R.string.refresh),
+                        onAction = { loadData() },
+                        accent = accent,
+                        isDark = isDark,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = topBarInsetDp),
+                    )
+                }
+                else -> {
+                    val pullRefreshState = rememberPullRefreshState(
+                        refreshing = refreshing,
+                        onRefresh = { refreshData() },
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pullRefresh(pullRefreshState),
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = topBarInsetDp + 6.dp,
+                                bottom = 180.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            LatestLoadingState()
-                        }
-                    }
-                    loadError && musicList.isEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = topBarInsetDp + 20.dp)
-                        ) {
-                            LatestErrorState(onRetry = { loadData() })
-                        }
-                    }
-                    musicList.isEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = topBarInsetDp + 20.dp)
-                        ) {
-                            LatestEmptyState()
-                        }
-                    }
-                    else -> {
-                        val pullRefreshState =
-                            rememberPullRefreshState(refreshing, onRefresh = { refreshData() })
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pullRefresh(pullRefreshState)
-                        ) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = topBarInsetDp + 48.dp,
-                                    bottom = 240.dp
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                itemsIndexed(
-                                    items = musicList,
-                                    key = { _, music -> music.id }
-                                ) { index, music ->
-                                    LatestItem(
-                                        music = music,
-                                        index = index,
-                                        onClick = {
-                                            Log.d("LatestScreen", "点击歌曲: ${music.title}")
-                                            scope.launch {
-                                                try {
-                                                    val url = musicApi.getMusicFileUrl(music)
-                                                    val fullCoverUrl =
-                                                        UrlConfig.getMusicCoverUrl(music.id)
-                                                    playerManager.playMusic(
-                                                        url,
-                                                        music.id,
-                                                        music.title,
-                                                        music.artist,
-                                                        music.coverFilePath ?: "",
-                                                        fullCoverUrl
-                                                    )
-                                                    onNavigateToPlayer(music)
-                                                } catch (e: Exception) {
-                                                    Log.e("LatestScreen", "播放失败", e)
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
+                            item(key = "latest-hero") {
+                                EditorialCollectionHero(
+                                    eyebrow = stringResource(id = R.string.latest_hero_eyebrow),
+                                    title = stringResource(id = R.string.latest_hero_title),
+                                    description = stringResource(id = R.string.latest_hero_desc),
+                                    coverUrl = heroCoverUrl,
+                                    meta = heroMeta,
+                                    badge = stringResource(id = R.string.latest_new_badge),
+                                    accent = accent,
+                                    isDark = isDark,
+                                )
                             }
-
-                            PullRefreshIndicator(
-                                refreshing = refreshing,
-                                state = pullRefreshState,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = topBarInsetDp + 36.dp),
-                                backgroundColor = scheme.surface,
-                                contentColor = scheme.primary
-                            )
+                            item(key = "latest-play-all") {
+                                EditorialPlayAllButton(
+                                    label = stringResource(id = R.string.play_all),
+                                    countText = countText,
+                                    accent = accent,
+                                    isDark = isDark,
+                                    onClick = {
+                                        if (musicList.isNotEmpty()) {
+                                            playerManager.playMusicList(musicList)
+                                        }
+                                    },
+                                )
+                            }
+                            itemsIndexed(
+                                items = musicList,
+                                key = { _, music -> music.id },
+                            ) { index, music ->
+                                LatestTrackItem(
+                                    music = music,
+                                    index = index,
+                                    isDark = isDark,
+                                    accent = accent,
+                                    onClick = { playMusic(music) },
+                                )
+                            }
                         }
+
+                        PullRefreshIndicator(
+                            refreshing = refreshing,
+                            state = pullRefreshState,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = topBarInsetDp + 4.dp),
+                            backgroundColor = scheme.surface,
+                            contentColor = scheme.primary,
+                        )
                     }
                 }
             }
@@ -253,249 +322,149 @@ fun LatestScreen(
 }
 
 @Composable
-fun LatestLoadingState(
-    messageColor: Color? = null
-) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        CircularProgressIndicator(
-            color = scheme.primary,
-            strokeWidth = 3.dp
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(id = R.string.loading_latest_music),
-            fontSize = 14.sp,
-            color = messageColor ?: scheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun LatestErrorState(
-    onRetry: () -> Unit,
-    titleColor: Color? = null,
-    messageColor: Color? = null
-) {
-    val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = stringResource(id = R.string.load_failed),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
-            color = titleColor ?: scheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(id = R.string.network_error),
-            fontSize = 14.sp,
-            color = messageColor ?: scheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        val retryGlass = LiquidGlassDefaults.rankingRetryButton
-        GlassSurface(
-            modifier = Modifier
-                .clickable { onRetry() }
-                .padding(horizontal = 24.dp, vertical = 10.dp),
-            shape = RoundedCornerShape(20.dp),
-            backgroundAlpha = retryGlass.tint.background(isDark),
-            borderAlpha = retryGlass.tint.border(isDark),
-            highlightAlpha = retryGlass.tint.highlight(isDark),
-            liquidBlur = retryGlass.liquid.blur,
-            liquidLensHeight = retryGlass.liquid.lensHeight,
-            liquidLensAmount = retryGlass.liquid.lensAmount,
-            borderColor = if (isDark) Color.White else scheme.outline
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = stringResource(id = R.string.retry),
-                    fontSize = 14.sp,
-                    color = scheme.primary,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun LatestEmptyState() {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = stringResource(id = R.string.no_latest_music),
-            fontSize = 16.sp,
-            color = scheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun LatestItem(
+private fun LatestTrackItem(
     music: Music,
     index: Int,
+    isDark: Boolean,
+    accent: Color,
     onClick: () -> Unit,
-    titleColor: Color? = null,
-    subtitleColor: Color? = null,
-    metaColor: Color? = null
 ) {
     val context = LocalContext.current
-    val musicApi = remember { MusicApi(context) }
     val scheme = MaterialTheme.colorScheme
-    val isDark = scheme.background.luminance() < 0.5f
-    var coverUrl by remember { mutableStateOf<String?>(null) }
-    var isLoaded by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(music.id) {
-        coverUrl = musicApi.getMusicCoverUrl(music)
-        isLoaded = true
-    }
-    
-    // 格式化上传时间
+    val glass = LiquidGlassDefaults.latestListItem
+    val titleColor = if (isDark) Color(0xFFF1F1F5) else Color.Black
+    val secondaryColor = if (isDark) Color.White.copy(alpha = 0.58f) else Color.Black.copy(alpha = 0.52f)
+    val metaColor = if (isDark) Color.White.copy(alpha = 0.42f) else Color.Black.copy(alpha = 0.38f)
+    val coverUrl = remember(music.id, music.coverFilePath) { music.latestCoverUrl() }
     val uploadTime = remember(music.createdAt) {
-        if (music.createdAt != null) {
-            try {
-                val timestamp = music.createdAt.toLong()
-                formatUploadTime(context, timestamp)
-            } catch (e: Exception) {
-                ""
-            }
-        } else {
-            ""
-        }
+        music.createdAt
+            ?.toLongOrNull()
+            ?.let { formatUploadTime(context, it) }
+            .orEmpty()
     }
+    val subtitle = remember(music.artist, music.album) {
+        listOf(music.artist, music.album)
+            .filter { it.isNotBlank() }
+            .joinToString(" · ")
+    }
+    val interactionSource = remember(music.id) { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "latest-track-press-${music.id}",
+    )
 
-    val resolvedTitleColor = titleColor ?: scheme.onSurface
-    val resolvedSubtitleColor = subtitleColor ?: scheme.onSurfaceVariant
-    val resolvedMetaColor = metaColor ?: scheme.onSurfaceVariant.copy(alpha = 0.85f)
-
-    val latestGlass = LiquidGlassDefaults.latestListItem
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        backgroundAlpha = latestGlass.tint.background(isDark),
-        borderAlpha = latestGlass.tint.border(isDark),
-        highlightAlpha = latestGlass.tint.highlight(isDark),
-        liquidBlur = latestGlass.liquid.blur,
-        liquidLensHeight = latestGlass.liquid.lensHeight,
-        liquidLensAmount = latestGlass.liquid.lensAmount,
-        borderColor = if (isDark) Color.White else scheme.outline
+            .height(68.dp)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(14.dp),
+        backgroundAlpha = glass.tint.background(isDark),
+        borderAlpha = glass.tint.border(isDark),
+        highlightAlpha = glass.tint.highlight(isDark),
+        borderColor = if (isDark) Color.White else scheme.outline,
+        liquidBlur = glass.liquid.blur,
+        liquidLensHeight = glass.liquid.lensHeight,
+        liquidLensAmount = glass.liquid.lensAmount,
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            AnimatedVisibility(
-                visible = isLoaded,
-                enter = fadeIn(
-                    animationSpec = tween(300, delayMillis = index * 20)
-                ) + slideInHorizontally(
-                    animationSpec = tween(300, delayMillis = index * 20),
-                    initialOffsetX = { -50 }
-                )
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (isDark) Color(0xFF353558).copy(alpha = 0.6f)
+                        else Color(0xFFE0E0E0),
+                    ),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        scheme.surfaceVariant.copy(alpha = 0.5f),
-                                        scheme.surface.copy(alpha = 0.15f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(coverUrl)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = music.title,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(10.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = music.title,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = resolvedTitleColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = music.artist,
-                            fontSize = 12.sp,
-                            color = resolvedSubtitleColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    if (uploadTime.isNotEmpty()) {
-                        Text(
-                            text = uploadTime,
-                            fontSize = 11.sp,
-                            color = resolvedMetaColor,
-                            fontWeight = FontWeight.Medium
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = stringResource(id = R.string.cover),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.music),
+                    error = painterResource(R.drawable.music),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = music.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = subtitle,
+                        modifier = Modifier.weight(1f, fill = false),
+                        fontSize = 11.sp,
+                        color = secondaryColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (music.lrc) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        LrcBadge(
+                            visible = true,
+                            tint = accent.copy(alpha = 0.82f),
+                            modifier = Modifier.size(14.dp),
                         )
                     }
                 }
+            }
+            if (uploadTime.isNotBlank()) {
+                Text(
+                    text = uploadTime,
+                    modifier = if (index < 3) {
+                        Modifier
+                            .clip(CircleShape)
+                            .background(accent.copy(alpha = 0.11f))
+                            .padding(horizontal = 7.dp, vertical = 4.dp)
+                    } else {
+                        Modifier
+                    },
+                    fontSize = 10.sp,
+                    fontWeight = if (index < 3) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (index < 3) accent else metaColor,
+                    maxLines = 1,
+                )
             }
         }
     }
 }
 
-fun formatUploadTime(context: android.content.Context, timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-    
+private fun Music.latestCoverUrl(): String =
+    coverFilePath
+        ?.takeIf { it.isNotBlank() }
+        ?.let { UrlConfig.buildFullUrl(it) }
+        ?: UrlConfig.getMusicCoverUrl(id)
+
+private fun formatUploadTime(context: android.content.Context, timestamp: Long): String {
+    val diff = System.currentTimeMillis() - timestamp
     return when {
         diff < 60 * 1000 -> context.getString(R.string.just_now)
         diff < 60 * 60 * 1000 -> context.getString(R.string.minutes_ago_format, diff / (60 * 1000))
         diff < 24 * 60 * 60 * 1000 -> context.getString(R.string.hours_ago_format, diff / (60 * 60 * 1000))
-        diff < 30 * 24 * 60 * 60 * 1000 -> context.getString(R.string.days_ago_format, diff / (24 * 60 * 60 * 1000))
-        else -> {
-            val sdf = SimpleDateFormat("MM-dd", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        }
+        diff < 30L * 24 * 60 * 60 * 1000 -> context.getString(R.string.days_ago_format, diff / (24 * 60 * 60 * 1000))
+        else -> SimpleDateFormat("MM-dd", Locale.getDefault()).format(Date(timestamp))
     }
 }

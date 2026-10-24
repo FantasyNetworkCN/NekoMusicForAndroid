@@ -395,6 +395,10 @@
 
     <!-- 排行榜 -->
     <string name="hot_music">热门音乐</string>
+    <string name="ranking_hero_eyebrow">热度排行</string>
+    <string name="ranking_hero_title">热歌榜</string>
+    <string name="ranking_empty_hint">等榜单有热度后再来看看</string>
+    <string name="ranking_play_count_short">%s 次播放</string>
     <string name="loading_hot_music">正在加载热门音乐...</string>
     <string name="no_hot_music">暂无热门音乐</string>
 
@@ -547,6 +551,11 @@
     <!-- 最新音乐 -->
     <string name="latest_music">最新音乐</string>
     <string name="latest_music_title">最新音乐</string>
+    <string name="latest_hero_eyebrow">最新上架</string>
+    <string name="latest_hero_title">新歌速递</string>
+    <string name="latest_hero_desc">刚刚上传的新鲜声音，先听为快</string>
+    <string name="latest_new_badge">NEW</string>
+    <string name="latest_empty_hint">等有新歌上传后再来看看</string>
     <string name="click_latest_music_info">点击最新音乐，共%d首</string>
     <string name="songs_count_format">%d首</string>
     <string name="loading_latest_music">正在加载最新音乐...</string>
