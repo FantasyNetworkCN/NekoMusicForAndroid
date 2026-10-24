@@ -304,6 +304,8 @@
     <string name="explore_music_world">去音乐世界冒险喵！</string>
     <string name="discover_music_you_like">发现主人喜欢的旋律喵</string>
     <string name="recommended_playlists">猫娘推荐的本本喵</string>
+    <string name="home_listen_now">现在就听</string>
+    <string name="home_recommended_hint">为你挑选的歌单与榜单</string>
     <string name="network_error_msg">断网了喵，猫粮没了喵</string>
     <string name="play_all">全部播一遍喵</string>
     <string name="go_discover">快去发现好听的喵</string>

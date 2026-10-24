@@ -1493,7 +1493,7 @@ fun MainScreen() {
             Box(
                 modifier = Modifier
                     .align(androidx.compose.ui.Alignment.TopStart)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .zIndex(1f)
             ) {
                 CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {

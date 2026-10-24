@@ -319,6 +319,8 @@
     <string name="explore_music_world">Explore Music World</string>
     <string name="discover_music_you_like">Discover Music You Like</string>
     <string name="recommended_playlists">Recommended Playlists</string>
+    <string name="home_listen_now">Listen Now</string>
+    <string name="home_recommended_hint">Playlists and charts picked for you</string>
     <string name="network_error_msg">Network Error</string>
     <string name="play_all">Play All</string>
     <string name="go_discover">Go discover music you like</string>
