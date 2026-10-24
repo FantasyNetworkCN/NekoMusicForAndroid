@@ -272,6 +272,14 @@
     <string name="search">Search</string>
     <string name="search_music">Search Music</string>
     <string name="search_music_artist_album">Search music, artists, albums...</string>
+    <string name="search_clear_query">Clear search</string>
+    <string name="search_results_title">Search results</string>
+    <string name="search_result_count">%1$d results</string>
+    <string name="search_loading">Searching…</string>
+    <string name="search_empty_hint">Try a different keyword</string>
+    <string name="search_history_empty_title">What do you want to hear?</string>
+    <string name="search_history_empty_hint">Search for songs, playlists or artists</string>
+    <string name="search_error_hint">Check your connection and try again</string>
     <string name="single">Single</string>
     <string name="playlist">Playlist</string>
     <string name="artist">Artist</string>

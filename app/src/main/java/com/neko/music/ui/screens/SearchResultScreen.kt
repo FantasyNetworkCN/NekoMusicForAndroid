@@ -1,31 +1,39 @@
 package com.neko.music.ui.screens
 
 import android.util.Log
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width as composeWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -38,11 +46,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -74,6 +84,7 @@ import com.neko.music.ui.search.SearchLiquidBarState
 import com.neko.music.ui.search.SearchLiquidTopOverlay
 import com.neko.music.ui.components.LrcBadge
 import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.LightRose
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
@@ -86,7 +97,10 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.utils.EmptyContent.headers
 import io.ktor.http.headers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
 fun SearchResultScreen(
@@ -103,11 +117,10 @@ fun SearchResultScreen(
     val noSearchMusicText = stringResource(id = R.string.no_search_music)
     val noSearchPlaylistText = stringResource(id = R.string.no_search_playlist)
     val noSearchArtistText = stringResource(id = R.string.no_search_artist)
-    val noSearchHistoryYetText = stringResource(id = R.string.no_search_history_yet)
-    val noDescriptionNyaText = stringResource(id = R.string.no_description_nya)
-    val songsCountText = stringResource(id = R.string.songs_count, 0)
-    val authorPrefixText = stringResource(id = R.string.author_prefix, "")
-    val songsCountSuffixText = stringResource(id = R.string.songs_count_suffix, 0)
+    val searchErrorHintText = stringResource(id = R.string.search_error_hint)
+    val searchEmptyHintText = stringResource(id = R.string.search_empty_hint)
+    val searchHistoryEmptyTitleText = stringResource(id = R.string.search_history_empty_title)
+    val searchHistoryEmptyHintText = stringResource(id = R.string.search_history_empty_hint)
     
     val context = LocalContext.current
     val historyManager = remember { SearchHistoryManager(context) }
@@ -120,7 +133,6 @@ fun SearchResultScreen(
     var searchHistory by remember { mutableStateOf<List<SearchHistory>>(emptyList()) }
     
     val musicApi = remember { MusicApi(context) }
-    val scope = rememberCoroutineScope()
     
     androidx.compose.runtime.LaunchedEffect(initialQuery) {
         searchHistory = historyManager.getSearchHistory()
@@ -132,42 +144,67 @@ fun SearchResultScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(liquidBarState.searchQuery, liquidBarState.searchType) {
+    val query = liquidBarState.searchQuery
+    val searchType = liquidBarState.searchType
+    androidx.compose.runtime.LaunchedEffect(query, searchType) {
         searchStatePrefs.edit()
-            .putString("last_search_query", liquidBarState.searchQuery)
-            .putString("last_search_type", liquidBarState.searchType)
+            .putString("last_search_query", query)
+            .putString("last_search_type", searchType)
             .apply()
-        if (liquidBarState.searchQuery.isNotEmpty()) {
-            Log.d("SearchScreen", "实时搜索: ${liquidBarState.searchQuery}, 类型: ${liquidBarState.searchType}")
-            isLoading = true
-            when (liquidBarState.searchType) {
-                "music" -> performSearch(musicApi, liquidBarState.searchQuery, scope) { results, error ->
-                    searchResults = results
-                    playlistResults = emptyList()
-                    artistResults = emptyList()
-                    isLoading = false
-                    errorMessage = error
-                }
-                "playlist" -> performPlaylistSearch(liquidBarState.searchQuery, context, scope) { results, error ->
-                    playlistResults = results
-                    searchResults = emptyList()
-                    artistResults = emptyList()
-                    isLoading = false
-                    errorMessage = error
-                }
-                else -> performArtistSearch(liquidBarState.searchQuery, context, scope) { results, error ->
-                    artistResults = results
-                    searchResults = emptyList()
-                    playlistResults = emptyList()
-                    isLoading = false
-                    errorMessage = error
-                }
-            }
-        } else {
+        if (query.isEmpty()) {
             searchResults = emptyList()
             playlistResults = emptyList()
             artistResults = emptyList()
+            errorMessage = null
+            isLoading = false
+            return@LaunchedEffect
         }
+
+        errorMessage = null
+
+        delay(300)
+        if (!currentCoroutineContext().isActive) return@LaunchedEffect
+
+        searchResults = emptyList()
+        playlistResults = emptyList()
+        artistResults = emptyList()
+        isLoading = true
+
+        Log.d("SearchScreen", "实时搜索: $query, 类型: $searchType")
+        val requestContext = currentCoroutineContext()
+        val isCurrentRequest = {
+            requestContext.isActive &&
+                query == liquidBarState.searchQuery &&
+                searchType == liquidBarState.searchType
+        }
+
+        when (searchType) {
+            "music" -> {
+                val (results, error) = performSearch(musicApi, query)
+                if (!isCurrentRequest()) return@LaunchedEffect
+                searchResults = results
+                playlistResults = emptyList()
+                artistResults = emptyList()
+                errorMessage = error
+            }
+            "playlist" -> {
+                val (results, error) = performPlaylistSearch(query, context)
+                if (!isCurrentRequest()) return@LaunchedEffect
+                playlistResults = results
+                searchResults = emptyList()
+                artistResults = emptyList()
+                errorMessage = error
+            }
+            else -> {
+                val (results, error) = performArtistSearch(query, context)
+                if (!isCurrentRequest()) return@LaunchedEffect
+                artistResults = results
+                searchResults = emptyList()
+                playlistResults = emptyList()
+                errorMessage = error
+            }
+        }
+        isLoading = false
     }
 
     SideEffect {
@@ -176,42 +213,17 @@ fun SearchResultScreen(
             if (q.isNotEmpty()) {
                 historyManager.saveSearch(q)
                 searchHistory = historyManager.getSearchHistory()
-                isLoading = true
-                scope.launch {
-                    when (liquidBarState.searchType) {
-                        "music" -> performSearch(musicApi, q, scope) { results, error ->
-                            searchResults = results
-                            playlistResults = emptyList()
-                            artistResults = emptyList()
-                            isLoading = false
-                            errorMessage = error
-                        }
-                        "playlist" -> performPlaylistSearch(q, context, scope) { results, error ->
-                            playlistResults = results
-                            searchResults = emptyList()
-                            artistResults = emptyList()
-                            isLoading = false
-                            errorMessage = error
-                        }
-                        else -> performArtistSearch(q, context, scope) { results, error ->
-                            artistResults = results
-                            searchResults = emptyList()
-                            playlistResults = emptyList()
-                            isLoading = false
-                            errorMessage = error
-                        }
-                    }
-                }
             }
         }
     }
 
     val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
     var barInsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val topInsetDp = remember(barInsetPx, density) {
-        if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 168.dp
+        if (barInsetPx > 0) with(density) { barInsetPx.toDp() } else 148.dp
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -223,34 +235,25 @@ fun SearchResultScreen(
             AppPageBackgroundImage(
                 modifier = Modifier.fillMaxSize(),
             )
-            PlaylistPageDarkTintOverlay()
+            PlaylistPageDarkTintOverlay(enabled = isDark)
         }
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = topInsetDp + 20.dp)
+                    .padding(top = topInsetDp + 35.dp)
             ) {
                 when {
                     isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        }
+                        SearchLoadingState()
                     }
                     errorMessage != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = errorMessage ?: searchFailedText,
-                                color = Color.Gray,
-                                fontSize = 16.sp
-                            )
-                        }
+                        SearchStatePanel(
+                            icon = Icons.Default.Info,
+                            title = searchFailedText,
+                            subtitle = errorMessage ?: searchErrorHintText,
+                            accent = scheme.error,
+                        )
                     }
                     searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isNotEmpty() -> {
                         SearchHistoryList(
@@ -265,32 +268,24 @@ fun SearchResultScreen(
                         )
                     }
                     searchResults.isEmpty() && playlistResults.isEmpty() && artistResults.isEmpty() && liquidBarState.searchQuery.isNotEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = when (liquidBarState.searchType) {
-                                    "music" -> noSearchMusicText
-                                    "playlist" -> noSearchPlaylistText
-                                    else -> noSearchArtistText
-                                },
-                                color = Color.Gray,
-                                fontSize = 14.sp
-                            )
-                        }
+                        SearchStatePanel(
+                            icon = Icons.Default.Search,
+                            title = when (liquidBarState.searchType) {
+                                "music" -> noSearchMusicText
+                                "playlist" -> noSearchPlaylistText
+                                else -> noSearchArtistText
+                            },
+                            subtitle = searchEmptyHintText,
+                            accent = if (isDark) LightRose else RoseRed,
+                        )
                     }
                     searchResults.isEmpty() && playlistResults.isEmpty() && liquidBarState.searchQuery.isEmpty() && searchHistory.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = noSearchHistoryYetText,
-                                color = Color.Gray,
-                                fontSize = 14.sp
-                            )
-                        }
+                        SearchStatePanel(
+                            icon = Icons.Default.Search,
+                            title = searchHistoryEmptyTitleText,
+                            subtitle = searchHistoryEmptyHintText,
+                            accent = if (isDark) LightRose else RoseRed,
+                        )
                     }
                     else -> {
                         if (liquidBarState.searchType == "music") {
@@ -341,18 +336,19 @@ fun PlaylistList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            top = 16.dp,
-            end = 16.dp,
-            bottom = 96.dp
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            top = 8.dp,
+            end = 20.dp,
+            bottom = 160.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { SearchResultsHeader(count = playlists.size) }
         items(playlists) { playlist ->
             PlaylistItem(
                 playlist = playlist,
-                onClick = { onPlaylistClick(playlist) }
+                onClick = { onPlaylistClick(playlist) },
             )
         }
     }
@@ -363,85 +359,88 @@ fun PlaylistItem(
     playlist: com.neko.music.data.api.PlaylistInfo,
     onClick: () -> Unit
 ) {
-    // Preload strings
     val playlistCoverText = stringResource(id = R.string.playlist_cover)
     val playlistText = stringResource(id = R.string.playlist)
     val noDescriptionNyaText = stringResource(id = R.string.no_description_nya)
     val songsCountFormatText = stringResource(id = R.string.songs_count, playlist.musicCount)
-    
+    val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isAppDarkTheme()
-
     val listTint = LiquidGlassDefaults.screenListCard
+    val (interactionSource, pressScale) = rememberSearchPressScale()
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+            .scale(pressScale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(18.dp),
         backgroundAlpha = listTint.background(isDarkTheme),
         borderAlpha = listTint.border(isDarkTheme),
-        highlightAlpha = listTint.highlight(isDarkTheme)
+        highlightAlpha = listTint.highlight(isDarkTheme),
+        borderColor = if (isDarkTheme) Color.White.copy(alpha = 0.14f) else scheme.outline,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // 封面
             if (!playlist.coverPath.isNullOrEmpty()) {
-                coil3.compose.AsyncImage(
+                AsyncImage(
                     model = UrlConfig.buildFullUrl(playlist.coverPath),
                     contentDescription = playlistCoverText,
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Crop,
                 )
             } else {
-                // 默认封面
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(52.dp)
                         .background(
-                            color = RoseRed.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(8.dp)
+                            color = (if (isDarkTheme) LightRose else RoseRed).copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(14.dp),
                         ),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = playlistText,
-                        tint = RoseRed,
-                        modifier = Modifier.size(28.dp)
+                        tint = if (isDarkTheme) LightRose else RoseRed,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
 
-            // 歌单信息
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(1.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = playlist.name,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     text = playlist.description ?: noDescriptionNyaText,
                     fontSize = 12.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     text = songsCountFormatText,
                     fontSize = 11.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else Color.Gray
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.68f) else scheme.onSurfaceVariant.copy(alpha = 0.72f),
                 )
             }
         }
@@ -456,14 +455,15 @@ fun MusicList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 160.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 160.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { SearchResultsHeader(count = musics.size) }
         items(musics) { music ->
             MusicItem(
                 music = music,
                 onClick = { onMusicClick(music) },
-                onPlayNext = { onPlayNext(music) }
+                onPlayNext = { onPlayNext(music) },
             )
         }
     }
@@ -475,116 +475,124 @@ fun MusicItem(
     onClick: () -> Unit,
     onPlayNext: () -> Unit = {}
 ) {
-    // Preload strings
     val coverText = stringResource(id = R.string.content_description_cover)
-    val authorPrefixText = stringResource(id = R.string.author_prefix, music.artist)
     val playNextText = stringResource(id = R.string.play_next)
     val moreActionsText = stringResource(id = R.string.more)
-    
+    val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
-    val scope = rememberCoroutineScope()
     var coverUrl by remember { mutableStateOf<String?>(null) }
     var actionsExpanded by remember { mutableStateOf(false) }
     val isDarkTheme = isAppDarkTheme()
-    
-    androidx.compose.runtime.LaunchedEffect(music.id) {
-        scope.launch {
-            coverUrl = musicApi.getMusicCoverUrl(music)
-            Log.d("MusicItem", "封面URL: $coverUrl, music.coverFilePath: ${music.coverFilePath}")
-        }
+    val (interactionSource, pressScale) = rememberSearchPressScale()
+
+    LaunchedEffect(music.id) {
+        coverUrl = musicApi.getMusicCoverUrl(music)
     }
-    
+
     val listTint = LiquidGlassDefaults.screenListCard
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+            .height(64.dp)
+            .scale(pressScale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(18.dp),
         backgroundAlpha = listTint.background(isDarkTheme),
         borderAlpha = listTint.border(isDarkTheme),
-        highlightAlpha = listTint.highlight(isDarkTheme)
+        highlightAlpha = listTint.highlight(isDarkTheme),
+        borderColor = if (isDarkTheme) Color.White.copy(alpha = 0.14f) else scheme.outline,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(start = 8.dp, end = 4.dp, top = 7.dp, bottom = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(50.dp)
                     .background(
-                        color = RoseRed.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = (if (isDarkTheme) LightRose else RoseRed).copy(alpha = 0.10f),
+                        shape = RoundedCornerShape(13.dp),
                     ),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 if (!coverUrl.isNullOrEmpty()) {
-                    coil3.compose.AsyncImage(
+                    AsyncImage(
                         model = coverUrl,
                         contentDescription = coverText,
-                        modifier = Modifier.size(44.dp),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(13.dp)),
+                        contentScale = ContentScale.Crop,
                     )
                 } else {
                     Image(
                         painter = painterResource(R.drawable.music),
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.composeWidth(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = music.title,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
                     )
                     LrcBadge(
                         visible = music.lrc,
-                        tint = if (isDarkTheme) Color(0xFFB8A0FF) else Color(0xFF9370DB)
+                        tint = if (isDarkTheme) Color(0xFFB8A0FF) else Color(0xFF9370DB),
                     )
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = authorPrefixText,
+                    text = music.artist,
                     fontSize = 13.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
-                    maxLines = 1
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
 
             Box {
-                IconButton(
-                    onClick = { actionsExpanded = true },
-                    modifier = Modifier.size(32.dp)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(if (isDarkTheme) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.04f))
+                        .clickable { actionsExpanded = true },
+                    contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = moreActionsText,
-                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.85f) else Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant,
+                        modifier = Modifier.size(19.dp),
                     )
                 }
                 DropdownMenu(
                     expanded = actionsExpanded,
-                    onDismissRequest = { actionsExpanded = false }
+                    onDismissRequest = { actionsExpanded = false },
                 ) {
                     DropdownMenuItem(
                         text = { Text(playNextText, fontSize = 14.sp) },
@@ -592,13 +600,13 @@ fun MusicItem(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
                             )
                         },
                         onClick = {
                             actionsExpanded = false
                             onPlayNext()
-                        }
+                        },
                     )
                 }
             }
@@ -612,84 +620,285 @@ fun SearchHistoryList(
     onItemClick: (String) -> Unit,
     onClearClick: () -> Unit
 ) {
-    // Preload strings
     val searchHistoryText = stringResource(id = R.string.search_history)
     val clearHistoryText = stringResource(id = R.string.clear_history)
-    
+    val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isAppDarkTheme()
-    
-    Column(
+    val accent = if (isDarkTheme) LightRose else RoseRed
+    val tint = LiquidGlassDefaults.homeHeroShortcutCard
+    val titleColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+
+    LazyColumn(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+            .fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 220.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        item(key = "history_group") {
+            GlassSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                backgroundAlpha = tint.tint.background(isDarkTheme),
+                borderAlpha = tint.tint.border(isDarkTheme),
+                highlightAlpha = tint.tint.highlight(isDarkTheme),
+                borderColor = if (isDarkTheme) Color.White.copy(alpha = 0.14f) else scheme.outline,
+                liquidBlur = tint.liquid.blur,
+                liquidLensHeight = tint.liquid.lensHeight,
+                liquidLensAmount = tint.liquid.lensAmount,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = searchHistoryText,
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = searchHistoryText,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            IconButton(
-                onClick = onClearClick,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Clear,
-                    contentDescription = clearHistoryText,
-                    tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            contentPadding = PaddingValues(bottom = 220.dp)
-        ) {
-            items(history) { item ->
-                val chipTint = LiquidGlassDefaults.searchHistoryRow
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .clickable { onItemClick(item.query) },
-                    shape = RoundedCornerShape(10.dp),
-                    backgroundAlpha = chipTint.background(isDarkTheme),
-                    borderAlpha = chipTint.border(isDarkTheme),
-                    highlightAlpha = chipTint.highlight(isDarkTheme)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight()
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(start = 18.dp, top = 14.dp, end = 8.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = item.query,
-                            fontSize = 14.sp,
-                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurface
+                            text = searchHistoryText,
+                            color = titleColor,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = clearHistoryText,
+                            color = accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(onClick = onClearClick)
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                        )
+                    }
+                    history.forEachIndexed { index, item ->
+                        if (index > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 48.dp)
+                                    .height(0.5.dp)
+                                    .background(mutedColor.copy(alpha = 0.14f)),
+                            )
+                        }
+                        SearchHistoryRow(
+                            query = item.query,
+                            titleColor = titleColor,
+                            mutedColor = mutedColor,
+                            onClick = { onItemClick(item.query) },
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchHistoryRow(
+    query: String,
+    titleColor: Color,
+    mutedColor: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = mutedColor.copy(alpha = 0.72f),
+            modifier = Modifier.size(17.dp),
+        )
+        Spacer(modifier = Modifier.width(13.dp))
+        Text(
+            text = query,
+            color = titleColor,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun SearchResultsHeader(count: Int) {
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isAppDarkTheme()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 2.dp, top = 8.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.search_results_title),
+            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
+        )
+        Text(
+            text = stringResource(R.string.search_result_count, count),
+            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.78f) else scheme.onSurfaceVariant,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun SearchStatePanel(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accent: Color,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isAppDarkTheme()
+    val tint = LiquidGlassDefaults.homeHeroShortcutCard
+    val titleColor = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+    val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.82f) else scheme.onSurfaceVariant
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        GlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            backgroundAlpha = tint.tint.background(isDarkTheme),
+            borderAlpha = tint.tint.border(isDarkTheme),
+            highlightAlpha = tint.tint.highlight(isDarkTheme),
+            borderColor = if (isDarkTheme) accent.copy(alpha = 0.42f) else scheme.outline,
+            liquidBlur = tint.liquid.blur,
+            liquidLensHeight = tint.liquid.lensHeight,
+            liquidLensAmount = tint.liquid.lensAmount,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(accent.copy(alpha = if (isDarkTheme) 0.16f else 0.10f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = title,
+                    color = titleColor,
+                    fontSize = 20.sp,
+                    lineHeight = 25.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = subtitle,
+                    color = mutedColor,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchLoadingState() {
+    val scheme = MaterialTheme.colorScheme
+    val isDarkTheme = isAppDarkTheme()
+    val tint = LiquidGlassDefaults.screenListCard
+    val mutedColor = if (isDarkTheme) Color(0xFFB8B8D1) else scheme.onSurfaceVariant
+    val transition = rememberInfiniteTransition(label = "searchSkeleton")
+    val shimmer by transition.animateFloat(
+        initialValue = 0.42f,
+        targetValue = 0.86f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(820),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "searchSkeletonAlpha",
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 160.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.search_loading),
+                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.86f) else scheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(start = 2.dp, bottom = 2.dp),
+            )
+        }
+        items(5) { index ->
+            GlassSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .alpha(shimmer),
+                shape = RoundedCornerShape(18.dp),
+                backgroundAlpha = tint.background(isDarkTheme),
+                borderAlpha = tint.border(isDarkTheme),
+                highlightAlpha = tint.highlight(isDarkTheme),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(mutedColor.copy(alpha = 0.12f)),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(if (index % 2 == 0) 0.58f else 0.72f)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(mutedColor.copy(alpha = 0.15f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(if (index % 2 == 0) 0.38f else 0.46f)
+                                .height(9.dp)
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(mutedColor.copy(alpha = 0.10f)),
                         )
                     }
                 }
@@ -698,35 +907,42 @@ fun SearchHistoryList(
     }
 }
 
-private fun performSearch(
-    api: MusicApi,
-    query: String,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onResult: (List<Music>, String?) -> Unit
-) {
-    scope.launch {
-        val result = api.searchMusic(query)
-        result.fold(
-            onSuccess = { musics ->
-                Log.d("SearchScreen", "请求成功 - 找到 ${musics.size} 条结果")
-                onResult(musics, null)
-            },
-onFailure = { error ->
-                Log.e("SearchScreen", "请求失败 - ${error.message}${error.protocolLogSuffixOrEmpty()}")
-                onResult(emptyList(), error.message)
-            }
-        )
-    }
+@Composable
+private fun rememberSearchPressScale(): Pair<MutableInteractionSource, Float> {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "searchRowPress",
+    )
+    return interactionSource to scale
 }
 
-suspend fun performPlaylistSearch(
+private suspend fun performSearch(
+    api: MusicApi,
+    query: String,
+): Pair<List<Music>, String?> {
+    return api.searchMusic(query).fold(
+        onSuccess = { musics ->
+            Log.d("SearchScreen", "请求成功 - 找到 ${musics.size} 条结果")
+            musics to null
+        },
+        onFailure = { error ->
+            Log.e("SearchScreen", "请求失败 - ${error.message}${error.protocolLogSuffixOrEmpty()}")
+            emptyList<Music>() to error.message
+        }
+    )
+}
+
+private suspend fun performPlaylistSearch(
     query: String,
     context: android.content.Context,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onResult: (List<com.neko.music.data.api.PlaylistInfo>, String?) -> Unit
-) {
-    scope.launch {
-        try {
+): Pair<List<com.neko.music.data.api.PlaylistInfo>, String?> {
+    return try {
             val client = HttpClient(OkHttp) {
                 installNekoClientHeader()
                 engine { config { preferHttp2AlpnOverHttp1() } }
@@ -781,28 +997,27 @@ suspend fun performPlaylistSearch(
                     }
                     
                     Log.d("SearchScreen", "搜索到 ${playlists.size} 个歌单${response.protocolLogSuffix()}")
-                    onResult(playlists, null)
+                    playlists to null
                 } else {
-                    onResult(emptyList(), context.getString(R.string.no_search_playlist_found))
+                    emptyList<com.neko.music.data.api.PlaylistInfo>() to
+                        context.getString(R.string.no_search_playlist_found)
                 }
             } else {
-                onResult(emptyList(), context.getString(R.string.search_failed))
+                emptyList<com.neko.music.data.api.PlaylistInfo>() to context.getString(R.string.search_failed)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("SearchScreen", "歌单搜索请求失败 - ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
-            onResult(emptyList(), e.message)
+            emptyList<com.neko.music.data.api.PlaylistInfo>() to e.message
         }
-    }
 }
 
-suspend fun performArtistSearch(
+private suspend fun performArtistSearch(
     query: String,
     context: android.content.Context,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onResult: (List<com.neko.music.data.model.Artist>, String?) -> Unit
-) {
-    scope.launch {
-        try {
+): Pair<List<com.neko.music.data.model.Artist>, String?> {
+    return try {
             val client = HttpClient(OkHttp) {
                 installNekoClientHeader()
                 engine { config { preferHttp2AlpnOverHttp1() } }
@@ -871,61 +1086,20 @@ suspend fun performArtistSearch(
                     }
                     
                     Log.d("SearchScreen", "搜索到 ${artists.size} 个歌手: $name${response.protocolLogSuffix()}")
-                    onResult(artists, null)
+                    artists to null
                 } else {
-                    onResult(emptyList(), context.getString(R.string.no_search_artist_found))
+                    emptyList<com.neko.music.data.model.Artist>() to
+                        context.getString(R.string.no_search_artist_found)
                 }
             } else {
-                onResult(emptyList(), context.getString(R.string.search_failed))
+                emptyList<com.neko.music.data.model.Artist>() to context.getString(R.string.search_failed)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("SearchScreen", "歌手搜索请求失败 - ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
-            onResult(emptyList(), e.message)
+            emptyList<com.neko.music.data.model.Artist>() to e.message
         }
-    }
-}
-
-@Composable
-fun SearchTypeButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val isDarkTheme = isAppDarkTheme()
-
-    Column(
-        modifier = Modifier
-            .height(36.dp)
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = androidx.compose.foundation.interaction.MutableInteractionSource()
-            )
-            .padding(horizontal = 16.dp, vertical = 0.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            color = if (isSelected) {
-                Color.White.copy(alpha = 0.98f)
-            } else {
-                if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            },
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .height(3.dp)
-                .composeWidth(if (isSelected) 18.dp else 0.dp)
-                .background(
-                    color = Color.White.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(1.5.dp)
-                )
-        )
-    }
 }
 
 @Composable
@@ -935,18 +1109,19 @@ fun ArtistList(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            top = 16.dp,
-            end = 16.dp,
-            bottom = 160.dp
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            top = 8.dp,
+            end = 20.dp,
+            bottom = 160.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { SearchResultsHeader(count = artists.size) }
         items(artists) { artist ->
             ArtistItem(
                 artist = artist,
-                onClick = { onArtistClick(artist) }
+                onClick = { onArtistClick(artist) },
             )
         }
     }
@@ -957,44 +1132,75 @@ fun ArtistItem(
     artist: com.neko.music.data.model.Artist,
     onClick: () -> Unit
 ) {
-    // Preload strings
     val songsCountSuffixText = stringResource(id = R.string.songs_count_suffix, artist.musicCount)
-    
+    val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isAppDarkTheme()
-
     val listTint = LiquidGlassDefaults.screenListCard
+    val (interactionSource, pressScale) = rememberSearchPressScale()
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+            .scale(pressScale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(18.dp),
         backgroundAlpha = listTint.background(isDarkTheme),
         borderAlpha = listTint.border(isDarkTheme),
-        highlightAlpha = listTint.highlight(isDarkTheme)
+        highlightAlpha = listTint.highlight(isDarkTheme),
+        borderColor = if (isDarkTheme) Color.White.copy(alpha = 0.14f) else scheme.outline,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 歌手信息
+            if (!artist.coverPath.isNullOrBlank()) {
+                AsyncImage(
+                    model = UrlConfig.buildFullUrl(artist.coverPath),
+                    contentDescription = artist.name,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background((if (isDarkTheme) LightRose else RoseRed).copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = if (isDarkTheme) LightRose else RoseRed,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = artist.name,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
                     text = songsCountSuffixText,
                     fontSize = 12.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
                 )
             }
         }

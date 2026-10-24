@@ -261,6 +261,14 @@
     <string name="search">搜搜看喵</string>
     <string name="search_music">找找音乐喵</string>
     <string name="search_music_artist_album">搜音乐、歌手、专辑什么的喵...</string>
+    <string name="search_clear_query">清空搜索内容喵</string>
+    <string name="search_results_title">搜索结果喵</string>
+    <string name="search_result_count">找到 %1$d 个结果喵</string>
+    <string name="search_loading">正在搜索喵…</string>
+    <string name="search_empty_hint">换个关键词再试试喵</string>
+    <string name="search_history_empty_title">想听什么喵？</string>
+    <string name="search_history_empty_hint">搜歌曲、歌单或艺人喵</string>
+    <string name="search_error_hint">检查网络后再试一次喵</string>
     <string name="single">单只喵</string>
     <string name="playlist">本本喵</string>
     <string name="artist">艺人喵</string>
