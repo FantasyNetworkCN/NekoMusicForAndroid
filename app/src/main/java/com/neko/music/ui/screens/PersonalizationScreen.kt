@@ -74,9 +74,11 @@ import com.neko.music.config.AppConfig
 import com.neko.music.data.manager.AppBackgroundKind
 import com.neko.music.data.manager.AppPageBackgroundStore
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LiquidGlassUiScale
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.LightRose
 import com.neko.music.ui.theme.MintGreen
@@ -736,6 +738,8 @@ private fun LiquidGlassStrengthSlider(
     isDarkChrome: Boolean,
 ) {
     val range = LiquidGlassUiScale.StrengthMin..LiquidGlassUiScale.StrengthMax
+    val backdrop = LocalLiquidLayerBackdrop.current
+    val useLiquidStyle = isLiquidGlassEffectActive(backdrop)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -756,11 +760,23 @@ private fun LiquidGlassStrengthSlider(
                 color = if (isDarkChrome) Color(0xFFB8B8D1) else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range
-        )
+        if (useLiquidStyle && backdrop != null) {
+            LiquidGlassSlider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+                backdrop = backdrop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+            )
+        } else {
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+            )
+        }
     }
 }
 

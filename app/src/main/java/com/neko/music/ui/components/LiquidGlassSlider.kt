@@ -54,6 +54,7 @@ import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import com.neko.music.ui.theme.RoseRed
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
 
 private val TrackHeight = 6.dp
 private val ThumbWidth = 40.dp
@@ -70,6 +71,7 @@ private val ThumbHeight = 24.dp
 fun LiquidGlassSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -85,16 +87,16 @@ fun LiquidGlassSlider(
     val trackBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
-    val externalValue = value.coerceIn(0f, 1f)
+    val externalValue = value.coerceIn(valueRange)
     val latestOnValueChange by rememberUpdatedState(onValueChange)
     var displayedValue by remember { mutableFloatStateOf(externalValue) }
     var isDragging by remember { mutableStateOf(false) }
     val animationScope = rememberCoroutineScope()
-    val dragAnimation = remember(animationScope) {
+    val dragAnimation = remember(animationScope, valueRange) {
         DampedDragAnimation(
             animationScope = animationScope,
             initialValue = displayedValue,
-            valueRange = 0f..1f,
+            valueRange = valueRange,
             visibilityThreshold = 0.001f,
             initialScale = 1f,
             pressedScale = 1.5f,
@@ -124,19 +126,26 @@ fun LiquidGlassSlider(
             .fillMaxWidth()
             .then(
                 if (enabled) {
-                    Modifier.pointerInput(isLtr) {
+                    Modifier.pointerInput(isLtr, valueRange) {
                         fun valueAt(positionX: Float): Float {
                             val fraction = (positionX / size.width.coerceAtLeast(1))
                                 .fastCoerceIn(0f, 1f)
-                            return if (isLtr) fraction else 1f - fraction
+                            val span = valueRange.endInclusive - valueRange.start
+                            return if (isLtr) {
+                                valueRange.start + span * fraction
+                            } else {
+                                valueRange.endInclusive - span * fraction
+                            }
                         }
 
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            isDragging = true
-                            dragAnimation.press()
-                            displayedValue = valueAt(down.position.x)
-                            latestOnValueChange(displayedValue)
+                            var horizontalDrag = false
+
+                            fun commit(positionX: Float) {
+                                displayedValue = valueAt(positionX)
+                                latestOnValueChange(displayedValue)
+                            }
 
                             try {
                                 while (true) {
@@ -144,20 +153,38 @@ fun LiquidGlassSlider(
                                     val change = event.changes
                                         .fastFirstOrNull { it.id == down.id } ?: break
                                     if (!change.pressed) {
-                                        displayedValue = valueAt(change.position.x)
-                                        latestOnValueChange(displayedValue)
+                                        if (!horizontalDrag) {
+                                            isDragging = true
+                                            dragAnimation.press()
+                                        }
+                                        commit(change.position.x)
                                         change.consume()
                                         break
                                     }
-                                    if (change.position != change.previousPosition) {
-                                        displayedValue = valueAt(change.position.x)
-                                        latestOnValueChange(displayedValue)
+
+                                    if (horizontalDrag) {
+                                        commit(change.position.x)
                                         change.consume()
+                                    } else {
+                                        val delta = change.position - down.position
+                                        if (delta.getDistance() > viewConfiguration.touchSlop) {
+                                            if (abs(delta.x) > abs(delta.y)) {
+                                                horizontalDrag = true
+                                                isDragging = true
+                                                dragAnimation.press()
+                                                commit(change.position.x)
+                                                change.consume()
+                                            } else {
+                                                break
+                                            }
+                                        }
                                     }
                                 }
                             } finally {
-                                isDragging = false
-                                dragAnimation.release()
+                                if (isDragging) {
+                                    isDragging = false
+                                    dragAnimation.release()
+                                }
                             }
                         }
                     }
@@ -174,8 +201,8 @@ fun LiquidGlassSlider(
                 .layerBackdrop(trackBackdrop)
                 .semantics {
                     progressBarRangeInfo = ProgressBarRangeInfo(
-                        current = value.coerceIn(0f, 1f),
-                        range = 0f..1f,
+                        current = externalValue,
+                        range = valueRange,
                     )
                 },
         ) {
