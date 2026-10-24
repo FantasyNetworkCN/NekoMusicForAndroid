@@ -71,13 +71,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
-import com.google.zxing.MultiFormatReader
 import com.google.zxing.NotFoundException
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.QRCodeReader
 import com.neko.music.R
 import com.neko.music.data.api.QrLoginApi
 import com.neko.music.data.manager.TokenManager
@@ -462,14 +461,8 @@ private class QrCodeAnalyzer(
     private val onDecoded: (String) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
-    private val reader = MultiFormatReader().apply {
-        setHints(
-            mapOf(
-                DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
-                DecodeHintType.TRY_HARDER to true
-            )
-        )
-    }
+    private val reader = QRCodeReader()
+    private val hints = mapOf(DecodeHintType.TRY_HARDER to true)
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun analyze(image: ImageProxy) {
@@ -483,7 +476,7 @@ private class QrCodeAnalyzer(
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
 
             val source = RGBLuminanceSource(bitmap.width, bitmap.height, pixels)
-            val result = reader.decodeWithState(BinaryBitmap(HybridBinarizer(source)))
+            val result = reader.decode(BinaryBitmap(HybridBinarizer(source)), hints)
             val text = result.text
             if (!text.isNullOrBlank()) {
                 mainHandler.post { onDecoded(text) }
@@ -493,7 +486,6 @@ private class QrCodeAnalyzer(
         } catch (e: Exception) {
             Log.w("QrScanScreen", "二维码解码异常", e)
         } finally {
-            reader.reset()
             image.close()
         }
     }

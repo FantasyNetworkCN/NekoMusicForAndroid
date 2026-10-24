@@ -17,10 +17,8 @@
     <string name="cached_songs" formatted="false">%1$d songs cached (%2$s)</string>
     <string name="focus_lock">Focus Lock</string>
     <string name="focus_lock_subtitle">Won\'t be interrupted by other apps when enabled, allows simultaneous playback</string>
-    <string name="desktop_lyric_subtitle">Display the currently playing lyrics at the top of the screen</string>
     
     <string name="language">Language</string>
-    <string name="language_subtitle">Select app display language</string>
     <string name="language_follow_system">Follow System</string>
     <string name="language_zh">简体中文</string>
     <string name="language_nya">喵语中文</string>
@@ -66,14 +64,8 @@
     
     <!-- Version Info -->
     <string name="version">Version</string>
-    <string name="update_available">New Version Available</string>
-    <string name="update_version">New Version: %s</string>
-    <string name="update_code">Version Code: %d</string>
     <string name="update_now">Update Now</string>
-    <string name="update_later">Later</string>
     <string name="downloading_update">Downloading Update</string>
-    <string name="update_success">Download Complete</string>
-    <string name="update_installing">Installing Update…</string>
     <string name="update_failed">Update Failed</string>
     
     <!-- Mine Screen -->
@@ -83,7 +75,6 @@
     <string name="mine_section_account">Account &amp; Settings</string>
     <string name="mine_account_id_format">ID: %d</string>
     <string name="mine_login_subtitle">Sign in to sync favorites, playlists and history</string>
-    <string name="upload">Upload</string>
     <string name="my_music">My Music</string>
     <string name="my_favorites">My Favorites</string>
     <string name="recent_play">Recently Played</string>
@@ -104,11 +95,7 @@
     <string name="get_favorites_failed">Failed to get favorites</string>
     <string name="login_failed">Login failed: %s</string>
     <string name="login_now">Login Now</string>
-    <string name="favorite_success">Added to favorites</string>
-    <string name="unfavorite_success">Removed from favorites</string>
     <string name="avatar_upload_success">Avatar uploaded successfully</string>
-    <string name="add_favorite">Favorite</string>
-    <string name="remove_favorite">Unfavorite</string>
     
     <!-- Footer -->
     <string name="footer_icp">黔ICP备2026007098号 For copyright issues contact support@nekocore.cn</string>
@@ -121,7 +108,6 @@
     <string name="pause">Pause</string>
     <string name="previous">Previous</string>
     <string name="next">Next</string>
-    <string name="audio_quality_standard">Standard</string>
     <string name="favorite">Favorite</string>
     <string name="unfavorite">Unfavorite</string>
     
@@ -144,7 +130,6 @@
     <string name="register_failed">Registration failed: %s</string>
     <string name="send_verification_code">Get Verification Code</string>
     <string name="retry_after_seconds">Retry in %d seconds</string>
-    <string name="send_verification_code_failed">Failed to send verification code: %s</string>
     <string name="please_fill_all_fields">Please fill all fields</string>
     <string name="password_length_error">Password length must be 6-30 characters</string>
     <string name="password_mismatch">Passwords do not match</string>
@@ -153,8 +138,6 @@
     <string name="captcha_security_title">Security check</string>
     <string name="captcha_security_desc">Drag the slider to align the puzzle; release to verify and send the code.</string>
     <string name="captcha_refresh">New image</string>
-    <string name="captcha_confirm">Confirm</string>
-    <string name="captcha_cancel">Cancel</string>
     <string name="captcha_retry">Retry</string>
     <string name="captcha_image_decode_error">Could not decode puzzle images. Tap Retry or New image.</string>
     <string name="captcha_reloading">Loading a new puzzle…</string>
@@ -165,12 +148,9 @@
 
     <!-- Forgot Password -->
     <string name="forgot_password">Forgot password</string>
-    <string name="reset_password">Reset password</string>
     <string name="enter_email_to_reset">Enter your email and we will send a verification code</string>
-    <string name="enter_code_to_reset">Enter the verification code and your new password</string>
     <string name="send_reset_code">Send verification code</string>
     <string name="reset_password_now">Reset now</string>
-    <string name="reset_password_success">Password reset successfully. Please sign in with your new password</string>
     <string name="reset_password_failed">Failed to reset password: %s</string>
     <string name="send_reset_code_failed">Failed to send verification code: %s</string>
     <string name="please_enter_email_for_reset">Please enter email</string>
@@ -186,7 +166,6 @@
     <string name="drag_scale_avatar">Drag and scale image to select avatar area</string>
     <string name="complete">Complete</string>
     <string name="more">More</string>
-    <string name="downloading_update_progress">Downloading Update</string>
     <string name="downloading_update_failed">Download failed, please try again later</string>
     <string name="downloading_update_failed_msg">Download failed: %s</string>
     <string name="update_download_bytes_pair" formatted="false">%1$s / %2$s</string>
@@ -194,15 +173,12 @@
     <string name="update_download_percent">%d%%</string>
     <string name="new_version_found">New Version Available</string>
     <string name="new_version">New Version: %s</string>
-    <string name="version_code_display">Version Code: %d</string>
     <string name="later">Later</string>
     <string name="download_complete">Download Complete</string>
-    <string name="update_failed_msg">❌ Update Failed</string>
 
 
     <!-- Account Info -->
     <string name="account_info">Account Info</string>
-    <string name="avatar">Avatar</string>
     <string name="user_avatar">User Avatar</string>
     <string name="default_avatar">Default Avatar</string>
     <string name="change_avatar">Change Avatar</string>
@@ -227,46 +203,34 @@
     <string name="operation_success">Operation Successful</string>
     <string name="avatar_update_success">Avatar Updated Successfully</string>
     <string name="crop_avatar">Crop Avatar</string>
-    <string name="password_update_success">Password Changed Successfully</string>
-    <string name="password_update_failed">Failed to change password: %s</string>
 
     <!-- Player -->
-    <string name="click_cover_show_lyrics">Click cover to view lyrics</string>
     <string name="no_lyrics">No lyrics available</string>
     <string name="has_lyrics">Has lyrics</string>
     <string name="list_loop">List Loop</string>
     <string name="single_loop">Single Loop</string>
     <string name="shuffle_play">Shuffle</string>
-    <string name="share">Share</string>
     <string name="copy_link">Copy Link</string>
     <string name="link_copied">Link copied</string>
     <string name="copy_failed">Copy failed</string>
     <string name="download">Download</string>
-    <string name="download_success">Download successful</string>
-    <string name="download_failed">Download failed: %s</string>
     <string name="share_to_twitter">Share to X</string>
     <string name="share_to_qq">Share to QQ</string>
     <string name="qq_not_installed">QQ is not installed</string>
     <string name="share_failed">Share failed</string>
     <string name="playback_speed">Playback Speed</string>
-    <string name="playback_speed_x">Speed: %dx</string>
     <string name="sleep_timer">Sleep Timer</string>
     <string name="sleep_timer_cancelled">Sleep timer cancelled</string>
     <string name="sleep_timer_hours_minutes" formatted="false">Close after %dh %dm</string>
     <string name="sleep_timer_hours">Close after %dh</string>
     <string name="sleep_timer_minutes">Close after %dm</string>
     <string name="add_to_playlist">Add to Playlist</string>
-    <string name="added_to_playlist">Added to %s</string>
     <string name="create_playlist">Create Playlist</string>
     <string name="playlist_name">Playlist Name</string>
     <string name="create_success">Created successfully</string>
     <string name="please_login_first_short">Please login first</string>
-    <string name="add_failed">Failed to add: %s</string>
     <string name="unknown_song">Unknown Song</string>
     <string name="unknown_artist">Unknown Artist</string>
-    <string name="no_current_play">Not Playing</string>
-    <string name="please_login_to_favorite">Please login first</string>
-    <string name="play_all_count">Play All (%d)</string>
 
     <!-- Search -->
     <string name="search">Search</string>
@@ -287,12 +251,10 @@
     <string name="no_search_music">No music found</string>
     <string name="no_search_playlist">No playlists found</string>
     <string name="no_search_artist">No artists found</string>
-    <string name="no_search_history_yet">No search history yet</string>
     <string name="search_history">Search History</string>
     <string name="clear_history">Clear History</string>
     <string name="no_description_nya">No description yet Nya!</string>
     <string name="songs_count">%d songs</string>
-    <string name="author_prefix">Artist: %s</string>
     <string name="no_search_playlist_found">No playlists found</string>
     <string name="no_search_artist_found">No artists found</string>
 
@@ -300,32 +262,16 @@
     <string name="loading_data">Loading...</string>
     <string name="get_data_failed">Failed to get data: %s</string>
     <string name="album_cover">Album Cover</string>
-    <string name="music_note">Music</string>
     <string name="empty">Empty</string>
     <string name="uploading_progress">Uploading %d%%</string>
 
     <!-- Playlist Detail -->
     <string name="playlist_cover">Playlist Cover</string>
     <string name="no_description_click_to_edit">No description, click to edit Nya!</string>
-    <string name="creator">Creator</string>
-    <string name="creator_id">Creator ID</string>
-    <string name="creator_avatar">Creator Avatar</string>
-    <string name="creator_with_name">Creator: %s</string>
     <string name="no_songs">No songs</string>
-    <string name="edit_playlist_description">Edit Playlist Description</string>
-    <string name="enter_playlist_description">Enter playlist description</string>
-    <string name="description_updated">Description updated</string>
-    <string name="description_update_failed">Update failed: %s</string>
-    <string name="removed_from_playlist">Removed from playlist</string>
-    <string name="remove_failed">Remove failed: %s</string>
-    <string name="load_playlist_failed">Load failed: %s</string>
-    <string name="add_favorite_success">Added to favorites</string>
     <string name="remove_favorite_success">Removed from favorites</string>
-    <string name="operation_failed">Operation failed: %s</string>
 
     <!-- Home -->
-    <string name="explore_music_world">Explore Music World</string>
-    <string name="discover_music_you_like">Discover Music You Like</string>
     <string name="recommended_playlists">Recommended Playlists</string>
     <string name="home_listen_now">Listen Now</string>
     <string name="home_recommended_hint">Playlists and charts picked for you</string>
@@ -333,26 +279,9 @@
     <string name="play_all">Play All</string>
     <string name="go_discover">Go discover music you like</string>
     <string name="try_other_keywords">Try other keywords</string>
-    <string name="search_box_clicked">Search box clicked</string>
-    <string name="loading_recommended">Loading recommended playlists...</string>
-    <string name="loading_ranking">Loading hot music...</string>
-    <string name="loading_latest">Loading latest music...</string>
-    <string name="recommended_loaded">Recommended playlists loaded: %d</string>
-    <string name="recommended_failed">Failed to load recommended playlists: %s</string>
-    <string name="ranking_loaded">Hot music loaded: %d songs</string>
-    <string name="ranking_failed">Failed to load hot music: %s</string>
-    <string name="latest_loaded">Latest music loaded: %d songs</string>
-    <string name="latest_failed">Failed to load latest music: %s</string>
-    <string name="check_update_failed">Check update failed</string>
-    <string name="download_update_failed">Download update failed</string>
-    <string name="download_update_retry">Download failed, please try again later</string>
-    <string name="download_update_failed_msg">Download failed: %s</string>
-    <string name="check_update_failed_msg">Check update failed: %s</string>
-    <string name="recommended_playlists_exception">Recommended playlists exception: %s</string>
     <string name="installing_update">Installing update...</string>
     <string name="install_permission_denied">Install permission denied</string>
     <string name="install_failed">Installation failed</string>
-    <string name="update_dialog">New Version Available</string>
     <string name="version_code">Version Code: %d</string>
 
     <!-- Playlist -->
@@ -425,7 +354,6 @@
     <string name="confirm_delete_cache">Are you sure to delete this song cache?</string>
     <string name="clear">Clear</string>
     <string name="delete">Delete</string>
-    <string name="id_label">ID: %s</string>
 
     <!-- Discover -->
     <string name="discover">Discover</string>
@@ -475,7 +403,6 @@
     <string name="import_source_qq">QQ Music</string>
     <string name="import_source_kugou">KuGou Music</string>
     <string name="import_source_qishui">Qishui Music</string>
-    <string name="not_supported">Not supported yet</string>
     <string name="import_netease_playlist_title">Import NetEase playlist</string>
     <string name="import_qq_playlist_title">Import QQ Music playlists</string>
     <string name="import_kugou_playlist_title">Import KuGou Music playlists</string>
@@ -488,22 +415,10 @@
     <string name="qishui_playlist_id_hint">Paste the Qishui playlist link, short link, or ID</string>
     <string name="import_kugou_playlist_id_invalid">Playlist ID not found. Please paste the KuGou Music share link or playlist ID.</string>
     <string name="import_qishui_playlist_id_invalid">Invalid Qishui playlist link or ID, or the input is too long.</string>
-    <string name="import_netease_fetch_failed">Failed to fetch playlist. Try again later.</string>
-    <string name="import_qq_fetch_failed">Playlist syncing failed, please try again later.</string>
-    <string name="import_netease_matching">Matching tracks in library…</string>
     <string name="import_netease_processing">Matching and importing…</string>
-    <string name="import_netease_match_success">Done: %1$d matched, %2$d not found</string>
-    <string name="import_netease_match_failed">Match failed: %1$s</string>
-    <string name="import_netease_match_no_tracks">No tracks to match</string>
-    <string name="import_netease_match_busy">Server is busy. Please try again later.</string>
-    <string name="import_netease_match_failed_dialog_title">Tracks not matched</string>
-    <string name="import_netease_match_failed_dialog_summary">%1$d track(s) were not found in the library</string>
-    <string name="import_netease_match_failed_unknown_artist">Unknown artist</string>
-    <string name="import_netease_importing">Importing…</string>
     <string name="import_netease_import_success">Imported %1$d track(s)</string>
     <string name="import_netease_import_partial">Imported %1$d, %2$d could not be added</string>
     <string name="import_netease_import_failed">Import failed: %1$s</string>
-    <string name="import_netease_favorite_playlist_not_supported">Cannot import into a favorited playlist. Choose your own playlist or Favorites.</string>
     <string name="import_netease_no_matched_to_import">No matched tracks to import</string>
     <string name="import_destination_label">Import to</string>
     <string name="import_destination_new_playlist">New playlist</string>
@@ -514,10 +429,7 @@
     <string name="delete_playlist_confirm_message">Delete “%1$s”? This cannot be undone.</string>
     <string name="create_playlist_dialog">Create Playlist</string>
     <string name="loading_failed">Load failed: %s</string>
-    <string name="delete_failed_msg">Delete failed: %s</string>
     <string name="my_favorites_label">My Favorites</string>
-    <string name="loading_data_failed">Loading failed: %s</string>
-    <string name="refresh_failed">Refresh failed: %s</string>
 
     <!-- Playlist Detail -->
     <string name="songs_count_label">%d songs</string>
@@ -534,8 +446,6 @@
     <string name="add_to_favorites_success">Added to favorites</string>
     <string name="remove_from_favorites_success">Removed from favorites</string>
     <string name="operation_failed_msg">Operation failed: %s</string>
-    <string name="share_song">Share</string>
-    <string name="favorite_song">Favorite</string>
     <string name="unfavorite_song">Unfavorite</string>
     <string name="creator_info">Creator: %s</string>
     <string name="creator_id_info">Creator ID: %d</string>
@@ -608,9 +518,6 @@
     <string name="network_error">Network connection seems to have problems</string>
     <string name="retry">Retry</string>
     <string name="no_latest_music">No latest music</string>
-    <string name="minutes_ago">%dm ago</string>
-    <string name="hours_ago">%dh ago</string>
-    <string name="days_ago">%dd ago</string>
 
     <!-- Playlist Detail -->
 
@@ -622,7 +529,6 @@
     <string name="add_to_playlist_failed">Failed to add: %s</string>
     <string name="create_playlist_failed">Failed to create: %s</string>
     <string name="play_failed">Play failed: %s</string>
-    <string name="play_all_failed">Play all failed</string>
     <string name="download_failed_format">Download failed: %s</string>
     <string name="loading_failed_format">Loading failed: %s</string>
     <string name="refresh_failed_format">Refresh failed: %s</string>
@@ -634,7 +540,6 @@
     <string name="minutes_ago_format">%dm ago</string>
     <string name="hours_ago_format">%dh ago</string>
     <string name="days_ago_format">%dd ago</string>
-    <string name="minutes_unit">minutes</string>
 
     <!-- Share -->
     <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko Music https://music.nekocore.cn/detail/%3$d</string>
@@ -642,8 +547,6 @@
     <string name="share_playlist">Share Playlist</string>
     <string name="removed_from_playlist_success">Removed from playlist</string>
     <string name="upload_music">Upload music</string>
-    <string name="uploading">Uploading...</string>
-    <string name="upload_success">Upload successful</string>
     <string name="upload_failed">Upload failed: %s</string>
     <string name="select_audio_file">Select audio file</string>
     <string name="select_lyrics_file">Select lyrics file</string>
@@ -658,10 +561,8 @@
     <string name="music_language">language</string>
     <string name="music_tags">Tags (separated by commas)</string>
     <string name="music_duration">duration</string>
-    <string name="required_field">*Required</string>
     <string name="optional_field">(optional)</string>
     <string name="please_fill_required_fields">Please fill in the required fields.</string>
-    <string name="please_select_audio_file">Please select an audio file</string>
     <string name="file_read_failed">Failed to read file</string>
     <string name="upload_music_dialog_title">Upload music</string>
     <string name="preview">Preview</string>
@@ -678,11 +579,9 @@
     <string name="language_german">German</string>
     <string name="language_russian">Russian</string>
     <string name="language_instrumental">pure music</string>
-    <string name="duration_auto_parsing">Automatic parsing in progress...</string>
     <string name="unsupported_audio_format">Unsupported audio formats: Only WAV, FLAC, and MP3 formats are supported.</string>
     <string name="unsupported_lyrics_format">Lyrics files only support LRC format.</string>
     <string name="invalid_lyrics_timestamp">The LRC file must include a timestamp (format: [mm:ss.xx]).</string>
-    <string name="not_required_for_instrumental">Lyrics not required for instrumental music</string>
     <string name="desktop_lyric">Desktop lyric</string>
 
     <!-- VIP -->
@@ -692,12 +591,10 @@
     <string name="vip_status_active">VIP member</string>
     <string name="vip_status_expires">Expires: %1$s</string>
     <string name="vip_open_membership">Subscribe</string>
-    <string name="vip_open_hint">Tap VIP in the top-right corner to subscribe</string>
     <string name="vip_pricing_load_failed">Failed to load pricing</string>
     <string name="vip_pay_no_url">No payment URL received</string>
     <string name="vip_wechat_not_installed">Please install WeChat first</string>
     <string name="vip_pay_launch_failed">Unable to open payment app. Please make sure it is installed</string>
-    <string name="vip_pay_web_title">Checkout</string>
     <string name="vip_pay_create_failed">Failed to create order</string>
     <string name="vip_months_suffix"> months</string>
     <string name="vip_days_suffix"> days</string>
@@ -752,16 +649,12 @@
     <string name="music_recognition">Identify Music</string>
     <string name="recognition_ready">Ready to identify</string>
     <string name="recognition_listening">Listening and matching · %1$d sec</string>
-    <string name="recognition_identifying">Identifying</string>
     <string name="recognition_success">Match found</string>
     <string name="recognition_no_match">No match in the current library</string>
     <string name="recognition_permission_denied">Microphone permission is required to identify music</string>
     <string name="recognition_recording_failed">Unable to start recording</string>
-    <string name="recognition_too_short">Record for at least %1$d seconds</string>
     <string name="recognition_request_failed">Music identification is temporarily unavailable</string>
     <string name="recognition_confidence">%1$d%% match</string>
-    <string name="recognition_start">Start music identification</string>
-    <string name="recognition_stop">Stop recording</string>
     <string name="recognition_open_result">Open identified song</string>
     <string name="recognition_hero_title">What song is\nplaying right now?</string>
     <string name="recognition_hero_subtitle">Move your phone closer to the music and Neko will find it</string>
@@ -778,7 +671,6 @@
 
     <!-- QR login -->
     <string name="qr_scan">Scan QR</string>
-    <string name="qr_scan_title">QR Login</string>
     <string name="qr_scan_hint">Point the camera at the QR code on your PC</string>
     <string name="qr_scan_checking">Verifying QR code…</string>
     <string name="qr_scan_confirm_title">Confirm login</string>
@@ -791,7 +683,6 @@
     <string name="qr_scan_permission_message">Camera permission is required to scan the QR code</string>
     <string name="qr_scan_permission_action">Grant camera permission</string>
     <string name="comment_title">Comments</string>
-    <string name="comment_count_format">Comments · %1$d</string>
     <string name="comment_empty">No comments yet. Be the first!</string>
     <string name="comment_load_failed">Failed to load comments</string>
     <string name="comment_load_more">Load more</string>
@@ -810,9 +701,6 @@
     <string name="comment_post_failed">Failed to post comment</string>
     <string name="comment_content_empty">Comment cannot be empty</string>
     <string name="comment_content_too_long">Comment must be 500 characters or fewer</string>
-    <string name="comment_replies_count_format">%1$d replies</string>
-    <string name="comment_view_replies_format">View %1$d replies</string>
-    <string name="comment_collapse_replies">Collapse replies</string>
     <string name="comment_view_more">View more</string>
     <string name="comment_time_just_now">Just now</string>
     <string name="comment_time_minutes_format">%1$d min ago</string>

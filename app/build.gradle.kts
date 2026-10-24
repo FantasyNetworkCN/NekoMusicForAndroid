@@ -76,11 +76,22 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
             excludes += "/META-INF/NOTICE*"
+            excludes += "/META-INF/**/LICENSE*"
+            excludes += "/META-INF/**/NOTICE*"
+            excludes += "/META-INF/*.version"
+            excludes += "/META-INF/**/*.version"
+            excludes += "/META-INF/version-control-info.textproto"
             excludes += "/META-INF/INDEX.LIST"
         }
         jniLibs {
             useLegacyPackaging = false
         }
+    }
+
+    androidResources {
+        // 应用只提供简体中文与英文；移除 AndroidX/Compose 等依赖附带的其余语言表。
+        localeFilters += listOf("en", "zh")
+        ignoreAssetsPatterns += "PublicSuffixDatabase.list"
     }
 
     signingConfigs {

@@ -18,11 +18,7 @@
     volatile <fields>;
 }
 
-# Compose：仅保留 Composable 入口，勿 keep 整个 androidx.compose.**
--keep @androidx.compose.runtime.Composable class *
--keepclassmembers class ** {
-    @androidx.compose.runtime.Composable <methods>;
-}
+# Compose 调用点由 R8 直接追踪，不做 blanket keep。
 -dontwarn androidx.compose.**
 
 # Ktor / Coil / ExoPlayer：允许裁剪，仅抑制警告

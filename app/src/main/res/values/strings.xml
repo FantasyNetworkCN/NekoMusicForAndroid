@@ -17,10 +17,8 @@
     <string name="focus_lock">焦点锁定喵</string>
     <string name="focus_lock_subtitle">开启后人家就不会被其他坏应用打断了，可以一起叫喵</string>
     <string name="desktop_lyric">桌面歌词喵</string>
-    <string name="desktop_lyric_subtitle">在屏幕上方飘过歌词喵</string>
 
     <string name="language">语言喵</string>
-    <string name="language_subtitle">主人想让我说什么话喵？</string>
     <string name="language_follow_system">听系统的喵</string>
     <string name="language_zh">简体中文</string>
     <string name="language_nya">喵语中文喵</string>
@@ -65,14 +63,8 @@
     <string name="lyric_highlight_preview_next">下一句歌词示意喵</string>
 
     <string name="version">版本喵</string>
-    <string name="update_available">发现进化机会喵！</string>
-    <string name="update_version">新版本：%s 喵</string>
-    <string name="update_code">版本号：%d 喵</string>
     <string name="update_now">立即进化喵！</string>
-    <string name="update_later">等下再说喵</string>
     <string name="downloading_update">正在努力搬运更新包喵...</string>
-    <string name="update_success">搬运完成喵！</string>
-    <string name="update_installing">正在努力组装新器官喵...</string>
     <string name="update_failed">进化失败了呜呜喵...</string>
 
     <string name="mine">我的喵</string>
@@ -81,7 +73,6 @@
     <string name="mine_section_account">账户与设置喵</string>
     <string name="mine_account_id_format">ID：%d 喵</string>
     <string name="mine_login_subtitle">登录后同步收藏、歌单与最近播放喵</string>
-    <string name="upload">上交音乐喵</string>
     <string name="my_music">我的音乐仓库喵</string>
     <string name="my_favorites">我的心动收藏喵</string>
     <string name="recent_play">最近蹭听过喵</string>
@@ -102,11 +93,7 @@
     <string name="get_favorites_failed">心动列表拿不到了喵...</string>
     <string name="login_failed">登录失败了喵: %s</string>
     <string name="login_now">现在就登录喵</string>
-    <string name="favorite_success">收藏成功喵！</string>
-    <string name="unfavorite_success">扔掉收藏了喵</string>
     <string name="avatar_upload_success">新脸蛋上传成功喵！</string>
-    <string name="add_favorite">收藏喵</string>
-    <string name="remove_favorite">取消收藏喵</string>
 
     <string name="footer_icp">黔ICP备2026007098号 如果被咬了请联系support@nekocore.cn喵</string>
     <string name="footer_copyright">© 2025-2026 Fantasy Network「梦幻网络」 都是我们的喵.</string>
@@ -117,7 +104,6 @@
     <string name="pause">停一下喵</string>
     <string name="previous">前一只喵</string>
     <string name="next">下一只喵</string>
-    <string name="audio_quality_standard">标准</string>
     <string name="favorite">心动喵</string>
     <string name="unfavorite">不心动了喵</string>
 
@@ -138,7 +124,6 @@
     <string name="register_failed">办证失败了喵: %s</string>
     <string name="send_verification_code">召唤验证码喵</string>
     <string name="retry_after_seconds">%d秒后才能再召唤喵</string>
-    <string name="send_verification_code_failed">验证码迷路了喵: %s</string>
     <string name="please_fill_all_fields">要把空格子都填满喵</string>
     <string name="password_length_error">暗号要6-30位才够安全喵</string>
     <string name="password_mismatch">两次暗号对不上喵！</string>
@@ -147,8 +132,6 @@
     <string name="captcha_security_title">安全验证喵</string>
     <string name="captcha_security_desc">拖动下方滑块对齐缺口，松手后自动校验并发送验证码喵</string>
     <string name="captcha_refresh">换一张喵</string>
-    <string name="captcha_confirm">确认喵</string>
-    <string name="captcha_cancel">取消喵</string>
     <string name="captcha_retry">重试喵</string>
     <string name="captcha_image_decode_error">拼图图片解码失败喵，请点重试或换一张喵</string>
     <string name="captcha_reloading">正在换新拼图喵…</string>
@@ -159,12 +142,9 @@
 
     <!-- 忘记密码 -->
     <string name="forgot_password">忘记密码喵</string>
-    <string name="reset_password">重置密码喵</string>
     <string name="enter_email_to_reset">请输入您的邮箱，猫娘会发验证码喵</string>
-    <string name="enter_code_to_reset">请输入验证码和新密码喵</string>
     <string name="send_reset_code">发送验证码喵</string>
     <string name="reset_password_now">立即重置喵</string>
-    <string name="reset_password_success">密码重置成功啦，用新密码登录喵</string>
     <string name="reset_password_failed">重置密码失败喵: %s</string>
     <string name="send_reset_code_failed">发送验证码失败喵: %s</string>
     <string name="please_enter_email_for_reset">请输入邮箱喵</string>
@@ -180,7 +160,6 @@
     <string name="drag_scale_avatar">揉搓一下图片选择头像位置喵</string>
     <string name="complete">搞定喵！</string>
     <string name="more">还有更多喵</string>
-    <string name="downloading_update_progress">正在下载更新喵</string>
     <string name="downloading_update_failed">下载坏掉了，等会再试喵</string>
     <string name="downloading_update_failed_msg">下载失败喵：%s</string>
     <string name="update_download_bytes_pair" formatted="false">%1$s / %2$s 喵</string>
@@ -188,13 +167,10 @@
     <string name="update_download_percent">%d%% 喵</string>
     <string name="new_version_found">发现新猫娘版本喵</string>
     <string name="new_version">新版： %s 喵</string>
-    <string name="version_code_display">版本号： %d 喵</string>
     <string name="later">下次一定喵</string>
     <string name="download_complete">下载好啦喵</string>
-    <string name="update_failed_msg">❌ 更新失败了喵</string>
 
     <string name="account_info">猫窝资料喵</string>
-    <string name="avatar">脸蛋喵</string>
     <string name="user_avatar">主人的脸喵</string>
     <string name="default_avatar">路人脸喵</string>
     <string name="change_avatar">换张脸喵</string>
@@ -219,44 +195,32 @@
     <string name="operation_success">搞定啦喵！</string>
     <string name="avatar_update_success">新脸蛋真漂亮喵！</string>
     <string name="crop_avatar">修剪脸蛋喵</string>
-    <string name="password_update_success">暗号修改好啦喵！</string>
-    <string name="password_update_failed">暗号没改掉喵: %s</string>
 
-    <string name="click_cover_show_lyrics">戳戳封面看歌词喵</string>
     <string name="no_lyrics">还没人写歌词喵</string>
     <string name="has_lyrics">有歌词喵</string>
     <string name="list_loop">列表转圈圈喵</string>
     <string name="single_loop">死循环这一首喵</string>
     <string name="shuffle_play">随便乱放喵</string>
-    <string name="share">分给别人喵</string>
     <string name="copy_link">复制小纸条喵</string>
     <string name="link_copied">纸条抄好啦喵</string>
     <string name="copy_failed">没抄到纸条喵</string>
     <string name="download">抓回本地喵</string>
-    <string name="download_success">抓到啦喵！</string>
-    <string name="download_failed">手滑没抓到喵: %s</string>
     <string name="share_to_twitter">发到小蓝鸟那喵</string>
     <string name="share_to_qq">发给企鹅那喵</string>
     <string name="qq_not_installed">没有企鹅呢喵</string>
     <string name="share_failed">没发出去喵</string>
     <string name="playback_speed">加速/减速喵</string>
-    <string name="playback_speed_x">当前速度: %dx 喵</string>
     <string name="sleep_timer">猫娘陪睡定时喵</string>
     <string name="sleep_timer_cancelled">猫娘不睡了喵</string>
     <string name="sleep_timer_hours">%d小时后准时睡觉喵</string>
     <string name="sleep_timer_minutes">%d分钟后准时睡觉喵</string>
     <string name="add_to_playlist">塞进小本本喵</string>
-    <string name="added_to_playlist">已经塞进 %s 啦喵</string>
     <string name="create_playlist">写个新本本喵</string>
     <string name="playlist_name">本本叫什么喵？</string>
     <string name="create_success">写好啦喵！</string>
     <string name="please_login_first_short">先登录嘛喵</string>
-    <string name="add_failed">塞不进去喵: %s</string>
     <string name="unknown_song">不知道名字的歌喵</string>
     <string name="unknown_artist">没留下姓名的歌手喵</string>
-    <string name="no_current_play">现在安安静静的喵</string>
-    <string name="please_login_to_favorite">登录后才能心动喵</string>
-    <string name="play_all_count">全都要听 (%d) 喵</string>
 
     <string name="search">搜搜看喵</string>
     <string name="search_music">找找音乐喵</string>
@@ -276,41 +240,23 @@
     <string name="no_search_music">没这种音乐喵</string>
     <string name="no_search_playlist">没这种歌单喵</string>
     <string name="no_search_artist">没这种艺人喵</string>
-    <string name="no_search_history_yet">还没有搜过东西喵</string>
     <string name="search_history">搜过什么喵</string>
     <string name="clear_history">失忆术喵！</string>
     <string name="no_description_nya">暂时没有描述Nya！</string>
     <string name="songs_count">%d 首音乐喵</string>
-    <string name="author_prefix">创作者：%s</string>
     <string name="no_search_playlist_found">歌单藏起来了喵</string>
     <string name="no_search_artist_found">艺人跑掉了喵</string>
 
     <string name="loading_data">正在搬东西喵...</string>
     <string name="get_data_failed">东西拿不动了喵: %s</string>
     <string name="album_cover">专辑封面喵</string>
-    <string name="music_note">音符喵</string>
     <string name="empty">空空的喵</string>
 
     <string name="playlist_cover">歌单封面喵</string>
     <string name="no_description_click_to_edit">暂无描述，点击此处修改Nya！</string>
-    <string name="creator">铲屎官喵</string>
-    <string name="creator_id">铲屎官ID喵</string>
-    <string name="creator_avatar">铲屎官长相喵</string>
-    <string name="creator_with_name">铲屎官: %s 喵</string>
     <string name="no_songs">本本里还没写歌喵</string>
-    <string name="edit_playlist_description">改改本本介绍喵</string>
-    <string name="enter_playlist_description">写点介绍嘛喵</string>
-    <string name="description_updated">介绍写好了喵</string>
-    <string name="description_update_failed">没写成喵: %s</string>
-    <string name="removed_from_playlist">从本本里踢出去了喵</string>
-    <string name="remove_failed">踢不动喵: %s</string>
-    <string name="load_playlist_failed">本本打不开了喵: %s</string>
-    <string name="add_favorite_success">心动成功喵！</string>
     <string name="remove_favorite_success">不心动了喵</string>
-    <string name="operation_failed">搞砸了喵: %s</string>
 
-    <string name="explore_music_world">去音乐世界冒险喵！</string>
-    <string name="discover_music_you_like">发现主人喜欢的旋律喵</string>
     <string name="recommended_playlists">猫娘推荐的本本喵</string>
     <string name="home_listen_now">现在就听</string>
     <string name="home_recommended_hint">为你挑选的歌单与榜单</string>
@@ -318,26 +264,9 @@
     <string name="play_all">全部播一遍喵</string>
     <string name="go_discover">快去发现好听的喵</string>
     <string name="try_other_keywords">换个词搜搜喵</string>
-    <string name="search_box_clicked">搜搜框被主人的肉垫按到了喵</string>
-    <string name="loading_recommended">正在挑最好的本本喵...</string>
-    <string name="loading_ranking">看看什么歌最火喵...</string>
-    <string name="loading_latest">闻到了新歌的味道喵...</string>
-    <string name="recommended_loaded">挑好 %d 个本本啦喵</string>
-    <string name="recommended_failed">没挑到本本喵: %s</string>
-    <string name="ranking_loaded">热门歌曲抓到 %d 首啦喵</string>
-    <string name="ranking_failed">热门歌曲跑了喵: %s</string>
-    <string name="latest_loaded">新鲜歌曲抓到 %d 首啦喵</string>
-    <string name="latest_failed">新鲜歌曲没抓到喵: %s</string>
-    <string name="check_update_failed">看不了有没有新进化喵</string>
-    <string name="download_update_failed">下载不了进化包喵</string>
-    <string name="download_update_retry">失败了，再试一次喵</string>
-    <string name="download_update_failed_msg">失败原因喵：%s</string>
-    <string name="check_update_failed_msg">检查失败喵: %s</string>
-    <string name="recommended_playlists_exception">推荐出了点小意外喵: %s</string>
     <string name="installing_update">正在努力进化中...</string>
     <string name="install_permission_denied">主人不让猫娘安装新版本呢喵</string>
     <string name="install_failed">安装失败喵</string>
-    <string name="update_dialog">主人快看，有新进化喵！</string>
     <string name="version_code">版本代号：%d 喵</string>
 
     <string name="no_description">这个猫娘很懒，什么都没写喵</string>
@@ -403,7 +332,6 @@
     <string name="confirm_delete_cache">这首歌不想要了吗喵？</string>
     <string name="clear">忘掉喵</string>
     <string name="delete">扔掉喵</string>
-    <string name="id_label">身份证: %s 喵</string>
 
     <string name="discover">到处逛逛喵</string>
     <string name="hot_ranking">火热榜单喵</string>
@@ -448,7 +376,6 @@
     <string name="import_source_qq">QQ音乐</string>
     <string name="import_source_kugou">酷狗音乐</string>
     <string name="import_source_qishui">汽水音乐</string>
-    <string name="not_supported">暂不支持喵</string>
     <string name="import_netease_playlist_title">导入网易云歌单喵</string>
     <string name="import_qq_playlist_title">导入QQ歌单喵</string>
     <string name="import_kugou_playlist_title">导入酷狗歌单喵</string>
@@ -462,22 +389,10 @@
     <string name="qishui_playlist_id_hint">粘贴汽水音乐歌单链接、短链或 ID 喵</string>
     <string name="import_kugou_playlist_id_invalid">认不出歌单 ID 喵，请粘贴酷狗分享链接或歌单 ID</string>
     <string name="import_qishui_playlist_id_invalid">汽水歌单链接或 ID 无效，或长度超过限制喵</string>
-    <string name="import_netease_fetch_failed">拉歌单失败，稍后再试喵</string>
-    <string name="import_qq_fetch_failed">拉歌单失败，稍后再试喵</string>
-    <string name="import_netease_matching">正在匹配曲库喵…</string>
     <string name="import_netease_processing">正在匹配并导入喵…</string>
-    <string name="import_netease_match_success">匹配完成喵：成功 %1$d 首，失败 %2$d 首</string>
-    <string name="import_netease_match_failed">匹配失败喵：%1$s</string>
-    <string name="import_netease_match_no_tracks">没有可匹配的曲目喵</string>
-    <string name="import_netease_match_busy">服务繁忙，请稍后再试喵</string>
-    <string name="import_netease_match_failed_dialog_title">这些曲子没匹配上喵</string>
-    <string name="import_netease_match_failed_dialog_summary">共 %1$d 首在曲库里找不到</string>
-    <string name="import_netease_match_failed_unknown_artist">未知歌手</string>
-    <string name="import_netease_importing">正在导入曲库喵…</string>
     <string name="import_netease_import_success">已导入 %1$d 首喵</string>
     <string name="import_netease_import_partial">已导入 %1$d 首，%2$d 首未能导入喵</string>
     <string name="import_netease_import_failed">导入失败喵：%1$s</string>
-    <string name="import_netease_favorite_playlist_not_supported">不能导入到收藏的歌单，请选自己的本本或我的收藏喵</string>
     <string name="import_netease_no_matched_to_import">没有匹配成功的曲子可导入喵</string>
     <string name="import_destination_label">导入到喵</string>
     <string name="import_destination_new_playlist">新建歌单</string>
@@ -488,10 +403,7 @@
     <string name="delete_playlist_confirm_message">确定要删除歌单「%1$s」吗？删掉之后就找不回来啦喵。</string>
     <string name="create_playlist_dialog">创建新本本喵</string>
     <string name="loading_failed">搬不动了喵: %s</string>
-    <string name="delete_failed_msg">删不掉喵: %s</string>
     <string name="my_favorites_label">主人最喜欢的喵</string>
-    <string name="loading_data_failed">数据丢了喵: %s</string>
-    <string name="refresh_failed">洗不动了喵: %s</string>
 
     <string name="songs_count_label">%d 首曲子喵</string>
     <string name="playlist_search_hint">在本本里翻歌喵...</string>
@@ -507,8 +419,6 @@
     <string name="add_to_favorites_success">收藏好啦喵</string>
     <string name="remove_from_favorites_success">从心里拿掉了喵</string>
     <string name="operation_failed_msg">失败了喵: %s</string>
-    <string name="share_song">分享歌曲喵</string>
-    <string name="favorite_song">心动一下喵</string>
     <string name="unfavorite_song">不喜欢了喵</string>
     <string name="creator_info">创建者: %s 喵</string>
     <string name="creator_id_info">创建者ID: %d 喵</string>
@@ -530,8 +440,6 @@
     <string name="play_count">%d次播放喵</string>
 
     <string name="upload_music">投喂音乐喵</string>
-    <string name="uploading">正在吞下去喵...</string>
-    <string name="upload_success">吞掉啦喵！</string>
     <string name="upload_failed">没吃下去喵: %s</string>
     <string name="select_audio_file">选个音频文件喵</string>
     <string name="select_lyrics_file">选个歌词文件喵</string>
@@ -546,10 +454,8 @@
     <string name="music_language">方言喵</string>
     <string name="music_tags">标签喵（用逗号隔开喵）</string>
     <string name="music_duration">长度喵</string>
-    <string name="required_field">* 必须要填的喵</string>
     <string name="optional_field">（不填也行喵）</string>
     <string name="please_fill_required_fields">必填的还没写喵</string>
-    <string name="please_select_audio_file">还没给人家文件喵</string>
     <string name="file_read_failed">读不懂文件喵</string>
     <string name="upload_music_dialog_title">投喂音乐喵</string>
     <string name="preview">先瞧瞧喵</string>
@@ -566,7 +472,6 @@
     <string name="language_german">德语喵</string>
     <string name="language_russian">俄语喵</string>
     <string name="language_instrumental">纯音乐喵</string>
-    <string name="duration_auto_parsing">自动算时间喵...</string>
     <string name="unsupported_audio_format">不吃这种文件，猫娘只吃 WAV、FLAC、MP3 喵</string>
     <string name="unsupported_lyrics_format">歌词只要 LRC 格式喵</string>
     <string name="invalid_lyrics_timestamp">歌词时间戳不对喵（得是 [mm:ss.xx] 喵）</string>
@@ -614,9 +519,6 @@
     <string name="network_error">网线被猫咬断了喵？</string>
     <string name="retry">再试试喵</string>
     <string name="no_latest_music">还没新曲子喵</string>
-    <string name="minutes_ago">%d分钟前喵</string>
-    <string name="hours_ago">%d小时前喵</string>
-    <string name="days_ago">%d天前喵</string>
 
     <string name="playback_speed_format">唱歌速度: %.1fx 喵</string>
     <string name="added_to_playlist_format">塞进 %s 啦喵</string>
@@ -625,7 +527,6 @@
     <string name="add_to_playlist_failed">塞不进去喵: %s</string>
     <string name="create_playlist_failed">写新本本失败了喵: %s</string>
     <string name="play_failed">唱不出来喵: %s</string>
-    <string name="play_all_failed">没法全都唱喵</string>
     <string name="download_failed_format">没抓到喵: %s</string>
     <string name="loading_failed_format">没搬动喵: %s</string>
     <string name="refresh_failed_format">洗不动喵: %s</string>
@@ -636,25 +537,21 @@
     <string name="minutes_ago_format">%d分钟前喵</string>
     <string name="hours_ago_format">%d小时前喵</string>
     <string name="days_ago_format">%d天前喵</string>
-    <string name="minutes_unit">分钟喵</string>
 
     <string name="share_music_text" formatted="false">[%1$s-%2$s] Neko歌姬计划喵 https://music.nekocore.cn/detail/%3$d</string>
     <string name="share_playlist_text" formatted="false">我在Neko歌姬计划发现了宝藏本本 %1$s - https://music.nekocore.cn/playlist/%2$d，里面超好听喵！快来听听看喵~</string>
     <string name="share_playlist">分一本本喵</string>
     <string name="removed_from_playlist_success">从本本里踢出去了喵</string>
-    <string name="not_required_for_instrumental">纯音乐不要歌词文件喵</string>
 
     <string name="vip_center_title">会员中心喵</string>
     <string name="vip_menu_entry">会员中心喵</string>
     <string name="vip_status_active">尊贵 VIP 喵</string>
     <string name="vip_status_expires">到期：%1$s 喵</string>
     <string name="vip_open_membership">开通会员喵</string>
-    <string name="vip_open_hint">点击右上角 VIP 开通会员喵</string>
     <string name="vip_pricing_load_failed">价目表加载失败喵</string>
     <string name="vip_pay_no_url">没有拿到支付链接喵</string>
     <string name="vip_wechat_not_installed">请先安装微信喵</string>
     <string name="vip_pay_launch_failed">无法拉起支付，请确认已安装对应 App 喵</string>
-    <string name="vip_pay_web_title">收银台喵</string>
     <string name="vip_pay_create_failed">下单失败喵</string>
     <string name="vip_months_suffix">个月</string>
     <string name="vip_days_suffix">天</string>
@@ -709,16 +606,12 @@
     <string name="music_recognition">听歌识曲喵</string>
     <string name="recognition_ready">准备识别喵</string>
     <string name="recognition_listening">持续聆听并识别 · %1$d 秒喵</string>
-    <string name="recognition_identifying">正在识别喵</string>
     <string name="recognition_success">识别成功喵</string>
     <string name="recognition_no_match">曲库里暂时没有认出来喵</string>
     <string name="recognition_permission_denied">需要麦克风权限才能识曲喵</string>
     <string name="recognition_recording_failed">录音启动失败喵</string>
-    <string name="recognition_too_short">请至少录制 %1$d 秒喵</string>
     <string name="recognition_request_failed">识曲服务暂不可用喵</string>
     <string name="recognition_confidence">匹配度 %1$d%%</string>
-    <string name="recognition_start">开始听歌识曲</string>
-    <string name="recognition_stop">停止录音</string>
     <string name="recognition_open_result">打开识别结果</string>
     <string name="recognition_hero_title">此刻播放的\n是什么歌？</string>
     <string name="recognition_hero_subtitle">把手机靠近音源，Neko 会帮你找到它</string>
@@ -738,7 +631,6 @@
 
     <!-- 扫码登录 -->
     <string name="qr_scan">扫一扫喵</string>
-    <string name="qr_scan_title">扫码登录喵</string>
     <string name="qr_scan_hint">把电脑上的喵码放进框框里喵</string>
     <string name="qr_scan_checking">正在看喵码…</string>
     <string name="qr_scan_confirm_title">确认登录喵</string>
@@ -751,7 +643,6 @@
     <string name="qr_scan_permission_message">要给相机权限才能扫喵码喵</string>
     <string name="qr_scan_permission_action">给相机权限喵</string>
     <string name="comment_title">评论喵</string>
-    <string name="comment_count_format">评论喵 · %1$d</string>
     <string name="comment_empty">还没有人说话喵，来抢沙发呀喵</string>
     <string name="comment_load_failed">评论没加载出来喵</string>
     <string name="comment_load_more">再捞一点评论喵</string>
@@ -770,9 +661,6 @@
     <string name="comment_post_failed">发布失败喵</string>
     <string name="comment_content_empty">先写点什么再发喵</string>
     <string name="comment_content_too_long">评论最多 500 个字喵</string>
-    <string name="comment_replies_count_format">%1$d 条回复喵</string>
-    <string name="comment_view_replies_format">查看 %1$d 条回复喵</string>
-    <string name="comment_collapse_replies">收起回复喵</string>
     <string name="comment_view_more">查看更多喵</string>
     <string name="comment_time_just_now">刚刚喵</string>
     <string name="comment_time_minutes_format">%1$d 分钟前喵</string>
