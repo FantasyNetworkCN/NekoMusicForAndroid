@@ -135,6 +135,7 @@ import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.components.AmllLyricsView
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.isLiquidGlassEffectActive
@@ -2450,7 +2451,8 @@ fun ProgressSlider(
     onProgressChange: (Float) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val liquidBackdrop = LocalLiquidLayerBackdrop.current
+    val useLiquidStyle = isLiquidGlassEffectActive(liquidBackdrop)
     val isDarkTheme = isAppDarkTheme()
     val ink = if (useLiquidStyle) {
         if (isDarkTheme) Color.White else Color(0xFF17171A)
@@ -2469,22 +2471,34 @@ fun ProgressSlider(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Slider(
-            value = progress.coerceIn(0f, 1f),
-            onValueChange = onProgressChange,
-            enabled = !isLoading,
-            colors = SliderDefaults.colors(
-                activeTrackColor = ink.copy(alpha = if (isLoading) 0.36f else 0.92f),
-                inactiveTrackColor = inactiveTrackColor,
-                thumbColor = ink.copy(alpha = if (isLoading) 0.42f else 1f),
-                disabledActiveTrackColor = ink.copy(alpha = 0.30f),
-                disabledInactiveTrackColor = if (useLiquidStyle) ink.copy(alpha = 0.12f) else scheme.surfaceVariant,
-                disabledThumbColor = ink.copy(alpha = 0.34f),
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (compact) 28.dp else 32.dp),
-        )
+        if (useLiquidStyle && liquidBackdrop != null) {
+            LiquidGlassSlider(
+                value = progress,
+                onValueChange = onProgressChange,
+                backdrop = liquidBackdrop,
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 36.dp else 40.dp),
+            )
+        } else {
+            Slider(
+                value = progress.coerceIn(0f, 1f),
+                onValueChange = onProgressChange,
+                enabled = !isLoading,
+                colors = SliderDefaults.colors(
+                    activeTrackColor = ink.copy(alpha = if (isLoading) 0.36f else 0.92f),
+                    inactiveTrackColor = inactiveTrackColor,
+                    thumbColor = ink.copy(alpha = if (isLoading) 0.42f else 1f),
+                    disabledActiveTrackColor = ink.copy(alpha = 0.30f),
+                    disabledInactiveTrackColor = if (useLiquidStyle) ink.copy(alpha = 0.12f) else scheme.surfaceVariant,
+                    disabledThumbColor = ink.copy(alpha = 0.34f),
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (compact) 28.dp else 32.dp),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

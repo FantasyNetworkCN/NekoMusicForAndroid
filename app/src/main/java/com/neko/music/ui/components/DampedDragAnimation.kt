@@ -44,6 +44,10 @@ class DampedDragAnimation(
     private val scaleYAnimation = Animatable(initialScale, 0.001f)
 
     val value: Float get() = valueAnimation.value
+    val progress: Float
+        get() = ((value - valueRange.start) /
+            (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f))
+            .coerceIn(0f, 1f)
     val targetValue: Float get() = valueAnimation.targetValue
     val pressProgress: Float get() = pressProgressAnimation.value
     val scaleX: Float get() = scaleXAnimation.value
