@@ -723,6 +723,13 @@
     <string name="video_render_create_failed">Failed to create job</string>
     <string name="daily_recommendation_title">Daily Picks</string>
     <string name="daily_recommendation_desc">Chosen from your favorites taste</string>
+    <string name="daily_hero_eyebrow">FOR YOU</string>
+    <string name="daily_track_count">%d songs</string>
+    <string name="daily_loading">Picking today’s recommendations…</string>
+    <string name="daily_error_title">Recommendations didn’t load</string>
+    <string name="daily_error_hint">Check your connection and try again</string>
+    <string name="daily_empty_hint">Favorite a few more songs and check back tomorrow</string>
+    <string name="daily_refresh">Refresh</string>
     <string name="no_daily_recommendation">No daily picks yet</string>
     <string name="qq_playlist_id_hint">Paste the QQ Music sharing link or playlist ID</string>
     <string name="refresh">Refresh</string>

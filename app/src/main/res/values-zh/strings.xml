@@ -694,6 +694,13 @@
     <string name="vip_member_benefits">尊享更长视频、无水印等权益</string>
     <string name="daily_recommendation_title">每日推荐</string>
     <string name="daily_recommendation_desc">根据你的收藏口味为你推荐</string>
+    <string name="daily_hero_eyebrow">为你精选</string>
+    <string name="daily_track_count">%d 首歌曲</string>
+    <string name="daily_loading">正在挑选今日推荐…</string>
+    <string name="daily_error_title">推荐没加载出来</string>
+    <string name="daily_error_hint">检查网络后再试一次</string>
+    <string name="daily_empty_hint">多收藏一些歌曲，明天再来看看</string>
+    <string name="daily_refresh">刷新</string>
     <string name="no_daily_recommendation">今日暂无推荐</string>
     <string name="qq_playlist_id_hint">粘贴QQ音乐分享链接或歌单 ID</string>
     <string name="refresh">刷新</string>

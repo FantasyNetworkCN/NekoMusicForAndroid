@@ -977,6 +977,9 @@ fun MainScreen() {
             }
             composable("daily_recommendations") {
                 DailyRecommendationScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
                     onNavigateToPlayer = { music ->
                         val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
                         val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")

@@ -681,6 +681,13 @@
     <string name="video_render_create_failed">创建任务失败喵</string>
     <string name="daily_recommendation_title">今日推荐喵</string>
     <string name="daily_recommendation_desc">根据你的收藏口味为你挑的喵</string>
+    <string name="daily_hero_eyebrow">今日私藏喵</string>
+    <string name="daily_track_count">%d 首喵</string>
+    <string name="daily_loading">正在挑今天的歌喵…</string>
+    <string name="daily_error_title">推荐没加载出来喵</string>
+    <string name="daily_error_hint">检查网络后再试一次喵</string>
+    <string name="daily_empty_hint">多收藏一些歌，明天再来看看喵</string>
+    <string name="daily_refresh">刷新喵</string>
     <string name="no_daily_recommendation">今天还没挑出推荐喵</string>
     <string name="refresh">刷新喵</string>
     <string name="local_music">本地音乐喵</string>
