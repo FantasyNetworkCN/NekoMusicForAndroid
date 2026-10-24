@@ -68,6 +68,8 @@ fun AppUpdatePromptDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = appUpdateGlass.tint.background(isDark),
             borderAlpha = appUpdateGlass.tint.border(isDark),
@@ -173,6 +175,8 @@ fun AppUpdateDownloadProgressDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = appUpdateGlass.tint.background(isDark),
             borderAlpha = appUpdateGlass.tint.border(isDark),
@@ -294,6 +298,8 @@ fun AppUpdateSuccessDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = appUpdateGlass.tint.background(isDark),
             borderAlpha = appUpdateGlass.tint.border(isDark),
@@ -373,6 +379,8 @@ fun AppUpdateErrorDialog(
                 .fillMaxWidth()
                 .padding(24.dp),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = appDialogSampleBackdrop(),
             backgroundAlpha = appUpdateGlass.tint.background(isDark),
             borderAlpha = appUpdateGlass.tint.border(isDark),

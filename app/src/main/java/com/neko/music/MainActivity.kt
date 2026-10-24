@@ -130,6 +130,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko歌姬计划
 import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidGlassUiScale
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.readLiquidGlassUiScale
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
@@ -1604,6 +1605,7 @@ fun MainScreen() {
                 .zIndex(8f),
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
+                val useLiquidBottomChrome = isLiquidGlassEffectActive(liquidBackdrop)
                 AnimatedVisibility(
                     visible = bottomChromeVisible,
                     modifier = Modifier
@@ -1649,7 +1651,9 @@ fun MainScreen() {
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
                                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (useLiquidBottomChrome) 4.dp else 8.dp,
+                            ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             MiniPlayer(

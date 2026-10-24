@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,9 +69,9 @@ import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LiquidTabStrip
-import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalLiquidTabScale
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.isAppDarkTheme
 
@@ -100,7 +99,10 @@ fun SearchLiquidTopOverlay(
     val clearQueryText = stringResource(id = R.string.search_clear_query)
     val focusManager = LocalFocusManager.current
     val view = LocalView.current
-    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
+    val useLiquidTypeRow =
+        backdropForGlass != null && isLiquidGlassEffectActive(backdropForGlass)
+    val searchFieldHeight = if (useLiquidTypeRow) 50.dp else 56.dp
+    val backButtonSize = if (useLiquidTypeRow) 44.dp else 48.dp
     val typeOptions = listOf(
         "music" to singleText,
         "playlist" to playlistText,
@@ -138,8 +140,9 @@ fun SearchLiquidTopOverlay(
         ) {
             GlassSurface(
                 modifier = Modifier
-                    .size(44.dp),
+                    .size(backButtonSize),
                 shape = CircleShape,
+                material3Container = scheme.surfaceContainerHigh,
                 sampleBackdrop = backdropForGlass,
                 backgroundAlpha = iconButtonGlass.tint.background(isDark),
                 borderAlpha = iconButtonGlass.tint.border(isDark),
@@ -165,8 +168,10 @@ fun SearchLiquidTopOverlay(
             GlassSurface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp),
+                    .height(searchFieldHeight),
                 shape = RoundedCornerShape(20.dp),
+                material3Shape = RoundedCornerShape(28.dp),
+                material3Container = scheme.surfaceContainerHigh,
                 sampleBackdrop = backdropForGlass,
                 backgroundAlpha = searchFieldGlass.tint.background(isDark),
                 borderAlpha = searchFieldGlass.tint.border(isDark),
@@ -248,7 +253,7 @@ fun SearchLiquidTopOverlay(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .height(48.dp)
-        if (hardwareLiquid && backdropForGlass != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (useLiquidTypeRow) {
             LiquidTabStrip(
                 selectedTabIndex = selectedTypeIndex,
                 onTabSelected = { index ->
@@ -266,6 +271,7 @@ fun SearchLiquidTopOverlay(
                         label = label,
                         selected = state.searchType == type,
                         isDark = isDark,
+                        liquidStyle = true,
                         onClick = { onTypeSelected(type) },
                     )
                 }
@@ -275,6 +281,8 @@ fun SearchLiquidTopOverlay(
             GlassSurface(
                 modifier = typeRowModifier,
                 shape = RoundedCornerShape(24.dp),
+                material3Shape = RoundedCornerShape(28.dp),
+                material3Container = scheme.surfaceContainerHigh,
                 sampleBackdrop = backdropForGlass,
                 backgroundAlpha = typeRowGlass.tint.background(isDark),
                 borderAlpha = typeRowGlass.tint.border(isDark),
@@ -304,14 +312,7 @@ fun SearchLiquidTopOverlay(
                             .width(segmentWidth)
                             .fillMaxHeight()
                             .clip(CircleShape)
-                            .background(
-                                if (isDark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.82f),
-                            )
-                            .border(
-                                width = 0.5.dp,
-                                color = if (isDark) Color.White.copy(alpha = 0.14f) else scheme.outline.copy(alpha = 0.16f),
-                                shape = CircleShape,
-                            ),
+                            .background(scheme.secondaryContainer),
                     )
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -322,6 +323,7 @@ fun SearchLiquidTopOverlay(
                                 label = label,
                                 selected = state.searchType == type,
                                 isDark = isDark,
+                                liquidStyle = false,
                                 onClick = { onTypeSelected(type) },
                             )
                         }
@@ -337,11 +339,14 @@ private fun RowScope.SearchTypeTab(
     label: String,
     selected: Boolean,
     isDark: Boolean,
+    liquidStyle: Boolean,
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val textColor by animateColorAsState(
         targetValue = when {
+            !liquidStyle && selected -> scheme.onSecondaryContainer
+            !liquidStyle -> scheme.onSurfaceVariant
             selected && isDark -> Color.White.copy(alpha = 0.96f)
             selected -> Color.Black.copy(alpha = 0.86f)
             isDark -> Color(0xFFB8B8D1).copy(alpha = 0.76f)

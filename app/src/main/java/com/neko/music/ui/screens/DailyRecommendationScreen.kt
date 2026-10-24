@@ -389,6 +389,7 @@ private fun DailyTopBar(
                 .size(42.dp)
                 .scale(backScale),
             shape = CircleShape,
+            material3Container = scheme.surfaceContainerHigh,
             backgroundAlpha = if (isDark) {
                 glass.musicRowBackgroundAlphaDark
             } else {
@@ -464,6 +465,8 @@ private fun DailyHero(
             .fillMaxWidth()
             .height(196.dp),
         shape = RoundedCornerShape(28.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainer,
         backgroundAlpha = if (isDark) {
             glass.batchDockBackgroundAlphaDark
         } else {
@@ -622,6 +625,8 @@ private fun DailyPlayAllButton(
                 onClick = onClick
             ),
         shape = RoundedCornerShape(18.dp),
+        material3Shape = RoundedCornerShape(50),
+        material3Container = MaterialTheme.colorScheme.secondaryContainer,
         backgroundAlpha = if (isDark) {
             glass.batchDockBackgroundAlphaDark
         } else {
@@ -717,6 +722,8 @@ private fun DailyTrackItem(
                 onClick = onClick
             ),
         shape = RoundedCornerShape(glass.musicRowCornerDp),
+        material3Shape = RoundedCornerShape(12.dp),
+        material3Container = MaterialTheme.colorScheme.surfaceContainer,
         backgroundAlpha = if (isDark) {
             glass.musicRowBackgroundAlphaDark
         } else {
@@ -839,6 +846,8 @@ private fun DailyLoadingState(
                 .height(196.dp)
                 .alpha(0.5f + pulse * 0.25f),
             shape = RoundedCornerShape(28.dp),
+            material3Shape = RoundedCornerShape(16.dp),
+            material3Container = scheme.surfaceContainer,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -909,6 +918,8 @@ private fun DailyLoadingState(
                 .height(52.dp)
                 .alpha(0.5f + pulse * 0.25f),
             shape = RoundedCornerShape(18.dp),
+            material3Shape = RoundedCornerShape(50),
+            material3Container = scheme.secondaryContainer,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -957,6 +968,8 @@ private fun DailyLoadingState(
                     .height(68.dp)
                     .alpha(0.45f + pulse * 0.22f),
                 shape = RoundedCornerShape(glass.musicRowCornerDp),
+                material3Shape = RoundedCornerShape(12.dp),
+                material3Container = scheme.surfaceContainer,
                 backgroundAlpha = if (isDark) {
                     glass.musicRowBackgroundAlphaDark
                 } else {
@@ -1078,6 +1091,8 @@ private fun DailyStateCard(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
+            material3Shape = RoundedCornerShape(16.dp),
+            material3Container = scheme.surfaceContainerHigh,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -1145,6 +1160,8 @@ private fun DailyStateCard(
                             onClick = onAction
                         ),
                     shape = RoundedCornerShape(21.dp),
+                    material3Shape = RoundedCornerShape(50),
+                    material3Container = MaterialTheme.colorScheme.secondaryContainer,
                     backgroundAlpha = if (isDark) {
                         glass.batchDockBackgroundAlphaDark
                     } else {

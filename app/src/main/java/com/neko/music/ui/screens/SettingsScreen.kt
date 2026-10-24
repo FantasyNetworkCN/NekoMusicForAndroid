@@ -52,7 +52,6 @@ import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.neko.music.ui.theme.RoseRed
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -256,13 +255,13 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
-        contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
+        contentColor = scheme.onSurface,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         stringResource(id = R.string.settings),
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                        color = scheme.onSurface,
                     )
                 },
                 navigationIcon = {
@@ -270,7 +269,7 @@ fun SettingsScreen(
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                            tint = scheme.onSurfaceVariant,
                         )
                     }
                 },
@@ -298,6 +297,7 @@ fun SettingsScreen(
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
+                    material3Container = scheme.surfaceContainerLow,
                     backgroundAlpha = glassBg,
                     borderAlpha = glassBorder,
                     highlightAlpha = glassHighlight
@@ -315,13 +315,13 @@ fun SettingsScreen(
                                     text = stringResource(id = R.string.app_name),
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
+                                    color = scheme.onSurface,
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "${stringResource(id = R.string.version)} $versionName ($versionCode)",
                                     fontSize = 14.sp,
-                                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
+                                    color = scheme.onSurfaceVariant,
                                 )
                             }
 
@@ -332,8 +332,8 @@ fun SettingsScreen(
                                     .background(
                                         brush = Brush.linearGradient(
                                             colors = listOf(
-                                                RoseRed,
-                                                Color(0xFFFF6B9D)
+                                                scheme.primary,
+                                                scheme.tertiary,
                                             )
                                         )
                                     ),
@@ -489,13 +489,14 @@ fun SettingSection(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
 
             GlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
+                material3Container = MaterialTheme.colorScheme.surfaceContainerLow,
                 backgroundAlpha = glassBg,
                 borderAlpha = glassBorder,
                 highlightAlpha = glassHighlight
@@ -515,37 +516,30 @@ fun SettingItem(
         showLoading: Boolean = false,
         onClick: () -> Unit = {}
     ) {
-        var isPressed by remember { mutableStateOf(false) }
-        val isDarkTheme = isAppDarkTheme()
+        val scheme = MaterialTheme.colorScheme
 
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    isPressed = true
-                    onClick()
-                },
-            color = if (isPressed) 
-                if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color(0xFFF5F5F5) 
-            else Color.Transparent
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Transparent
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable(onClick = onClick)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(RoseRed.copy(alpha = 0.1f)),
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(scheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = RoseRed,
+                        tint = scheme.onPrimaryContainer,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -559,14 +553,14 @@ fun SettingItem(
                         text = title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                        color = scheme.onSurface,
                     )
                     if (subtitle.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = subtitle,
                             fontSize = 13.sp,
-                            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                            color = scheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -574,26 +568,20 @@ fun SettingItem(
                 if (showLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = RoseRed,
+                        color = scheme.primary,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowRight,
                         contentDescription = stringResource(id = R.string.more),
-                        tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray,
+                        tint = scheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        LaunchedEffect(isPressed) {
-            if (isPressed) {
-                kotlinx.coroutines.delay(100)
-                isPressed = false
-            }
-        }
 }
 
 @Composable
@@ -606,8 +594,8 @@ fun SettingSwitchItem(
     /** 个性化页等可传入预览用的深浅色，与 [SettingSection] 一致 */
     useDarkAppearance: Boolean? = null,
 ) {
-    var isPressed by remember { mutableStateOf(false) }
     val isDarkTheme = useDarkAppearance ?: isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -623,28 +611,20 @@ fun SettingSwitchItem(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        isPressed = true
-                        onCheckedChange(!checked)
-                    },
+                    .clickable { onCheckedChange(!checked) },
                 verticalAlignment = Alignment.CenterVertically
             ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (isPressed)
-                            RoseRed.copy(alpha = 0.16f)
-                        else
-                            RoseRed.copy(alpha = 0.1f)
-                    ),
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = RoseRed,
+                    tint = scheme.onPrimaryContainer,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -658,14 +638,14 @@ fun SettingSwitchItem(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                    color = scheme.onSurface,
                 )
                 if (subtitle.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle,
                         fontSize = 13.sp,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                        color = scheme.onSurfaceVariant,
                     )
                 }
             }
@@ -681,12 +661,6 @@ fun SettingSwitchItem(
         }
     }
 
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            kotlinx.coroutines.delay(100)
-            isPressed = false
-        }
-    }
 }
 
 @Composable
@@ -695,7 +669,7 @@ fun LanguageSelectionDialog(
     onDismiss: () -> Unit,
     onLanguageSelected: (String) -> Unit
 ) {
-    val isDarkTheme = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
     val languages = listOf(
         "system" to stringResource(id = R.string.language_follow_system),
         "zh" to stringResource(id = R.string.language_zh),
@@ -710,7 +684,7 @@ fun LanguageSelectionDialog(
                 text = stringResource(id = R.string.language),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = RoseRed
+                color = scheme.primary
             )
         },
         text = {
@@ -733,14 +707,14 @@ fun LanguageSelectionDialog(
                                 onDismiss()
                             },
                             colors = RadioButtonDefaults.colors(
-                                selectedColor = RoseRed
+                                selectedColor = scheme.primary
                             )
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = name,
                             fontSize = 16.sp,
-                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
+                            color = scheme.onSurface
                         )
                     }
                 }
@@ -751,11 +725,11 @@ fun LanguageSelectionDialog(
                 Text(
                     text = stringResource(id = R.string.cancel),
                     fontSize = 16.sp,
-                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else Color.Gray
+                    color = scheme.onSurfaceVariant
                 )
             }
         },
-        containerColor = if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = 0.95f) else Color.White
+        containerColor = scheme.surfaceContainerHigh
     )
 }
 

@@ -37,6 +37,7 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
@@ -164,6 +165,7 @@ fun FavoriteScreen(
     val scheme = MaterialTheme.colorScheme
     val liquidGlass = LiquidGlassDefaults.playlistDetail
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val useLiquidStyle = isLiquidGlassEffectActive(pageBackdrop)
 
     val collectionCoverUrl = remember(favorites) {
         val firstFavorite = favorites.firstOrNull()
@@ -224,11 +226,7 @@ fun FavoriteScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.9f)
-                            } else {
-                                Color.Black
-                            }
+                            tint = scheme.onSurfaceVariant
                         )
                     }
 
@@ -240,11 +238,7 @@ fun FavoriteScreen(
                             text = stringResource(id = R.string.my_favorites),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDarkTheme) {
-                                Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                            } else {
-                                Color.Black
-                            },
+                            color = scheme.onSurface,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
@@ -278,13 +272,13 @@ fun FavoriteScreen(
                                     text = stringResource(id = R.string.please_login_first),
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else scheme.onSurface
+                                    color = scheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
                                     text = stringResource(id = R.string.login_after_view),
                                     fontSize = 14.sp,
-                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else scheme.onSurfaceVariant
+                                    color = scheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -296,7 +290,7 @@ fun FavoriteScreen(
                                 .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = RoseRed)
+                            CircularProgressIndicator(color = scheme.primary)
                         }
                     }
                     errorMessage.isNotEmpty() -> {
@@ -310,7 +304,7 @@ fun FavoriteScreen(
                             Text(
                                 text = errorMessage,
                                 fontSize = 16.sp,
-                                color = if (isDarkTheme) Color(0xFFFF6B6B) else Color.Red
+                                color = scheme.error
                             )
                         }
                     }
@@ -333,13 +327,7 @@ fun FavoriteScreen(
                                     modifier = Modifier
                                         .size(120.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(
-                                            if (isDarkTheme) {
-                                                Color(0xFF252545).copy(alpha = 0.6f)
-                                            } else {
-                                                Color(0xFFF5F5F5)
-                                            }
-                                        ),
+                                        .background(scheme.surfaceContainerHighest),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AsyncImage(
@@ -360,11 +348,7 @@ fun FavoriteScreen(
                                         text = stringResource(id = R.string.my_favorites_label),
                                         fontSize = 22.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isDarkTheme) {
-                                            Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                                        } else {
-                                            Color.Black
-                                        },
+                                        color = scheme.onSurface,
                                         maxLines = 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
@@ -372,11 +356,7 @@ fun FavoriteScreen(
                                     Text(
                                         text = stringResource(R.string.songs_count_label, favorites.size),
                                         fontSize = 14.sp,
-                                        color = if (isDarkTheme) {
-                                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                                        } else {
-                                            Color.Gray
-                                        }
+                                        color = scheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -397,8 +377,10 @@ fun FavoriteScreen(
                                         .weight(1f)
                                         .height(42.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = RoseRed,
-                                        disabledContainerColor = RoseRed.copy(alpha = 0.3f)
+                                        containerColor = scheme.primary,
+                                        contentColor = scheme.onPrimary,
+                                        disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
+                                        disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
                                     ),
                                     shape = RoundedCornerShape(21.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp)
@@ -406,9 +388,6 @@ fun FavoriteScreen(
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = null,
-                                        tint = Color.White.copy(
-                                            alpha = if (filteredFavorites.isEmpty()) 0.5f else 0.95f
-                                        ),
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
@@ -416,9 +395,6 @@ fun FavoriteScreen(
                                         text = stringResource(id = R.string.play_all),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White.copy(
-                                            alpha = if (filteredFavorites.isEmpty()) 0.5f else 0.95f
-                                        ),
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
@@ -451,11 +427,7 @@ fun FavoriteScreen(
                                             },
                                             fontSize = 20.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isDarkTheme) {
-                                                Color.White.copy(alpha = 0.68f)
-                                            } else {
-                                                scheme.onSurface
-                                            }
+                                            color = scheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
@@ -465,11 +437,7 @@ fun FavoriteScreen(
                                                 stringResource(id = R.string.try_other_keywords)
                                             },
                                             fontSize = 14.sp,
-                                            color = if (isDarkTheme) {
-                                                Color.White.copy(alpha = 0.45f)
-                                            } else {
-                                                scheme.onSurfaceVariant
-                                            }
+                                            color = scheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -484,7 +452,9 @@ fun FavoriteScreen(
                                         top = 16.dp,
                                         bottom = 150.dp
                                     ),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(
+                                        if (useLiquidStyle) 8.dp else 4.dp
+                                    )
                                 ) {
                                     itemsIndexed(
                                         items = filteredFavorites,
@@ -544,6 +514,8 @@ fun FavoriteItem(
                 onLongClick = { actionsExpanded = true },
             ),
         shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainerLow,
         backgroundAlpha = if (isDarkTheme) {
             liquidGlass.musicRowBackgroundAlphaDark
         } else {
@@ -574,11 +546,7 @@ fun FavoriteItem(
             Text(
                 text = "$position",
                 fontSize = 14.sp,
-                color = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                } else {
-                    Color.Gray
-                },
+                color = scheme.onSurfaceVariant,
                 modifier = Modifier.width(24.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -587,13 +555,7 @@ fun FavoriteItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isDarkTheme) {
-                            Color(0xFF353558).copy(alpha = 0.6f)
-                        } else {
-                            Color(0xFFE0E0E0)
-                        }
-                    ),
+                    .background(scheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center
             ) {
                 coil3.compose.AsyncImage(
@@ -614,11 +576,7 @@ fun FavoriteItem(
                     text = music.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) {
-                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                    } else {
-                        Color.Black
-                    },
+                    color = scheme.onSurface,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
@@ -626,11 +584,7 @@ fun FavoriteItem(
                 Text(
                     text = music.artist,
                     fontSize = 13.sp,
-                    color = if (isDarkTheme) {
-                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                    } else {
-                        Color.Gray
-                    },
+                    color = scheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
@@ -639,11 +593,7 @@ fun FavoriteItem(
             Text(
                 text = formatDuration(music.duration),
                 fontSize = 13.sp,
-                color = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                } else {
-                    Color.Gray
-                }
+                color = scheme.onSurfaceVariant
             )
 
             Box {
@@ -654,11 +604,7 @@ fun FavoriteItem(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = moreActionsText,
-                        tint = if (isDarkTheme) {
-                            Color(0xFFB8B8D1).copy(alpha = 0.85f)
-                        } else {
-                            Color.Gray
-                        }
+                        tint = scheme.onSurfaceVariant
                     )
                 }
                 DropdownMenu(

@@ -120,8 +120,8 @@ object AppConfig {
         const val DEFAULT_LIQUID_GLASS_STRENGTH = 1f
 
         /**
-         * 是否启用 Kyant 硬件液态（录屏 + blur/lens）。false 时全局走 CPU 磨砂占位（与 API 31 以下行为一致）。
-         * 仅 Android 12+ 设置项可见；低版本始终为磨砂。
+         * 是否启用 Kyant 硬件液态（录屏 + blur/lens）。false 时全局回退到 Material 3 实色界面。
+         * 仅 Android 12+ 设置项可见；低版本始终使用 Material 3 回退。
          */
         const val KEY_LIQUID_GLASS_HARDWARE_EFFECTS = "liquid_glass_hardware_effects"
         const val DEFAULT_LIQUID_GLASS_HARDWARE_EFFECTS = true

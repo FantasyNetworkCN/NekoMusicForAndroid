@@ -10,7 +10,6 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -20,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,14 +28,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -44,17 +43,19 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,9 +150,7 @@ fun BottomNavigationBar(
     val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val pageBackdrop = LocalLiquidLayerBackdrop.current
     val isDarkBar = isAppDarkTheme()
-    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
-    val useLiquidGlass =
-        hardwareLiquid && pageBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useLiquidGlass = pageBackdrop != null && isLiquidGlassEffectActive(pageBackdrop)
     val view = LocalView.current
 
     fun navigateToItem(index: Int) {
@@ -198,11 +197,9 @@ fun BottomNavigationBar(
         BottomNavigationFallback(
             items = items,
             selectedIndex = selectedIndex,
-            isDark = isDarkBar,
             onTabSelected = ::navigateToItem,
             modifier = modifier
-                .fillMaxWidth()
-                .height(BottomNavigationBarHeight),
+                .fillMaxWidth(),
         )
     }
 }
@@ -506,80 +503,50 @@ private fun RowScope.LiquidBottomTab(
 private fun BottomNavigationFallback(
     items: List<BottomNavItem>,
     selectedIndex: Int,
-    isDark: Boolean,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = Capsule()
-    val safeCount = items.size.coerceAtLeast(1)
-    val uiScale = LocalLiquidGlassUiScale.current
-    val glass = LiquidGlassDefaults.bottomNavigation
-    fun tintedAlpha(base: Float) = (base * uiScale.tintStrength).coerceIn(0f, 1f)
-    val bgAlpha = tintedAlpha(glass.tint.background(isDark))
-    val surface = if (isDark) {
-        glass.fallbackSurfaceColorDark.copy(alpha = bgAlpha)
-    } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = (bgAlpha * 1.15f).coerceIn(0.35f, 0.92f))
-    }
-    val selectedSurface = (if (isDark) glass.selectedSurfaceColorDark else glass.selectedSurfaceColorLight)
-        .copy(
-            alpha = tintedAlpha(
-                if (isDark) glass.fallbackSelectedSurfaceAlphaDark
-                else glass.fallbackSelectedSurfaceAlphaLight,
-            ),
-        )
-    val selectedBorder = (if (isDark) glass.selectedSurfaceColorDark else glass.selectedSurfaceColorLight)
-        .copy(
-            alpha = tintedAlpha(
-                if (isDark) glass.fallbackBorderAlphaDark else glass.fallbackBorderAlphaLight,
-            ),
-        )
-
-    BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
-        val tabWidth = ((maxWidth - 8.dp) / safeCount).coerceAtLeast(0.dp)
-        val thumbLeft by animateDpAsState(
-            targetValue = 4.dp + tabWidth * selectedIndex.coerceIn(0, items.lastIndex),
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
-            label = "fallbackNavThumb",
-        )
-
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(4.dp)
-                .clip(shape)
-                .background(surface),
-        ) {}
-
-        Box(
-            Modifier
-                .offset(x = thumbLeft, y = 4.dp)
-                .width(tabWidth)
-                .height(BottomNavigationBarHeight - 8.dp)
-                .clip(shape)
-                .background(selectedSurface)
-                .border(
-                    width = 0.5.dp,
-                    color = selectedBorder,
-                    shape = shape,
-                ),
-        )
-
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(80.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = scheme.surfaceContainer,
+        contentColor = scheme.onSurface,
+        shadowElevation = 1.dp,
+    ) {
+        NavigationBar(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            windowInsets = WindowInsets(0),
         ) {
             items.forEachIndexed { index, item ->
-                BottomNavigationTab(
-                    item = item,
+                NavigationBarItem(
                     selected = index == selectedIndex,
-                    isDark = isDark,
                     onClick = { onTabSelected(index) },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = stringResource(id = item.titleResId),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = scheme.onSecondaryContainer,
+                        selectedTextColor = scheme.onSurface,
+                        indicatorColor = scheme.secondaryContainer,
+                        unselectedIconColor = scheme.onSurfaceVariant,
+                        unselectedTextColor = scheme.onSurfaceVariant,
+                    ),
                 )
             }
         }
@@ -598,7 +565,10 @@ fun MiniPlayer(
     onPlayerClick: () -> Unit = {},
     onPlaylistClick: () -> Unit = {}
 ) {
-    var isPressed by remember { mutableStateOf(false) }
+    val playerInteractionSource = remember {
+        androidx.compose.foundation.interaction.MutableInteractionSource()
+    }
+    val isPressed by playerInteractionSource.collectIsPressedAsState()
     val scaleValue by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = spring(
@@ -619,72 +589,122 @@ fun MiniPlayer(
     )
 
     val colorScheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val isDarkTheme = isAppDarkTheme()
-    val titleColor =
+    val titleColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.98f) else colorScheme.onSurface
-    val subtitleColor =
+    } else {
+        colorScheme.onSurface
+    }
+    val subtitleColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.65f) else colorScheme.onSurfaceVariant
-    val progressTrackColor =
+    } else {
+        colorScheme.onSurfaceVariant
+    }
+    val progressTrackColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.15f) else colorScheme.onSurface.copy(alpha = 0.12f)
-    val progressActiveColor =
+    } else {
+        colorScheme.surfaceVariant
+    }
+    val progressActiveColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.9f) else colorScheme.primary
-    val playButtonBg =
+    } else {
+        colorScheme.primary
+    }
+    val playButtonBg = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.95f) else colorScheme.primary
-    val playButtonIconTint =
+    } else {
+        colorScheme.primary
+    }
+    val playButtonIconTint = if (useLiquidStyle) {
         if (isDarkTheme) Color(0xFF1A1A2E) else colorScheme.onPrimary
-    val playlistButtonBg =
+    } else {
+        colorScheme.onPrimary
+    }
+    val playlistButtonBg = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.12f) else colorScheme.onSurface.copy(alpha = 0.08f)
-    val playlistButtonBorder =
+    } else {
+        colorScheme.secondaryContainer
+    }
+    val playlistButtonBorder = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.18f) else colorScheme.outline.copy(alpha = 0.35f)
-    val playlistIconTint =
+    } else {
+        Color.Transparent
+    }
+    val playlistIconTint = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.85f) else colorScheme.onSurface.copy(alpha = 0.88f)
+    } else {
+        colorScheme.onSecondaryContainer
+    }
+    val coverPlaceholderColor = if (useLiquidStyle) {
+        Color(0xFF1A1A2E).copy(alpha = 0.4f)
+    } else {
+        colorScheme.surfaceContainerHighest
+    }
 
     val miniTint = LiquidGlassDefaults.miniPlayerBar
     val miniLiq = LiquidGlassDefaults.liquidSoft
+    val miniShape = if (useLiquidStyle) RoundedCornerShape(34.dp) else RoundedCornerShape(16.dp)
+    val coverShape = if (useLiquidStyle) RoundedCornerShape(14.dp) else RoundedCornerShape(16.dp)
+    val coverSize = if (useLiquidStyle) 48.dp else 44.dp
+    val contentSpacing = if (useLiquidStyle) 14.dp else 12.dp
+    val playButtonSize = if (useLiquidStyle) 36.dp else 40.dp
+    val playIconSize = if (useLiquidStyle) 18.dp else 20.dp
+    val playerClickModifier = if (useLiquidStyle) {
+        Modifier.clickable(
+            interactionSource = playerInteractionSource,
+            indication = null,
+            onClick = onPlayerClick,
+        )
+    } else {
+        Modifier.clickable(role = Role.Button, onClick = onPlayerClick)
+    }
     GlassSurface(
-        modifier = modifier.fillMaxWidth().height(68.dp),
-        // 与底栏同为「胶囊」，让底部两块 chrome 共用一套圆角语言。
-        shape = RoundedCornerShape(34.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(if (useLiquidStyle) 68.dp else 64.dp),
+        // 液态路径保持胶囊；Material 3 回退使用 M3 large 圆角与高一级的 tonal 容器。
+        shape = miniShape,
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = colorScheme.surfaceContainerHigh,
         backgroundAlpha = miniTint.backgroundAlpha,
         borderAlpha = miniTint.borderAlpha,
         highlightAlpha = miniTint.highlightAlpha,
         liquidBlur = miniLiq.blur,
         liquidLensHeight = miniLiq.lensHeight,
-        liquidLensAmount = miniLiq.lensAmount
+        liquidLensAmount = miniLiq.lensAmount,
+        material3Elevation = if (useLiquidStyle) 0.dp else 1.dp,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        isPressed = true
-                        onPlayerClick()
-                    }
-                )
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .scale(scaleValue)
+                .then(playerClickModifier)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        horizontal = 16.dp,
+                        vertical = if (useLiquidStyle) 10.dp else 8.dp,
+                    )
+                    .then(if (useLiquidStyle) Modifier.scale(scaleValue) else Modifier),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 左侧：封面、歌曲信息
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(contentSpacing),
                     modifier = Modifier.weight(1f)
                 ) {
                     // 封面
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF1A1A2E).copy(alpha = 0.4f))
+                            .size(coverSize)
+                            .clip(coverShape)
+                            .background(coverPlaceholderColor)
                             .then(
-                                if (isPlaying) {
+                                if (isPlaying && useLiquidStyle) {
                                     Modifier.scale(pulseScale)
                                 } else {
                                     Modifier
@@ -715,26 +735,30 @@ fun MiniPlayer(
                     ) {
                         Text(
                             text = songTitle.ifEmpty { stringResource(id = R.string.player_no_music) },
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = if (useLiquidStyle) 15.sp else 14.sp,
+                            fontWeight = if (useLiquidStyle) FontWeight.Bold else FontWeight.SemiBold,
                             color = titleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = if (isDarkTheme) {
-                                    TextShadow(
-                                        color = Color.Black.copy(alpha = 0.5f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 4f
-                                    )
-                                } else {
-                                    TextShadow(
-                                        color = Color.Black.copy(alpha = 0.08f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 2f
-                                    )
-                                }
-                            )
+                            style = if (useLiquidStyle) {
+                                androidx.compose.ui.text.TextStyle(
+                                    shadow = if (isDarkTheme) {
+                                        TextShadow(
+                                            color = Color.Black.copy(alpha = 0.5f),
+                                            offset = Offset(0f, 1f),
+                                            blurRadius = 4f
+                                        )
+                                    } else {
+                                        TextShadow(
+                                            color = Color.Black.copy(alpha = 0.08f),
+                                            offset = Offset(0f, 1f),
+                                            blurRadius = 2f
+                                        )
+                                    }
+                                )
+                            } else {
+                                MaterialTheme.typography.titleSmall
+                            }
                         )
                         Text(
                             text = artist.ifEmpty { stringResource(id = R.string.player_click_to_play) },
@@ -742,21 +766,25 @@ fun MiniPlayer(
                             color = subtitleColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = androidx.compose.ui.text.TextStyle(
-                                shadow = if (isDarkTheme) {
-                                    TextShadow(
-                                        color = Color.Black.copy(alpha = 0.4f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 3f
-                                    )
-                                } else {
-                                    TextShadow(
-                                        color = Color.Black.copy(alpha = 0.06f),
-                                        offset = Offset(0f, 1f),
-                                        blurRadius = 2f
-                                    )
-                                }
-                            )
+                            style = if (useLiquidStyle) {
+                                androidx.compose.ui.text.TextStyle(
+                                    shadow = if (isDarkTheme) {
+                                        TextShadow(
+                                            color = Color.Black.copy(alpha = 0.4f),
+                                            offset = Offset(0f, 1f),
+                                            blurRadius = 3f
+                                        )
+                                    } else {
+                                        TextShadow(
+                                            color = Color.Black.copy(alpha = 0.06f),
+                                            offset = Offset(0f, 1f),
+                                            blurRadius = 2f
+                                        )
+                                    }
+                                )
+                            } else {
+                                MaterialTheme.typography.bodySmall
+                            }
                         )
                     }
                 }
@@ -771,46 +799,46 @@ fun MiniPlayer(
                         modifier = Modifier.size(46.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // 圆形进度条
-                        Canvas(
-                            modifier = Modifier.size(46.dp)
-                        ) {
-                            val strokeWidth = 3.dp.toPx()
-                            val radius = size.minDimension / 2 - strokeWidth / 2 - 2.dp.toPx()
-                            val center = Offset(size.width / 2, size.height / 2)
+                        if (useLiquidStyle) {
+                            // 液态路径保留播放键外圈的圆形进度。
+                            Canvas(
+                                modifier = Modifier.size(46.dp)
+                            ) {
+                                val strokeWidth = 3.dp.toPx()
+                                val radius = size.minDimension / 2 - strokeWidth / 2 - 2.dp.toPx()
+                                val center = Offset(size.width / 2, size.height / 2)
 
-                            // 背景圆环
-                            drawCircle(
-                                color = progressTrackColor,
-                                radius = radius,
-                                center = center,
-                                style = Stroke(
-                                    width = strokeWidth,
-                                    cap = StrokeCap.Round
-                                )
-                            )
-
-                            // 进度圆环
-                            if (progress > 0f) {
-                                drawArc(
-                                    color = progressActiveColor,
-                                    startAngle = -90f,
-                                    sweepAngle = 360f * progress,
-                                    useCenter = false,
+                                drawCircle(
+                                    color = progressTrackColor,
+                                    radius = radius,
+                                    center = center,
                                     style = Stroke(
                                         width = strokeWidth,
                                         cap = StrokeCap.Round
-                                    ),
-                                    size = Size(radius * 2, radius * 2),
-                                    topLeft = Offset(center.x - radius, center.y - radius)
+                                    )
                                 )
+
+                                if (progress > 0f) {
+                                    drawArc(
+                                        color = progressActiveColor,
+                                        startAngle = -90f,
+                                        sweepAngle = 360f * progress,
+                                        useCenter = false,
+                                        style = Stroke(
+                                            width = strokeWidth,
+                                            cap = StrokeCap.Round
+                                        ),
+                                        size = Size(radius * 2, radius * 2),
+                                        topLeft = Offset(center.x - radius, center.y - radius)
+                                    )
+                                }
                             }
                         }
 
                         // 播放/暂停按钮
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(playButtonSize)
                                 .clip(CircleShape)
                                 .background(playButtonBg)
                                 .clickable(onClick = onPlayPauseClick),
@@ -822,7 +850,7 @@ fun MiniPlayer(
                                 ),
                                 contentDescription = if (isPlaying) stringResource(id = R.string.content_description_pause) else stringResource(id = R.string.content_description_play),
                                 tint = playButtonIconTint,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(playIconSize)
                             )
                         }
                     }
@@ -833,10 +861,16 @@ fun MiniPlayer(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(playlistButtonBg)
-                            .border(
-                                width = 0.5.dp,
-                                color = playlistButtonBorder,
-                                shape = CircleShape
+                            .then(
+                                if (useLiquidStyle) {
+                                    Modifier.border(
+                                        width = 0.5.dp,
+                                        color = playlistButtonBorder,
+                                        shape = CircleShape,
+                                    )
+                                } else {
+                                    Modifier
+                                }
                             )
                             .clickable(onClick = onPlaylistClick),
                         contentAlignment = Alignment.Center
@@ -846,6 +880,26 @@ fun MiniPlayer(
                             contentDescription = stringResource(id = R.string.content_description_playlist),
                             tint = playlistIconTint,
                             modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Material 3 迷你播放器使用贴底的线性进度，不再用播放键外圈的装饰环。
+            if (!useLiquidStyle) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(colorScheme.surfaceVariant),
+                ) {
+                    if (progress > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .background(colorScheme.primary),
                         )
                     }
                 }

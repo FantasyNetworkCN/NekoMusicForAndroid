@@ -1,7 +1,6 @@
 package com.neko.music.ui.components
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -68,21 +67,14 @@ fun LiquidGlassSwitch(
     sampleBackdrop: LayerBackdrop? = null,
 ) {
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
-    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
 
-    if (!enabled || !hardwareLiquid || backdrop == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        val isDark = isDarkChrome ?: isSystemInDarkTheme()
+    if (!enabled || backdrop == null || !isLiquidGlassEffectActive(backdrop)) {
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
             modifier = modifier,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = RoseRed,
-                checkedTrackColor = RoseRed.copy(alpha = 0.5f),
-                uncheckedThumbColor = if (isDark) Color(0xFFB8B8D1) else Color.Gray,
-                uncheckedTrackColor = if (isDark) Color(0xFFB8B8D1).copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.5f)
-            )
+            colors = SwitchDefaults.colors(),
         )
         return
     }

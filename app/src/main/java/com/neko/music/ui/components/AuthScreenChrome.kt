@@ -26,8 +26,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -190,6 +193,7 @@ fun AuthGlassIconButton(
             .size(42.dp)
             .clickable(onClick = onClick),
         shape = CircleShape,
+        material3Container = scheme.surfaceContainerHigh,
         sampleBackdrop = pageBackdrop,
         backgroundAlpha = panel.tint.background(isDark),
         borderAlpha = panel.tint.border(isDark),
@@ -227,6 +231,8 @@ fun AuthFieldGroup(
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainerHigh,
         sampleBackdrop = pageBackdrop,
         backgroundAlpha = panel.tint.background(isDark),
         borderAlpha = panel.tint.border(isDark),
@@ -382,6 +388,33 @@ fun AuthPrimaryButton(
     isDark: Boolean = isAppDarkTheme(),
 ) {
     val panel = LiquidGlassDefaults.authPrimaryButton
+    if (!isLiquidGlassEffectActive(pageBackdrop)) {
+        Button(
+            onClick = onClick,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            enabled = enabled && !loading,
+            shape = RoundedCornerShape(27.dp),
+            colors = ButtonDefaults.buttonColors(),
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = LocalContentColor.current,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text(
+                    text = text,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LocalContentColor.current,
+                )
+            }
+        }
+        return
+    }
     val tint = when {
         !enabled -> RoseRed.copy(alpha = 0.22f)
         isDark -> RoseRed.copy(alpha = 0.62f)

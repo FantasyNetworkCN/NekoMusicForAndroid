@@ -5,17 +5,18 @@ import androidx.annotation.FloatRange
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -74,6 +75,7 @@ internal fun liquidGlassFrost(
  * 同一 export 并各自 `drawBackdrop`，会触发 RenderThread SIGSEGV。
  *
  * 液态叠色随 [MaterialTheme] 深浅色：暗色为深色霜化底 + 弱顶光，浅色为白霜化（与系统玻璃语义一致）。
+ * 关闭液态玻璃或设备不支持时不再模拟霜化，而是使用 Material 3 的实色 tonal 容器与可选 elevation。
  *
  * Kyant 要求效果顺序为 **color filter ⇒ blur ⇒ lens**；可选的 [opacity] 须在 vibrancy/blur 之前。
  * 官方 [Glass Bottom Bar](https://kyant.gitbook.io/backdrop/tutorials/glass-bottom-bar) 终稿 **未** 对采样层做 opacity，
@@ -106,9 +108,18 @@ fun GlassSurface(
     liquidLensAmount: Dp = 32.dp,
     /**
      * 叠在霜化层之上的整体着色（品牌色主按钮 / 选中态等）。
-     * 与 [overrideDrawSurface] 不同，它在 CPU 兜底路径同样生效。
+     * 与 [overrideDrawSurface] 不同，它在 Material 3 回退路径同样生效。
      */
     surfaceTint: Color? = null,
+    /** Material 3 回退路径使用的形状；液态路径继续使用 [shape]。 */
+    material3Shape: Shape = shape,
+    /** Material 3 回退路径的 tonal 容器；`Unspecified` 时使用 `surfaceContainer`。 */
+    material3Container: Color = Color.Unspecified,
+    /** Material 3 回退路径的可选描边，仅用于输入框等需要明确边界的控件。 */
+    material3BorderColor: Color = Color.Transparent,
+    material3BorderWidth: Dp = 0.dp,
+    /** Material 3 回退路径的阴影高度；液态玻璃路径不使用。 */
+    material3Elevation: Dp = 0.dp,
     /**
      * Kyant [Highlight](https://kyant.gitbook.io/backdrop/api/backdrop-effects)：沿形状边缘的高光描边。
      * `Highlight.Default` 需要 `CornerBasedShape`；Android 13+ 走 shader，以下退化为纯色描边。
@@ -131,9 +142,7 @@ fun GlassSurface(
     val liqBlur = liquidBlur.scaledBy(ui.blurStrength)
     val liqLensH = liquidLensHeight.scaledBy(ui.lensHeightStrength)
     val liqLensAmt = liquidLensAmount.scaledBy(ui.lensAmountStrength)
-    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
-    val useLiquid =
-        hardwareLiquid && backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useLiquid = backdrop != null && isLiquidGlassEffectActive(backdrop)
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
     if (useLiquid) {
@@ -192,38 +201,43 @@ fun GlassSurface(
             content()
         }
     } else {
-        val fallbackFill =
-            if (isDarkTheme) Color(0xFF1A1A2E).copy(alpha = bgAlpha)
-            else MaterialTheme.colorScheme.surface.copy(alpha = (bgAlpha * 1.15f).coerceIn(0.35f, 0.92f))
-        val fallbackSheenTop =
-            if (isDarkTheme) Color.White.copy(alpha = hiAlpha * 0.55f)
-            else Color.White.copy(alpha = hiAlpha)
+        val scheme = MaterialTheme.colorScheme
+        val fallbackFilled = surfaceTint != null && surfaceTint.alpha >= 0.5f
+        val fallbackContainer = if (material3Container.isSpecified) {
+            material3Container
+        } else {
+            scheme.surfaceContainer
+        }
+        val fallbackFill = when {
+            surfaceTint == null -> fallbackContainer
+            fallbackFilled -> surfaceTint.copy(alpha = 1f)
+            else -> surfaceTint
+                .copy(alpha = surfaceTint.alpha.coerceIn(0f, 0.06f))
+                .compositeOver(fallbackContainer)
+        }
         Box(
             modifier = modifier
-                .clip(shape)
+                .then(
+                    if (material3Elevation > 0.dp) {
+                        Modifier.shadow(material3Elevation, material3Shape, clip = false)
+                    } else {
+                        Modifier
+                    }
+                )
+                .clip(material3Shape)
                 .background(fallbackFill)
                 .then(
-                    if (surfaceTint != null) Modifier.background(surfaceTint) else Modifier
-                )
-                .border(
-                    width = 0.5.dp,
-                    color = borderColor.copy(alpha = bdAlpha),
-                    shape = shape
+                    if (material3BorderWidth > 0.dp) {
+                        Modifier.border(
+                            width = material3BorderWidth,
+                            color = material3BorderColor,
+                            shape = material3Shape,
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                fallbackSheenTop,
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
             content()
         }
     }

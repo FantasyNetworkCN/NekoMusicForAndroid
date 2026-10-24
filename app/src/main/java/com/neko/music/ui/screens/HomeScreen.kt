@@ -15,6 +15,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -85,6 +88,8 @@ import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.data.manager.AppBackgroundKind
 import com.neko.music.ui.home.HomeLiquidHeroState
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
@@ -803,40 +808,41 @@ fun PlaylistCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDarkCard = isAppDarkTheme()
-    val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
-    val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val cardTitleColor = if (useLiquidStyle && isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
+    val cardSubtitleColor = if (useLiquidStyle && isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
     val cardTitleShadow =
-        if (isDarkCard) {
+        if (useLiquidStyle && isDarkCard) {
             Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
-        } else {
+        } else if (useLiquidStyle) {
             Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
-        }
+        } else null
     val cardSubtitleShadow =
-        if (isDarkCard) {
+        if (useLiquidStyle && isDarkCard) {
             Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
-        } else {
+        } else if (useLiquidStyle) {
             Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
-        }
+        } else null
 
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.95f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         )
     )
+    val coverShape = RoundedCornerShape(if (useLiquidStyle) 20.dp else 16.dp)
 
     Column(
         modifier = modifier
             .scale(scale)
             .clickable(
-                indication = null,
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            ) {
-                isPressed = true
-                onClick()
-            },
+                interactionSource = interactionSource,
+                indication = if (useLiquidStyle) null else ripple(),
+                onClick = onClick,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 封面
@@ -850,11 +856,17 @@ fun PlaylistCard(
                         1f
                     }
                 )
-                .clip(RoundedCornerShape(20.dp))
-                .shadow(
-                    elevation = 8.dp,
-                    spotColor = RoseRed.copy(alpha = 0.25f),
-                    ambientColor = Color.Gray.copy(alpha = 0.12f)
+                .clip(coverShape)
+                .then(
+                    if (useLiquidStyle) {
+                        Modifier.shadow(
+                            elevation = 8.dp,
+                            spotColor = RoseRed.copy(alpha = 0.25f),
+                            ambientColor = Color.Gray.copy(alpha = 0.12f),
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
             // 背景渐变
@@ -903,23 +915,24 @@ fun PlaylistCard(
                     )
             )
 
-            // 光泽效果
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.15f),
-                                Color.Transparent,
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.05f)
-                            ),
-                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            end = androidx.compose.ui.geometry.Offset(160f, 160f)
+            if (useLiquidStyle) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.15f),
+                                    Color.Transparent,
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = 0.05f)
+                                ),
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(160f, 160f)
+                            )
                         )
-                    )
-            )
+                )
+            }
 
             // 音乐数量标签
             Box(
@@ -927,28 +940,40 @@ fun PlaylistCard(
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .background(
-                        color = Color(0xFF1A1A2E).copy(alpha = 0.85f),
+                        color = if (useLiquidStyle) {
+                            Color(0xFF1A1A2E).copy(alpha = 0.85f)
+                        } else {
+                            scheme.surfaceContainerHighest
+                        },
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .border(
-                        width = 0.5.dp,
-                        color = Color.White.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp)
+                    .then(
+                        if (useLiquidStyle) {
+                            Modifier.border(
+                                width = 0.5.dp,
+                                color = Color.White.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                        } else {
+                            Modifier
+                        }
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = stringResource(id = R.string.songs_count_format, playlist.musicCount),
                     fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.95f),
+                    color = if (useLiquidStyle) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.3.sp,
                     style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f
-                        )
+                        shadow = if (useLiquidStyle) {
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                offset = Offset(0f, 1f),
+                                blurRadius = 4f,
+                            )
+                        } else null
                     )
                 )
             }
@@ -1001,32 +1026,36 @@ fun RankingMusicCard(
 
     val scheme = MaterialTheme.colorScheme
     val isDarkCard = isAppDarkTheme()
-    val cardTitleColor = if (isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
-    val cardSubtitleColor = if (isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val cardTitleColor = if (useLiquidStyle && isDarkCard) Color.White.copy(alpha = 0.98f) else scheme.onSurface
+    val cardSubtitleColor = if (useLiquidStyle && isDarkCard) Color.White.copy(alpha = 0.88f) else scheme.onSurfaceVariant
     val cardTitleShadow =
-        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
-        else Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
+        if (useLiquidStyle && isDarkCard) Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 1f), 4f)
+        else if (useLiquidStyle) Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 2.5f)
+        else null
     val cardSubtitleShadow =
-        if (isDarkCard) Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
-        else Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
+        if (useLiquidStyle && isDarkCard) Shadow(Color.Black.copy(alpha = 0.7f), Offset(0f, 1f), 3f)
+        else if (useLiquidStyle) Shadow(Color.Black.copy(alpha = 0.06f), Offset(0f, 1f), 2f)
+        else null
 
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.95f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         )
     )
+    val coverShape = RoundedCornerShape(if (useLiquidStyle) 20.dp else 16.dp)
 
     Column(
         modifier = modifier
             .scale(scale)
             .clickable(
-                indication = null,
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                interactionSource = interactionSource,
+                indication = if (useLiquidStyle) null else ripple(),
             ) {
-                isPressed = true
                 android.util.Log.d("RankingMusicCard", "点击热门音乐，共${musicList.size}首")
                 onClick()
             },
@@ -1043,11 +1072,17 @@ fun RankingMusicCard(
                         1f
                     }
                 )
-                .clip(RoundedCornerShape(20.dp))
-                .shadow(
-                    elevation = 8.dp,
-                    spotColor = RoseRed.copy(alpha = 0.3f),
-                    ambientColor = Color.Gray.copy(alpha = 0.15f)
+                .clip(coverShape)
+                .then(
+                    if (useLiquidStyle) {
+                        Modifier.shadow(
+                            elevation = 8.dp,
+                            spotColor = RoseRed.copy(alpha = 0.3f),
+                            ambientColor = Color.Gray.copy(alpha = 0.15f),
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         ) {
             // 背景渐变
@@ -1113,23 +1148,24 @@ fun RankingMusicCard(
                     )
             )
 
-            // 光泽效果
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.15f),
-                                Color.Transparent,
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.05f)
-                            ),
-                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            end = androidx.compose.ui.geometry.Offset(160f, 160f)
+            if (useLiquidStyle) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.15f),
+                                    Color.Transparent,
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = 0.05f)
+                                ),
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(160f, 160f)
+                            )
                         )
-                    )
-            )
+                )
+            }
 
             // 音乐数量标签
             Box(
@@ -1137,28 +1173,40 @@ fun RankingMusicCard(
                     .align(Alignment.BottomStart)
                     .padding(10.dp)
                     .background(
-                        color = Color(0xFF1A1A2E).copy(alpha = 0.85f),
+                        color = if (useLiquidStyle) {
+                            Color(0xFF1A1A2E).copy(alpha = 0.85f)
+                        } else {
+                            scheme.surfaceContainerHighest
+                        },
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .border(
-                        width = 0.5.dp,
-                        color = Color.White.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp)
+                    .then(
+                        if (useLiquidStyle) {
+                            Modifier.border(
+                                width = 0.5.dp,
+                                color = Color.White.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                        } else {
+                            Modifier
+                        }
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = songsCountShortText,
                     fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.95f),
+                    color = if (useLiquidStyle) Color.White.copy(alpha = 0.95f) else scheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.3.sp,
                     style = androidx.compose.ui.text.TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            offset = Offset(0f, 1f),
-                            blurRadius = 4f
-                        )
+                        shadow = if (useLiquidStyle) {
+                            Shadow(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                offset = Offset(0f, 1f),
+                                blurRadius = 4f,
+                            )
+                        } else null
                     )
                 )
             }

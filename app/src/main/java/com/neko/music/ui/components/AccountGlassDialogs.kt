@@ -105,6 +105,8 @@ fun ChangeAvatarGlassDialog(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),
@@ -192,6 +194,8 @@ fun LogoutGlassDialog(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),
@@ -318,6 +322,8 @@ fun ChangePasswordGlassDialog(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),
@@ -531,6 +537,8 @@ fun ChangeNicknameGlassDialog(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = sampleBackdrop,
             backgroundAlpha = dialogGlass.tint.background(isDark),
             borderAlpha = dialogGlass.tint.border(isDark),

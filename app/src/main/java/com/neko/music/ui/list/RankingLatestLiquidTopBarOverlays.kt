@@ -120,6 +120,8 @@ private fun ListScreenLiquidTopBarOverlay(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .height(56.dp),
             shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(28.dp),
+            material3Container = scheme.surfaceContainerHigh,
             sampleBackdrop = backdropForGlass,
             backgroundAlpha = topBarGlass.tint.background(isDark),
             borderAlpha = topBarGlass.tint.border(isDark),

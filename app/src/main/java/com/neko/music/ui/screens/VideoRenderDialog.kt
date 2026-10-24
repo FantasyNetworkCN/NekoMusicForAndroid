@@ -141,6 +141,8 @@ fun VideoRenderDialog(
                         onClick = {},
                     ),
                 shape = RoundedCornerShape(24.dp),
+                material3Shape = RoundedCornerShape(28.dp),
+                material3Container = scheme.surfaceContainerHigh,
                 sampleBackdrop = sampleBackdrop,
                 backgroundAlpha = dialogGlass.tint.background(isDarkTheme),
                 borderAlpha = dialogGlass.tint.border(isDarkTheme),

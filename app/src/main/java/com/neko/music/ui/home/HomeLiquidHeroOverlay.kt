@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +65,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.screens.LatestMusicCard
 import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
@@ -166,6 +168,8 @@ private fun HomeHeader(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val glass = LiquidGlassDefaults.homeHeroSearchBar
+    val useLiquidStyle = isLiquidGlassEffectActive(sampleBackdrop)
+    val searchHeight = if (useLiquidStyle) 50.dp else 56.dp
     val borderColor = if (isDarkHome) {
         SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
     } else {
@@ -205,9 +209,11 @@ private fun HomeHeader(
             GlassSurface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp),
+                    .height(searchHeight),
                 sampleBackdrop = sampleBackdrop,
                 shape = RoundedCornerShape(18.dp),
+                material3Shape = RoundedCornerShape(28.dp),
+                material3Container = colorScheme.surfaceContainerHigh,
                 backgroundAlpha = glass.tint.background(isDarkHome),
                 borderAlpha = glass.tint.border(isDarkHome),
                 highlightAlpha = glass.tint.highlight(isDarkHome),
@@ -219,12 +225,18 @@ private fun HomeHeader(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(searchHeight)
                         .padding(horizontal = 16.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onSearchClick,
+                        .then(
+                            if (useLiquidStyle) {
+                                Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onSearchClick,
+                                )
+                            } else {
+                                Modifier.clickable(onClick = onSearchClick)
+                            }
                         ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -248,10 +260,11 @@ private fun HomeHeader(
 
             GlassSurface(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(searchHeight)
                     .clickable(onClick = onRecognitionClick),
                 sampleBackdrop = sampleBackdrop,
                 shape = CircleShape,
+                material3Container = colorScheme.surfaceContainerHigh,
                 backgroundAlpha = glass.tint.background(isDarkHome),
                 borderAlpha = glass.tint.border(isDarkHome),
                 highlightAlpha = glass.tint.highlight(isDarkHome),
@@ -288,6 +301,7 @@ private fun HomeDailyFeature(
     val music = musicList.firstOrNull() ?: return
     val colorScheme = MaterialTheme.colorScheme
     val glass = LiquidGlassDefaults.homeHeroShortcutCard
+    val useLiquidStyle = isLiquidGlassEffectActive(sampleBackdrop)
     val borderColor = if (isDarkHome) {
         SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroShortcutCardDarkBorderSakuraAlpha)
     } else {
@@ -296,7 +310,7 @@ private fun HomeDailyFeature(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
+        targetValue = if (isPressed && useLiquidStyle) 0.985f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -317,6 +331,8 @@ private fun HomeDailyFeature(
             .padding(horizontal = 20.dp),
         sampleBackdrop = sampleBackdrop,
         shape = RoundedCornerShape(24.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = colorScheme.surfaceContainerHigh,
         backgroundAlpha = glass.tint.background(isDarkHome),
         borderAlpha = glass.tint.border(isDarkHome),
         highlightAlpha = glass.tint.highlight(isDarkHome),
@@ -344,7 +360,7 @@ private fun HomeDailyFeature(
                     .scale(pressScale)
                     .clickable(
                         interactionSource = interactionSource,
-                        indication = null,
+                        indication = if (useLiquidStyle) null else ripple(),
                         onClick = onClick,
                     )
                     .padding(16.dp),
@@ -436,6 +452,8 @@ private fun HomeRecommendedPanel(
             .padding(horizontal = 20.dp),
         sampleBackdrop = sampleBackdrop,
         shape = RoundedCornerShape(24.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = colorScheme.surfaceContainer,
         backgroundAlpha = glass.tint.background(isDarkHome),
         borderAlpha = glass.tint.border(isDarkHome),
         highlightAlpha = glass.tint.highlight(isDarkHome),

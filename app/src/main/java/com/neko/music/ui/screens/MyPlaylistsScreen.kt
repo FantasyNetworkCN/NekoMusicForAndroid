@@ -8,6 +8,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -82,6 +83,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import kotlinx.coroutines.launch
 
 /** 暗色底图上可读的主/次文字色（避免灰紫 B8B8D1 对比不足） */
@@ -109,6 +111,7 @@ fun MyPlaylistsScreen(
 
     val scheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+    val useLiquidStyle = isLiquidGlassEffectActive(pageBackdrop)
     
     // 歌单数据
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
@@ -523,7 +526,9 @@ fun MyPlaylistsScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (useLiquidStyle) 12.dp else 6.dp
+                            ),
                             contentPadding = PaddingValues(bottom = 150.dp)
                         ) {
                             itemsIndexed(allPlaylists) { index, playlist ->
@@ -538,13 +543,7 @@ fun MyPlaylistsScreen(
                                             .fillMaxWidth()
                                             .padding(vertical = 8.dp)
                                             .height(1.dp)
-                                            .background(
-                                                if (isAppDarkTheme()) {
-                                                    Color.White.copy(alpha = 0.1f)
-                                                } else {
-                                                    Color.Black.copy(alpha = 0.1f)
-                                                }
-                                            )
+                                            .background(scheme.outlineVariant)
                                     )
                                 }
 
@@ -593,7 +592,7 @@ fun MyPlaylistsScreen(
                                 GlassSurface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(80.dp)
+                                        .height(if (useLiquidStyle) 80.dp else 72.dp)
                                         .clickable {
                                             if (tokenManager.getToken() != null) {
                                                 editingPlaylist = null
@@ -608,6 +607,8 @@ fun MyPlaylistsScreen(
                                             }
                                         },
                                     shape = RoundedCornerShape(16.dp),
+                                    material3Shape = RoundedCornerShape(16.dp),
+                                    material3Container = rowScheme.surfaceContainerLow,
                                     backgroundAlpha = rowGlass.tint.background(isDark),
                                     borderAlpha = rowGlass.tint.border(isDark),
                                     highlightAlpha = rowGlass.tint.highlight(isDark),
@@ -627,12 +628,12 @@ fun MyPlaylistsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
-                                                tint = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray
+                                                tint = rowScheme.primary
                                             )
                                             Text(
                                                 text = stringResource(id = R.string.create_new_playlist),
                                                 fontSize = 16.sp,
-                                                color = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray,
+                                                color = rowScheme.onSurface,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -647,7 +648,7 @@ fun MyPlaylistsScreen(
                                 GlassSurface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(80.dp)
+                                        .height(if (useLiquidStyle) 80.dp else 72.dp)
                                         .clickable {
                                             if (tokenManager.getToken() != null) {
                                                 showImportSourceDialog = true
@@ -660,6 +661,8 @@ fun MyPlaylistsScreen(
                                             }
                                         },
                                     shape = RoundedCornerShape(16.dp),
+                                    material3Shape = RoundedCornerShape(16.dp),
+                                    material3Container = rowScheme.surfaceContainerLow,
                                     backgroundAlpha = rowGlass.tint.background(isDark),
                                     borderAlpha = rowGlass.tint.border(isDark),
                                     highlightAlpha = rowGlass.tint.highlight(isDark),
@@ -679,12 +682,12 @@ fun MyPlaylistsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
-                                                tint = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray
+                                                tint = rowScheme.primary
                                             )
                                             Text(
                                                 text = stringResource(id = R.string.import_playlist_from_external),
                                                 fontSize = 16.sp,
-                                                color = if (isDark) MyPlaylistsDarkPrimaryText else Color.DarkGray,
+                                                color = rowScheme.onSurface,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -1244,9 +1247,11 @@ fun PlaylistItem(
     val moreText = stringResource(id = R.string.more)
     var actionsExpanded by remember { mutableStateOf(false) }
 
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.98f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -1285,13 +1290,16 @@ fun PlaylistItem(
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
-            .clickable {
-                isPressed = true
-                onClick()
-            }
+            .height(if (useLiquidStyle) 80.dp else 72.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = if (useLiquidStyle) null else ripple(),
+                onClick = onClick,
+            )
             .scale(scale),
         shape = RoundedCornerShape(16.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = itemScheme.surfaceContainerLow,
         backgroundAlpha = rowGlass.tint.background(isDarkTheme),
         borderAlpha = rowGlass.tint.border(isDarkTheme),
         highlightAlpha = rowGlass.tint.highlight(isDarkTheme),
@@ -1312,13 +1320,7 @@ fun PlaylistItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isDarkTheme) {
-                            Color(0xFF353558).copy(alpha = 0.6f)
-                        } else {
-                            Color(0xFFE0E0E0)
-                        }
-                    ),
+                    .background(itemScheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
@@ -1345,21 +1347,13 @@ fun PlaylistItem(
                     text = playlist.name,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDarkTheme) {
-                        MyPlaylistsDarkPrimaryText
-                    } else {
-                        itemScheme.onSurface
-                    }
+                    color = itemScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = songsCountLabelText,
                     fontSize = 14.sp,
-                    color = if (isDarkTheme) {
-                        MyPlaylistsDarkSecondaryText
-                    } else {
-                        itemScheme.onSurfaceVariant
-                    }
+                    color = itemScheme.onSurfaceVariant
                 )
             }
 
@@ -1376,11 +1370,7 @@ fun PlaylistItem(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = moreText,
-                            tint = if (isDarkTheme) {
-                                MyPlaylistsDarkSecondaryText
-                            } else {
-                                itemScheme.onSurfaceVariant
-                            }
+                            tint = itemScheme.onSurfaceVariant
                         )
                     }
                     DropdownMenu(

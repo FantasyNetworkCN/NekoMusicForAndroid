@@ -85,6 +85,8 @@ fun EditorialCollectionHero(
             .fillMaxWidth()
             .height(196.dp),
         shape = RoundedCornerShape(28.dp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainer,
         backgroundAlpha = if (isDark) {
             glass.batchDockBackgroundAlphaDark
         } else {
@@ -253,6 +255,8 @@ fun EditorialPlayAllButton(
                 onClick = onClick,
             ),
         shape = RoundedCornerShape(18.dp),
+        material3Shape = RoundedCornerShape(50),
+        material3Container = scheme.secondaryContainer,
         backgroundAlpha = if (isDark) {
             glass.batchDockBackgroundAlphaDark
         } else {
@@ -341,6 +345,8 @@ fun EditorialCollectionLoading(
                 .height(196.dp)
                 .alpha(0.5f + pulse * 0.25f),
             shape = RoundedCornerShape(28.dp),
+            material3Shape = RoundedCornerShape(16.dp),
+            material3Container = scheme.surfaceContainer,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -408,6 +414,8 @@ fun EditorialCollectionLoading(
                 .height(52.dp)
                 .alpha(0.5f + pulse * 0.25f),
             shape = RoundedCornerShape(18.dp),
+            material3Shape = RoundedCornerShape(50),
+            material3Container = scheme.secondaryContainer,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -452,6 +460,8 @@ fun EditorialCollectionLoading(
                     .height(68.dp)
                     .alpha(0.45f + pulse * 0.22f),
                 shape = RoundedCornerShape(glass.musicRowCornerDp),
+                material3Shape = RoundedCornerShape(12.dp),
+                material3Container = scheme.surfaceContainer,
                 backgroundAlpha = if (isDark) {
                     glass.musicRowBackgroundAlphaDark
                 } else {
@@ -560,6 +570,8 @@ fun EditorialCollectionStateCard(
         GlassSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
+            material3Shape = RoundedCornerShape(16.dp),
+            material3Container = scheme.surfaceContainerHigh,
             backgroundAlpha = if (isDark) {
                 glass.batchDockBackgroundAlphaDark
             } else {
@@ -623,6 +635,8 @@ fun EditorialCollectionStateCard(
                             onClick = onAction,
                         ),
                     shape = RoundedCornerShape(21.dp),
+                    material3Shape = RoundedCornerShape(50),
+                    material3Container = scheme.secondaryContainer,
                     backgroundAlpha = if (isDark) {
                         glass.batchDockBackgroundAlphaDark
                     } else {

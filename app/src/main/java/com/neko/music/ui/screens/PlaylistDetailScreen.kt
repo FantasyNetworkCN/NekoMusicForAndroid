@@ -72,6 +72,7 @@ import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -686,8 +687,10 @@ fun PlaylistDetailScreen(
                                 .weight(1f)
                                 .height(42.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = RoseRed,
-                                disabledContainerColor = RoseRed.copy(alpha = 0.3f)
+                                containerColor = scheme.primary,
+                                contentColor = scheme.onPrimary,
+                                disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
+                                disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
                             ),
                             shape = RoundedCornerShape(21.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
@@ -695,7 +698,6 @@ fun PlaylistDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = if (musicList.isEmpty()) 0.5f else 0.95f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(5.dp))
@@ -703,7 +705,6 @@ fun PlaylistDetailScreen(
                                 text = stringResource(id = R.string.play_all),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White.copy(alpha = if (musicList.isEmpty()) 0.5f else 0.95f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1501,20 +1502,18 @@ internal fun PlaylistSearchBar(
 ) {
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
-    val textColor = if (isDarkTheme) {
-        Color(0xFFF0F0F5).copy(alpha = 0.95f)
-    } else {
-        scheme.onSurface
-    }
-    val secondaryColor = if (isDarkTheme) {
-        Color(0xFFB8B8D1).copy(alpha = 0.72f)
-    } else {
-        scheme.onSurfaceVariant
-    }
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val textColor = scheme.onSurface
+    val secondaryColor = scheme.onSurfaceVariant
+    val fieldHeight = if (useLiquidStyle) 44.dp else 56.dp
 
     GlassSurface(
-        modifier = modifier.height(44.dp),
+        modifier = modifier.height(fieldHeight),
         shape = RoundedCornerShape(22.dp),
+        material3Shape = RoundedCornerShape(28.dp),
+        material3Container = scheme.surfaceContainerHigh,
+        material3BorderColor = scheme.outlineVariant,
+        material3BorderWidth = 1.dp,
         backgroundAlpha = if (isDarkTheme) {
             liquidGlass.musicRowBackgroundAlphaDark
         } else {
@@ -1557,7 +1556,7 @@ internal fun PlaylistSearchBar(
                     color = textColor
                 ),
                 singleLine = true,
-                cursorBrush = SolidColor(RoseRed),
+                cursorBrush = SolidColor(scheme.primary),
                 decorationBox = { innerTextField ->
                     Box {
                         if (query.isEmpty()) {
@@ -1599,8 +1598,13 @@ internal fun PlaylistAddToQueueButton(
 ) {
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val shape = RoundedCornerShape(21.dp)
-    val contentColor = RoseRed.copy(alpha = if (enabled) 1f else 0.38f)
+    val contentColor = if (useLiquidStyle) {
+        RoseRed.copy(alpha = if (enabled) 1f else 0.38f)
+    } else {
+        scheme.onSecondaryContainer.copy(alpha = if (enabled) 1f else 0.38f)
+    }
 
     GlassSurface(
         modifier = modifier
@@ -1608,6 +1612,8 @@ internal fun PlaylistAddToQueueButton(
             .clip(shape)
             .clickable(enabled = enabled, onClick = onClick),
         shape = shape,
+        material3Shape = RoundedCornerShape(20.dp),
+        material3Container = scheme.secondaryContainer,
         backgroundAlpha = if (isDarkTheme) {
             liquidGlass.musicRowBackgroundAlphaDark
         } else {
@@ -1694,6 +1700,8 @@ fun PlaylistMusicItem(
                 },
             ),
         shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainerLow,
         backgroundAlpha = if (isDarkTheme) {
             liquidGlass.musicRowBackgroundAlphaDark
         } else {
@@ -1750,11 +1758,7 @@ fun PlaylistMusicItem(
             Text(
                 text = "$position",
                 fontSize = 14.sp,
-                color = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                } else {
-                    Color.Gray
-                },
+                color = scheme.onSurfaceVariant,
                 modifier = Modifier.width(24.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -1763,13 +1767,7 @@ fun PlaylistMusicItem(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        if (isDarkTheme) {
-                            Color(0xFF353558).copy(alpha = 0.6f)
-                        } else {
-                            Color(0xFFE0E0E0)
-                        }
-                    ),
+                    .background(scheme.surfaceContainerHighest),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
@@ -1793,11 +1791,7 @@ fun PlaylistMusicItem(
                     text = music.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isDarkTheme) {
-                        Color(0xFFF0F0F5).copy(alpha = 0.95f)
-                    } else {
-                        Color.Black
-                    },
+                    color = scheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1805,11 +1799,7 @@ fun PlaylistMusicItem(
                 Text(
                     text = music.artist,
                     fontSize = 13.sp,
-                    color = if (isDarkTheme) {
-                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                    } else {
-                        Color.Gray
-                    },
+                    color = scheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1818,11 +1808,7 @@ fun PlaylistMusicItem(
             Text(
                 text = formatTime(music.duration * 1000L),
                 fontSize = 13.sp,
-                color = if (isDarkTheme) {
-                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                } else {
-                    Color.Gray
-                }
+                color = scheme.onSurfaceVariant
             )
 
             if (!selectionMode) {
@@ -1834,11 +1820,7 @@ fun PlaylistMusicItem(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = moreActionsText,
-                            tint = if (isDarkTheme) {
-                                Color(0xFFB8B8D1).copy(alpha = 0.85f)
-                            } else {
-                                Color.Gray
-                            }
+                            tint = scheme.onSurfaceVariant
                         )
                     }
                     DropdownMenu(

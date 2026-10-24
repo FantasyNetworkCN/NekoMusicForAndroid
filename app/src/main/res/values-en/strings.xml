@@ -56,7 +56,7 @@
 
     <string name="liquid_glass_hardware_effects">Hardware liquid glass</string>
     <string name="liquid_glass_hardware_effects_subtitle">Backdrop blur and lens refraction (Android 12+). When off, frosted cards only, easier on GPU.</string>
-    <string name="liquid_glass_hardware_effects_unavailable">Hardware liquid needs Android 12+. Frosted cards are used.</string>
+    <string name="liquid_glass_hardware_effects_unavailable">Hardware liquid glass requires Android 12+. Showing the Material 3 interface.</string>
 
     <string name="lyric_highlight_color_section">Lyric highlight (player)</string>
     <string name="lyric_highlight_follow_theme">Theme default</string>

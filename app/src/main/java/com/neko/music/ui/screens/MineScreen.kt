@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +48,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.VipPill
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 
@@ -160,6 +162,8 @@ fun MineScreen(
                         GlassSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(24.dp),
+                            material3Shape = RoundedCornerShape(16.dp),
+                            material3Container = scheme.surfaceContainerLow,
                             sampleBackdrop = pageBackdrop,
                             backgroundAlpha = glassBg,
                             borderAlpha = glassBorder,
@@ -188,6 +192,8 @@ fun MineScreen(
                         GlassSurface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(24.dp),
+                            material3Shape = RoundedCornerShape(16.dp),
+                            material3Container = scheme.surfaceContainerLow,
                             sampleBackdrop = pageBackdrop,
                             backgroundAlpha = glassBg,
                             borderAlpha = glassBorder,
@@ -230,6 +236,8 @@ fun MineScreen(
                 GlassSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(bottomStart = 22.dp, bottomEnd = 22.dp),
+                    material3Shape = RectangleShape,
+                    material3Container = scheme.surfaceContainer,
                     sampleBackdrop = pageBackdrop,
                     backgroundAlpha = glassBg,
                     borderAlpha = glassBorder,
@@ -267,11 +275,7 @@ private fun MineSectionLabel(text: String) {
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.3.sp,
-        color = if (isAppDarkTheme()) {
-            Color.White.copy(alpha = 0.62f)
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -324,12 +328,24 @@ fun MineHeader(
         // 右上角：站内消息（带未读徽标）与「扫一扫」合成一块玻璃胶囊，避免两个孤立圆点
         val headerIsDark = isAppDarkTheme()
         val headerGlassTint = LiquidGlassDefaults.screenListCard
+        val useLiquidHeader = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+        val headerIconTint = if (useLiquidHeader) {
+            Color.White
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        val headerDividerColor = if (useLiquidHeader) {
+            Color.White.copy(alpha = 0.22f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        }
         GlassSurface(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(top = 10.dp, end = 16.dp),
             shape = RoundedCornerShape(50),
+            material3Container = MaterialTheme.colorScheme.surfaceContainerHigh,
             backgroundAlpha = headerGlassTint.background(headerIsDark),
             borderAlpha = headerGlassTint.border(headerIsDark),
             highlightAlpha = headerGlassTint.highlight(headerIsDark),
@@ -351,7 +367,7 @@ fun MineHeader(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_notification_message),
                             contentDescription = stringResource(id = R.string.notifications_title),
-                            tint = Color.White,
+                            tint = headerIconTint,
                             modifier = Modifier.size(21.dp)
                         )
                     }
@@ -381,7 +397,7 @@ fun MineHeader(
                     modifier = Modifier
                         .width(1.dp)
                         .height(18.dp)
-                        .background(Color.White.copy(alpha = 0.22f))
+                        .background(headerDividerColor)
                 )
 
                 Box(
@@ -394,7 +410,7 @@ fun MineHeader(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_qr_scan),
                         contentDescription = stringResource(id = R.string.qr_scan),
-                        tint = Color.White,
+                        tint = headerIconTint,
                         modifier = Modifier.size(21.dp)
                     )
                 }
@@ -581,8 +597,9 @@ fun MenuItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.985f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -734,11 +751,7 @@ private fun MineScreenFooter(
     isDarkTheme: Boolean = isAppDarkTheme(),
     modifier: Modifier = Modifier,
 ) {
-    val muted = if (isDarkTheme) {
-        Color(0xFFB8B8D1).copy(alpha = 0.75f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -788,27 +801,29 @@ fun ExternalLinkButton(
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.96f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium,
         ),
     )
-    val chipBg = if (isDarkTheme) {
-        Color.White.copy(alpha = 0.08f)
+    val scheme = MaterialTheme.colorScheme
+    val chipBg = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
     } else {
-        Color.Black.copy(alpha = 0.05f)
+        scheme.surfaceContainerHigh
     }
-    val chipBorder = if (isDarkTheme) {
-        Color.White.copy(alpha = 0.14f)
+    val chipBorder = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.14f) else scheme.outline.copy(alpha = 0.35f)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+        scheme.outlineVariant
     }
-    val labelColor = if (isDarkTheme) {
+    val labelColor = if (useLiquidStyle && isDarkTheme) {
         Color(0xFFF0F0F5).copy(alpha = 0.9f)
     } else {
-        MaterialTheme.colorScheme.onSurface
+        scheme.onSurface
     }
 
     Row(
@@ -834,7 +849,7 @@ fun ExternalLinkButton(
             painter = painterResource(id = icon),
             contentDescription = text,
             modifier = Modifier.size(15.dp),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(RoseRed),
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(scheme.primary),
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(

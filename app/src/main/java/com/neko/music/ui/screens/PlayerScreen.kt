@@ -137,6 +137,7 @@ import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
@@ -678,6 +679,7 @@ fun PlayerScreen(
 
     val colorScheme = MaterialTheme.colorScheme
     val pageBackdrop = rememberLiquidPageBackdrop(colorScheme.background)
+    val useLiquidStyle = isLiquidGlassEffectActive(pageBackdrop)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     // 底部控制区已改为无边界悬浮层：预留与控制区等高的安全区，避免封面/歌词被控件压住。
     val bottomGlassReserve = if (isLandscape) 138.dp else 240.dp
@@ -730,66 +732,81 @@ fun PlayerScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
-            // Apple Music 式环境底色：模糊封面提供色彩，深浅两套中性渐变保证文字与玻璃层可读。
-            AsyncImage(
-                model = coverUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scale(1.18f)
-                    .blur(42.dp),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                alpha = if (isDarkTheme) 0.38f else 0.30f,
-            )
+            if (useLiquidStyle) {
+                // 液态模式：模糊封面提供环境色，表面层再做折射。
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scale(1.18f)
+                        .blur(42.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    alpha = if (isDarkTheme) 0.38f else 0.30f,
+                )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                RoseRed.copy(alpha = if (isDarkTheme) 0.12f else 0.07f),
-                                Color.Transparent,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    RoseRed.copy(alpha = if (isDarkTheme) 0.12f else 0.07f),
+                                    Color.Transparent,
+                                ),
                             ),
                         ),
-                    ),
-            )
+                )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        if (isDarkTheme) {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.30f),
-                                    Color(0xFF09090B).copy(alpha = 0.62f),
-                                    Color(0xFF09090B).copy(alpha = 0.94f),
-                                ),
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.54f),
-                                    Color.White.copy(alpha = 0.76f),
-                                    Color(0xFFF5F5F7).copy(alpha = 0.96f),
-                                ),
-                            )
-                        },
-                    ),
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(pageBaseColor.copy(alpha = 0.36f), Color.Transparent),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            if (isDarkTheme) {
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.30f),
+                                        Color(0xFF09090B).copy(alpha = 0.62f),
+                                        Color(0xFF09090B).copy(alpha = 0.94f),
+                                    ),
+                                )
+                            } else {
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.54f),
+                                        Color.White.copy(alpha = 0.76f),
+                                        Color(0xFFF5F5F7).copy(alpha = 0.96f),
+                                    ),
+                                )
+                            },
                         ),
-                    ),
-            )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(pageBaseColor.copy(alpha = 0.36f), Color.Transparent),
+                            ),
+                        ),
+                )
+            } else {
+                // Material 3：静态 tonal 背景只保留一层纵向色阶，避免径向光斑与玻璃高光残留。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to colorScheme.surfaceContainerLow,
+                                0.42f to colorScheme.background,
+                                1f to colorScheme.background,
+                            ),
+                        ),
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -1276,13 +1293,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (isSystemInDarkTheme()) {
-                            Color.Black.copy(alpha = 0.7f)
-                        } else {
-                            Color.Black.copy(alpha = 0.4f)
-                        }
-                    )
+                    .background(Color.Black.copy(alpha = 0.42f))
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
@@ -1293,8 +1304,8 @@ fun PlayerScreen(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .background(
-                            if (isSystemInDarkTheme()) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
-                            RoundedCornerShape(16.dp)
+                            colorScheme.surfaceContainerHigh,
+                            RoundedCornerShape(28.dp)
                         )
                         .padding(24.dp)
                         .width(300.dp)
@@ -1305,7 +1316,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.notification_permission_title),
                             fontSize = 18.sp,
-                            color = if (isSystemInDarkTheme()) Color.White else MaterialTheme.colorScheme.onSurface,
+                            color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -1314,7 +1325,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.notification_permission_message),
                             fontSize = 14.sp,
-                            color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -1327,10 +1338,10 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .background(
-                                        if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
-                                        RoundedCornerShape(12.dp)
+                                        colorScheme.surfaceContainerHighest,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable { showNotificationPermissionDialog = false },
                                 contentAlignment = Alignment.Center
@@ -1338,7 +1349,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 15.sp,
-                                    color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.7f) else Color.Gray,
+                                    color = colorScheme.onSurface,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1346,10 +1357,10 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .background(
-                                        if (isSystemInDarkTheme()) Color.White else RoseRed,
-                                        RoundedCornerShape(12.dp)
+                                        colorScheme.primary,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable {
                                         notificationPermissionState?.launchPermissionRequest()
@@ -1360,7 +1371,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.authorize),
                                     fontSize = 15.sp,
-                                    color = if (isSystemInDarkTheme()) Color.Black else Color.White,
+                                    color = colorScheme.onPrimary,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1384,13 +1395,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (isSystemInDarkTheme()) {
-                            Color.Black.copy(alpha = 0.7f)
-                        } else {
-                            Color.Black.copy(alpha = 0.4f)
-                        }
-                    )
+                    .background(Color.Black.copy(alpha = 0.42f))
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
@@ -1401,8 +1406,8 @@ fun PlayerScreen(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .background(
-                            if (isSystemInDarkTheme()) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
-                            RoundedCornerShape(16.dp)
+                            colorScheme.surfaceContainerHigh,
+                            RoundedCornerShape(28.dp)
                         )
                         .padding(24.dp)
                         .width(300.dp)
@@ -1413,7 +1418,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.desktop_lyric),
                             fontSize = 18.sp,
-                            color = if (isSystemInDarkTheme()) Color.White else MaterialTheme.colorScheme.onSurface,
+                            color = colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -1422,7 +1427,7 @@ fun PlayerScreen(
                         Text(
                             text = stringResource(id = R.string.desktop_lyric_permission_message),
                             fontSize = 14.sp,
-                            color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -1435,10 +1440,10 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .background(
-                                        if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.1f) else Color(0xFFF5F5F5),
-                                        RoundedCornerShape(12.dp)
+                                        colorScheme.surfaceContainerHighest,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable { showOverlayPermissionDialog = false },
                                 contentAlignment = Alignment.Center
@@ -1446,7 +1451,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 15.sp,
-                                    color = if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.7f) else Color.Gray,
+                                    color = colorScheme.onSurface,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1454,10 +1459,10 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .background(
-                                        if (isSystemInDarkTheme()) Color.White else RoseRed,
-                                        RoundedCornerShape(12.dp)
+                                        colorScheme.primary,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable {
                                         val intent = Intent(
@@ -1472,7 +1477,7 @@ fun PlayerScreen(
                                 Text(
                                     text = stringResource(id = R.string.authorize),
                                     fontSize = 15.sp,
-                                    color = if (isSystemInDarkTheme()) Color.Black else Color.White,
+                                    color = colorScheme.onPrimary,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1492,7 +1497,12 @@ fun TopBar(
     onLyricsClick: () -> Unit,
     onMenuClick: () -> Unit,
 ) {
-    val foreground = if (isDarkTheme) Color.White else Color(0xFF17171A)
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val foreground = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else Color(0xFF17171A)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1544,7 +1554,13 @@ private fun PlayerTopActionsPill(
     onMenuClick: () -> Unit,
 ) {
     val glass = LiquidGlassDefaults.playerTopBar
-    val foreground = if (isDarkTheme) Color.White else Color(0xFF17171A)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val foreground = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else Color(0xFF17171A)
+    } else {
+        scheme.onSurface
+    }
     GlassSurface(
         modifier = Modifier
             .width(136.dp)
@@ -1557,6 +1573,8 @@ private fun PlayerTopActionsPill(
         liquidBlur = glass.liquid.blur,
         liquidLensHeight = glass.liquid.lensHeight,
         liquidLensAmount = glass.liquid.lensAmount,
+        material3Shape = RoundedCornerShape(22.dp),
+        material3Container = scheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -1614,6 +1632,7 @@ private fun PlayerGlassIconButton(
     content: @Composable () -> Unit,
 ) {
     val glass = LiquidGlassDefaults.playerTopBar
+    val scheme = MaterialTheme.colorScheme
     GlassSurface(
         modifier = Modifier.size(44.dp),
         shape = CircleShape,
@@ -1624,6 +1643,8 @@ private fun PlayerGlassIconButton(
         liquidBlur = glass.liquid.blur,
         liquidLensHeight = glass.liquid.lensHeight,
         liquidLensAmount = glass.liquid.lensAmount,
+        material3Shape = CircleShape,
+        material3Container = scheme.surfaceContainerHigh,
     ) {
         IconButton(
             onClick = onClick,
@@ -1654,9 +1675,19 @@ private fun CountBadge(
 private fun NowPlayingIdentity(
     music: Music,
 ) {
-    val dark = isSystemInDarkTheme()
-    val title = if (dark) Color.White else Color(0xFF151518)
-    val secondary = if (dark) Color.White.copy(alpha = 0.58f) else Color(0xFF6D6D72)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val dark = isAppDarkTheme()
+    val title = if (useLiquidStyle) {
+        if (dark) Color.White else Color(0xFF151518)
+    } else {
+        scheme.onSurface
+    }
+    val secondary = if (useLiquidStyle) {
+        if (dark) Color.White.copy(alpha = 0.58f) else Color(0xFF6D6D72)
+    } else {
+        scheme.onSurfaceVariant
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1705,15 +1736,12 @@ fun CoverImage(
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
     var coverUrl by remember { mutableStateOf<String?>(null) }
-    val isDarkTheme = isSystemInDarkTheme()
-    val artworkShape = RoundedCornerShape(18.dp)
-
-    LaunchedEffect(music.id) {
-        coverUrl = musicApi.getMusicCoverUrl(music)
-    }
-
-    Box(
-        modifier = modifier
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val artworkShape = RoundedCornerShape(if (useLiquidStyle) 18.dp else 24.dp)
+    val artworkModifier = if (useLiquidStyle) {
+        Modifier
             .shadow(
                 elevation = 24.dp,
                 shape = artworkShape,
@@ -1726,7 +1754,26 @@ fun CoverImage(
                 width = 0.6.dp,
                 color = if (isDarkTheme) Color.White.copy(alpha = 0.13f) else Color.White.copy(alpha = 0.72f),
                 shape = artworkShape,
-            ),
+            )
+    } else {
+        Modifier
+            .shadow(
+                elevation = 10.dp,
+                shape = artworkShape,
+                spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.32f else 0.14f),
+                ambientColor = Color.Black.copy(alpha = 0.06f),
+            )
+            .clip(artworkShape)
+            .background(scheme.surfaceContainerHighest)
+    }
+
+    LaunchedEffect(music.id) {
+        coverUrl = musicApi.getMusicCoverUrl(music)
+    }
+
+    Box(
+        modifier = modifier
+            .then(artworkModifier),
         contentAlignment = Alignment.Center,
     ) {
         if (!coverUrl.isNullOrEmpty()) {
@@ -1744,16 +1791,18 @@ fun CoverImage(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
-                        endY = 180f,
+        if (useLiquidStyle) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
+                            endY = 180f,
+                        ),
                     ),
-                ),
-        )
+            )
+        }
     }
 }
 
@@ -2208,18 +2257,29 @@ private fun PlayerBottomBar(
     onQualitySelected: (AudioQuality) -> Unit,
     onDesktopLyricClick: () -> Unit,
 ) {
-    val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val backgroundBrush = if (useLiquidStyle) {
+        val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.Transparent,
+                baseColor.copy(alpha = 0.34f),
+                baseColor.copy(alpha = 0.96f),
+            ),
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.Transparent,
+                scheme.surfaceContainer.copy(alpha = 0.88f),
+                scheme.surfaceContainer,
+            ),
+        )
+    }
     Box(
         modifier = modifier
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        baseColor.copy(alpha = 0.34f),
-                        baseColor.copy(alpha = 0.96f),
-                    ),
-                ),
-            )
+            .background(backgroundBrush)
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
         if (isLandscape) {
@@ -2322,17 +2382,30 @@ private fun PlayerUtilityRow(
     onQualitySelected: (AudioQuality) -> Unit,
     onDesktopLyricClick: () -> Unit,
 ) {
-    val muted = if (isDarkTheme) Color.White.copy(alpha = 0.46f) else Color(0xFF17171A).copy(alpha = 0.46f)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val muted = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.46f) else Color(0xFF17171A).copy(alpha = 0.46f)
+    } else {
+        scheme.onSurfaceVariant
+    }
+    val activeAccent = if (useLiquidStyle) RoseRed else scheme.primary
+    val actionSize = if (useLiquidStyle) 32.dp else 40.dp
+    val actionIconSize = if (useLiquidStyle) {
+        if (compact) 17.dp else 18.dp
+    } else {
+        21.dp
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (compact) 26.dp else 32.dp),
+            .height(if (useLiquidStyle) (if (compact) 26.dp else 32.dp) else 40.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(actionSize)
                 .clickable(onClick = onPlaylistClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -2340,7 +2413,7 @@ private fun PlayerUtilityRow(
                 painter = painterResource(R.drawable.playlist),
                 contentDescription = stringResource(id = R.string.playlist),
                 tint = muted,
-                modifier = Modifier.size(if (compact) 17.dp else 18.dp),
+                modifier = Modifier.size(actionIconSize),
             )
         }
 
@@ -2348,20 +2421,20 @@ private fun PlayerUtilityRow(
             selected = audioQuality,
             maxQuality = maxQuality,
             onSelected = onQualitySelected,
-            compact = true,
+            compact = useLiquidStyle,
         )
 
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(actionSize)
                 .clickable(onClick = onDesktopLyricClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_lyric_toggle),
                 contentDescription = stringResource(id = R.string.desktop_lyric),
-                tint = if (isDesktopLyricEnabled) RoseRed else muted,
-                modifier = Modifier.size(if (compact) 17.dp else 18.dp),
+                tint = if (isDesktopLyricEnabled) activeAccent else muted,
+                modifier = Modifier.size(actionIconSize),
             )
         }
     }
@@ -2376,9 +2449,24 @@ fun ProgressSlider(
     compact: Boolean = false,
     onProgressChange: (Float) -> Unit,
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val ink = if (isDarkTheme) Color.White else Color(0xFF17171A)
-    val timeColor = if (isDarkTheme) Color.White.copy(alpha = 0.52f) else Color(0xFF6E6E73)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val ink = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else Color(0xFF17171A)
+    } else {
+        scheme.primary
+    }
+    val timeColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.52f) else Color(0xFF6E6E73)
+    } else {
+        scheme.onSurfaceVariant
+    }
+    val inactiveTrackColor = if (useLiquidStyle) {
+        ink.copy(alpha = 0.16f)
+    } else {
+        scheme.surfaceVariant
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
@@ -2387,10 +2475,10 @@ fun ProgressSlider(
             enabled = !isLoading,
             colors = SliderDefaults.colors(
                 activeTrackColor = ink.copy(alpha = if (isLoading) 0.36f else 0.92f),
-                inactiveTrackColor = ink.copy(alpha = 0.16f),
+                inactiveTrackColor = inactiveTrackColor,
                 thumbColor = ink.copy(alpha = if (isLoading) 0.42f else 1f),
                 disabledActiveTrackColor = ink.copy(alpha = 0.30f),
-                disabledInactiveTrackColor = ink.copy(alpha = 0.12f),
+                disabledInactiveTrackColor = if (useLiquidStyle) ink.copy(alpha = 0.12f) else scheme.surfaceVariant,
                 disabledThumbColor = ink.copy(alpha = 0.34f),
             ),
             modifier = Modifier
@@ -2436,8 +2524,19 @@ fun PlaybackControls(
     onFavoriteClick: () -> Unit,
     onPlayModeClick: () -> Unit,
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val iconColor = if (isDarkTheme) Color.White.copy(alpha = 0.90f) else Color(0xFF17171A)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val iconColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.90f) else Color(0xFF17171A)
+    } else {
+        scheme.onSurface
+    }
+    val secondaryIconColor = if (useLiquidStyle) {
+        iconColor.copy(alpha = 0.78f)
+    } else {
+        scheme.onSurfaceVariant
+    }
     val transportSize = if (compact) 38.dp else 42.dp
     val playSize = if (compact) 56.dp else 64.dp
 
@@ -2458,7 +2557,7 @@ fun PlaybackControls(
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = stringResource(id = R.string.player_play_mode),
-                tint = iconColor.copy(alpha = 0.78f),
+                tint = secondaryIconColor,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -2475,14 +2574,20 @@ fun PlaybackControls(
             )
         }
 
-        val playButtonColor = if (isDarkTheme) {
-            Color.White.copy(alpha = 0.20f)
+        val playButtonColor = if (useLiquidStyle) {
+            if (isDarkTheme) Color.White.copy(alpha = 0.20f) else Color(0xFF17171A).copy(alpha = 0.08f)
+        } else if (musicFileUrl == null) {
+            scheme.primary.copy(alpha = 0.38f)
         } else {
-            Color(0xFF17171A).copy(alpha = 0.08f)
+            scheme.primary
         }
-        val playIconColor = if (isDarkTheme) Color.White else Color(0xFF17171A)
-        Box(
-            modifier = Modifier
+        val playIconColor = if (useLiquidStyle) {
+            if (isDarkTheme) Color.White else Color(0xFF17171A)
+        } else {
+            scheme.onPrimary
+        }
+        val playButtonModifier = if (useLiquidStyle) {
+            Modifier
                 .size(playSize)
                 .shadow(
                     elevation = if (compact) 10.dp else 14.dp,
@@ -2501,7 +2606,19 @@ fun PlaybackControls(
                     onClick = onPlayPauseClick,
                     indication = null,
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                ),
+                )
+        } else {
+            Modifier
+                .size(playSize)
+                .clip(CircleShape)
+                .background(playButtonColor)
+                .clickable(
+                    enabled = !isLoading && musicFileUrl != null,
+                    onClick = onPlayPauseClick,
+                )
+        }
+        Box(
+            modifier = playButtonModifier,
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -2551,7 +2668,12 @@ fun PlaybackControls(
             Icon(
                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
-                tint = if (isFavorite) RoseRed else iconColor.copy(alpha = 0.56f),
+                tint = when {
+                    isFavorite && useLiquidStyle -> RoseRed
+                    isFavorite -> scheme.primary
+                    useLiquidStyle -> iconColor.copy(alpha = 0.56f)
+                    else -> secondaryIconColor
+                },
                 modifier = Modifier.size(if (compact) 21.dp else 23.dp),
             )
         }
@@ -2634,13 +2756,19 @@ private fun AudioQualitySelector(
     compact: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val isDarkTheme = isSystemInDarkTheme()
-    val foreground = if (isDarkTheme) {
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val foreground = if (!useLiquidStyle) {
+        scheme.onSurfaceVariant
+    } else if (isDarkTheme) {
         Color.White.copy(alpha = if (compact) 0.48f else 0.62f)
     } else {
         Color(0xFF6E6E73).copy(alpha = if (compact) 0.66f else 1f)
     }
-    val pillBackground = if (compact) {
+    val pillBackground = if (!useLiquidStyle) {
+        scheme.surfaceContainerHigh
+    } else if (compact) {
         if (isDarkTheme) Color.White.copy(alpha = 0.055f) else Color.Black.copy(alpha = 0.035f)
     } else {
         if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.045f)
@@ -2730,19 +2858,40 @@ fun ShareDialog(
     onDownloadVideo: () -> Unit = {},
 ) {
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
-    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
 
     // 预加载额外的字符串资源
     val customLabel = stringResource(id = R.string.custom)
     val closeLabel = stringResource(id = R.string.close)
 
-    val sectionTitleColor = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val cancelTextColor = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface
-    val dividerColor = if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.outlineVariant
-    val createPlaylistColor = if (isDarkTheme) Color.White else RoseRed
+    val sectionTitleColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.6f) else scheme.onSurfaceVariant
+    } else {
+        scheme.onSurfaceVariant
+    }
+    val cancelTextColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.8f) else scheme.onSurface
+    } else {
+        scheme.onSurface
+    }
+    val dividerColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.1f) else scheme.outlineVariant
+    } else {
+        scheme.outlineVariant
+    }
+    val createPlaylistColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else RoseRed
+    } else {
+        scheme.primary
+    }
     // 暗色下勿用纯白作圆形底，否则与白色线稿图标糊成一片
-    val copyLinkColor = if (isDarkTheme) RoseRed.copy(alpha = 0.92f) else RoseRed
-    val scheme = MaterialTheme.colorScheme
+    val copyLinkColor = if (useLiquidStyle) {
+        if (isDarkTheme) RoseRed.copy(alpha = 0.92f) else RoseRed
+    } else {
+        scheme.primary
+    }
 
     // visible 恒为 true 时 enter 过渡不会跑：首帧 false，下一帧再 true 才能触发滑入+淡入
     var sheetShown by remember { mutableStateOf(false) }
@@ -2791,7 +2940,8 @@ fun ShareDialog(
                     onClick = {}
                 )
         ) {
-            val panelShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
+            val panelCorner = if (useLiquidStyle) 22.dp else 28.dp
+            val panelShape = RoundedCornerShape(topStart = panelCorner, topEnd = panelCorner)
             val sharePanel = LiquidGlassDefaults.playerShareBottomSheet
             GlassSurface(
                 modifier = Modifier
@@ -2804,7 +2954,9 @@ fun ShareDialog(
                 borderColor = if (isDarkTheme) SakuraPink else scheme.outline,
                 liquidBlur = sharePanel.liquid.blur,
                 liquidLensHeight = sharePanel.liquid.lensHeight,
-                liquidLensAmount = sharePanel.liquid.lensAmount
+                liquidLensAmount = sharePanel.liquid.lensAmount,
+                material3Shape = panelShape,
+                material3Container = scheme.surfaceContainerHigh,
             ) {
                 ShareDialogContent(
                     isDarkTheme = isDarkTheme,
@@ -2884,8 +3036,13 @@ fun ShareDialogContent(
     onDownloadVideo: () -> Unit,
     onShowCustomSleepTimer: () -> Unit
 ) {
-    val shareLabelTint =
-        if (isDarkTheme) Color.White.copy(alpha = 0.82f) else MaterialTheme.colorScheme.onSurfaceVariant
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val shareLabelTint = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.82f) else scheme.onSurfaceVariant
+    } else {
+        scheme.onSurfaceVariant
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3136,9 +3293,10 @@ fun ShareGridItem(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
+        targetValue = if (useLiquidStyle && isPressed) 0.92f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -3167,10 +3325,16 @@ fun ShareGridItem(
                 .size(56.dp)
                 .clip(CircleShape)
                 .background(color)
-                .shadow(
-                    elevation = 4.dp,
-                    spotColor = color.copy(alpha = 0.3f),
-                    ambientColor = color.copy(alpha = 0.15f)
+                .then(
+                    if (useLiquidStyle) {
+                        Modifier.shadow(
+                            elevation = 4.dp,
+                            spotColor = color.copy(alpha = 0.3f),
+                            ambientColor = color.copy(alpha = 0.15f)
+                        )
+                    } else {
+                        Modifier
+                    }
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -3204,16 +3368,38 @@ fun SpeedChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val backgroundColor = if (isSelected) {
-        if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val backgroundColor = if (useLiquidStyle) {
+        if (isSelected) {
+            if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+        } else {
+            if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+        }
+    } else if (isSelected) {
+        scheme.primary
     } else {
-        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+        Color.Transparent
     }
-    val textColor = if (isSelected) {
-        if (isDarkTheme) Color.White else Color.White
+    val textColor = if (useLiquidStyle) {
+        if (isSelected) Color.White
+        else if (isDarkTheme) Color.White.copy(alpha = 0.75f) else scheme.onSurfaceVariant
+    } else if (isSelected) {
+        scheme.onPrimary
     } else {
-        if (isDarkTheme) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+        scheme.onSurfaceVariant
+    }
+    val borderColor = if (useLiquidStyle) {
+        if (isSelected) {
+            if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
+        } else {
+            if (isDarkTheme) Color.White.copy(alpha = 0.12f) else scheme.outline.copy(alpha = 0.35f)
+        }
+    } else if (isSelected) {
+        Color.Transparent
+    } else {
+        scheme.outlineVariant
     }
 
     Box(
@@ -3221,11 +3407,7 @@ fun SpeedChip(
             .height(36.dp)
             .border(
                 width = 1.dp,
-                color = if (isSelected) {
-                    if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
-                } else {
-                    if (isDarkTheme) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                },
+                color = borderColor,
                 shape = RoundedCornerShape(18.dp)
             )
             .background(
@@ -3254,16 +3436,38 @@ fun SleepTimerChip(
     customLabel: String = "",
     closeLabel: String = ""
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val backgroundColor = if (isSelected) {
-        if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val backgroundColor = if (useLiquidStyle) {
+        if (isSelected) {
+            if (isDarkTheme) SakuraPink.copy(alpha = 0.42f) else RoseRed.copy(alpha = 0.9f)
+        } else {
+            if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+        }
+    } else if (isSelected) {
+        scheme.primary
     } else {
-        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+        Color.Transparent
     }
-    val textColor = if (isSelected) {
-        Color.White
+    val textColor = if (useLiquidStyle) {
+        if (isSelected) Color.White
+        else if (isDarkTheme) Color.White.copy(alpha = 0.75f) else scheme.onSurfaceVariant
+    } else if (isSelected) {
+        scheme.onPrimary
     } else {
-        if (isDarkTheme) Color.White.copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant
+        scheme.onSurfaceVariant
+    }
+    val borderColor = if (useLiquidStyle) {
+        if (isSelected) {
+            if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
+        } else {
+            if (isDarkTheme) Color.White.copy(alpha = 0.12f) else scheme.outline.copy(alpha = 0.35f)
+        }
+    } else if (isSelected) {
+        Color.Transparent
+    } else {
+        scheme.outlineVariant
     }
     val label = when {
         minutes == -1 && customMinutes != null -> {
@@ -3287,11 +3491,7 @@ fun SleepTimerChip(
             .height(36.dp)
             .border(
                 width = 1.dp,
-                color = if (isSelected) {
-                    if (isDarkTheme) SakuraPink.copy(alpha = 0.6f) else RoseRed.copy(alpha = 0.5f)
-                } else {
-                    if (isDarkTheme) Color.White.copy(alpha = 0.12f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                },
+                color = borderColor,
                 shape = RoundedCornerShape(18.dp)
             )
             .background(
@@ -3319,7 +3519,7 @@ fun CustomSleepTimerDialog(
 ) {
     var hours by remember { mutableStateOf(initialMinutes / 60) }
     var minutes by remember { mutableStateOf(initialMinutes % 60) }
-    val isDarkTheme = isSystemInDarkTheme()
+    val scheme = MaterialTheme.colorScheme
 
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
@@ -3332,13 +3532,7 @@ fun CustomSleepTimerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    if (isSystemInDarkTheme()) {
-                        Color.Black.copy(alpha = 0.7f)
-                    } else {
-                        Color.Black.copy(alpha = 0.4f)
-                    }
-                )
+                .background(Color.Black.copy(alpha = 0.42f))
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null,
@@ -3365,8 +3559,8 @@ fun CustomSleepTimerDialog(
                     )
             ) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isDarkTheme) Color(0xFF1A1A2E) else MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(28.dp),
+                    color = scheme.surfaceContainerHigh,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
@@ -3379,7 +3573,7 @@ fun CustomSleepTimerDialog(
                         Text(
                             text = stringResource(id = R.string.custom_sleep_timer),
                             fontSize = 18.sp,
-                            color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
+                            color = scheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
 
@@ -3397,7 +3591,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.hours),
                                     fontSize = 14.sp,
-                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = scheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -3419,7 +3613,7 @@ fun CustomSleepTimerDialog(
                                     Text(
                                         text = "$hours",
                                         fontSize = 32.sp,
-                                        color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
+                                        color = scheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 24.dp)
                                     )
@@ -3431,7 +3625,7 @@ fun CustomSleepTimerDialog(
                                         Icon(
                                             painter = painterResource(R.drawable.next_song),
                                             contentDescription = stringResource(id = R.string.increase),
-                                            tint = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = scheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -3441,7 +3635,7 @@ fun CustomSleepTimerDialog(
                             Text(
                                 text = ":",
                                 fontSize = 32.sp,
-                                color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = scheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
                             )
 
@@ -3452,7 +3646,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.minutes),
                                     fontSize = 14.sp,
-                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = scheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -3474,7 +3668,7 @@ fun CustomSleepTimerDialog(
                                     Text(
                                         text = String.format("%02d", minutes),
                                         fontSize = 32.sp,
-                                        color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurface,
+                                        color = scheme.onSurface,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 24.dp)
                                     )
@@ -3486,7 +3680,7 @@ fun CustomSleepTimerDialog(
                                         Icon(
                                             painter = painterResource(R.drawable.next_song),
                                             contentDescription = stringResource(id = R.string.increase),
-                                            tint = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = scheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -3505,8 +3699,8 @@ fun CustomSleepTimerDialog(
                                     .weight(1f)
                                     .height(48.dp)
                                     .background(
-                                        if (isDarkTheme) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(12.dp)
+                                        scheme.surfaceContainerHighest,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable { onDismiss() },
                                 contentAlignment = Alignment.Center
@@ -3514,7 +3708,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.cancel),
                                     fontSize = 16.sp,
-                                    color = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = scheme.onSurface,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -3524,8 +3718,8 @@ fun CustomSleepTimerDialog(
                                     .weight(1f)
                                     .height(48.dp)
                                     .background(
-                                        if (isDarkTheme) Color.White else RoseRed,
-                                        RoundedCornerShape(12.dp)
+                                        scheme.primary,
+                                        RoundedCornerShape(24.dp)
                                     )
                                     .clickable { onConfirm(hours, minutes) },
                                 contentAlignment = Alignment.Center
@@ -3533,7 +3727,7 @@ fun CustomSleepTimerDialog(
                                 Text(
                                     text = stringResource(id = R.string.confirm),
                                     fontSize = 16.sp,
-                                    color = if (isDarkTheme) Color.Black else Color.White,
+                                    color = scheme.onPrimary,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -3552,19 +3746,44 @@ fun PlaylistChip(
     firstMusicCover: String? = null,
     onClick: () -> Unit
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val selectedColor = if (isDarkTheme) Color.White else RoseRed
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val isDarkTheme = isAppDarkTheme()
+    val selectedColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else RoseRed
+    } else {
+        scheme.primary
+    }
+    val containerColor = if (useLiquidStyle) {
+        if (isSelected) selectedColor.copy(alpha = 0.1f) else scheme.surfaceVariant
+    } else if (isSelected) {
+        scheme.primaryContainer
+    } else {
+        scheme.surfaceContainerHigh
+    }
+    val contentColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.8f) else scheme.onSurface
+    } else if (isSelected) {
+        scheme.onPrimaryContainer
+    } else {
+        scheme.onSurface
+    }
     Box(
         modifier = Modifier
             .width(70.dp)
             .height(56.dp)
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) selectedColor else Color.Transparent,
+                width = if (!useLiquidStyle) 1.dp else if (isSelected) 2.dp else 0.dp,
+                color = when {
+                    useLiquidStyle && isSelected -> selectedColor
+                    useLiquidStyle -> Color.Transparent
+                    isSelected -> Color.Transparent
+                    else -> scheme.outlineVariant
+                },
                 shape = RoundedCornerShape(12.dp)
             )
             .background(
-                color = if (isSelected) selectedColor.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
+                color = containerColor,
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick),
@@ -3593,7 +3812,7 @@ fun PlaylistChip(
             Text(
                 text = playlist.name,
                 fontSize = 10.sp,
-                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurface,
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -3603,7 +3822,7 @@ fun PlaylistChip(
             Text(
                 text = "${playlist.musicCount}首",
                 fontSize = 8.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (useLiquidStyle) scheme.onSurfaceVariant else contentColor.copy(alpha = 0.72f)
             )
         }
     }

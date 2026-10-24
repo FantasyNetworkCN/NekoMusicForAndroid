@@ -31,7 +31,7 @@ fun PlaylistPageDarkTintOverlay(
     modifier: Modifier = Modifier,
     enabled: Boolean = isAppDarkTheme(),
 ) {
-    if (!enabled) return
+    if (!enabled || !isLiquidGlassHardwareAvailable()) return
 
     Box(modifier = modifier.fillMaxSize()) {
         Box(
