@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -52,11 +51,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,7 +82,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -106,12 +101,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -138,7 +131,8 @@ import com.neko.music.service.AudioQuality
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
-import com.neko.music.ui.theme.lyricHighlightColorFromPrefs
+import com.neko.music.ui.theme.isAppDarkTheme
+import com.neko.music.ui.components.AmllLyricsView
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -147,6 +141,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 import org.json.JSONObject
 
 // 格式化时间显示（毫秒转 mm:ss）
@@ -174,12 +169,24 @@ fun resolveTrackDurationSeconds(musicDurationMeta: Int, playerDurationMs: Long):
     }
 }
 
+// LRC 逐字时间戳
+data class LrcSyllable(
+    val time: Float,
+    val text: String,
+)
+
 // LRC歌词行数据类
 data class LrcLine(
     val time: Float, // 时间（秒）
     val text: String, // 歌词文本
-    val translation: String = "" // 翻译文本（可选）
+    val translation: String = "", // 翻译文本（可选）
+    val syllables: List<LrcSyllable> = emptyList(), // 增强 LRC 的逐字时间戳（可选）
 )
+
+private val syllableTimestampRegex = Regex("<(\\d{1,3}):(\\d{2})(?:\\.(\\d{1,5}))?>")
+
+// 后端逐字歌词尚未完善，先保留解析与渲染能力，默认只使用行级 LRC。
+private const val AMLL_WORD_LYRICS_ENABLED = false
 
 // 解析 LRC 格式歌词（支持双语）
 fun parseLrcLyrics(lrcText: String): List<LrcLine> {
@@ -212,8 +219,10 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             val milliseconds = millisecondsStr.toFloat()
             val time = minutes * 60 + seconds + milliseconds / 1000f
 
-            // 提取歌词文本
-            val text = line.substring(match.range.last + 1).trim()
+            // 提取歌词文本，并解析增强 LRC 的 <mm:ss.xxx> 逐字时间戳
+            val rawText = line.substring(match.range.last + 1).trim()
+            val (text, parsedSyllables) = parseSyllableTimestamps(rawText, time)
+            val syllables = if (AMLL_WORD_LYRICS_ENABLED) parsedSyllables else emptyList()
 
             // 检查是否有翻译（下一行可能包含翻译）
             var translation: String? = null
@@ -231,7 +240,7 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
                 }
             }
 
-            result.add(LrcLine(time, text, translation ?: ""))
+            result.add(LrcLine(time, text, translation ?: "", syllables))
             android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=${translation ?: ""}")
 
             // 如果有翻译行，跳过它
@@ -245,6 +254,44 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
 
     android.util.Log.d("parseLrcLyrics", "解析完成，共 ${result.size} 行歌词")
     return result
+}
+
+private fun parseSyllableTimestamps(
+    rawText: String,
+    fallbackTime: Float,
+): Pair<String, List<LrcSyllable>> {
+    val matches = syllableTimestampRegex.findAll(rawText).toList()
+    if (matches.isEmpty()) return rawText to emptyList()
+
+    val syllables = mutableListOf<LrcSyllable>()
+    val leadingText = rawText.substring(0, matches.first().range.first)
+    if (leadingText.isNotBlank()) {
+        syllables += LrcSyllable(fallbackTime, leadingText)
+    }
+
+    matches.forEachIndexed { index, match ->
+        val textStart = match.range.last + 1
+        val textEnd = matches.getOrNull(index + 1)?.range?.first ?: rawText.length
+        val syllableText = rawText.substring(textStart, textEnd)
+        if (syllableText.isEmpty()) return@forEachIndexed
+
+        val minutes = match.groupValues[1].toInt()
+        val seconds = match.groupValues[2].toInt()
+        val fractionText = match.groupValues[3]
+        val fraction = if (fractionText.isEmpty()) {
+            0f
+        } else {
+            fractionText.toFloat() / 10f.pow(fractionText.length)
+        }
+        syllables += LrcSyllable(minutes * 60 + seconds + fraction, syllableText)
+    }
+
+    val displayText = syllables.joinToString(separator = "") { it.text }
+    return if (displayText.isBlank()) {
+        rawText.replace(syllableTimestampRegex, "").trim() to emptyList()
+    } else {
+        displayText to syllables
+    }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -391,7 +438,7 @@ fun PlayerScreen(
 
     val musicApi = remember { MusicApi(context) }
     val scope = rememberCoroutineScope()
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = isAppDarkTheme()
     var maxQuality by remember { mutableStateOf("hq") }
     val qualityMusicId = currentMusicId ?: music.id
 
@@ -831,12 +878,15 @@ fun PlayerScreen(
                                 androidx.compose.runtime.LaunchedEffect(Unit) {
                                     com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
                                 }
-                                LyricsView(
+                                AmllLyricsView(
                                     lyrics = lyrics,
                                     currentProgressSeconds = currentProgressSeconds,
                                     isLoading = isLoading,
                                     modifier = Modifier.fillMaxSize(),
-                                    listState = lyricsListState
+                                    listState = lyricsListState,
+                                    onLineClick = { lineTime ->
+                                        playerManager.seekTo((lineTime * 1000f).toLong())
+                                    },
                                 )
                             }
                         }
@@ -2130,331 +2180,6 @@ fun LyricsSongInfo(
                 }
             }
         }
-
-        @Composable
-fun LyricsView(
-            lyrics: List<LrcLine>,
-            currentProgressSeconds: Float,
-            isLoading: Boolean,
-            modifier: Modifier = Modifier,
-            listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
-        ) {
-            val isDarkTheme = isSystemInDarkTheme()
-            val context = LocalContext.current
-            val appPrefs = remember(context) {
-                context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            }
-            var lyricHighlightRev by remember { mutableIntStateOf(0) }
-            DisposableEffect(appPrefs) {
-                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                    if (key == AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR) {
-                        lyricHighlightRev++
-                    }
-                }
-                appPrefs.registerOnSharedPreferenceChangeListener(listener)
-                onDispose { appPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
-            }
-            val highlightColor = remember(isDarkTheme, lyricHighlightRev) {
-                lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
-            }
-            val displayLyrics = remember(lyrics) {
-                if (lyrics.firstOrNull()?.time?.let { it > 0f } == true) {
-                    listOf(LrcLine(0f, "")) + lyrics
-                } else {
-                    lyrics
-                }
-            }
-            val currentIndex = remember(displayLyrics, currentProgressSeconds) {
-                displayLyrics.indexOfLast { it.time <= currentProgressSeconds }
-            }
-            val density = LocalDensity.current
-            val lineSpringOffsets = remember { mutableStateMapOf<Int, Animatable<Float, *>>() }
-            var previousVisibleOffsets by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
-
-            // 自动滚动到当前歌词，使其居中
-            androidx.compose.runtime.LaunchedEffect(currentIndex) {
-                android.util.Log.d("LyricsView", "LaunchedEffect: currentIndex=$currentIndex, lyrics.size=${displayLyrics.size}")
-                if (currentIndex >= 0 && displayLyrics.isNotEmpty()) {
-                    try {
-                        val beforeOffsets = previousVisibleOffsets.ifEmpty {
-                            listState.layoutInfo.visibleItemsInfo.associate { it.index to it.offset }
-                        }
-                        // 延迟一下，避免频繁触发
-                        kotlinx.coroutines.delay(50)
-                        // 简单地滚动到当前歌词
-                        centerLyricItem(listState, currentIndex)
-                        val afterOffsets = listState.layoutInfo.visibleItemsInfo.associate { it.index to it.offset }
-                        afterOffsets.forEach { (index, newOffset) ->
-                            val oldOffset = beforeOffsets[index] ?: return@forEach
-                            val delta = oldOffset - newOffset
-                            if (kotlin.math.abs(delta) > 1) {
-                                val anim = lineSpringOffsets.getOrPut(index) { Animatable(0f) }
-                                anim.snapTo(delta.toFloat())
-                                launch {
-                                    anim.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessLow
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                        previousVisibleOffsets = afterOffsets
-                        android.util.Log.d("LyricsView", "Scroll to index=$currentIndex")
-                    } catch (e: Exception) {
-                        android.util.Log.e("LyricsView", "Scroll error: ${e.message}", e)
-                    }
-                }
-            }
-
-            Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp)
-            ) {
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = if (isDarkTheme) Color.White.copy(alpha = 0.8f) else RoseRed
-                            )
-                        }
-                    }
-
-                    displayLyrics.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = stringResource(id = R.string.no_lyrics),
-                                fontSize = 16.sp,
-                                color = if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
-                            )
-                        }
-                    }
-
-                    else -> {
-                        androidx.compose.foundation.lazy.LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 220.dp, bottom = 260.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            items(displayLyrics.size) { index ->
-                                val line = displayLyrics[index]
-                                val isCurrentLine = index == currentIndex
-                                val springOffset = lineSpringOffsets[index]?.value ?: 0f
-                                val distance = if (currentIndex >= 0) kotlin.math.abs(index - currentIndex) else 2
-                                val targetAlpha = when {
-                                    isCurrentLine -> 1f
-                                    distance == 1 -> 0.7f
-                                    distance == 2 -> 0.48f
-                                    distance == 3 -> 0.3f
-                                    else -> 0.18f
-                                }
-                                // 模糊固定在屏幕上：按歌词与视口中心的距离计算，随滚动变化，而不是跟随当前播放行
-                                val scrollLayout = listState.layoutInfo
-                                val viewportCenterPx =
-                                    (scrollLayout.viewportStartOffset + scrollLayout.viewportEndOffset) / 2f
-                                val itemCenterPx = scrollLayout.visibleItemsInfo
-                                    .firstOrNull { it.index == index }
-                                    ?.let { it.offset + it.size / 2f }
-                                val centerDistanceDp = itemCenterPx
-                                    ?.let { with(density) { kotlin.math.abs(it - viewportCenterPx).toDp().value } }
-                                    ?: Float.MAX_VALUE
-                                val targetBlur = when {
-                                    centerDistanceDp <= 60f -> 0f
-                                    centerDistanceDp <= 130f -> 1.6f
-                                    centerDistanceDp <= 220f -> 4f
-                                    else -> 7f
-                                }
-                                val lineAlpha by animateFloatAsState(
-                                    targetValue = targetAlpha,
-                                    animationSpec = tween(durationMillis = 260),
-                                    label = "lyric_line_alpha"
-                                )
-                                val lineScale by animateFloatAsState(
-                                    targetValue = if (isCurrentLine) 1f else 0.95f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    ),
-                                    label = "lyric_line_scale"
-                                )
-                                val currentLineColor = highlightColor
-                                val otherLineColor = if (isDarkTheme) Color.White else Color(0xFF1F1F24)
-
-                                Column(
-                                    horizontalAlignment = Alignment.Start,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer {
-                                            alpha = lineAlpha
-                                            scaleX = lineScale
-                                            scaleY = lineScale
-                                            translationY = springOffset
-                                            transformOrigin = TransformOrigin(0f, 0.5f)
-                                        }
-                                        .blur(targetBlur.dp)
-                                        .padding(vertical = if (isCurrentLine) 4.dp else 2.dp)
-                                ) {
-                                    // 原文歌词
-                                    if (line.text.isBlank()) {
-                                        val segmentEndTime = remember(displayLyrics, index) {
-                                            displayLyrics.getOrNull(index + 1)?.time
-                                                ?: (line.time + 3f)
-                                        }
-                                        val segmentDuration = (segmentEndTime - line.time).coerceAtLeast(0.6f)
-                                        val segmentElapsed = (currentProgressSeconds - line.time).coerceAtLeast(0f)
-                                        val dotsPulse = rememberInfiniteTransition(label = "lyric_dots_pulse")
-                                        val pulseScale by dotsPulse.animateFloat(
-                                            initialValue = 0.92f,
-                                            targetValue = 1.08f,
-                                            animationSpec = infiniteRepeatable(
-                                                animation = tween(900),
-                                                repeatMode = RepeatMode.Reverse
-                                            ),
-                                            label = "lyric_dots_pulse_scale"
-                                        )
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = if (isCurrentLine) 6.dp else 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            repeat(3) { pointIndex ->
-                                                val countdownPointIndex = 2 - pointIndex
-                                                val timedAlpha = lyricCountdownPointAlpha(
-                                                    elapsedSeconds = segmentElapsed,
-                                                    durationSeconds = segmentDuration,
-                                                    pointIndex = countdownPointIndex
-                                                )
-                                                val targetPointAlpha = if (isCurrentLine) {
-                                                    timedAlpha
-                                                } else {
-                                                    timedAlpha * 0.5f
-                                                }
-                                                val pointAlpha by animateFloatAsState(
-                                                    targetValue = targetPointAlpha,
-                                                    animationSpec = tween(durationMillis = 500),
-                                                    label = "lyric_dot_alpha"
-                                                )
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(if (isCurrentLine) 12.dp else 10.dp)
-                                                        .graphicsLayer {
-                                                            val stagger = 1f - pointIndex * 0.06f
-                                                            scaleX = if (isCurrentLine) pulseScale * stagger else 1f
-                                                            scaleY = if (isCurrentLine) pulseScale * stagger else 1f
-                                                        }
-                                                        .clip(CircleShape)
-                                                        .background(
-                                                            (if (isCurrentLine) currentLineColor else otherLineColor)
-                                                                .copy(alpha = pointAlpha)
-                                                        )
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = line.text,
-                                            fontSize = if (isCurrentLine) 30.sp else 24.sp,
-                                            lineHeight = if (isCurrentLine) 36.sp else 30.sp,
-                                            fontWeight = if (isCurrentLine) FontWeight.ExtraBold else FontWeight.Bold,
-                                            color = if (isCurrentLine) currentLineColor else otherLineColor,
-                                            textAlign = TextAlign.Start,
-                                            modifier = Modifier.fillMaxWidth(),
-                                            style = if (isCurrentLine) {
-                                                androidx.compose.ui.text.TextStyle(
-                                                    shadow = androidx.compose.ui.graphics.Shadow(
-                                                        color = highlightColor.copy(
-                                                            alpha = if (isDarkTheme) 0.38f else 0.22f
-                                                        ),
-                                                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                        blurRadius = 18f
-                                                    )
-                                                )
-                                            } else androidx.compose.ui.text.TextStyle()
-                                        )
-                                    }
-
-                                    // 翻译歌词（如果存在）
-                                    if (line.translation.isNotEmpty()) {
-                                        Text(
-                                            text = line.translation,
-                                            fontSize = if (isCurrentLine) 17.sp else 14.sp,
-                                            lineHeight = if (isCurrentLine) 23.sp else 20.sp,
-                                            fontWeight = if (isCurrentLine) FontWeight.SemiBold else FontWeight.Medium,
-                                            color = if (isCurrentLine) currentLineColor.copy(alpha = 0.86f) else otherLineColor.copy(alpha = 0.78f),
-                                            textAlign = TextAlign.Start,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 6.dp),
-                                            style = if (isCurrentLine) {
-                                                androidx.compose.ui.text.TextStyle(
-                                                    shadow = androidx.compose.ui.graphics.Shadow(
-                                                        color = highlightColor.copy(
-                                                            alpha = if (isDarkTheme) 0.28f else 0.18f
-                                                        ),
-                                                        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                        blurRadius = 14f
-                                                    )
-                                                )
-                                            } else androidx.compose.ui.text.TextStyle()
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-private suspend fun centerLyricItem(
-    listState: LazyListState,
-    index: Int
-) {
-    val layoutInfo = listState.layoutInfo
-    val visibleItems = layoutInfo.visibleItemsInfo
-    val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2f
-    val itemHeight = visibleItems
-        .firstOrNull { it.index == index }
-        ?.size
-        ?: visibleItems
-        .map { it.size }
-        .takeIf { it.isNotEmpty() }
-        ?.average()
-        ?.toInt()
-        ?: 0
-    val scrollOffset = viewportCenter.toInt() - itemHeight / 2
-
-    listState.scrollToItem(index, -scrollOffset)
-}
-
-private fun lyricCountdownPointAlpha(
-    elapsedSeconds: Float,
-    durationSeconds: Float,
-    pointIndex: Int
-): Float {
-    if (durationSeconds <= 0f || elapsedSeconds <= 0f) return 0f
-
-    val perPointTime = durationSeconds / 3f
-    if (elapsedSeconds < perPointTime * (pointIndex + 1)) {
-        val percentage = ((elapsedSeconds - perPointTime * pointIndex) / perPointTime)
-            .coerceIn(0f, 1f)
-        return 0.1f + 0.7f * (1f - percentage)
-    }
-    return 0.1f
-}
 
 @Composable
 private fun PlayerBottomBar(
