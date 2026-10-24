@@ -1,5 +1,7 @@
 package com.neko.music.ui.search
 
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,10 +51,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -59,10 +65,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.shapes.Capsule
 import com.neko.music.R
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LiquidTabStrip
+import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.LocalLiquidTabScale
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.isAppDarkTheme
 
@@ -89,11 +99,26 @@ fun SearchLiquidTopOverlay(
     val searchMusicText = stringResource(id = R.string.search_music)
     val clearQueryText = stringResource(id = R.string.search_clear_query)
     val focusManager = LocalFocusManager.current
+    val view = LocalView.current
+    val hardwareLiquid = LocalLiquidGlassHardwareEffectsEnabled.current
     val typeOptions = listOf(
         "music" to singleText,
         "playlist" to playlistText,
         "artist" to artistText,
     )
+    val selectedTypeIndex = typeOptions.indexOfFirst { it.first == state.searchType }.coerceAtLeast(0)
+    val onTypeSelected: (String) -> Unit = { type ->
+        if (state.searchType != type) {
+            state.searchType = type
+            @Suppress("DEPRECATION")
+            val haptic = if (Build.VERSION.SDK_INT >= 30) {
+                HapticFeedbackConstants.SEGMENT_TICK
+            } else {
+                HapticFeedbackConstants.CONTEXT_CLICK
+            }
+            view.performHapticFeedback(haptic)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -219,91 +244,137 @@ fun SearchLiquidTopOverlay(
             }
         }
 
-        val typeRowGlass = LiquidGlassDefaults.searchTopTypeRow
-        GlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(24.dp),
-            sampleBackdrop = backdropForGlass,
-            backgroundAlpha = typeRowGlass.tint.background(isDark),
-            borderAlpha = typeRowGlass.tint.border(isDark),
-            highlightAlpha = typeRowGlass.tint.highlight(isDark),
-            borderColor = if (isDark) Color.White else scheme.outline,
-            liquidBlur = typeRowGlass.liquid.blur,
-            liquidLensHeight = typeRowGlass.liquid.lensHeight,
-            liquidLensAmount = typeRowGlass.liquid.lensAmount
-        ) {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp),
+        val typeRowModifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .height(48.dp)
+        if (hardwareLiquid && backdropForGlass != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            LiquidTabStrip(
+                selectedTabIndex = selectedTypeIndex,
+                onTabSelected = { index ->
+                    onTypeSelected(typeOptions[index.coerceIn(0, typeOptions.lastIndex)].first)
+                },
+                backdrop = backdropForGlass,
+                tabsCount = typeOptions.size,
+                isDark = isDark,
+                accentColor = scheme.primary,
+                barHeight = 48.dp,
+                modifier = typeRowModifier,
             ) {
-                val segmentWidth = maxWidth / typeOptions.size
-                val selectedIndex = typeOptions.indexOfFirst { it.first == state.searchType }
-                    .coerceAtLeast(0)
-                val indicatorOffset by animateDpAsState(
-                    targetValue = segmentWidth * selectedIndex,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                    label = "searchTypeIndicator",
-                )
-                Box(
+                typeOptions.forEach { (type, label) ->
+                    SearchTypeTab(
+                        label = label,
+                        selected = state.searchType == type,
+                        isDark = isDark,
+                        onClick = { onTypeSelected(type) },
+                    )
+                }
+            }
+        } else {
+            val typeRowGlass = LiquidGlassDefaults.searchTopTypeRow
+            GlassSurface(
+                modifier = typeRowModifier,
+                shape = RoundedCornerShape(24.dp),
+                sampleBackdrop = backdropForGlass,
+                backgroundAlpha = typeRowGlass.tint.background(isDark),
+                borderAlpha = typeRowGlass.tint.border(isDark),
+                highlightAlpha = typeRowGlass.tint.highlight(isDark),
+                borderColor = if (isDark) Color.White else scheme.outline,
+                liquidBlur = typeRowGlass.liquid.blur,
+                liquidLensHeight = typeRowGlass.liquid.lensHeight,
+                liquidLensAmount = typeRowGlass.liquid.lensAmount,
+            ) {
+                BoxWithConstraints(
                     modifier = Modifier
-                        .offset(x = indicatorOffset)
-                        .width(segmentWidth)
-                        .fillMaxHeight()
-                        .clip(CircleShape)
-                        .background(
-                            if (isDark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.82f),
-                        )
-                        .border(
-                            width = 0.5.dp,
-                            color = if (isDark) Color.White.copy(alpha = 0.14f) else scheme.outline.copy(alpha = 0.16f),
-                            shape = CircleShape,
-                        ),
-                )
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .fillMaxSize()
+                        .padding(4.dp),
                 ) {
-                    typeOptions.forEach { (type, label) ->
-                        val selected = state.searchType == type
-                        val textColor by animateColorAsState(
-                            targetValue = when {
-                                selected && isDark -> Color.White.copy(alpha = 0.96f)
-                                selected -> Color.Black.copy(alpha = 0.86f)
-                                isDark -> Color(0xFFB8B8D1).copy(alpha = 0.76f)
-                                else -> scheme.onSurfaceVariant.copy(alpha = 0.76f)
-                            },
-                            animationSpec = androidx.compose.animation.core.tween(180),
-                            label = "searchTypeText",
-                        )
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .clickable(
-                                    indication = null,
-                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                    onClick = { state.searchType = type },
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = label,
-                                color = textColor,
-                                fontSize = 14.sp,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    val segmentWidth = maxWidth / typeOptions.size
+                    val indicatorOffset by animateDpAsState(
+                        targetValue = segmentWidth * selectedTypeIndex,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                        label = "searchTypeIndicator",
+                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(x = indicatorOffset)
+                            .width(segmentWidth)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(
+                                if (isDark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.82f),
+                            )
+                            .border(
+                                width = 0.5.dp,
+                                color = if (isDark) Color.White.copy(alpha = 0.14f) else scheme.outline.copy(alpha = 0.16f),
+                                shape = CircleShape,
+                            ),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        typeOptions.forEach { (type, label) ->
+                            SearchTypeTab(
+                                label = label,
+                                selected = state.searchType == type,
+                                isDark = isDark,
+                                onClick = { onTypeSelected(type) },
                             )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.SearchTypeTab(
+    label: String,
+    selected: Boolean,
+    isDark: Boolean,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val textColor by animateColorAsState(
+        targetValue = when {
+            selected && isDark -> Color.White.copy(alpha = 0.96f)
+            selected -> Color.Black.copy(alpha = 0.86f)
+            isDark -> Color(0xFFB8B8D1).copy(alpha = 0.76f)
+            else -> scheme.onSurfaceVariant.copy(alpha = 0.76f)
+        },
+        animationSpec = androidx.compose.animation.core.tween(180),
+        label = "searchTypeText",
+    )
+    val tabScale = LocalLiquidTabScale.current
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(Capsule())
+            .clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                role = Role.Tab,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.graphicsLayer {
+                val scale = tabScale()
+                scaleX = scale
+                scaleY = scale
+            },
+        )
     }
 }

@@ -126,7 +126,7 @@ sealed class BottomNavItem(
     )
 }
 
-private val LocalLiquidBottomTabScale = staticCompositionLocalOf<() -> Float> { { 1f } }
+internal val LocalLiquidTabScale = staticCompositionLocalOf<() -> Float> { { 1f } }
 
 /**
  * 悬浮胶囊底栏：按 AndroidLiquidGlass Catalog 的 `LiquidBottomTabs` 完整移植。
@@ -174,7 +174,7 @@ fun BottomNavigationBar(
     }
 
     if (useLiquidGlass) {
-        LiquidBottomTabs(
+        LiquidTabStrip(
             selectedTabIndex = selectedIndex,
             onTabSelected = ::navigateToItem,
             backdrop = pageBackdrop,
@@ -208,13 +208,14 @@ fun BottomNavigationBar(
 }
 
 @Composable
-private fun LiquidBottomTabs(
+internal fun LiquidTabStrip(
     selectedTabIndex: Int,
     onTabSelected: (index: Int) -> Unit,
     backdrop: Backdrop,
     tabsCount: Int,
     isDark: Boolean,
     accentColor: Color,
+    barHeight: Dp = BottomNavigationBarHeight,
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -342,7 +343,7 @@ private fun LiquidBottomTabs(
                     },
                 )
                 .then(interactiveHighlight.modifier)
-                .height(BottomNavigationBarHeight)
+                .height(barHeight)
                 .fillMaxWidth()
                 .padding(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -350,7 +351,7 @@ private fun LiquidBottomTabs(
         )
 
         CompositionLocalProvider(
-            LocalLiquidBottomTabScale provides {
+            LocalLiquidTabScale provides {
                 lerp(1f, 1.2f, dragAnimation.pressProgress)
             },
         ) {
@@ -381,7 +382,7 @@ private fun LiquidBottomTabs(
                         },
                     )
                     .then(interactiveHighlight.modifier)
-                    .height(BottomNavigationBarHeight - 8.dp)
+                    .height(barHeight - 8.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp)
                     .graphicsLayer { colorFilter = ColorFilter.tint(accentColor) },
@@ -439,7 +440,7 @@ private fun LiquidBottomTabs(
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     },
                 )
-                .height(BottomNavigationBarHeight - 8.dp)
+                .height(barHeight - 8.dp)
                 .fillMaxWidth(1f / safeTabCount),
         )
     }
@@ -478,7 +479,7 @@ private fun RowScope.LiquidBottomTab(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scale = LocalLiquidBottomTabScale.current
+    val scale = LocalLiquidTabScale.current
     Column(
         modifier
             .clip(Capsule())
