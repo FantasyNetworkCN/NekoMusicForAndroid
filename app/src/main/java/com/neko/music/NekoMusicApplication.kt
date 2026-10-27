@@ -9,6 +9,7 @@ import android.os.Looper
 import android.util.Log
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.NekoAcceptLanguage
+import com.neko.music.util.ClientIdentity
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -41,6 +42,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
         // 让网络层能读到用户的 App 语言设置（出站请求的 Accept-Language）
         NekoAcceptLanguage.install(this)
+
+        // 客户端实例私钥使用 Android Keystore；必须早于任何 Ktor 客户端创建
+        ClientIdentity.install(this)
 
         // 检查版本号是否变化，如果变化了说明更新成功，删除更新文件
         checkAndCleanupUpdateFiles()

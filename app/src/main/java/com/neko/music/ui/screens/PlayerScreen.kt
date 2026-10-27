@@ -716,22 +716,24 @@ fun PlayerScreen(
     val downloadRenderedVideo: () -> Unit = download@{
         val jobId = videoRenderJobId ?: return@download
         val name = "${currentMusic.title}.mp4"
-        VideoRenderApi.enqueueDownload(context, jobId, name).fold(
-            onSuccess = {
-                Toast.makeText(
-                    context,
-                    videoRenderDownloadStarted,
-                    Toast.LENGTH_SHORT
-                ).show()
-            },
-            onFailure = { e ->
-                Toast.makeText(
-                    context,
-                    e.message ?: videoRenderCreateFailed,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        )
+        scope.launch {
+            VideoRenderApi.enqueueDownload(context, jobId, name).fold(
+                onSuccess = {
+                    Toast.makeText(
+                        context,
+                        videoRenderDownloadStarted,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
+                onFailure = { e ->
+                    Toast.makeText(
+                        context,
+                        e.message ?: videoRenderCreateFailed,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            )
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

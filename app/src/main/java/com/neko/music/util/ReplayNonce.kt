@@ -9,6 +9,8 @@ import io.ktor.client.plugins.api.Send
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.url
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
@@ -84,12 +86,18 @@ private const val HTTP_BAD_REQUEST = 400
 
 /** 与服务端 `EXEMPT_PATHS` 对应。 */
 private val EXEMPT_PATHS = setOf(
+    "/api/client/challenge",
+    "/api/client/register",
+    "/api/client/token",
     "/api/replay/challenge",
     "/api/replay/nonce",
     "/api/music/latest",
     "/api/music/ranking",
     "/api/payment/zpay/notify",
     "/api/user/qrlogin/status",
+    "/api/user/notifications/stream",
+    "/api/admin/logs/access/stream",
+    "/api/user/upload/preview",
 )
 
 /** 与服务端 `EXEMPT_PREFIXES` 对应。 */
@@ -387,6 +395,47 @@ private fun isReplayRejected(call: HttpClientCall): Boolean {
     }
 }
 
+private fun isInvalidClient(call: HttpClientCall): Boolean =
+    call.response.status == HttpStatusCode.Unauthorized &&
+        call.response.headers["X-Neko-Client-Status"] == "invalid"
+
+/** 身份注册 / 续签失败时直接向上抛出，避免发出没有实例签名的受保护请求。 */
+private suspend fun signClientIdentity(
+    client: HttpClient,
+    request: HttpRequestBuilder,
+): HttpRequestBuilder = try {
+    ClientIdentity.sign(client, request)
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    if (e !is ClientIdentityUnavailableException) {
+        Log.w(TAG, "客户端实例签名失败", e)
+    }
+    throw e
+}
+
+/**
+ * 为不能经过 Ktor 发送的请求（例如系统 DownloadManager）签发一次性的 nonce 与实例签名头。
+ * 返回的 nonce 只能使用一次，调用方必须在有效期内立即发起原请求。
+ */
+internal suspend fun signExternalRequestHeaders(
+    client: HttpClient,
+    url: String,
+): Map<String, String> {
+    val request = HttpRequestBuilder().apply {
+        method = HttpMethod.Get
+        url(url)
+        NEKO_REQUEST_HEADERS.forEach { (name, value) -> header(name, value) }
+    }
+    ClientIdentity.prepare(client)
+    val nonce = NoncePool.obtain(client, SCOPE_READ)
+        ?: error("无法领取下载请求所需的一次性 nonce")
+    val signed = ClientIdentity.sign(client, withNonce(request, nonce))
+    return signed.headers.entries().associate { (name, values) ->
+        name to values.joinToString(",")
+    }
+}
+
 /**
  * 自动附加一次性 nonce，并在被判定为重放时换新 nonce 重试一次。
  *
@@ -395,14 +444,28 @@ private fun isReplayRejected(call: HttpClientCall): Boolean {
 val NekoReplayNoncePlugin: ClientPlugin<Unit> = createClientPlugin("NekoReplayNonce") {
     val httpClient = client
     on(Send) { request ->
-        val scopeKey = replayScopeOf(request) ?: return@on proceed(request)
-        var call = proceed(withNonce(request, NoncePool.obtain(httpClient, scopeKey)))
+        val scopeKey = replayScopeOf(request)
+        val identityProtected = ClientIdentity.isProtectedRequest(request)
+        if (scopeKey == null && !identityProtected) return@on proceed(request)
+
+        // 先确认实例身份可用，再领取一次性 nonce；否则退避期间每个业务请求都会白解一道题。
+        if (identityProtected) ClientIdentity.prepare(httpClient)
+        var nonce = if (scopeKey == null) null else NoncePool.obtain(httpClient, scopeKey)
+        var signed = signClientIdentity(httpClient, withNonce(request, nonce))
+        var call = proceed(signed)
         var attempt = 0
-        while (attempt < REPLAY_RETRY_LIMIT && isReplayRejected(call)) {
+        while (scopeKey != null && attempt < REPLAY_RETRY_LIMIT && isReplayRejected(call)) {
             attempt++
-            val nonce = NoncePool.recover(httpClient, scopeKey) ?: break
+            nonce = NoncePool.recover(httpClient, scopeKey) ?: break
             Log.i(TAG, "防重放校验失败，换新 nonce 重试：${request.method.value} ${request.url.build().encodedPath}")
-            call = proceed(withNonce(request, nonce))
+            signed = signClientIdentity(httpClient, withNonce(request, nonce))
+            call = proceed(signed)
+        }
+        // 身份过滤器位于防重放之前：401 时该 nonce 尚未消费，可安全沿用并重签一次。
+        if (identityProtected && isInvalidClient(call) && ClientIdentity.recover(httpClient)) {
+            Log.i(TAG, "客户端实例身份失效，续签后重试：${request.method.value} ${request.url.build().encodedPath}")
+            signed = signClientIdentity(httpClient, withNonce(request, nonce))
+            call = proceed(signed)
         }
         call
     }

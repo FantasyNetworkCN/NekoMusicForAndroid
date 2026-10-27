@@ -9,6 +9,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffixOrEmpty
+import com.neko.music.util.signExternalRequestHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -123,13 +124,26 @@ class VideoRenderApi(private val bearerToken: String) {
     companion object {
         const val NON_VIP_CLIP_SEC = 15
 
-        fun enqueueDownload(context: Context, jobId: String, fileName: String): Result<Unit> {
+        private val downloadClient: HttpClient by lazy {
+            HttpClient(OkHttp) {
+                installNekoClientHeader()
+                engine { config { preferHttp2AlpnOverHttp1() } }
+            }
+        }
+
+        suspend fun enqueueDownload(
+            context: Context,
+            jobId: String,
+            fileName: String,
+        ): Result<Unit> {
             return try {
                 val dm = context.getSystemService<DownloadManager>()
                     ?: return Result.failure(IllegalStateException("DownloadManager unavailable"))
                 val safeName = fileName.replace(Regex("[/\\\\?%*:|\"<>]"), "_")
                 val url = "${UrlConfig.getBaseUrl()}/api/video/render/$jobId/download"
+                val headers = signExternalRequestHeaders(downloadClient, url)
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
+                    headers.forEach { (name, value) -> addRequestHeader(name, value) }
                     setAllowedNetworkTypes(
                         DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE
                     )
