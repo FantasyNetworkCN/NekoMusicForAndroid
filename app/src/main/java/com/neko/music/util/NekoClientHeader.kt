@@ -1,8 +1,11 @@
 package com.neko.music.util
 
 import android.app.DownloadManager
+import android.content.Context
 import android.net.Uri
+import com.google.android.exoplayer2.upstream.DataSource
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
+import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.upstream.ResolvingDataSource
 import com.neko.music.BuildConfig
 import io.ktor.client.HttpClientConfig
@@ -93,6 +96,16 @@ fun nekoHttpDataSourceFactory(): ResolvingDataSource.Factory {
         }
     }
 }
+
+/**
+ * 播放器媒体数据源：网络流仍走 [nekoHttpDataSourceFactory]（带标头、音质地址解析），
+ * `content://`、`file://` 等本地 URI 交给 [DefaultDataSource] 对应的系统数据源读取。
+ *
+ * 不能只把 HTTP 数据源交给 ExoPlayer：本地音乐文件来自 MediaStore（`content://`），
+ * HTTP 数据源无法打开这类 URI，表现为本地歌曲一直无法播放。
+ */
+fun nekoMediaDataSourceFactory(context: Context): DataSource.Factory =
+    DefaultDataSource.Factory(context.applicationContext, nekoHttpDataSourceFactory())
 
 /** 系统 DownloadManager 请求同样携带客户端标识标头。 */
 fun DownloadManager.Request.withNekoClientHeaders(): DownloadManager.Request =

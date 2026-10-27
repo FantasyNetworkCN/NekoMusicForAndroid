@@ -300,6 +300,12 @@ class MusicApi(private val context: Context) {
     }
     
     suspend fun getMusicFileUrl(music: Music): String {
+        if (music.id < 0) {
+            val localUrl = music.filePath.orEmpty()
+            check(localUrl.isNotBlank()) { "本地音乐缺少播放路径: ${music.title}" }
+            Log.d("MusicApi", "使用本地音频URI: $localUrl")
+            return localUrl
+        }
         music.filePath?.takeIf { UrlConfig.isLocalUri(it) }?.let { url ->
             Log.d("MusicApi", "使用本地音频URI: $url")
             return url

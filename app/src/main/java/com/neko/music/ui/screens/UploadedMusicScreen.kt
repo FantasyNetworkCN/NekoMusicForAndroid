@@ -1604,7 +1604,7 @@ private fun PreviewPlayDialog(
         com.google.android.exoplayer2.ExoPlayer.Builder(context)
             .setMediaSourceFactory(
                 com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
-                    com.neko.music.util.nekoHttpDataSourceFactory()
+                    com.neko.music.util.nekoMediaDataSourceFactory(context)
                 )
             )
             .build().apply {

@@ -27,7 +27,7 @@ import com.neko.music.data.model.Music
 import com.neko.music.ui.screens.baseUrl
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
-import com.neko.music.util.nekoHttpDataSourceFactory
+import com.neko.music.util.nekoMediaDataSourceFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -125,7 +125,9 @@ class MusicPlayerManager private constructor(context: Context) {
     private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer =
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(
-                com.google.android.exoplayer2.source.DefaultMediaSourceFactory(nekoHttpDataSourceFactory())
+                com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
+                    nekoMediaDataSourceFactory(context)
+                )
             )
             .build().apply {
                 // 设置音频属性，确保后台播放
@@ -1466,6 +1468,10 @@ class MusicPlayerManager private constructor(context: Context) {
     
     fun playMusic(url: String, id: Int? = null, title: String? = null, artist: String? = null, cover: String? = null, fullCoverUrl: String? = null) {
         val baseUrl = if (UrlConfig.isLocalUri(url)) url else UrlConfig.buildFullUrl(url)
+        if (isLocalMusicId(id) && !UrlConfig.isLocalUri(baseUrl)) {
+            Log.e("MusicPlayerManager", "拒绝为本地音乐使用非本地地址: id=$id, url=$baseUrl")
+            return
+        }
         val normalizedUrl = if (id != null && id > 0 && baseUrl.contains("/api/music/file/")) {
             UrlConfig.getMusicFileUrl(id, _audioQuality.value.id)
         } else {
@@ -1845,10 +1851,13 @@ class MusicPlayerManager private constructor(context: Context) {
                     // 顺手把下一首的音质地址解析好（单飞去重），切歌时直接命中缓存，省掉 0.2~2.5s 空窗。
                     // 注意必须用「和切歌时完全一致的、带音质参数的地址」当 key：preload 里拿到的 nextUrl
                     // 不带 ?quality=，与真正播放用的地址不是同一个 key，预热会完全失效。
-                    launch(Dispatchers.IO) {
-                        com.neko.music.util.MusicUrlResolver.prefetch(
-                            UrlConfig.getMusicFileUrl(nextMusic.id, _audioQuality.value.id)
-                        )
+                    // 本地曲目没有可解析的服务端音质地址，不能为负数本地 ID 发起网络请求。
+                    if (nextMusic.id > 0 && com.neko.music.util.MusicUrlResolver.isMusicFileApiUrl(nextUrl)) {
+                        launch(Dispatchers.IO) {
+                            com.neko.music.util.MusicUrlResolver.prefetch(
+                                UrlConfig.getMusicFileUrl(nextMusic.id, _audioQuality.value.id)
+                            )
+                        }
                     }
 
                     Log.d("MusicPlayerManager", "预加载下一首音乐: ${nextMusic.title}")
@@ -1863,7 +1872,7 @@ class MusicPlayerManager private constructor(context: Context) {
         val lastPlayed = playlistManager.getLastPlayed()
         lastPlayed?.let { music ->
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
-            val url = UrlConfig.getMusicFileUrl(music.id, _audioQuality.value.id)
+            val url = musicApi.getMusicFileUrl(music)
             val fullCoverUrl = buildPlayableCoverUrl(music)
             
             _currentMusicUrl.value = url
