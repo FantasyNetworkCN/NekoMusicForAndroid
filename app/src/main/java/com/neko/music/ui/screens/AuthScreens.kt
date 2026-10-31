@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.R
+import com.neko.music.data.api.PasswordResetUrlResult
 import com.neko.music.ui.components.AuthErrorText
 import com.neko.music.ui.components.AuthFieldDivider
 import com.neko.music.ui.components.AuthFieldGroup
@@ -440,179 +443,61 @@ private fun PrivacyAgreementRow(
 
 @Composable
 fun ForgotPasswordScreen(
-    onResetSuccess: () -> Unit,
     onBackClick: () -> Unit,
 ) {
-    var email by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
-    var isSendingCode by remember { mutableStateOf(false) }
-    var countdown by remember { mutableIntStateOf(0) }
     var errorMessage by remember { mutableStateOf("") }
+    var openedMessage by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
     val userApi = com.neko.music.data.api.UserApi()
 
-    val pleaseEnterEmail = stringResource(id = R.string.please_enter_email_for_reset)
-    val pleaseEnterCode = stringResource(id = R.string.please_enter_code_for_reset)
-    val pleaseEnterNewPassword = stringResource(id = R.string.please_enter_new_password)
-    val newPasswordLengthError = stringResource(id = R.string.new_password_length_error_reset)
-    val passwordMismatch = stringResource(id = R.string.password_mismatch)
-    val emailFormatError = stringResource(id = R.string.email_format_error)
-    val resetPasswordFailed = stringResource(id = R.string.reset_password_failed)
-    val sendResetCodeFailed = stringResource(id = R.string.send_reset_code_failed)
-
-    LaunchedEffect(countdown) {
-        if (countdown > 0) {
-            kotlinx.coroutines.delay(1000)
-            countdown--
-        }
-    }
+    val fetchFailed = stringResource(id = R.string.password_reset_url_failed)
+    val openFailed = stringResource(id = R.string.open_browser_failed)
+    val opened = stringResource(id = R.string.password_reset_opened)
 
     BackHandler(onBack = onBackClick)
 
     AuthPageShell(
         topBarTitle = stringResource(id = R.string.forgot_password),
         headline = stringResource(id = R.string.forgot_password),
-        subtitle = stringResource(id = R.string.enter_email_to_reset),
+        subtitle = stringResource(id = R.string.nekoauth_password_hint),
         onBack = onBackClick,
     ) { pageBackdrop ->
-        AuthFieldGroup(pageBackdrop = pageBackdrop) {
-            AuthGlassTextField(
-                value = email,
-                onValueChange = {
-                    email = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.email),
-                leadingIcon = Icons.Default.Email,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            )
-            AuthFieldDivider()
-            AuthGlassTextField(
-                value = code,
-                onValueChange = {
-                    code = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.verification_code),
-                leadingIcon = Icons.Default.CheckCircle,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                trailingIcon = {
-                    TextButton(
-                        onClick = {
-                            if (email.isEmpty()) {
-                                errorMessage = pleaseEnterEmail
-                                return@TextButton
-                            }
-                            if (countdown > 0) return@TextButton
-                            isSendingCode = true
-                            scope.launch {
-                                try {
-                                    val response = userApi.sendResetCode(email)
-                                    isSendingCode = false
-                                    if (response.success) {
-                                        countdown = 60
-                                    } else {
-                                        errorMessage = response.message
-                                    }
-                                } catch (e: Exception) {
-                                    isSendingCode = false
-                                    errorMessage = sendResetCodeFailed.format(e.message ?: "")
-                                }
-                            }
-                        },
-                        enabled = !isSendingCode && countdown == 0,
-                    ) {
-                        if (isSendingCode) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = RoseRed,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Text(
-                                text = if (countdown > 0) {
-                                    stringResource(id = R.string.retry_after_seconds, countdown)
-                                } else {
-                                    stringResource(id = R.string.send_reset_code)
-                                },
-                                color = if (countdown > 0) Color.Gray else RoseRed,
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
-                },
-            )
-            AuthFieldDivider()
-            AuthGlassTextField(
-                value = newPassword,
-                onValueChange = {
-                    newPassword = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.new_password),
-                leadingIcon = Icons.Default.Lock,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-            AuthFieldDivider()
-            AuthGlassTextField(
-                value = confirmPassword,
-                onValueChange = {
-                    confirmPassword = it
-                    errorMessage = ""
-                },
-                label = stringResource(id = R.string.confirm_new_password),
-                leadingIcon = Icons.Default.Lock,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        AuthErrorText(message = errorMessage)
+        if (openedMessage.isNotBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = openedMessage,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
             )
         }
-        AuthErrorText(message = errorMessage)
         Spacer(modifier = Modifier.height(20.dp))
         AuthPrimaryButton(
-            text = stringResource(id = R.string.reset_password_now),
+            text = stringResource(id = R.string.open_nekoauth_reset),
             onClick = {
-                if (email.isEmpty()) {
-                    errorMessage = pleaseEnterEmail
-                    return@AuthPrimaryButton
-                }
-                if (code.isEmpty()) {
-                    errorMessage = pleaseEnterCode
-                    return@AuthPrimaryButton
-                }
-                if (newPassword.isEmpty()) {
-                    errorMessage = pleaseEnterNewPassword
-                    return@AuthPrimaryButton
-                }
-                if (newPassword.length < 6 || newPassword.length > 30) {
-                    errorMessage = newPasswordLengthError
-                    return@AuthPrimaryButton
-                }
-                if (newPassword != confirmPassword) {
-                    errorMessage = passwordMismatch
-                    return@AuthPrimaryButton
-                }
-                if (!email.matches(EMAIL_REGEX)) {
-                    errorMessage = emailFormatError
-                    return@AuthPrimaryButton
-                }
+                if (isLoading) return@AuthPrimaryButton
                 isLoading = true
+                errorMessage = ""
+                openedMessage = ""
                 scope.launch {
-                    try {
-                        val response = userApi.resetPassword(email, code, newPassword)
-                        isLoading = false
-                        if (response.success) {
-                            onResetSuccess()
-                        } else {
-                            errorMessage = response.message
+                    when (val result = userApi.requestPasswordResetUrl()) {
+                        is PasswordResetUrlResult.Ok -> {
+                            isLoading = false
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(result.url)))
+                                openedMessage = opened
+                            } catch (e: Exception) {
+                                errorMessage = openFailed.format(e.message ?: "")
+                            }
                         }
-                    } catch (e: Exception) {
-                        isLoading = false
-                        errorMessage = resetPasswordFailed.format(e.message ?: "")
+
+                        is PasswordResetUrlResult.Err -> {
+                            isLoading = false
+                            errorMessage = result.message.ifBlank { fetchFailed }
+                        }
                     }
                 }
             },

@@ -1165,12 +1165,6 @@ fun MainScreen() {
             }
             composable(AuthRoutes.FORGOT_PASSWORD) {
                 ForgotPasswordScreen(
-                    onResetSuccess = {
-                        navController.popBackStack(
-                            route = AuthRoutes.LOGIN,
-                            inclusive = false,
-                        )
-                    },
                     onBackClick = { navController.popBackStack() },
                 )
             }

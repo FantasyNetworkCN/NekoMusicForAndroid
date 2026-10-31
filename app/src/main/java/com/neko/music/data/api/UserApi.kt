@@ -192,6 +192,31 @@ class UserApi(private val token: String? = null) {
     }
 
     /**
+     * 获取 NekoAuth 统一找回密码页面地址。
+     *
+     * 密码、验证码与找回流程都由 NekoAuth 管理，客户端只负责拿到地址后
+     * 用系统浏览器打开，不再在本地收集验证码和新密码。
+     */
+    suspend fun requestPasswordResetUrl(): PasswordResetUrlResult {
+        return try {
+            val response = client.post("$baseUrl/api/user/sso/password-reset-url") {
+                contentType(ContentType.Application.Json)
+                setBody(JsonObject(emptyMap()))
+            }
+            val body = response.body<PasswordResetUrlResponse>()
+            val url = body.data?.url?.trim().orEmpty()
+            if (body.success && url.isNotEmpty()) {
+                PasswordResetUrlResult.Ok(url)
+            } else {
+                PasswordResetUrlResult.Err(body.message.ifBlank { "获取找回密码地址失败" })
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "获取找回密码地址失败", e)
+            PasswordResetUrlResult.Err("网络错误: ${e.message}")
+        }
+    }
+
+    /**
      * 发送重置密码验证码
      */
     suspend fun sendResetCode(email: String): VerificationResponse {
@@ -712,6 +737,23 @@ data class UploadMusicResponse(
     val message: String,
     val musicId: Int? = null
 )
+
+@Serializable
+data class PasswordResetUrlResponse(
+    val success: Boolean = false,
+    val message: String = "",
+    val data: PasswordResetUrlData? = null,
+)
+
+@Serializable
+data class PasswordResetUrlData(
+    val url: String = "",
+)
+
+sealed interface PasswordResetUrlResult {
+    data class Ok(val url: String) : PasswordResetUrlResult
+    data class Err(val message: String) : PasswordResetUrlResult
+}
 
 @Serializable
 data class SendResetCodeRequest(

@@ -147,6 +147,11 @@
     <string name="captcha_sent_ok_fallback">Verification code sent to your email</string>
 
     <!-- Forgot Password -->
+    <string name="nekoauth_password_hint">Your account, password and email verification are managed by NekoAuth. Open the reset page in your browser to continue.</string>
+    <string name="open_nekoauth_reset">Open NekoAuth password reset in browser</string>
+    <string name="password_reset_opened">NekoAuth password reset opened in your browser. Come back and sign in again when you are done.</string>
+    <string name="password_reset_url_failed">Failed to get the password reset URL. Please try again later.</string>
+    <string name="open_browser_failed">Unable to open browser: %s</string>
     <string name="forgot_password">Forgot password</string>
     <string name="enter_email_to_reset">Enter your email and we will send a verification code</string>
     <string name="send_reset_code">Send verification code</string>

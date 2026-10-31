@@ -143,6 +143,11 @@
     <string name="captcha_sent_ok_fallback">验证码已发送到邮箱</string>
 
     <!-- 忘记密码 -->
+    <string name="nekoauth_password_hint">账号、密码和邮箱验证均由 NekoAuth 统一管理。点击下方按钮，在浏览器中完成找回。</string>
+    <string name="open_nekoauth_reset">在浏览器中打开 NekoAuth 找回密码</string>
+    <string name="password_reset_opened">已在浏览器打开 NekoAuth 找回密码页面，完成后返回重新登录即可。</string>
+    <string name="password_reset_url_failed">获取找回密码地址失败，请稍后重试</string>
+    <string name="open_browser_failed">无法打开浏览器：%s</string>
     <string name="forgot_password">忘记密码</string>
     <string name="enter_email_to_reset">请输入您的邮箱，我们将发送验证码</string>
     <string name="send_reset_code">发送验证码</string>

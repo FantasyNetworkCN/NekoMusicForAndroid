@@ -141,6 +141,11 @@
     <string name="captcha_sent_ok_fallback">验证码已发送到邮箱喵</string>
 
     <!-- 忘记密码 -->
+    <string name="nekoauth_password_hint">账号、密码和邮箱验证都由 NekoAuth 统一管理喵。点击下方按钮，在浏览器里完成找回喵~</string>
+    <string name="open_nekoauth_reset">在浏览器打开 NekoAuth 找回密码喵</string>
+    <string name="password_reset_opened">已经在浏览器打开 NekoAuth 找回密码页面喵，完成后回来重新登录就好喵~</string>
+    <string name="password_reset_url_failed">获取找回密码地址失败喵，请稍后再试喵</string>
+    <string name="open_browser_failed">打不开浏览器喵：%s</string>
     <string name="forgot_password">忘记密码喵</string>
     <string name="enter_email_to_reset">请输入您的邮箱，猫娘会发验证码喵</string>
     <string name="send_reset_code">发送验证码喵</string>
