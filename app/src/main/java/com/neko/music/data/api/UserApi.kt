@@ -12,15 +12,12 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 import android.util.Log
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.statement.bodyAsText
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
 
 class UserApi(private val token: String? = null) {
     private val sliderCaptchaJson = Json {
@@ -47,22 +44,6 @@ class UserApi(private val token: String? = null) {
     }
 
     private val baseUrl = UrlConfig.getBaseUrl()
-
-    /**
-     * 用户登录
-     */
-    suspend fun login(email: String, password: String): LoginResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/login") {
-                contentType(ContentType.Application.Json)
-                setBody(LoginRequest(email = email, password = password))
-            }
-            response.body()
-        } catch (e: Exception) {
-            Log.e("UserApi", "登录失败", e)
-            LoginResponse(success = false, message = "网络错误: ${e.message}", data = null)
-        }
-    }
 
     /** 获取 NekoAuth SSO 授权地址。 */
     suspend fun startSso(client: String = "android", returnTo: String = "/"): SsoStartResult {
@@ -157,47 +138,6 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    /**
-     * 用户注册
-     */
-    suspend fun register(nickname: String, password: String, email: String, verificationCode: String): RegisterResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/register") {
-                contentType(ContentType.Application.Json)
-                setBody(RegisterRequest(
-                    nickname = nickname,
-                    password = password,
-                    email = email,
-                    verificationCode = verificationCode
-                ))
-            }
-            val body = response.body<RegisterResponse>()
-            if (!body.success) {
-                Log.w("UserApi", "注册未通过: ${body.message}")
-            }
-            body
-        } catch (e: Exception) {
-            Log.e("UserApi", "注册失败", e)
-            RegisterResponse(success = false, message = "网络错误: ${e.message}", data = null)
-        }
-    }
-
-    /**
-     * 发送注册用邮箱验证码（须先完成滑块并取得 captchaPassToken）
-     */
-    suspend fun sendVerificationCode(email: String, nickname: String, captchaPassToken: String): VerificationResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/send-verification") {
-                contentType(ContentType.Application.Json)
-                setBody(VerificationRequest(email = email, nickname = nickname, captchaPassToken = captchaPassToken))
-            }
-            response.body()
-        } catch (e: Exception) {
-            Log.e("UserApi", "发送验证码失败", e)
-            VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
-        }
-    }
-
     suspend fun getSliderCaptchaChallenge(): SliderCaptchaLoadResult {
         return try {
             val response = client.get("$baseUrl/api/captcha/slider")
@@ -271,80 +211,6 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    /**
-     * 发送重置密码验证码
-     */
-    suspend fun sendResetCode(email: String): VerificationResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/send-reset-code") {
-                contentType(ContentType.Application.Json)
-                setBody(SendResetCodeRequest(email = email))
-            }
-            response.body()
-        } catch (e: Exception) {
-            Log.e("UserApi", "发送重置密码验证码失败", e)
-            VerificationResponse(success = false, message = "网络错误: ${e.message}", data = null)
-        }
-    }
-
-    /**
-     * 重置密码
-     */
-    suspend fun resetPassword(email: String, code: String, newPassword: String): ResetPasswordResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/reset-password") {
-                contentType(ContentType.Application.Json)
-                setBody(ResetPasswordRequest(
-                    email = email,
-                    code = code,
-                    newPassword = newPassword
-                ))
-            }
-            response.body()
-        } catch (e: Exception) {
-            Log.e("UserApi", "重置密码失败", e)
-            ResetPasswordResponse(success = false, message = "网络错误: ${e.message}")
-        }
-    }
-
-    /**
-     * 修改密码
-     */
-    suspend fun updatePassword(oldPassword: String, newPassword: String): UpdatePasswordResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/password/change") {
-                contentType(ContentType.Application.Json)
-                headers {
-                    token?.let { append("Authorization", "Bearer $it") }
-                }
-                setBody(UpdatePasswordRequest(
-                    oldPassword = oldPassword,
-                    newPassword = newPassword
-                ))
-            }
-            
-            val responseText = response.body<String>()
-            Log.d("UserApi", "修改密码响应: $responseText")
-            
-            val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
-            
-            // 检查是否成功
-            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
-            val message = if (success) {
-                // 成功响应: {"success": true, "message": "密码修改成功"}
-                jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: "密码修改成功"
-            } else {
-                // 失败响应: {"error": "原密码错误"}
-                jsonResponse["error"]?.toString()?.removeSurrounding("\"") ?: "修改密码失败"
-            }
-            
-            UpdatePasswordResponse(success = success, message = message)
-        } catch (e: Exception) {
-            Log.e("UserApi", "修改密码失败", e)
-            UpdatePasswordResponse(success = false, message = "网络错误: ${e.message}")
-        }
-    }
-    
     /**
      * 修改昵称
      */
@@ -594,12 +460,6 @@ class UserApi(private val token: String? = null) {
 
 // 数据模型
 @Serializable
-data class LoginRequest(
-    val email: String,
-    val password: String
-)
-
-@Serializable
 data class SsoStartRequest(
     val client: String,
     val returnTo: String,
@@ -626,21 +486,6 @@ sealed interface SsoStartResult {
     data class Ok(val url: String) : SsoStartResult
     data class Err(val message: String) : SsoStartResult
 }
-
-@Serializable
-data class RegisterRequest(
-    val nickname: String,
-    val password: String,
-    val email: String,
-    val verificationCode: String
-)
-
-@Serializable
-data class VerificationRequest(
-    val email: String,
-    val nickname: String,
-    val captchaPassToken: String
-)
 
 @Serializable
 data class SliderCaptchaEnvelope(
@@ -745,33 +590,6 @@ data class UserData(
 )
 
 @Serializable
-data class RegisterResponse(
-    val success: Boolean,
-    val message: String,
-    val data: Map<String, String>?
-)
-
-@Serializable
-data class VerificationResponse(
-    val success: Boolean,
-    val message: String,
-    /** 成功时多为 null；限流(429) 时为对象，如 `{"retryAfterSec":37}` */
-    val data: JsonElement? = null,
-)
-
-@Serializable
-data class UpdatePasswordRequest(
-    val oldPassword: String,
-    val newPassword: String
-)
-
-@Serializable
-data class UpdatePasswordResponse(
-    val success: Boolean,
-    val message: String
-)
-
-@Serializable
 data class UpdateNicknameRequest(
     val nickname: String
 )
@@ -837,21 +655,3 @@ sealed interface PasswordResetUrlResult {
     data class Ok(val url: String) : PasswordResetUrlResult
     data class Err(val message: String) : PasswordResetUrlResult
 }
-
-@Serializable
-data class SendResetCodeRequest(
-    val email: String
-)
-
-@Serializable
-data class ResetPasswordRequest(
-    val email: String,
-    val code: String,
-    val newPassword: String
-)
-
-@Serializable
-data class ResetPasswordResponse(
-    val success: Boolean,
-    val message: String
-)
