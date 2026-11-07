@@ -1349,41 +1349,6 @@ fun MainScreen() {
                                 }
                             }
                         }
-                    },
-                    onAvatarUpdate = { imageData ->
-                        scope.launch {
-                            try {
-                                Log.d(
-                                    "MainActivity",
-                                    "开始上传头像，图片大小: ${imageData.size} bytes"
-                                )
-                                val token =
-                                    com.neko.music.data.manager.TokenManager(context)
-                                        .getToken()
-                                Log.d(
-                                    "MainActivity",
-                                    "Token: ${if (token != null) "已获取 (${token.length} 字符)" else "null"}"
-                                )
-                                val userApi = com.neko.music.data.api.UserApi(token)
-                                Log.d("MainActivity", "UserApi 实例已创建")
-                                val response = userApi.updateAvatar(imageData)
-                                Log.d(
-                                    "MainActivity",
-                                    "头像上传响应: success=${response.success}, message=${response.message}"
-                                )
-
-                                if (response.success) {
-                                    Log.d("MainActivity", "头像更新成功")
-                                } else {
-                                    Log.e(
-                                        "MainActivity",
-                                        "更新头像失败: ${response.message}"
-                                    )
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MainActivity", "上传头像失败", e)
-                            }
-                        }
                     }
                 )
             }

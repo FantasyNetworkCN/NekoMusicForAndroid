@@ -77,7 +77,6 @@ fun AccountInfoScreen(
     vipExpiresAt: String? = null,
     onVipCenterClick: () -> Unit = {},
     onManageAccountClick: () -> Unit = {},
-    onAvatarUpdate: (ByteArray) -> Unit = {},
     onShowBottomControls: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -97,29 +96,6 @@ fun AccountInfoScreen(
     // 头像更新时间戳，用于绕过缓存
     var avatarUpdateTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
-    // 选中的图片 URI
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    
-    // 显示裁剪界面
-    var showCropDialog by remember { mutableStateOf(false) }
-    
-    // 监听裁剪对话框状态，控制底部控件显示
-    LaunchedEffect(showCropDialog) {
-        onShowBottomControls(!showCropDialog)
-    }
-    
-    // 图片选择器
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedImageUri = it
-            showCropDialog = true
-        }
-    }
-    
-    // 显示更换头像对话框
-    var showAvatarDialog by remember { mutableStateOf(false) }
     
     // 显示修改密码对话框
 
@@ -135,8 +111,6 @@ fun AccountInfoScreen(
     var showSuccess by remember { mutableStateOf(false) }
 
     // Preload string resources for non-Composable contexts
-    val avatarUploadSuccess = stringResource(id = R.string.avatar_upload_success)
-    val avatarUpdateSuccess = stringResource(id = R.string.avatar_update_success)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -213,7 +187,7 @@ fun AccountInfoScreen(
                                             colors = listOf(RoseRed, SakuraPink)
                                         )
                                     )
-                                    .clickable { showAvatarDialog = true },
+                                    .clickable { onManageAccountClick() },
                                 contentAlignment = Alignment.Center
                             ) {
                                 AsyncImage(
@@ -318,24 +292,6 @@ fun AccountInfoScreen(
                 }
         }
 
-        AnimatedVisibility(
-            visible = showAvatarDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(45f),
-        ) {
-            ChangeAvatarGlassDialog(
-                sampleBackdrop = pageBackdrop,
-                onDismiss = { showAvatarDialog = false },
-                onConfirm = {
-                    showAvatarDialog = false
-                    imagePickerLauncher.launch("image/*")
-                }
-            )
-        }
-
         // 加载中提示
         if (isLoading) {
             Box(
@@ -395,31 +351,6 @@ fun AccountInfoScreen(
         }
     }
 
-    // 裁剪对话框（在最顶层显示，覆盖整个屏幕）
-    if (showCropDialog && selectedImageUri != null) {
-        AvatarCropDialog(
-            imageUri = selectedImageUri!!,
-            onDismiss = {
-                showCropDialog = false
-                selectedImageUri = null
-            },
-            onConfirm = { imageData ->
-                onAvatarUpdate(imageData)
-                // 重置时间戳以刷新头像
-                avatarUpdateTime = System.currentTimeMillis()
-                showCropDialog = false
-                selectedImageUri = null
-                // 显示系统 Toast
-                android.widget.Toast.makeText(
-                    context,
-                    avatarUploadSuccess,
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                // 显示成功提示
-                toastMessage = avatarUpdateSuccess
-                showSuccess = true
-            }        )
-    }
 }
 
 @Composable

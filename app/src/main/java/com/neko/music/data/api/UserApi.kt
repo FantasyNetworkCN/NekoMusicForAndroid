@@ -212,93 +212,6 @@ class UserApi(private val token: String? = null) {
     }
 
     /**
-     * 修改昵称
-     */
-    suspend fun changeNickname(nickname: String): UpdateNicknameResponse {
-        return try {
-            val response = client.post("$baseUrl/api/user/nickname/change") {
-                contentType(ContentType.Application.Json)
-                headers {
-                    token?.let { append("Authorization", "Bearer $it") }
-                }
-                setBody(UpdateNicknameRequest(nickname = nickname))
-            }
-
-            val responseText = response.body<String>()
-            Log.d("UserApi", "修改昵称响应: $responseText")
-
-            val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
-            val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
-            val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-            val savedNickname = jsonResponse["data"]
-                ?.let { it as? JsonObject }
-                ?.get("nickname")
-                ?.toString()
-                ?.removeSurrounding("\"")
-                ?.takeIf { it.isNotBlank() }
-                ?: nickname
-
-            UpdateNicknameResponse(success = success, message = message, nickname = savedNickname)
-        } catch (e: Exception) {
-            Log.e("UserApi", "修改昵称失败", e)
-            UpdateNicknameResponse(success = false, message = "网络错误: ${e.message}", nickname = nickname)
-        }
-    }
-
-    /**
-     * 更换头像
-     */
-    suspend fun updateAvatar(imageData: ByteArray): UpdateAvatarResponse {
-        return try {
-            // 使用 POST 方法上传头像到 /api/user/avatar/upload
-            val response = client.post("$baseUrl/api/user/avatar/upload") {
-                headers {
-                    token?.let { append("Authorization", "Bearer $it") }
-                }
-                setBody(
-                    MultiPartFormDataContent(
-                        formData {
-                            append("avatar", imageData, Headers.build {
-                                append(HttpHeaders.ContentDisposition, "filename=avatar.jpg")
-                                append(HttpHeaders.ContentType, "image/jpeg")
-                            })
-                        }
-                    )
-                )
-            }
-
-            val responseText = response.body<String>()
-            Log.d("UserApi", "更换头像响应状态: ${response.status}")
-            Log.d("UserApi", "更换头像响应内容: $responseText")
-
-            // 如果响应为空，根据状态码判断成功
-            if (responseText.isBlank()) {
-                val success = response.status.value in 200..299
-                val message = if (success) "头像更新成功" else "头像更新失败"
-                return UpdateAvatarResponse(success = success, message = message)
-            }
-
-            // 如果响应不为空，尝试解析 JSON
-            try {
-                val jsonResponse = Json.parseToJsonElement(responseText) as JsonObject
-                val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
-                val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-                val avatarPath = jsonResponse["avatarPath"]?.toString()?.removeSurrounding("\"")
-
-                UpdateAvatarResponse(success = success, message = message, avatarUrl = avatarPath)
-            } catch (jsonException: Exception) {
-                // JSON 解析失败，根据状态码判断
-                val success = response.status.value in 200..299
-                val message = if (success) "头像更新成功" else "头像更新失败: $responseText"
-                UpdateAvatarResponse(success = success, message = message)
-            }
-        } catch (e: Exception) {
-            Log.e("UserApi", "更换头像失败", e)
-            UpdateAvatarResponse(success = false, message = "网络错误: ${e.message}")
-        }
-    }
-
-    /**
      * 获取用户上传审核通过的音乐
      */
     suspend fun getUploadedMusic(): UploadedMusicResponse {
@@ -587,25 +500,6 @@ data class UserData(
     val createdAt: String,
     val isVip: Boolean = false,
     val vipExpiresAt: String? = null
-)
-
-@Serializable
-data class UpdateNicknameRequest(
-    val nickname: String
-)
-
-@Serializable
-data class UpdateNicknameResponse(
-    val success: Boolean,
-    val message: String,
-    val nickname: String = ""
-)
-
-@Serializable
-data class UpdateAvatarResponse(
-    val success: Boolean,
-    val message: String,
-    val avatarUrl: String? = null
 )
 
 @Serializable
