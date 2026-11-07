@@ -55,8 +55,6 @@ import coil3.asDrawable
 import androidx.core.graphics.drawable.toBitmap
 import com.neko.music.R
 import com.neko.music.ui.components.ChangeAvatarGlassDialog
-import com.neko.music.ui.components.ChangeNicknameGlassDialog
-import com.neko.music.ui.components.ChangePasswordGlassDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -78,9 +76,8 @@ fun AccountInfoScreen(
     isVip: Boolean = false,
     vipExpiresAt: String? = null,
     onVipCenterClick: () -> Unit = {},
+    onManageAccountClick: () -> Unit = {},
     onAvatarUpdate: (ByteArray) -> Unit = {},
-    onPasswordUpdate: suspend (oldPassword: String, newPassword: String) -> Boolean = { _, _ -> false },
-    onNicknameUpdate: suspend (nickname: String) -> Boolean = { false },
     onShowBottomControls: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -125,10 +122,8 @@ fun AccountInfoScreen(
     var showAvatarDialog by remember { mutableStateOf(false) }
     
     // 显示修改密码对话框
-    var showPasswordDialog by remember { mutableStateOf(false) }
 
     // 显示修改昵称对话框
-    var showNicknameDialog by remember { mutableStateOf(false) }
     
     // 显示加载状态
     var isLoading by remember { mutableStateOf(false) }
@@ -258,7 +253,7 @@ fun AccountInfoScreen(
                                 title = stringResource(id = R.string.nickname),
                                 value = nickname,
                                 showArrow = true,
-                                onClick = { showNicknameDialog = true },
+                                onClick = onManageAccountClick,
                                 colorFilter = ColorFilter.tint(RoseRed),
                                 primaryTextColor = primaryTextColor,
                                 secondaryTextColor = secondaryTextColor,
@@ -307,10 +302,10 @@ fun AccountInfoScreen(
                             )
                             InfoCard(
                                 icon = R.drawable.password,
-                                title = stringResource(id = R.string.password),
-                                value = stringResource(id = R.string.modify_password),
+                                title = "NekoAuth 账号中心",
+                                value = "在 NekoAuth 管理账号、密码与登录设备",
                                 showArrow = true,
-                                onClick = { showPasswordDialog = true },
+                                onClick = onManageAccountClick,
                                 colorFilter = ColorFilter.tint(RoseRed),
                                 primaryTextColor = primaryTextColor,
                                 secondaryTextColor = secondaryTextColor,
@@ -338,37 +333,6 @@ fun AccountInfoScreen(
                     showAvatarDialog = false
                     imagePickerLauncher.launch("image/*")
                 }
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showPasswordDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(45f),
-        ) {
-            ChangePasswordGlassDialog(
-                sampleBackdrop = pageBackdrop,
-                onDismiss = { showPasswordDialog = false },
-                onConfirm = onPasswordUpdate
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showNicknameDialog,
-            enter = LiquidCenterModalTransitions.Enter,
-            exit = LiquidCenterModalTransitions.Exit,
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(45f),
-        ) {
-            ChangeNicknameGlassDialog(
-                sampleBackdrop = pageBackdrop,
-                currentNickname = nickname,
-                onDismiss = { showNicknameDialog = false },
-                onConfirm = onNicknameUpdate
             )
         }
 

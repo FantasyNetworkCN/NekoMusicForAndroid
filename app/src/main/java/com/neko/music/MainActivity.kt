@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,8 +96,7 @@ import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.navigation.AuthRoutes
 import com.neko.music.ui.screens.LocalMusicScreen
 import com.neko.music.ui.screens.LoginScreen
-import com.neko.music.ui.screens.RegisterScreen
-import com.neko.music.ui.screens.ForgotPasswordScreen
+import com.neko.music.ui.screens.AuthWebViewScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
 import com.neko.music.ui.screens.NotificationInboxScreen
@@ -145,6 +145,8 @@ class MainActivity : ComponentActivity() {
     private var privacyAccepted by mutableStateOf(false)
     private var pendingIntentAfterConsent: Intent? = null
     private var appServicesStarted = false
+    internal var ssoSessionVersion by mutableIntStateOf(0)
+        private set
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(updateBaseContextLocale(base))
@@ -248,6 +250,11 @@ class MainActivity : ComponentActivity() {
         intent?.data?.let { uri ->
             android.util.Log.d("MainActivity", "收到 Deep Link: $uri")
             when (uri.host) {
+                "sso" -> {
+                    if (uri.path == "/complete") {
+                        handleSsoHandoff(uri.getQueryParameter("handoff"))
+                    }
+                }
                 "player" -> {
                     val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
                     if (id != null) {
@@ -306,6 +313,35 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun handleSsoHandoff(handoff: String?) {
+        if (handoff.isNullOrBlank()) {
+            android.widget.Toast.makeText(this, "登录交接参数缺失，请重新登录", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            val response = com.neko.music.data.api.UserApi().claimSso(handoff)
+            val data = response.data
+            if (response.success && data != null) {
+                com.neko.music.data.manager.TokenManager(this@MainActivity).saveToken(
+                    token = data.token,
+                    userId = data.user.id,
+                    nickname = data.user.nickname,
+                    email = data.user.email,
+                    isVip = data.user.isVip,
+                    vipExpiresAt = data.user.vipExpiresAt,
+                )
+                ssoSessionVersion += 1
+                android.widget.Toast.makeText(this@MainActivity, "NekoAuth 登录成功", android.widget.Toast.LENGTH_SHORT).show()
+            } else {
+                android.widget.Toast.makeText(
+                    this@MainActivity,
+                    response.message.ifBlank { "登录交接失败，请重新登录" },
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
             }
         }
     }
@@ -532,6 +568,18 @@ fun MainScreen() {
 
         // 清理历史遗留的重复曲目行（重复行会让随机播放偏向重复的那几首）
         com.neko.music.data.manager.PlaylistManager.getInstance(context).dedupePlaylist()
+    }
+
+    val ssoVersion = (context as? MainActivity)?.ssoSessionVersion ?: 0
+    androidx.compose.runtime.LaunchedEffect(ssoVersion) {
+        if (ssoVersion <= 0) return@LaunchedEffect
+        refreshUserSessionFromDisk()
+        navController.navigate(BottomNavItem.Home.route) {
+            popUpTo(navController.graph.startDestinationId) {
+                saveState = false
+            }
+            launchSingleTop = true
+        }
     }
 
     // 启动时用 GET /api/user/info 拉取最新资料（昵称/邮箱/VIP），并在这里判定登录态是否失效。
@@ -1141,30 +1189,29 @@ fun MainScreen() {
             }
             composable(AuthRoutes.LOGIN) {
                 LoginScreen(
-                    onLoginSuccess = {
-                        navController.popBackStack()
-                        refreshUserSessionFromDisk()
-                    },
                     onBackClick = { navController.popBackStack() },
-                    onRegisterClick = { navController.navigate(AuthRoutes.REGISTER) },
-                    onForgotPasswordClick = { navController.navigate(AuthRoutes.FORGOT_PASSWORD) },
-                    onPrivacyClick = { navController.navigate("privacy_policy") },
-                )
-            }
-            composable(AuthRoutes.REGISTER) {
-                RegisterScreen(
-                    onBackClick = { navController.popBackStack() },
-                    onLoginClick = {
-                        navController.popBackStack(
-                            route = AuthRoutes.LOGIN,
-                            inclusive = false,
+                    onOpenAuthWeb = { url, title ->
+                        navController.navigate(
+                            "auth/web?url=${android.net.Uri.encode(url)}&title=${android.net.Uri.encode(title)}"
                         )
                     },
                     onPrivacyClick = { navController.navigate("privacy_policy") },
                 )
             }
-            composable(AuthRoutes.FORGOT_PASSWORD) {
-                ForgotPasswordScreen(
+            composable(
+                "auth/web?url={url}&title={title}",
+                arguments = listOf(
+                    navArgument("url") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("title") { type = NavType.StringType; defaultValue = "NekoAuth" },
+                ),
+            ) { entry ->
+                val url = android.net.Uri.decode(entry.arguments?.getString("url").orEmpty())
+                val title = android.net.Uri.decode(
+                    entry.arguments?.getString("title").orEmpty()
+                ).ifBlank { "NekoAuth" }
+                AuthWebViewScreen(
+                    url = url,
+                    title = title,
                     onBackClick = { navController.popBackStack() },
                 )
             }
@@ -1239,6 +1286,24 @@ fun MainScreen() {
                     onShowBottomControls = { show ->
                         showBottomControls = show
                     },
+                    onManageAccountClick = {
+                        scope.launch {
+                            when (val result = com.neko.music.data.api.UserApi().fetchPortalUrl("account")) {
+                                is com.neko.music.data.api.SsoStartResult.Ok -> {
+                                    navController.navigate(
+                                        "auth/web?url=${android.net.Uri.encode(result.url)}&title=${android.net.Uri.encode("NekoAuth 账号中心")}"
+                                    )
+                                }
+                                is com.neko.music.data.api.SsoStartResult.Err -> {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        result.message,
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            }
+                        }
+                    },
                     onAvatarUpdate = { imageData ->
                         scope.launch {
                             try {
@@ -1272,81 +1337,6 @@ fun MainScreen() {
                             } catch (e: Exception) {
                                 Log.e("MainActivity", "上传头像失败", e)
                             }
-                        }
-                    },
-                    onPasswordUpdate = { oldPassword, newPassword ->
-                        try {
-                            val userApi = com.neko.music.data.api.UserApi(
-                                com.neko.music.data.manager.TokenManager(context)
-                                    .getToken()
-                            )
-                            val response =
-                                userApi.updatePassword(oldPassword, newPassword)
-
-                            if (response.success) {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "密码修改成功",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                true
-                            } else {
-                                // 失败时显示错误 Toast
-                                android.widget.Toast.makeText(
-                                    context,
-                                    response.message,
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                false
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "修改密码失败", e)
-                            android.widget.Toast.makeText(
-                                context,
-                                "修改密码失败: ${e.message}",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            false
-                        }
-                    },
-                    onNicknameUpdate = { nickname ->
-                        try {
-                            val tokenManager =
-                                com.neko.music.data.manager.TokenManager(context)
-                            val userApi = com.neko.music.data.api.UserApi(
-                                tokenManager.getToken()
-                            )
-                            val response = userApi.changeNickname(nickname)
-
-                            if (response.success) {
-                                tokenManager.updateNickname(
-                                    response.nickname.ifBlank { nickname }
-                                )
-                                refreshUserSessionFromDisk()
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.nickname_updated),
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                true
-                            } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    response.message.ifBlank {
-                                        context.getString(R.string.nickname_update_failed)
-                                    },
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                false
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "修改昵称失败", e)
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.nickname_update_failed),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            false
                         }
                     }
                 )

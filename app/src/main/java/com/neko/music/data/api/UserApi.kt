@@ -64,6 +64,55 @@ class UserApi(private val token: String? = null) {
         }
     }
 
+    /** 获取 NekoAuth SSO 授权地址。 */
+    suspend fun startSso(client: String = "android", returnTo: String = "/"): SsoStartResult {
+        return try {
+            val response = this.client.post("$baseUrl/api/user/sso/start") {
+                contentType(ContentType.Application.Json)
+                setBody(SsoStartRequest(client = client, returnTo = returnTo))
+            }.body<SsoStartEnvelope>()
+            val url = response.data?.url
+            if (response.success && !url.isNullOrBlank()) {
+                SsoStartResult.Ok(url)
+            } else {
+                SsoStartResult.Err(response.message.ifBlank { "登录服务暂时不可用" })
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "获取 SSO 地址失败", e)
+            SsoStartResult.Err("网络错误: ${e.message}")
+        }
+    }
+
+    /** 用一次性 handoff 完成 SSO 登录。 */
+    suspend fun claimSso(handoff: String): LoginResponse {
+        return try {
+            this.client.post("$baseUrl/api/user/sso/claim") {
+                contentType(ContentType.Application.Json)
+                setBody(SsoClaimRequest(handoff))
+            }.body()
+        } catch (e: Exception) {
+            Log.e("UserApi", "领取 SSO 登录交接失败", e)
+            LoginResponse(success = false, message = "网络错误: ${e.message}", data = null)
+        }
+    }
+
+    /** 获取 NekoAuth 账号中心 / 注册 / 找回密码页面。 */
+    suspend fun fetchPortalUrl(target: String): SsoStartResult {
+        return try {
+            val response = this.client.get("$baseUrl/api/user/sso/portal-url?target=$target")
+                .body<SsoStartEnvelope>()
+            val url = response.data?.url
+            if (response.success && !url.isNullOrBlank()) {
+                SsoStartResult.Ok(url)
+            } else {
+                SsoStartResult.Err(response.message.ifBlank { "账号服务暂时不可用" })
+            }
+        } catch (e: Exception) {
+            Log.e("UserApi", "获取 NekoAuth 页面地址失败", e)
+            SsoStartResult.Err("网络错误: ${e.message}")
+        }
+    }
+
     /**
      * 获取当前登录用户信息（`GET /api/user/info`）。
      *
@@ -543,6 +592,34 @@ data class LoginRequest(
     val email: String,
     val password: String
 )
+
+@Serializable
+data class SsoStartRequest(
+    val client: String,
+    val returnTo: String,
+)
+
+@Serializable
+data class SsoStartEnvelope(
+    val success: Boolean = false,
+    val message: String = "",
+    val data: SsoStartData? = null,
+)
+
+@Serializable
+data class SsoStartData(
+    val url: String,
+)
+
+@Serializable
+data class SsoClaimRequest(
+    val handoff: String,
+)
+
+sealed interface SsoStartResult {
+    data class Ok(val url: String) : SsoStartResult
+    data class Err(val message: String) : SsoStartResult
+}
 
 @Serializable
 data class RegisterRequest(
