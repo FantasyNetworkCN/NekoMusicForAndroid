@@ -77,6 +77,24 @@ class UserApi(private val token: String? = null) {
         }
     }
 
+    /** 吊销当前 access token，并取得标准 OIDC 注销地址。 */
+    suspend fun logoutAndGetAuthUrl(accessToken: String, idToken: String?): String? {
+        try {
+            client.post("$baseUrl/api/user/logout") {
+                headers { append(HttpHeaders.Authorization, "Bearer $accessToken") }
+            }
+            if (idToken.isNullOrBlank()) return null
+            val response = client.post("$baseUrl/api/user/sso/logout-url") {
+                contentType(ContentType.Application.Json)
+                setBody(JsonObject(mapOf("idToken" to kotlinx.serialization.json.JsonPrimitive(idToken))))
+            }
+            return response.body<PasswordResetUrlResponse>().data?.url?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            Log.e("UserApi", "退出 NekoAuth 会话失败", e)
+            return null
+        }
+    }
+
     /** 获取 NekoAuth 账号中心 / 注册 / 找回密码页面。 */
     suspend fun fetchPortalUrl(target: String): SsoStartResult {
         return try {
@@ -464,7 +482,8 @@ data class LoginResponse(
 @Serializable
 data class LoginData(
     val user: UserData,
-    val token: String
+    val token: String,
+    val idToken: String? = null,
 )
 
 /** `GET /api/user/info` 响应，`data.user` 与登录接口的 `data.user` 结构一致。 */

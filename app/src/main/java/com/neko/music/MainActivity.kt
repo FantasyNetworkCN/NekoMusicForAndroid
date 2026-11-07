@@ -348,6 +348,7 @@ class MainActivity : ComponentActivity() {
                     email = data.user.email,
                     isVip = data.user.isVip,
                     vipExpiresAt = data.user.vipExpiresAt,
+                    idToken = data.idToken,
                 )
                 ssoSessionVersion += 1
                 Log.i("MainActivity", "SSO 登录成功: userId=${data.user.id}")
@@ -1725,9 +1726,25 @@ fun MainScreen() {
                     onDismiss = { showLogoutDialog = false },
                     onConfirm = {
                         val tokenManager = com.neko.music.data.manager.TokenManager(context)
-                        tokenManager.clearToken()
-                        refreshUserSessionFromDisk()
                         showLogoutDialog = false
+                        val accessToken = tokenManager.getToken()
+                        val idToken = tokenManager.getIdToken()
+                        scope.launch {
+                            val logoutUrl = if (accessToken.isNullOrBlank()) null
+                            else com.neko.music.data.api.UserApi()
+                                .logoutAndGetAuthUrl(accessToken, idToken)
+                            tokenManager.clearToken()
+                            refreshUserSessionFromDisk()
+                            if (!logoutUrl.isNullOrBlank()) {
+                                try {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(logoutUrl))
+                                    )
+                                } catch (_: Exception) {
+                                    // 本地登录态已清除，浏览器打开失败不阻塞退出
+                                }
+                            }
+                        }
                     },
                 )
             }

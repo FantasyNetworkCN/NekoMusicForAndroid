@@ -22,6 +22,7 @@ class TokenManager(context: Context) {
         private const val PREFS_NAME = "user_prefs"
 
         private const val KEY_TOKEN = "token"
+        private const val KEY_ID_TOKEN = "id_token"
 
         /**
          * 进程内缓存的令牌：网络层（Ktor 插件）拿不到 Context，需要一个同步入口。
@@ -30,15 +31,17 @@ class TokenManager(context: Context) {
          * 登出后立即清空，避免下一条请求带着上一个人的身份发出去。
          */
         @Volatile private var cachedToken: String? = null
+        @Volatile private var cachedIdToken: String? = null
 
         /** 读取进程内缓存的令牌；未登录或尚未预热返回 null。 */
         fun processToken(): String? = cachedToken
 
         /** 应用启动时把落盘的令牌读进内存，省掉首个请求等不到令牌的问题。 */
         fun primeProcessToken(context: Context) {
-            cachedToken = context.applicationContext
+            val prefs = context.applicationContext
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(KEY_TOKEN, null)
+            cachedToken = prefs.getString(KEY_TOKEN, null)
+            cachedIdToken = prefs.getString(KEY_ID_TOKEN, null)
         }
 
         /** 旧版本曾把用户资料写进 SharedPreferences，这里仅用于清理 */
@@ -96,11 +99,14 @@ class TokenManager(context: Context) {
         nickname: String,
         email: String,
         isVip: Boolean = false,
-        vipExpiresAt: String? = null
+        vipExpiresAt: String? = null,
+        idToken: String? = null,
     ) {
         editor.putString(KEY_TOKEN, token)
+        editor.putString(KEY_ID_TOKEN, idToken)
         editor.apply()
         cachedToken = token
+        cachedIdToken = idToken
         applyProfile(userId, nickname, email, isVip, vipExpiresAt)
         notifySessionChanged()
         NotificationCenter.onLogin()
@@ -167,6 +173,11 @@ class TokenManager(context: Context) {
         return token
     }
 
+    fun getIdToken(): String? {
+        cachedIdToken = sharedPref.getString(KEY_ID_TOKEN, null)
+        return cachedIdToken
+    }
+
     /**
      * 获取用户ID
      */
@@ -202,6 +213,7 @@ class TokenManager(context: Context) {
         editor.clear()
         editor.apply()
         cachedToken = null
+        cachedIdToken = null
         cachedUserId = -1
         cachedNickname = null
         cachedEmail = null
