@@ -129,6 +129,12 @@ class UserApi(private val token: String? = null) {
             val response = client.get("$baseUrl/api/user/info") {
                 header("Authorization", authToken)
             }
+            if (response.status == HttpStatusCode.Unauthorized
+                || response.status == HttpStatusCode.Forbidden
+            ) {
+                Log.w("UserApi", "用户信息接口返回 HTTP ${response.status.value}，登录态已失效")
+                return UserInfoResult.Unauthorized("登录状态失效")
+            }
             val body = response.body<UserInfoResponse>()
             val user = body.data?.user
             if (body.success && user != null) {

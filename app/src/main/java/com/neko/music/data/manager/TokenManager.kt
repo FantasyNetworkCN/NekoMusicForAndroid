@@ -2,6 +2,9 @@ package com.neko.music.data.manager
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * 登录会话：**只有 Token 落盘**。
@@ -52,6 +55,15 @@ class TokenManager(context: Context) {
         @Volatile private var cachedEmail: String? = null
         @Volatile private var cachedIsVip: Boolean = false
         @Volatile private var cachedVipExpiresAt: String? = null
+
+        private val _sessionChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        /** 登录态在任意位置被保存或清除时通知 UI 立即重新同步。 */
+        val sessionChanges: SharedFlow<Unit> = _sessionChanges.asSharedFlow()
+
+        private fun notifySessionChanged() {
+            _sessionChanges.tryEmit(Unit)
+        }
     }
 
     init {
@@ -90,12 +102,14 @@ class TokenManager(context: Context) {
         editor.apply()
         cachedToken = token
         applyProfile(userId, nickname, email, isVip, vipExpiresAt)
+        notifySessionChanged()
         NotificationCenter.onLogin()
     }
 
     /** 更新内存中的昵称（服务端修改成功后调用） */
     fun updateNickname(nickname: String) {
         cachedNickname = nickname
+        notifySessionChanged()
     }
 
     /**
@@ -117,6 +131,7 @@ class TokenManager(context: Context) {
             isVip = isVip,
             vipExpiresAt = vipExpiresAt,
         )
+        notifySessionChanged()
     }
 
     private fun applyProfile(
@@ -135,6 +150,7 @@ class TokenManager(context: Context) {
     fun updateVipStatus(isVip: Boolean, vipExpiresAt: String?) {
         cachedIsVip = isVip
         cachedVipExpiresAt = vipExpiresAt?.takeIf { it.isNotBlank() }
+        notifySessionChanged()
     }
 
     fun isVip(): Boolean = cachedIsVip
@@ -191,6 +207,7 @@ class TokenManager(context: Context) {
         cachedEmail = null
         cachedIsVip = false
         cachedVipExpiresAt = null
+        notifySessionChanged()
         NotificationCenter.onLogout()
     }
 }

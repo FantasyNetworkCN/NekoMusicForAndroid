@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -77,6 +78,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
@@ -134,6 +137,8 @@ import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.readLiquidGlassUiScale
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import java.net.URLEncoder
 
 class MainActivity : ComponentActivity() {
@@ -146,8 +151,6 @@ class MainActivity : ComponentActivity() {
     private var pendingIntentAfterConsent: Intent? = null
     private var appServicesStarted = false
     internal var ssoSessionVersion by mutableIntStateOf(0)
-        private set
-    internal var sessionValidationVersion by mutableIntStateOf(0)
         private set
 
     override fun attachBaseContext(base: Context) {
@@ -385,8 +388,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 后台撤销登录后，用户切回应用时立即重新校验服务端会话。
-        sessionValidationVersion += 1
     }
 
     override fun onPause() {
@@ -586,6 +587,12 @@ fun MainScreen() {
         com.neko.music.data.manager.PlaylistManager.getInstance(context).dedupePlaylist()
     }
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.neko.music.data.manager.TokenManager.sessionChanges.collect {
+            refreshUserSessionFromDisk()
+        }
+    }
+
     val ssoVersion = (context as? MainActivity)?.ssoSessionVersion ?: 0
     androidx.compose.runtime.LaunchedEffect(ssoVersion) {
         if (ssoVersion <= 0) return@LaunchedEffect
@@ -598,38 +605,49 @@ fun MainScreen() {
         }
     }
 
-    // 启动时用 GET /api/user/info 拉取最新资料（昵称/邮箱/VIP），并在这里判定登录态是否失效。
-    // 服务端 Token 失效会返回 401：只有这种情况才清除本地登录态；
-    // 其它异常（断网、接口字段变化等）一律保留会话，避免误踢用户下线。
-    val validationVersion = (context as? MainActivity)?.sessionValidationVersion ?: 0
-    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken, validationVersion) {
+    // 前台期间周期校验登录态，回到前台时 repeatOnLifecycle 会立即重新执行一次。
+    // 服务端明确返回 401/403 才清除本地会话；断网、字段异常等保留登录态。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken, lifecycleOwner) {
         val t = currentUserToken
         if (!isLoggedIn || t.isNullOrBlank()) return@LaunchedEffect
         val tokenManager = com.neko.music.data.manager.TokenManager(context)
-        when (val result = com.neko.music.data.api.UserApi(t).getUserInfo()) {
-            is com.neko.music.data.api.UserInfoResult.Ok -> {
-                val user = result.user
-                tokenManager.updateProfile(
-                    userId = user.id,
-                    nickname = user.nickname,
-                    email = user.email,
-                    isVip = user.isVip,
-                    vipExpiresAt = user.vipExpiresAt,
-                )
-                refreshUserSessionFromDisk()
-            }
-            is com.neko.music.data.api.UserInfoResult.Unauthorized -> {
-                android.util.Log.w("MainActivity", "登录态失效（HTTP 401），清理本地会话: ${result.message}")
-                tokenManager.clearToken()
-                refreshUserSessionFromDisk()
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(R.string.auth_expired),
-                    android.widget.Toast.LENGTH_LONG,
-                ).show()
-            }
-            is com.neko.music.data.api.UserInfoResult.Err -> {
-                android.util.Log.w("MainActivity", "刷新用户信息失败，保留本地会话: ${result.message}")
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                when (val result = com.neko.music.data.api.UserApi(t).getUserInfo()) {
+                    is com.neko.music.data.api.UserInfoResult.Ok -> {
+                        val user = result.user
+                        tokenManager.updateProfile(
+                            userId = user.id,
+                            nickname = user.nickname,
+                            email = user.email,
+                            isVip = user.isVip,
+                            vipExpiresAt = user.vipExpiresAt,
+                        )
+                        refreshUserSessionFromDisk()
+                    }
+                    is com.neko.music.data.api.UserInfoResult.Unauthorized -> {
+                        android.util.Log.w(
+                            "MainActivity",
+                            "登录态失效（HTTP 401），清理本地会话: ${result.message}",
+                        )
+                        tokenManager.clearToken()
+                        refreshUserSessionFromDisk()
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.auth_expired),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                        break
+                    }
+                    is com.neko.music.data.api.UserInfoResult.Err -> {
+                        android.util.Log.w(
+                            "MainActivity",
+                            "刷新用户信息失败，保留本地会话: ${result.message}",
+                        )
+                    }
+                }
+                delay(60_000)
             }
         }
     }
