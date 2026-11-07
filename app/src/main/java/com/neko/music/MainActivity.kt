@@ -147,6 +147,8 @@ class MainActivity : ComponentActivity() {
     private var appServicesStarted = false
     internal var ssoSessionVersion by mutableIntStateOf(0)
         private set
+    internal var sessionValidationVersion by mutableIntStateOf(0)
+        private set
 
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(updateBaseContextLocale(base))
@@ -383,6 +385,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 后台撤销登录后，用户切回应用时立即重新校验服务端会话。
+        sessionValidationVersion += 1
     }
 
     override fun onPause() {
@@ -597,7 +601,8 @@ fun MainScreen() {
     // 启动时用 GET /api/user/info 拉取最新资料（昵称/邮箱/VIP），并在这里判定登录态是否失效。
     // 服务端 Token 失效会返回 401：只有这种情况才清除本地登录态；
     // 其它异常（断网、接口字段变化等）一律保留会话，避免误踢用户下线。
-    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken) {
+    val validationVersion = (context as? MainActivity)?.sessionValidationVersion ?: 0
+    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken, validationVersion) {
         val t = currentUserToken
         if (!isLoggedIn || t.isNullOrBlank()) return@LaunchedEffect
         val tokenManager = com.neko.music.data.manager.TokenManager(context)
