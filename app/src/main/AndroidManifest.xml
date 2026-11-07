@@ -73,12 +73,60 @@
                 <data android:scheme="nekomusic" />
             </intent-filter>
 
-            <!-- App Links：仅 scheme+host，避免 pathPrefix 与部分 URL（空 path）匹配差异导致验证异常 -->
+            <!-- App Links：只接管 App 能处理的站内页面，避免截获 OAuth 服务端回调。 -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="music.nekocore.cn" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:pathPrefix="/detail/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:pathPrefix="/player/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:pathPrefix="/playlist/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:pathPrefix="/privacy" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:path="/sso/complete" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="music.nekocore.cn"
+                    android:path="/oauth/nekocore/complete" />
             </intent-filter>
         </activity>
         

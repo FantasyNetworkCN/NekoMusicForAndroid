@@ -274,6 +274,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 else -> {
+                    if (uri.host == "music.nekocore.cn" && isSsoCompletePath(uri.path)) {
+                        handleSsoHandoff(uri.getQueryParameter("handoff"))
+                        return@let
+                    }
                     // 兼容 https://music.nekocore.cn/detail/{id}（站点实际路径）
                     // 以及 https://…/player/{id}、https://…/playlist/{id}
                     val path = uri.path ?: return@let
@@ -317,11 +321,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isSsoCompletePath(path: String?): Boolean {
+        return path == "/sso/complete" || path == "/oauth/nekocore/complete"
+    }
+
     private fun handleSsoHandoff(handoff: String?) {
         if (handoff.isNullOrBlank()) {
+            Log.w("MainActivity", "SSO 回跳缺少 handoff")
             android.widget.Toast.makeText(this, "登录交接参数缺失，请重新登录", android.widget.Toast.LENGTH_LONG).show()
             return
         }
+        Log.d("MainActivity", "开始领取 SSO handoff")
         lifecycleScope.launch {
             val response = com.neko.music.data.api.UserApi().claimSso(handoff)
             val data = response.data
@@ -335,8 +345,10 @@ class MainActivity : ComponentActivity() {
                     vipExpiresAt = data.user.vipExpiresAt,
                 )
                 ssoSessionVersion += 1
+                Log.i("MainActivity", "SSO 登录成功: userId=${data.user.id}")
                 android.widget.Toast.makeText(this@MainActivity, "NekoAuth 登录成功", android.widget.Toast.LENGTH_SHORT).show()
             } else {
+                Log.w("MainActivity", "SSO 登录交接失败: ${response.message}")
                 android.widget.Toast.makeText(
                     this@MainActivity,
                     response.message.ifBlank { "登录交接失败，请重新登录" },

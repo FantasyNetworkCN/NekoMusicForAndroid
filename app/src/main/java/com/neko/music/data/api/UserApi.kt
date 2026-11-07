@@ -692,9 +692,9 @@ sealed interface SliderCaptchaVerifyResult {
 
 @Serializable
 data class LoginResponse(
-    val success: Boolean,
-    val message: String,
-    val data: LoginData?
+    val success: Boolean = false,
+    val message: String = "",
+    val data: LoginData? = null
 )
 
 @Serializable
