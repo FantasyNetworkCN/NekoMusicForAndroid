@@ -1302,9 +1302,20 @@ fun MainScreen() {
                         scope.launch {
                             when (val result = com.neko.music.data.api.UserApi().fetchPortalUrl("account")) {
                                 is com.neko.music.data.api.SsoStartResult.Ok -> {
-                                    navController.navigate(
-                                        "auth/web?url=${android.net.Uri.encode(result.url)}&title=${android.net.Uri.encode("NekoAuth 账号中心")}"
-                                    )
+                                    try {
+                                        context.startActivity(
+                                            Intent(
+                                                Intent.ACTION_VIEW,
+                                                android.net.Uri.parse(result.url),
+                                            )
+                                        )
+                                    } catch (e: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            "无法打开浏览器：${e.message}",
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
                                 }
                                 is com.neko.music.data.api.SsoStartResult.Err -> {
                                     android.widget.Toast.makeText(
