@@ -13,12 +13,12 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * 音质解析：把 `GET /api/music/file/{id}?quality=` 换成站内固定媒体地址 `/media/music/...`。
  *
- * 服务端该接口已由 `302` 重定向改为 `200` + JSON `data.url`（并受防重放保护），因此播放 / 下载
- * 都不能再把接口地址直接交给 ExoPlayer 或 DownloadManager：必须先用带 nonce 的普通请求换取真实
+ * 服务端该接口已由 `302` 重定向改为 `200` + JSON `data.url`，因此播放 / 下载
+ * 都不能再把接口地址直接交给 ExoPlayer 或 DownloadManager：必须先用普通请求换取真实
  * 媒体地址。真实媒体地址是固定且可被 CDN 缓存的，解析结果在本进程内缓存一段时间，避免每次
  * seek / 重试都回源。
  *
- * 网络请求复用 [installNekoClientHeader] 安装的 Ktor 客户端（自动携带 `X-Neko-Nonce` 与客户端标识），
+ * 网络请求复用 [installNekoClientHeader] 安装的 Ktor 客户端（自动携带 User-Agent），
  * 因此本文件不直接构造裸连接。
  */
 object MusicUrlResolver {

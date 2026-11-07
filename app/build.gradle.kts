@@ -132,7 +132,7 @@ android {
 
     buildFeatures {
         compose = true
-        // 需要 BuildConfig.VERSION_NAME 作为 X-Neko-Client / User-Agent 的版本号
+        // 需要 BuildConfig.VERSION_NAME 作为 User-Agent 的版本号
         buildConfig = true
     }
 
@@ -152,12 +152,12 @@ android {
     buildToolsVersion = "36.1.0 rc1"
 }
 
-// ── 客户端标识标头守卫 ────────────────────────────────────────────────
+// ── 请求标头守卫 ────────────────────────────────────────────────
 // 所有 Ktor 客户端都必须调用 installNekoClientHeader()，否则请求会漏掉
-// X-Neko-Client / User-Agent。这里在 preBuild 前扫描源码，发现遗漏直接失败。
+// User-Agent。这里在 preBuild 前扫描源码，发现遗漏直接失败。
 val verifyNekoClientHeader by tasks.registering {
     group = "verification"
-    description = "校验所有 Ktor 客户端都注入了 X-Neko-Client / User-Agent"
+    description = "校验所有 Ktor 客户端都注入了 User-Agent"
     val sourcesDir = layout.projectDirectory.dir("src/main/java")
     inputs.dir(sourcesDir)
     doLast {
@@ -182,7 +182,7 @@ val verifyNekoClientHeader by tasks.registering {
         // 否则会出现后端认不出的 UA（例如 HttpURLConnection 的默认 Dalvik/2.1.0）。
         val userAgentLiteral = Regex("""(?i)("user-agent"|userAgentString|HttpHeaders\.UserAgent)""")
         val literalAllowed = setOf(
-            "com/neko/music/util/NekoClientHeader.kt",       // X-Neko-Client / User-Agent 的统一取值定义处
+            "com/neko/music/util/NekoClientHeader.kt",       // User-Agent 的统一取值定义处
             "com/neko/music/ui/screens/VipPayWebScreen.kt",  // 第三方支付 H5 依赖浏览器 UA，故意伪装成 Chrome
         )
         val literalOffenders = sourcesDir.asFile.walkTopDown()

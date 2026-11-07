@@ -21,7 +21,6 @@ import io.ktor.http.HttpHeaders
  *   - 未登录 / 已登出不带（Token 由 [TokenManager] 的进程内缓存提供，登出即清空）。
  *
  * 由 [installNekoClientHeader] 一并安装，因此所有 Ktor 客户端自动获得该能力，
- * 与防重放 nonce（[installNekoReplayProtection]）同层、互不干扰。
  * 媒体流与安装包走 ExoPlayer / DownloadManager，属于公开静态资源，不注入令牌。
  */
 val NekoUserTokenPlugin: ClientPlugin<Unit> = createClientPlugin("NekoUserToken") {
