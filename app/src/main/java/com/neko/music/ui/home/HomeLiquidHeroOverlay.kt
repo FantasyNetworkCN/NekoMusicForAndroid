@@ -25,9 +25,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -479,7 +481,7 @@ private fun HomeRecommendedPanel(
                         .background(if (isDarkHome) SakuraPink else colorScheme.primary),
                 )
                 Spacer(modifier = Modifier.width(9.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(id = R.string.recommended_playlists),
                         fontSize = 21.sp,
@@ -490,9 +492,25 @@ private fun HomeRecommendedPanel(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = stringResource(id = R.string.home_recommended_hint),
+                        text = stringResource(
+                            id = if (state.playlistsPersonalized) {
+                                R.string.home_recommended_hint_personalized
+                            } else {
+                                R.string.home_recommended_hint
+                            }
+                        ),
                         fontSize = 12.sp,
                         color = secondaryColor,
+                    )
+                }
+                IconButton(
+                    onClick = { state.playlistRefreshToken++ },
+                    enabled = !state.playlistsLoading,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.refresh),
+                        tint = secondaryColor,
                     )
                 }
             }

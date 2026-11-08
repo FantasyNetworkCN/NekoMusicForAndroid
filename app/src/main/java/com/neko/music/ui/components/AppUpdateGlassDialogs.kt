@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +56,8 @@ private fun appDialogSampleBackdrop(): LayerBackdrop? =
 fun AppUpdatePromptDialog(
     versionName: String,
     versionCode: Int,
+    changelog: String?,
+    changelogLoading: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -122,7 +127,37 @@ fun AppUpdatePromptDialog(
                     color = scheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(22.dp))
+                Text(
+                    text = stringResource(R.string.update_changelog),
+                    fontSize = 16.sp,
+                    color = scheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 240.dp)
+                        .verticalScroll(rememberScrollState())
+                        .background(
+                            scheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                            RoundedCornerShape(14.dp),
+                        )
+                        .padding(14.dp)
+                ) {
+                    Text(
+                        text = when {
+                            changelogLoading -> stringResource(R.string.changelog_loading)
+                            changelog.isNullOrBlank() -> stringResource(R.string.changelog_load_failed)
+                            else -> changelog
+                        },
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

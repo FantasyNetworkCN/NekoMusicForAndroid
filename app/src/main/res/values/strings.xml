@@ -172,6 +172,9 @@
     <string name="update_download_percent">%d%% 喵</string>
     <string name="new_version_found">发现新猫娘版本喵</string>
     <string name="new_version">新版： %s 喵</string>
+    <string name="update_changelog">这次更新了什么喵</string>
+    <string name="changelog_loading">正在从 GitHub 加载更新日志喵…</string>
+    <string name="changelog_load_failed">更新日志没加载出来喵，不过还是可以继续更新~</string>
     <string name="later">下次一定喵</string>
     <string name="download_complete">下载好啦喵</string>
 
@@ -265,6 +268,7 @@
     <string name="recommended_playlists">猫娘推荐的本本喵</string>
     <string name="home_listen_now">现在就听</string>
     <string name="home_recommended_hint">为你挑选的歌单与榜单</string>
+    <string name="home_recommended_hint_personalized">根据你的收藏、歌单和最近搜索实时生成</string>
     <string name="network_error_msg">断网了喵，猫粮没了喵</string>
     <string name="play_all">全部播一遍喵</string>
     <string name="go_discover">快去发现好听的喵</string>

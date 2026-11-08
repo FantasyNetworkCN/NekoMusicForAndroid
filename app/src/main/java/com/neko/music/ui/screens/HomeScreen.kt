@@ -118,18 +118,35 @@ fun HomeScreen(
     val toastMessage = remember { androidx.compose.runtime.mutableStateOf("") }
     val showToast = remember { androidx.compose.runtime.mutableStateOf(false) }
     
-    // 推荐歌单等数据写入 [liquidHeroState]，供页内 [HomeLiquidHeroOverlay] 真液态采样
-    LaunchedEffect(Unit) {
+    // 推荐歌单刷新、热门/每日/最新加载互相独立；刷新按钮只重拉推荐歌单。
+    LaunchedEffect(liquidHeroState.playlistRefreshToken) {
         liquidHeroState.playlistsLoading = true
         liquidHeroState.loadError = false
+        try {
+            val playlistApi = PlaylistApi(null, context)
+            val playlistResponse = playlistApi.getRecommendedPlaylists(
+                refresh = liquidHeroState.playlistRefreshToken > 0
+            )
+            if (playlistResponse.success && playlistResponse.playlists != null) {
+                liquidHeroState.recommendedPlaylists = playlistResponse.playlists.take(5)
+                liquidHeroState.playlistsPersonalized = playlistResponse.personalized
+                Log.d("HomeScreen", "推荐歌单加载成功: ${playlistResponse.playlists.size}个")
+            } else {
+                liquidHeroState.loadError = true
+                Log.e("HomeScreen", "推荐歌单加载失败: ${playlistResponse.message}")
+            }
+        } catch (e: Exception) {
+            liquidHeroState.loadError = true
+            Log.e("HomeScreen", "推荐歌单异常: ${e.message}", e)
+        } finally {
+            liquidHeroState.playlistsLoading = false
+        }
+    }
+
+    // 其余首页数据写入 [liquidHeroState]，供页内 [HomeLiquidHeroOverlay] 真液态采样
+    LaunchedEffect(Unit) {
         scope.launch {
             try {
-                val playlistsDeferred = async {
-                    Log.d("HomeScreen", "开始加载推荐歌单（search query 空串，与 Web 一致）...")
-                    val playlistApi = PlaylistApi(null, context)
-                    playlistApi.searchPlaylists()
-                }
-
                 val rankingDeferred = async {
                     Log.d("HomeScreen", "开始加载热门音乐...")
                     val musicApi = com.neko.music.data.api.MusicApi(context)
@@ -148,17 +165,9 @@ fun HomeScreen(
                     musicApi.getLatest(300)
                 }
 
-                val playlistResponse = playlistsDeferred.await()
                 val rankingResult = rankingDeferred.await()
                 val dailyResult = dailyDeferred.await()
                 val latestResult = latestDeferred.await()
-
-                if (playlistResponse.success && playlistResponse.playlists != null) {
-                    liquidHeroState.recommendedPlaylists = playlistResponse.playlists.take(7)
-                    Log.d("HomeScreen", "推荐歌单加载成功: ${playlistResponse.playlists.size}个")
-                } else {
-                    Log.e("HomeScreen", "推荐歌单加载失败: ${playlistResponse.message}")
-                }
 
                 rankingResult.onSuccess { musicList ->
                     liquidHeroState.rankingMusic = musicList
@@ -181,14 +190,8 @@ fun HomeScreen(
                     Log.e("HomeScreen", "最新音乐加载失败: ${error.message}")
                 }
 
-                if (playlistResponse.success && playlistResponse.playlists == null) {
-                    liquidHeroState.loadError = true
-                }
             } catch (e: Exception) {
-                Log.e("HomeScreen", "推荐歌单异常: ${e.message}", e)
-                liquidHeroState.loadError = true
-            } finally {
-                liquidHeroState.playlistsLoading = false
+                Log.e("HomeScreen", "首页数据加载异常: ${e.message}", e)
             }
         }
     }
@@ -196,6 +199,8 @@ fun HomeScreen(
     // 更新状态
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateChangelog by remember { mutableStateOf<String?>(null) }
+    var updateChangelogLoading by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadTransferred by remember { mutableStateOf(0L) }
     var downloadContentLength by remember { mutableStateOf(0L) }
@@ -233,9 +238,14 @@ fun HomeScreen(
                 if (info != null && info.isUpdateAvailable) {
                     updateInfo = info
                     showUpdateDialog = true
+                    updateChangelog = null
+                    updateChangelogLoading = true
+                    updateChangelog = updateManager.fetchChangelog(info.versionName)
+                    updateChangelogLoading = false
                 }
             } catch (e: Exception) {
                 Log.e("HomeScreen", "检查更新失败", e)
+                updateChangelogLoading = false
             }
         }
     }
@@ -407,8 +417,13 @@ fun HomeScreen(
         AppUpdatePromptDialog(
             versionName = updateInfo!!.versionName,
             versionCode = updateInfo!!.versionCode,
+            changelog = updateChangelog,
+            changelogLoading = updateChangelogLoading,
             onConfirm = { downloadAndInstall() },
-            onDismiss = { showUpdateDialog = false }
+            onDismiss = {
+                showUpdateDialog = false
+                updateChangelogLoading = false
+            }
         )
     }
 

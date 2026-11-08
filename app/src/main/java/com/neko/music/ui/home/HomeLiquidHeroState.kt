@@ -17,4 +17,6 @@ class HomeLiquidHeroState {
     var latestMusic: List<Music> by mutableStateOf(emptyList())
     var playlistsLoading: Boolean by mutableStateOf(false)
     var loadError: Boolean by mutableStateOf(false)
+    var playlistsPersonalized: Boolean by mutableStateOf(false)
+    var playlistRefreshToken: Int by mutableStateOf(0)
 }

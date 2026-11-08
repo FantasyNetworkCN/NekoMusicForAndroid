@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
 import io.ktor.client.*
@@ -21,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
@@ -53,6 +56,7 @@ data class UpdateInfo(
     val versionCode: Int,
     val updateUrl: String,
     val isUpdateAvailable: Boolean,
+    val changelog: String? = null,
 )
 
 /**
@@ -197,6 +201,80 @@ class AppUpdateManager(private val context: Context) {
         Log.w("AppUpdateManager", "无法从版本名中提取版本号: $versionName")
         return 1
     }
+
+    /**
+     * 从 Android 仓库的 CHANGELOG.md 加载指定版本更新日志。
+     *
+     * 网络环境可能屏蔽 raw.githubusercontent.com，因此依次尝试 GitHub API、Raw 和 jsDelivr 镜像。
+     * 返回适合直接展示的纯文本；全部失败时返回 null，不影响继续更新。
+     */
+    suspend fun fetchChangelog(versionName: String): String? = withContext(Dispatchers.IO) {
+        val sources = listOf(
+            "https://api.github.com/repos/FantasyNetworkCN/NekoMusicForAndroid/contents/CHANGELOG.md?ref=main",
+            "https://raw.githubusercontent.com/FantasyNetworkCN/NekoMusicForAndroid/main/CHANGELOG.md?v=$versionName",
+            "https://cdn.jsdelivr.net/gh/FantasyNetworkCN/NekoMusicForAndroid@main/CHANGELOG.md?v=$versionName",
+        )
+        for (source in sources) {
+            try {
+                val isApi = source.startsWith("https://api.github.com/")
+                val response = client.get(source) {
+                    header(HttpHeaders.Accept, if (isApi) "application/vnd.github.raw+json" else "text/plain")
+                    header(HttpHeaders.CacheControl, "no-cache")
+                }
+                if (!response.status.isSuccess()) {
+                    Log.w("AppUpdateManager", "更新日志源失败 HTTP ${response.status.value}: $source")
+                    continue
+                }
+                var markdown = response.body<String>().trim()
+                if (isApi && markdown.startsWith("{")) {
+                    val content = runCatching {
+                        json.parseToJsonElement(markdown).jsonObject["content"]?.jsonPrimitive?.content
+                    }.getOrNull()
+                    if (!content.isNullOrBlank()) {
+                        markdown = String(Base64.decode(content, Base64.DEFAULT), Charsets.UTF_8).trim()
+                    }
+                }
+                if (markdown.isBlank()) continue
+                val section = extractChangelogSection(markdown, versionName)
+                val display = markdownToPlainText(section.ifBlank { markdown })
+                Log.d("AppUpdateManager", "更新日志加载成功: $source")
+                return@withContext display.take(16000)
+            } catch (e: Exception) {
+                Log.w("AppUpdateManager", "更新日志源异常: $source", e)
+            }
+        }
+        null
+    }
+
+    private fun extractChangelogSection(markdown: String, versionName: String): String {
+        val versionPattern = Regex.escape(versionName)
+        val heading = Regex(
+            pattern = """^##\s+\[?v?$versionPattern\]?\b.*$""",
+            options = setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE),
+        )
+        val match = heading.find(markdown) ?: return ""
+        val bodyStart = match.range.last + 1
+        val nextHeading = Regex("""^##\s+.*$""", RegexOption.MULTILINE)
+            .find(markdown, bodyStart)
+        val bodyEnd = nextHeading?.range?.first ?: markdown.length
+        return markdown.substring(bodyStart, bodyEnd).trim()
+    }
+
+    private fun markdownToPlainText(markdown: String): String =
+        markdown.lineSequence()
+            .map { raw ->
+                val line = raw.trim()
+                when {
+                    line.startsWith("### ") -> "【${line.removePrefix("### ")}】"
+                    line.startsWith("## ") -> line.removePrefix("## ")
+                    line.startsWith("- ") -> "• ${line.removePrefix("- ")}"
+                    else -> line
+                }
+            }
+            .joinToString("\n")
+            .replace("**", "")
+            .replace("`", "")
+            .trim()
 
     private fun Headers.contentLengthBytes(): Long =
         get(HttpHeaders.ContentLength)

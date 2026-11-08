@@ -241,6 +241,8 @@
 
     <!-- 首页 -->
     <string name="recommended_playlists">推荐歌单</string>
+    <string name="home_recommended_hint">为你挑选的歌单与榜单</string>
+    <string name="home_recommended_hint_personalized">根据你的收藏、歌单和最近搜索实时生成</string>
     <string name="network_error_msg">网络错误</string>
     <string name="play_all">播放全部</string>
     <string name="go_discover">去发现喜欢的音乐吧</string>
@@ -250,6 +252,9 @@
     <string name="install_failed">安装失败</string>
     <string name="new_version_found">发现新版本</string>
     <string name="new_version">新版本：%s</string>
+    <string name="update_changelog">更新日志</string>
+    <string name="changelog_loading">正在从 GitHub 加载更新日志…</string>
+    <string name="changelog_load_failed">更新日志加载失败，你仍可继续更新。</string>
     <string name="version_code">版本号：%d</string>
 
     <!-- 歌单 -->

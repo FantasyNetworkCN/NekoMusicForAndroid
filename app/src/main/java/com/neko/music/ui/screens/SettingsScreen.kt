@@ -87,6 +87,8 @@ fun SettingsScreen(
     // 更新状态
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateChangelog by remember { mutableStateOf<String?>(null) }
+    var updateChangelogLoading by remember { mutableStateOf(false) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadTransferred by remember { mutableStateOf(0L) }
@@ -181,11 +183,16 @@ fun SettingsScreen(
                 if (info != null && info.isUpdateAvailable) {
                     updateInfo = info
                     showUpdateDialog = true
+                    updateChangelog = null
+                    updateChangelogLoading = true
+                    updateChangelog = updateManager.fetchChangelog(info.versionName)
+                    updateChangelogLoading = false
                 } else {
                     // 没有更新
                 }
             } catch (e: Exception) {
                 Log.e("SettingsScreen", "检查更新失败", e)
+                updateChangelogLoading = false
             } finally {
                 isCheckingUpdate = false
             }
@@ -425,8 +432,13 @@ fun SettingsScreen(
                 AppUpdatePromptDialog(
                     versionName = updateInfo!!.versionName,
                     versionCode = updateInfo!!.versionCode,
+                    changelog = updateChangelog,
+                    changelogLoading = updateChangelogLoading,
                     onConfirm = { downloadAndInstall() },
-                    onDismiss = { showUpdateDialog = false }
+                    onDismiss = {
+                        showUpdateDialog = false
+                        updateChangelogLoading = false
+                    }
                 )
             }
 

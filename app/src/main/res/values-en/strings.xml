@@ -178,6 +178,9 @@
     <string name="update_download_percent">%d%%</string>
     <string name="new_version_found">New Version Available</string>
     <string name="new_version">New Version: %s</string>
+    <string name="update_changelog">What’s New</string>
+    <string name="changelog_loading">Loading the changelog from GitHub...</string>
+    <string name="changelog_load_failed">Could not load the changelog. You can still update.</string>
     <string name="later">Later</string>
     <string name="download_complete">Download Complete</string>
 
@@ -280,6 +283,7 @@
     <string name="recommended_playlists">Recommended Playlists</string>
     <string name="home_listen_now">Listen Now</string>
     <string name="home_recommended_hint">Playlists and charts picked for you</string>
+    <string name="home_recommended_hint_personalized">Built live from your favorites, playlists and recent searches</string>
     <string name="network_error_msg">Network Error</string>
     <string name="play_all">Play All</string>
     <string name="go_discover">Go discover music you like</string>

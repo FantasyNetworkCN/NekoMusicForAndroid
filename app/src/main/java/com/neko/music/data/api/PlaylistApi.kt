@@ -25,6 +25,8 @@ data class PlaylistListResponse(
     val message: String = "",
     val playlists: List<PlaylistInfo>? = null,
     val results: List<PlaylistInfo>? = null,
+    val personalized: Boolean = false,
+    val count: Int = 0,
     /** 与 Web 端一致：根级附带当前用户 VIP（便于客户端刷新） */
     val isVip: Boolean = false,
     val vipExpiresAt: String? = null
@@ -44,13 +46,26 @@ data class PlaylistInfo(
     val description: String? = null,
     val coverPath: String? = null,
     val musicCount: Int,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: String = "",
+    val updatedAt: String = "",
     val userId: Int? = null,
     val nickname: String? = null,
     val creatorAvatar: String? = null,
     val creator: CreatorInfo? = null,
-    val firstMusicCover: String? = null
+    val firstMusicCover: String? = null,
+    val coverUrls: List<String> = emptyList(),
+    val reason: String? = null,
+    val source: String? = null,
+    val exploration: Boolean = false,
+)
+
+@Serializable
+data class RecommendedPlaylistListResponse(
+    val success: Boolean,
+    val message: String = "",
+    val personalized: Boolean = false,
+    val count: Int = 0,
+    val data: List<PlaylistInfo>? = null,
 )
 
 @Serializable
@@ -167,11 +182,52 @@ class PlaylistApi(private val token: String?, private val context: android.conte
                 message = responseBody.message,
                 playlists = responseBody.results,
                 results = null,
+                personalized = responseBody.personalized,
+                count = responseBody.results?.size ?: 0,
                 isVip = responseBody.isVip,
                 vipExpiresAt = responseBody.vipExpiresAt
             )
         } catch (e: Exception) {
             Log.e("PlaylistApi", "搜索歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
+            PlaylistListResponse(false, "网络错误: ${e.message}", null)
+        }
+    }
+
+    /**
+     * 调用 `/api/playlists/recommended`。
+     *
+     * 未登录时获取热门精选，登录后由服务端按用户画像实时生成；[refresh] 会更换探索位。
+     * 请求由统一 Ktor 插件携带本站登录令牌，因此登录用户的搜索/收藏/歌单画像会自动生效。
+     */
+    suspend fun getRecommendedPlaylists(refresh: Boolean = false): PlaylistListResponse {
+        return try {
+            val response = client.get("${UrlConfig.getBaseUrl()}/api/playlists/recommended") {
+                if (refresh) parameter("refresh", "true")
+                header(HttpHeaders.CacheControl, "no-cache")
+            }
+            val responseText = response.body<String>()
+            Log.d("PlaylistApi", "推荐歌单响应: $responseText${response.protocolLogSuffix()}")
+            val body = json.decodeFromString<RecommendedPlaylistListResponse>(responseText)
+            val playlists = body.data.orEmpty()
+                .take(5)
+                .map { playlist ->
+                    val firstCover = playlist.firstMusicCover
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(UrlConfig::buildFullUrl)
+                        ?: playlist.coverUrls.firstOrNull()
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let(UrlConfig::buildFullUrl)
+                    playlist.copy(firstMusicCover = firstCover)
+                }
+            PlaylistListResponse(
+                success = body.success,
+                message = body.message,
+                playlists = playlists,
+                personalized = body.personalized,
+                count = body.count.takeIf { it > 0 } ?: playlists.size,
+            )
+        } catch (e: Exception) {
+            Log.e("PlaylistApi", "推荐歌单异常: ${e.message}${e.protocolLogSuffixOrEmpty()}", e)
             PlaylistListResponse(false, "网络错误: ${e.message}", null)
         }
     }
