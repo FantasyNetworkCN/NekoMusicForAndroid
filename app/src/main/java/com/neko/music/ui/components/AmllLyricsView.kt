@@ -117,9 +117,15 @@ fun AmllLyricsView(
             lyrics
         }
     }
+    // 播放器位置约 10Hz 更新；用短线性动画补帧，避免真实逐字时间轴按 100ms 跳动。
+    val smoothPlayhead by animateFloatAsState(
+        targetValue = currentProgressSeconds.value,
+        animationSpec = tween(durationMillis = 130, easing = LinearEasing),
+        label = "amll_playhead",
+    )
     val currentIndex by remember(displayLyrics, currentProgressSeconds) {
         androidx.compose.runtime.derivedStateOf {
-            displayLyrics.indexOfLast { it.time <= currentProgressSeconds.value }
+            displayLyrics.indexOfLast { it.time <= smoothPlayhead }
         }
     }
 
@@ -220,20 +226,9 @@ fun AmllLyricsView(
                             )
                             val lineBlur = (distanceRatio.pow(1.55f) * 7.5f).coerceIn(0f, 7.5f)
 
-                            val lineEndTime = displayLyrics.getOrNull(index + 1)?.time
+                            val lineEndTime = line.endTime
+                                ?: displayLyrics.getOrNull(index + 1)?.time
                                 ?: (line.time + 4f)
-                            val rawLineProgress = if (isCurrentLine) {
-                                ((currentProgressSeconds.value - line.time) /
-                                    (lineEndTime - line.time).coerceAtLeast(0.2f))
-                                    .coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
-                            val lineProgress by animateFloatAsState(
-                                targetValue = rawLineProgress,
-                                animationSpec = tween(durationMillis = 110, easing = LinearEasing),
-                                label = "amll_line_progress_$index",
-                            )
 
                             Column(
                                 modifier = Modifier
@@ -256,7 +251,7 @@ fun AmllLyricsView(
                                 if (line.text.isBlank()) {
                                     InstrumentalDots(
                                         isCurrentLine = isCurrentLine,
-                                        elapsedSeconds = (currentProgressSeconds.value - line.time).coerceAtLeast(0f),
+                                        elapsedSeconds = (smoothPlayhead - line.time).coerceAtLeast(0f),
                                         durationSeconds = (lineEndTime - line.time).coerceAtLeast(0.2f),
                                         baseColor = baseTextColor,
                                         highlightColor = highlightColor,
@@ -265,7 +260,7 @@ fun AmllLyricsView(
                                     Text(
                                         text = buildKaraokeText(
                                             line = line,
-                                            lineProgress = lineProgress,
+                                            playheadSeconds = smoothPlayhead,
                                             lineEndTime = lineEndTime,
                                             isCurrentLine = isCurrentLine,
                                             baseColor = baseTextColor,
@@ -363,7 +358,7 @@ private fun InstrumentalDots(
 
 private fun buildKaraokeText(
     line: LrcLine,
-    lineProgress: Float,
+    playheadSeconds: Float,
     lineEndTime: Float,
     isCurrentLine: Boolean,
     baseColor: Color,
@@ -387,10 +382,19 @@ private fun buildKaraokeText(
             }
         }
 
+        if (!isCurrentLine) {
+            addStyle(
+                style = SpanStyle(color = baseColor),
+                start = 0,
+                end = line.text.length,
+            )
+            return@buildAnnotatedString
+        }
+
         if (line.syllables.isEmpty()) {
             // 行级 LRC 不使用模拟逐字扫光；逐字时间戳就绪后再走下方分支。
             addStyle(
-                style = SpanStyle(color = if (isCurrentLine) highlightColor else baseColor),
+                style = SpanStyle(color = highlightColor),
                 start = 0,
                 end = line.text.length,
             )
@@ -400,17 +404,17 @@ private fun buildKaraokeText(
                 val start = offset.coerceAtMost(line.text.length)
                 val end = (offset + syllable.text.length).coerceAtMost(line.text.length)
                 val syllableEnd = line.syllables.getOrNull(syllableIndex + 1)?.time ?: lineEndTime
-                val lineDuration = (lineEndTime - line.time).coerceAtLeast(0.2f)
-                val elapsed = line.time + lineDuration * lineProgress
                 val syllableProgress = (
-                    (elapsed - syllable.time) /
+                    (playheadSeconds - syllable.time) /
                         (syllableEnd - syllable.time).coerceAtLeast(0.12f)
                     ).coerceIn(0f, 1f)
                 applySweep(start, end, syllableProgress)
                 offset += syllable.text.length
             }
             if (offset < line.text.length) {
-                applySweep(offset, line.text.length, lineProgress)
+                val fallbackProgress = ((playheadSeconds - line.time) /
+                    (lineEndTime - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
+                applySweep(offset, line.text.length, fallbackProgress)
             }
         }
     }

@@ -149,6 +149,12 @@ private fun ensureCacheDirs() {
         return if (file.exists()) file else null
     }
 
+    fun getCachedRichLyricsFile(musicId: Int): File? {
+        if (!isCacheEnabled()) return null
+        val file = File(lyricsDir, "lyrics_$musicId.neko.json")
+        return if (file.exists() && file.length() > 0L) file else null
+    }
+
     /**
      * 缓存音乐文件
      */
@@ -261,6 +267,27 @@ private fun ensureCacheDirs() {
         }
     }
 
+    suspend fun cacheRichLyrics(musicId: Int, content: String): Result<File> = withContext(Dispatchers.IO) {
+        if (!isCacheEnabled()) {
+            return@withContext Result.failure(Exception("缓存未启用"))
+        }
+        try {
+            ensureCacheDirs()
+            val file = File(lyricsDir, "lyrics_$musicId.neko.json")
+            FileOutputStream(file).use { output ->
+                output.write(content.toByteArray(Charsets.UTF_8))
+            }
+            prefs.edit()
+                .putLong("lyrics_${musicId}_rich_time", System.currentTimeMillis())
+                .putLong("lyrics_${musicId}_rich_size", file.length())
+                .apply()
+            Result.success(file)
+        } catch (e: Exception) {
+            Log.e(TAG, "缓存字级歌词失败: $musicId", e)
+            Result.failure(e)
+        }
+    }
+
     /**
      * 获取缓存的歌词内容
      */
@@ -271,6 +298,17 @@ private fun ensureCacheDirs() {
             file.readText(Charsets.UTF_8)
         } catch (e: Exception) {
             Log.e(TAG, "读取缓存歌词失败: $musicId", e)
+            null
+        }
+    }
+
+    fun getCachedRichLyricsContent(musicId: Int): String? {
+        if (!isCacheEnabled()) return null
+        val file = getCachedRichLyricsFile(musicId) ?: return null
+        return try {
+            file.readText(Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.e(TAG, "读取缓存字级歌词失败: $musicId", e)
             null
         }
     }
@@ -312,6 +350,7 @@ private fun ensureCacheDirs() {
             getCachedMusicFile(musicId)?.delete()
             getCachedCoverFile(musicId)?.delete()
             getCachedLyricsFile(musicId)?.delete()
+            getCachedRichLyricsFile(musicId)?.delete()
 
             // 清除缓存记录
             prefs.edit()
@@ -325,6 +364,8 @@ private fun ensureCacheDirs() {
                 .remove("cover_${musicId}_size")
                 .remove("lyrics_${musicId}_time")
                 .remove("lyrics_${musicId}_size")
+                .remove("lyrics_${musicId}_rich_time")
+                .remove("lyrics_${musicId}_rich_size")
                 .apply()
 
             Log.d(TAG, "删除音乐缓存: $musicId")

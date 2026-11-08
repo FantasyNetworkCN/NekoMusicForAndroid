@@ -122,6 +122,7 @@ import com.neko.music.config.AppConfig
 import com.neko.music.R
 import com.neko.music.util.UrlConfig
 import com.neko.music.data.api.MusicApi
+import com.neko.music.data.model.LyricsPayload
 import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.api.PlaylistListResponse
@@ -184,18 +185,16 @@ data class LrcLine(
     val text: String, // 歌词文本
     val translation: String = "", // 翻译文本（可选）
     val syllables: List<LrcSyllable> = emptyList(), // 增强 LRC 的逐字时间戳（可选）
+    val endTime: Float? = null,
 )
 
 private val syllableTimestampRegex = Regex("<(\\d{1,3}):(\\d{2})(?:\\.(\\d{1,5}))?>")
 
-// 后端逐字歌词尚未完善，先保留解析与渲染能力，默认只使用行级 LRC。
-private const val AMLL_WORD_LYRICS_ENABLED = false
+private const val AMLL_WORD_LYRICS_ENABLED = true
 
 // 解析 LRC 格式歌词（支持双语）
 fun parseLrcLyrics(lrcText: String): List<LrcLine> {
-    android.util.Log.d("parseLrcLyrics", "开始解析歌词，文本长度: ${lrcText.length}")
     val lines = lrcText.lines()
-    android.util.Log.d("parseLrcLyrics", "歌词行数: ${lines.size}")
     val result = mutableListOf<LrcLine>()
 
     var i = 0
@@ -244,7 +243,6 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
             }
 
             result.add(LrcLine(time, text, translation ?: "", syllables))
-            android.util.Log.d("parseLrcLyrics", "添加歌词行: 时间=$time, 原文=$text, 翻译=${translation ?: ""}")
 
             // 如果有翻译行，跳过它
             if (hasTranslation) {
@@ -255,8 +253,28 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
         i++
     }
 
-    android.util.Log.d("parseLrcLyrics", "解析完成，共 ${result.size} 行歌词")
     return result
+}
+
+/** 优先使用后端 typesafe 字级行；没有时回退普通 LRC。 */
+fun parseLyricsPayload(payload: LyricsPayload): List<LrcLine> {
+    if (payload.richLines.isNotEmpty()) {
+        return payload.richLines.map { line ->
+            LrcLine(
+                time = line.startMs / 1000f,
+                text = line.text,
+                translation = line.translation,
+                syllables = line.words.map { word ->
+                    LrcSyllable(
+                        time = word.startMs / 1000f,
+                        text = word.text,
+                    )
+                },
+                endTime = line.endMs.takeIf { it > line.startMs }?.div(1000f),
+            )
+        }
+    }
+    return parseLrcLyrics(payload.lyrics)
 }
 
 private fun parseSyllableTimestamps(
@@ -572,10 +590,10 @@ fun PlayerScreen(
     // 加载歌词
     LaunchedEffect(currentMusic.id) {
         scope.launch {
-            val result = musicApi.getMusicLyrics(currentMusic)
+            val result = musicApi.getMusicLyricsPayload(currentMusic)
             result.fold(
-                onSuccess = { lyricsText ->
-                    lyrics = parseLrcLyrics(lyricsText)
+                onSuccess = { payload ->
+                    lyrics = parseLyricsPayload(payload)
                     Log.d("PlayerScreen", "歌词加载成功，共 ${lyrics.size} 行")
                 },
                 onFailure = { error ->

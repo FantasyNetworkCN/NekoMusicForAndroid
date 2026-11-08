@@ -4,7 +4,10 @@ import android.content.Context
 import android.util.Log
 import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.data.model.BatchSearchRequest
+import com.neko.music.data.model.LyricsPayload
 import com.neko.music.data.model.Music
+import com.neko.music.data.model.RichLyricLine
+import com.neko.music.data.model.RichLyricWord
 import com.neko.music.data.model.SearchItem
 import com.neko.music.data.model.SearchRequest
 import com.neko.music.util.UrlConfig
@@ -321,11 +324,11 @@ class MusicApi(private val context: Context) {
         return url
     }
     
-    suspend fun getMusicLyrics(music: Music): Result<String> {
+    suspend fun getMusicLyricsPayload(music: Music): Result<LyricsPayload> {
         if (music.id < 0) {
             cacheManager.getExistingLyricsContent(music.id)?.let { lyrics ->
                 Log.d("MusicApi", "使用本地歌词: ${music.id}")
-                return Result.success(sanitizeLyricsJsonEscapes(lyrics))
+                return Result.success(LyricsPayload(sanitizeLyricsJsonEscapes(lyrics)))
             }
             return Result.failure(Exception("No local lyrics"))
         }
@@ -333,9 +336,15 @@ class MusicApi(private val context: Context) {
         // 优先使用缓存（仅在缓存启用时）
         if (cacheManager.isCacheEnabled()) {
             val cachedLyrics = cacheManager.getCachedLyricsContent(music.id)
-            if (cachedLyrics != null) {
+            val cachedRichLyrics = cacheManager.getCachedRichLyricsContent(music.id)
+            if (cachedLyrics != null || cachedRichLyrics != null) {
                 Log.d("MusicApi", "使用缓存歌词: ${music.id}")
-                return Result.success(sanitizeLyricsJsonEscapes(cachedLyrics))
+                return Result.success(
+                    LyricsPayload(
+                        lyrics = sanitizeLyricsJsonEscapes(cachedLyrics.orEmpty()),
+                        richLines = parseRichLyricsJson(cachedRichLyrics),
+                    )
+                )
             }
         }
 
@@ -350,7 +359,10 @@ class MusicApi(private val context: Context) {
             val jsonResponse = json.parseToJsonElement(responseText) as JsonObject
             val success = jsonResponse["success"]?.toString()?.toBoolean() ?: false
             val message = jsonResponse["message"]?.toString()?.removeSurrounding("\"") ?: ""
-            val data = extractLyricsFromInfoJson(jsonResponse)
+            val dataObject = jsonResponse["data"] as? JsonObject
+            val data = extractLyricsFromData(dataObject)
+            val richJson = dataObject?.get("lyricsRich")?.takeUnless { it is JsonNull }?.toString()
+            val payload = LyricsPayload(data, parseRichLyricsJson(richJson))
 
             Log.d("MusicApi", "Parsed lyrics: $data${response.protocolLogSuffix()}")
 
@@ -358,8 +370,11 @@ class MusicApi(private val context: Context) {
                 // 仅在缓存启用时缓存歌词
                 if (cacheManager.isCacheEnabled()) {
                     cacheManager.cacheLyrics(music.id, data)
+                    if (!richJson.isNullOrBlank()) {
+                        cacheManager.cacheRichLyrics(music.id, richJson)
+                    }
                 }
-                Result.success(data)
+                Result.success(payload)
             } else {
                 Result.failure(Exception(message))
             }
@@ -368,6 +383,9 @@ class MusicApi(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun getMusicLyrics(music: Music): Result<String> =
+        getMusicLyricsPayload(music).map { it.lyrics }
 
     fun getMusicDownloadUrl(music: Music): String {
         return "$baseUrl/api/music/file/${music.id}"
@@ -500,8 +518,8 @@ class MusicApi(private val context: Context) {
      * 必须使用 [JsonPrimitive.content] 解码，不能对 [JsonElement.toString] 再 `removeSurrounding("\"")`，
      * 否则 JSON 合法转义（如 `\/`、`\"`、`\n`）会残留在 LRC 正文中（下载到本地的 .lrc 亦同）。
      */
-    private fun extractLyricsFromInfoJson(jsonResponse: JsonObject): String {
-        val data = jsonResponse["data"] as? JsonObject ?: return ""
+    private fun extractLyricsFromData(data: JsonObject?): String {
+        if (data == null) return ""
         return when (val el = data["lyrics"]) {
             null, JsonNull -> ""
             is JsonPrimitive -> el.content
@@ -519,6 +537,44 @@ class MusicApi(private val context: Context) {
             }
         }
     }
+
+    private fun parseRichLyricsJson(raw: String?): List<RichLyricLine> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return try {
+            val root = json.parseToJsonElement(raw) as? JsonObject ?: return emptyList()
+            val rows = root["lines"] as? JsonArray ?: return emptyList()
+            rows.mapNotNull { rowElement ->
+                val row = rowElement as? JsonObject ?: return@mapNotNull null
+                val text = jsonText(row["text"])
+                val words = (row["words"] as? JsonArray).orEmpty().mapNotNull { wordElement ->
+                    val word = wordElement as? JsonObject ?: return@mapNotNull null
+                    RichLyricWord(
+                        startMs = jsonLong(word["startMs"]),
+                        endMs = jsonLong(word["endMs"]),
+                        text = jsonText(word["text"]),
+                    )
+                }
+                RichLyricLine(
+                    startMs = jsonLong(row["startMs"]),
+                    endMs = jsonLong(row["endMs"]),
+                    text = text,
+                    translation = jsonText(row["translation"]),
+                    romanization = jsonText(row["romanization"]),
+                    background = (row["background"] as? JsonPrimitive)?.content?.toBoolean() ?: false,
+                    words = words,
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("MusicApi", "解析字级歌词失败", e)
+            emptyList()
+        }
+    }
+
+    private fun jsonText(element: JsonElement?): String =
+        (element as? JsonPrimitive)?.content ?: ""
+
+    private fun jsonLong(element: JsonElement?): Long =
+        (element as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
 
     /** 旧缓存中可能仍含 JSON 字面量 `\/`，读缓存时顺带规范化。 */
     private fun sanitizeLyricsJsonEscapes(text: String): String =
