@@ -77,21 +77,14 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    /** 吊销当前 access token，并取得标准 OIDC 注销地址。 */
-    suspend fun logoutAndGetAuthUrl(accessToken: String, idToken: String?): String? {
+    /** 只吊销本机 access token，不注销 NekoAuth 浏览器会话或其它设备。 */
+    suspend fun logout(accessToken: String) {
         try {
             client.post("$baseUrl/api/user/logout") {
                 headers { append(HttpHeaders.Authorization, "Bearer $accessToken") }
             }
-            if (idToken.isNullOrBlank()) return null
-            val response = client.post("$baseUrl/api/user/sso/logout-url") {
-                contentType(ContentType.Application.Json)
-                setBody(JsonObject(mapOf("idToken" to kotlinx.serialization.json.JsonPrimitive(idToken))))
-            }
-            return response.body<PasswordResetUrlResponse>().data?.url?.takeIf { it.isNotBlank() }
         } catch (e: Exception) {
-            Log.e("UserApi", "退出 NekoAuth 会话失败", e)
-            return null
+            Log.e("UserApi", "吊销本机会话失败，继续清理本地登录态", e)
         }
     }
 

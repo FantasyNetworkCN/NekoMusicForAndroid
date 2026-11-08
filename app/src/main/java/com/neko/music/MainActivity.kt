@@ -1728,22 +1728,12 @@ fun MainScreen() {
                         val tokenManager = com.neko.music.data.manager.TokenManager(context)
                         showLogoutDialog = false
                         val accessToken = tokenManager.getToken()
-                        val idToken = tokenManager.getIdToken()
                         scope.launch {
-                            val logoutUrl = if (accessToken.isNullOrBlank()) null
-                            else com.neko.music.data.api.UserApi()
-                                .logoutAndGetAuthUrl(accessToken, idToken)
+                            if (!accessToken.isNullOrBlank()) {
+                                com.neko.music.data.api.UserApi().logout(accessToken)
+                            }
                             tokenManager.clearToken()
                             refreshUserSessionFromDisk()
-                            if (!logoutUrl.isNullOrBlank()) {
-                                try {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, android.net.Uri.parse(logoutUrl))
-                                    )
-                                } catch (_: Exception) {
-                                    // 本地登录态已清除，浏览器打开失败不阻塞退出
-                                }
-                            }
                         }
                     },
                 )
