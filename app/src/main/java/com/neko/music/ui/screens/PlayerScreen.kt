@@ -594,7 +594,11 @@ fun PlayerScreen(
             result.fold(
                 onSuccess = { payload ->
                     lyrics = parseLyricsPayload(payload)
-                    Log.d("PlayerScreen", "歌词加载成功，共 ${lyrics.size} 行")
+                    Log.d(
+                        "PlayerScreen",
+                        "歌词加载成功，共 ${lyrics.size} 行，逐字片段=" +
+                            lyrics.sumOf { it.syllables.size }
+                    )
                 },
                 onFailure = { error ->
                     lyrics = emptyList()

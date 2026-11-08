@@ -333,11 +333,13 @@ class MusicApi(private val context: Context) {
             return Result.failure(Exception("No local lyrics"))
         }
 
-        // 优先使用缓存（仅在缓存启用时）
+        var cachedPlainFallback: String? = null
+        // 只有字级缓存才能直接返回；旧版纯 LRC 缓存继续请求服务端升级。
         if (cacheManager.isCacheEnabled()) {
             val cachedLyrics = cacheManager.getCachedLyricsContent(music.id)
             val cachedRichLyrics = cacheManager.getCachedRichLyricsContent(music.id)
-            if (cachedLyrics != null || cachedRichLyrics != null) {
+            cachedPlainFallback = cachedLyrics
+            if (cachedRichLyrics != null) {
                 Log.d("MusicApi", "使用缓存歌词: ${music.id}")
                 return Result.success(
                     LyricsPayload(
@@ -364,7 +366,11 @@ class MusicApi(private val context: Context) {
             val richJson = dataObject?.get("lyricsRich")?.takeUnless { it is JsonNull }?.toString()
             val payload = LyricsPayload(data, parseRichLyricsJson(richJson))
 
-            Log.d("MusicApi", "Parsed lyrics: $data${response.protocolLogSuffix()}")
+            Log.d(
+                "MusicApi",
+                "Parsed lyrics: lrc=${data.length}, richLines=${payload.richLines.size}" +
+                    response.protocolLogSuffix()
+            )
 
             if (success) {
                 // 仅在缓存启用时缓存歌词
@@ -380,6 +386,11 @@ class MusicApi(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e("MusicApi", "Fetch lyrics error${e.protocolLogSuffixOrEmpty()}", e)
+            if (!cachedPlainFallback.isNullOrBlank()) {
+                return Result.success(
+                    LyricsPayload(sanitizeLyricsJsonEscapes(cachedPlainFallback))
+                )
+            }
             Result.failure(e)
         }
     }
