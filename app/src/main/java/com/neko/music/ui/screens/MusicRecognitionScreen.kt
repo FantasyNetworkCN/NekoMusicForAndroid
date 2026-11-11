@@ -61,12 +61,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -168,7 +166,15 @@ fun MusicRecognitionScreen(
     var recordingStartedAt by remember { mutableLongStateOf(0L) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var recognitionJob by remember { mutableStateOf<Job?>(null) }
-    var showOverlayPermissionDialog by remember { mutableStateOf(false) }
+    var overlayPermissionGranted by remember {
+        mutableStateOf(android.provider.Settings.canDrawOverlays(context))
+    }
+    var microphonePermissionGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
     val latestStage by rememberUpdatedState(stage)
     val latestRecordingStartedAt by rememberUpdatedState(recordingStartedAt)
     val latestRecognitionJob by rememberUpdatedState(recognitionJob)
@@ -176,6 +182,37 @@ fun MusicRecognitionScreen(
     val permissionDeniedText = stringResource(R.string.recognition_permission_denied)
     val recordingFailedText = stringResource(R.string.recognition_recording_failed)
     val requestFailedText = stringResource(R.string.recognition_request_failed)
+
+    fun stopBackgroundRecognition() {
+        runCatching {
+            context.startService(
+                Intent(context, MusicRecognitionPlaybackService::class.java)
+                    .setAction(MusicRecognitionPlaybackService.ACTION_STOP_RECOGNITION),
+            )
+        }
+    }
+
+    fun returnServiceToIdle() {
+        runCatching {
+            context.startService(
+                Intent(context, MusicRecognitionPlaybackService::class.java)
+                    .setAction(MusicRecognitionPlaybackService.ACTION_RETURN_IDLE),
+            )
+        }
+    }
+
+    fun startIdleFloatingWindow() {
+        if (!overlayPermissionGranted) return
+        runCatching {
+            val intent = Intent(context, MusicRecognitionPlaybackService::class.java)
+                .setAction(MusicRecognitionPlaybackService.ACTION_SHOW_IDLE)
+            if (microphonePermissionGranted) {
+                ContextCompat.startForegroundService(context, intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+    }
 
     fun beginRecording() {
         recognitionJob?.cancel()
@@ -217,20 +254,20 @@ fun MusicRecognitionScreen(
                                 stage = RecognitionStage.NoMatch
                             }
                             recorder.cancel()
-                            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
+                            returnServiceToIdle()
                         },
                         onFailure = { error ->
                             errorMessage = error.message?.takeIf { it.isNotBlank() } ?: requestFailedText
                             stage = RecognitionStage.Error
                             recorder.cancel()
-                            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
+                            returnServiceToIdle()
                         },
                     )
                 } catch (_: CancellationException) {
                     // User stopped listening or left the page.
                 } catch (_: Exception) {
                     recorder.cancel()
-                    context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
+                    returnServiceToIdle()
                     errorMessage = recordingFailedText
                     stage = RecognitionStage.Error
                 }
@@ -246,8 +283,10 @@ fun MusicRecognitionScreen(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) {
+            microphonePermissionGranted = true
             beginRecording()
         } else {
+            microphonePermissionGranted = false
             errorMessage = permissionDeniedText
             stage = RecognitionStage.Error
         }
@@ -258,11 +297,6 @@ fun MusicRecognitionScreen(
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
-        if (!android.provider.Settings.canDrawOverlays(context)) {
-            // Recognition can continue without this optional permission, but the
-            // floating background control will only be shown after it is granted.
-            showOverlayPermissionDialog = true
-        }
         beginRecording()
     }
 
@@ -270,9 +304,13 @@ fun MusicRecognitionScreen(
         recognitionJob?.cancel()
         recognitionJob = null
         recorder.cancel()
-        context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
+        stopBackgroundRecognition()
         elapsedSeconds = 0
         stage = RecognitionStage.Ready
+    }
+
+    LaunchedEffect(overlayPermissionGranted) {
+        startIdleFloatingWindow()
     }
 
     LaunchedEffect(stage, recordingStartedAt) {
@@ -300,6 +338,13 @@ fun MusicRecognitionScreen(
                 recognitionJob = null
                 recorder.cancel()
                 when (intent.getStringExtra(MusicRecognitionPlaybackService.EXTRA_STATUS)) {
+                    MusicRecognitionPlaybackService.STATUS_STARTED -> {
+                        match = null
+                        errorMessage = null
+                        recordingStartedAt = SystemClock.elapsedRealtime()
+                        elapsedSeconds = 0
+                        stage = RecognitionStage.Recording
+                    }
                     MusicRecognitionPlaybackService.STATUS_MATCHED -> {
                         val music = Music(
                             id = intent.getIntExtra(MusicRecognitionPlaybackService.EXTRA_MUSIC_ID, -1),
@@ -381,14 +426,29 @@ fun MusicRecognitionScreen(
                     stage = RecognitionStage.Ready
                 }
             } else if (
-                event == Lifecycle.Event.ON_RESUME &&
-                latestStage != RecognitionStage.Ready
+                event == Lifecycle.Event.ON_START
             ) {
-                runCatching {
-                    context.startService(
-                        Intent(context, MusicRecognitionPlaybackService::class.java)
-                            .setAction(MusicRecognitionPlaybackService.ACTION_HIDE_OVERLAY),
-                    )
+                overlayPermissionGranted = android.provider.Settings.canDrawOverlays(context)
+                microphonePermissionGranted =
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                    PackageManager.PERMISSION_GRANTED
+                if (overlayPermissionGranted) {
+                    startIdleFloatingWindow()
+                    runCatching {
+                        context.startService(
+                            Intent(context, MusicRecognitionPlaybackService::class.java)
+                                .setAction(MusicRecognitionPlaybackService.ACTION_HIDE_FLOATING),
+                        )
+                    }
+                }
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                if (overlayPermissionGranted) {
+                    runCatching {
+                        context.startService(
+                            Intent(context, MusicRecognitionPlaybackService::class.java)
+                                .setAction(MusicRecognitionPlaybackService.ACTION_SHOW_FLOATING),
+                        )
+                    }
                 }
             }
         }
@@ -397,38 +457,7 @@ fun MusicRecognitionScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
             recognitionJob?.cancel()
             recorder.cancel()
-            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
         }
-    }
-
-    if (showOverlayPermissionDialog) {
-        AlertDialog(
-            onDismissRequest = { showOverlayPermissionDialog = false },
-            title = { Text(stringResource(R.string.recognition_overlay_permission_title)) },
-            text = { Text(stringResource(R.string.recognition_overlay_permission_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showOverlayPermissionDialog = false
-                        runCatching {
-                            context.startActivity(
-                                Intent(
-                                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                    android.net.Uri.parse("package:${context.packageName}"),
-                                ),
-                            )
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.recognition_overlay_permission_authorize))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showOverlayPermissionDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
     }
 
     val titleColor = if (isDark) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
@@ -487,11 +516,29 @@ fun MusicRecognitionScreen(
                         accent = accent,
                     )
                     Spacer(modifier = Modifier.height(15.dp))
-                    RecognitionBackgroundHint(
-                        isDark = isDark,
-                        accent = accent,
-                        mutedColor = mutedColor,
-                    )
+                    if (overlayPermissionGranted) {
+                        RecognitionBackgroundHint(
+                            isDark = isDark,
+                            accent = accent,
+                            mutedColor = mutedColor,
+                        )
+                    } else {
+                        RecognitionOverlayPermissionCard(
+                            isDark = isDark,
+                            accent = accent,
+                            mutedColor = mutedColor,
+                            onAuthorize = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(
+                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:${context.packageName}"),
+                                        ),
+                                    )
+                                }
+                            },
+                        )
+                    }
                     Spacer(modifier = Modifier.height(13.dp))
 
                     RecognitionStageCard(
@@ -725,6 +772,65 @@ private fun RecognitionHero(
         lineHeight = 20.sp,
         fontWeight = FontWeight.Medium,
     )
+}
+
+@Composable
+private fun RecognitionOverlayPermissionCard(
+    isDark: Boolean,
+    accent: Color,
+    mutedColor: Color,
+    onAuthorize: () -> Unit,
+) {
+    val background = if (isDark) {
+        accent.copy(alpha = 0.12f)
+    } else {
+        accent.copy(alpha = 0.09f)
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(17.dp))
+            .background(background)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(accent, CircleShape),
+            )
+            Spacer(modifier = Modifier.width(9.dp))
+            Text(
+                text = stringResource(R.string.recognition_overlay_permission_title),
+                color = accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(
+            text = stringResource(R.string.recognition_overlay_permission_message),
+            color = mutedColor.copy(alpha = 0.86f),
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(accent)
+                .clickable(onClick = onAuthorize)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.recognition_overlay_permission_authorize),
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
 }
 
 @Composable

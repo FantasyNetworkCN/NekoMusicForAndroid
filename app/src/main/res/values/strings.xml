@@ -649,8 +649,13 @@
     <string name="recognition_background_ready_hint">切到后台后，Neko 会继续用麦克风听手机外放，并自动开始识别喵</string>
     <string name="recognition_test_audio_saved">测试音频已保存到 %1$s喵</string>
     <string name="recognition_test_audio_save_failed">测试音频保存失败：%1$s喵</string>
+    <string name="recognition_idle_notification_text">悬浮球待命中，进入后台后继续识别手机外放喵</string>
+    <string name="recognition_float_idle_brand">NEKO · 悬浮识曲喵</string>
+    <string name="recognition_float_idle_title">悬浮识曲待命中喵</string>
+    <string name="recognition_float_idle_tip">点击开始识曲后，切到后台也会继续听手机外放喵</string>
+    <string name="recognition_float_idle_action">开始识别喵</string>
     <string name="recognition_float_brand">NEKO · 后台识曲喵</string>
-    <string name="recognition_float_listening">正在识别手机外放喵</string>
+    <string name="recognition_float_listening">正在识别音乐喵</string>
     <string name="recognition_float_time">%1$d / %2$d 秒喵</string>
     <string name="recognition_float_tip">保持媒体音量开启，靠近手机扬声器喵</string>
     <string name="recognition_float_stop">停止喵</string>

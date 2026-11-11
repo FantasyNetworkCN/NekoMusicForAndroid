@@ -692,6 +692,11 @@
     <string name="recognition_background_ready_hint">When you leave the page, Neko keeps listening through the microphone and starts recognizing automatically</string>
     <string name="recognition_test_audio_saved">Test audio saved to %1$s</string>
     <string name="recognition_test_audio_save_failed">Unable to save test audio: %1$s</string>
+    <string name="recognition_idle_notification_text">Floating recognition is ready and will keep listening in the background</string>
+    <string name="recognition_float_idle_brand">NEKO · FLOATING ID</string>
+    <string name="recognition_float_idle_title">Floating recognition ready</string>
+    <string name="recognition_float_idle_tip">After recognition starts, it keeps listening to the phone speaker in the background</string>
+    <string name="recognition_float_idle_action">Start recognizing</string>
     <string name="recognition_float_brand">NEKO · LISTENING</string>
     <string name="recognition_float_listening">Recognizing phone audio</string>
     <string name="recognition_float_time">%1$d / %2$d sec</string>

@@ -26,8 +26,10 @@ import kotlin.math.sin
  */
 internal class RecognitionFloatingWindow(
     context: Context,
-    private val onStop: () -> Unit,
+    private val onStopRecognition: () -> Unit,
+    private val onClose: () -> Unit,
     private val onOpenApp: () -> Unit,
+    private val onStartRecognition: () -> Unit,
 ) {
     private val appContext = context.applicationContext
     private val windowManager = appContext.getSystemService(WindowManager::class.java)
@@ -52,20 +54,25 @@ internal class RecognitionFloatingWindow(
     }
     private val view = RecognitionOverlayView(
         context = appContext,
-        onExpand = { setMode(OverlayMode.Panel) },
-        onCollapse = { setMode(OverlayMode.Bubble) },
-        onStop = onStop,
+        onExpand = { setMode(expandedMode) },
+        onCollapse = { setMode(OverlayMode.Bubble, repositionBubble = true) },
+        onStopRecognition = onStopRecognition,
+        onClose = onClose,
         onOpenApp = onOpenApp,
-        onDrag = ::dragBubble,
+        onStartRecognition = onStartRecognition,
+        onDrag = ::dragWindow,
+        onDragEnd = ::snapBubbleToEdge,
     )
     private var attached = false
     private var visible = false
-    private var mode = OverlayMode.Panel
+    private var mode = OverlayMode.Bubble
+    private var expandedMode = OverlayMode.Idle
 
     val isVisible: Boolean
         get() = attached && visible
 
-    fun show() {
+    fun showBubble() {
+        val firstAttach = !attached
         if (!attached) {
             runCatching {
                 windowManager.addView(view, params)
@@ -76,7 +83,13 @@ internal class RecognitionFloatingWindow(
         }
         visible = true
         view.visibility = View.VISIBLE
-        setMode(mode.takeUnless { it == OverlayMode.Bubble } ?: OverlayMode.Panel)
+        setMode(OverlayMode.Bubble, repositionBubble = firstAttach || mode != OverlayMode.Bubble)
+    }
+
+    fun showIdle() {
+        expandedMode = OverlayMode.Idle
+        view.setRecordingActive(false)
+        showBubble()
     }
 
     fun hide() {
@@ -93,20 +106,27 @@ internal class RecognitionFloatingWindow(
     }
 
     fun updateRecording(elapsedSeconds: Int, maxSeconds: Int) {
+        expandedMode = OverlayMode.Panel
+        view.setRecordingActive(true)
         view.updateRecording(elapsedSeconds, maxSeconds)
+        if (mode == OverlayMode.Panel) setMode(OverlayMode.Panel)
     }
 
     fun showMatch(title: String, artist: String, confidence: Double) {
+        expandedMode = OverlayMode.Result
+        view.setRecordingActive(false)
         setMode(OverlayMode.Result)
         view.showMatch(title, artist, confidence)
     }
 
     fun showMessage(title: String, subtitle: String, isError: Boolean = false) {
+        expandedMode = OverlayMode.Message
+        view.setRecordingActive(false)
         setMode(OverlayMode.Message)
         view.showMessage(title, subtitle, isError)
     }
 
-    private fun setMode(nextMode: OverlayMode) {
+    private fun setMode(nextMode: OverlayMode, repositionBubble: Boolean = false) {
         if (!attached || !visible) {
             mode = nextMode
             return
@@ -116,12 +136,12 @@ internal class RecognitionFloatingWindow(
         val height = if (nextMode == OverlayMode.Bubble) BUBBLE_SIZE_DP else OVERLAY_HEIGHT_DP
         params.width = dp(width)
         params.height = dp(height)
-        if (nextMode == OverlayMode.Bubble) {
-            params.x = (appContext.resources.displayMetrics.widthPixels - params.width - dp(14))
+        if (nextMode == OverlayMode.Bubble && repositionBubble) {
+            params.x = (screenWidth() - params.width - dp(8))
                 .coerceAtLeast(0)
             params.y = params.y.coerceAtLeast(dp(64))
-        } else {
-            params.x = ((appContext.resources.displayMetrics.widthPixels - params.width) / 2)
+        } else if (nextMode != OverlayMode.Bubble) {
+            params.x = ((screenWidth() - params.width) / 2)
                 .coerceAtLeast(0)
             params.y = params.y.coerceIn(dp(64), dp(220))
         }
@@ -129,9 +149,20 @@ internal class RecognitionFloatingWindow(
         runCatching { windowManager.updateViewLayout(view, params) }
     }
 
-    private fun dragBubble(dx: Float, dy: Float) {
+    private fun snapBubbleToEdge() {
         if (!attached || mode != OverlayMode.Bubble) return
-        val screenWidth = appContext.resources.displayMetrics.widthPixels
+        val screenWidth = screenWidth()
+        val margin = dp(8)
+        val left = margin
+        val right = (screenWidth - params.width - margin).coerceAtLeast(left)
+        val target = if (params.x + params.width / 2 < screenWidth / 2) left else right
+        params.x = target
+        runCatching { windowManager.updateViewLayout(view, params) }
+    }
+
+    private fun dragWindow(dx: Float, dy: Float) {
+        if (!attached) return
+        val screenWidth = screenWidth()
         val screenHeight = appContext.resources.displayMetrics.heightPixels
         params.x = (params.x + dx.toInt()).coerceIn(0, (screenWidth - params.width).coerceAtLeast(0))
         params.y = (params.y + dy.toInt()).coerceIn(0, (screenHeight - params.height).coerceAtLeast(0))
@@ -141,15 +172,23 @@ internal class RecognitionFloatingWindow(
     private fun dp(value: Int): Int =
         (value * appContext.resources.displayMetrics.density).toInt()
 
+    private fun screenWidth(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds.width()
+        } else {
+            appContext.resources.displayMetrics.widthPixels
+        }
+
     private companion object {
-        const val BUBBLE_SIZE_DP = 62
-        const val OVERLAY_WIDTH_DP = 336
-        const val OVERLAY_HEIGHT_DP = 154
+        const val BUBBLE_SIZE_DP = 44
+        const val OVERLAY_WIDTH_DP = 220
+        const val OVERLAY_HEIGHT_DP = 96
     }
 }
 
 private enum class OverlayMode {
     Bubble,
+    Idle,
     Panel,
     Result,
     Message,
@@ -159,12 +198,14 @@ private class RecognitionOverlayView(
     context: Context,
     private val onExpand: () -> Unit,
     private val onCollapse: () -> Unit,
-    private val onStop: () -> Unit,
+    private val onStopRecognition: () -> Unit,
+    private val onClose: () -> Unit,
     private val onOpenApp: () -> Unit,
+    private val onStartRecognition: () -> Unit,
     private val onDrag: (Float, Float) -> Unit,
+    private val onDragEnd: () -> Unit,
 ) : View(context) {
     private val density = resources.displayMetrics.density
-    private val scaledDensity = resources.displayMetrics.scaledDensity
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val buttonPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -192,6 +233,7 @@ private class RecognitionOverlayView(
     private var messageTitle = ""
     private var messageSubtitle = ""
     private var isErrorMessage = false
+    private var recordingActive = false
     private var animating = false
     private var lastFrameNanos = 0L
     private var downRawX = 0f
@@ -199,6 +241,8 @@ private class RecognitionOverlayView(
     private var lastRawX = 0f
     private var lastRawY = 0f
     private var bubbleDragging = false
+    private var panelDragging = false
+    private var panelCanDrag = false
     private var pressedAction = Action.None
 
     private val frameRunnable = object : Runnable {
@@ -225,6 +269,11 @@ private class RecognitionOverlayView(
         this.mode = mode
         startOrStopAnimation()
         invalidate()
+    }
+
+    fun setRecordingActive(active: Boolean) {
+        recordingActive = active
+        startOrStopAnimation()
     }
 
     fun updateRecording(elapsedSeconds: Int, maxSeconds: Int) {
@@ -273,6 +322,7 @@ private class RecognitionOverlayView(
         super.onDraw(canvas)
         when (mode) {
             OverlayMode.Bubble -> drawBubble(canvas)
+            OverlayMode.Idle -> drawIdle(canvas)
             OverlayMode.Panel -> drawPanel(canvas)
             OverlayMode.Result -> drawResult(canvas)
             OverlayMode.Message -> drawMessage(canvas)
@@ -282,7 +332,7 @@ private class RecognitionOverlayView(
     private fun drawBubble(canvas: Canvas) {
         val cx = width / 2f
         val cy = height / 2f
-        val radius = dp(24)
+        val radius = dp(19f)
         val pulse = ((sin(System.nanoTime() / 520_000_000.0) + 1.0) / 2.0).toFloat()
         fillPaint.shader = RadialGradient(
             cx,
@@ -310,7 +360,19 @@ private class RecognitionOverlayView(
         strokePaint.color = ColorTokens.ROSE.withAlpha(0.72f)
         strokePaint.strokeWidth = dp(1.2f)
         canvas.drawCircle(cx, cy, radius, strokePaint)
-        drawBubbleWave(canvas, cx, cy, radius)
+        if (recordingActive) {
+            drawBubbleWave(canvas, cx, cy, radius)
+        } else {
+            drawBubbleIdleGlyph(canvas, cx, cy)
+        }
+    }
+
+    private fun drawBubbleIdleGlyph(canvas: Canvas, cx: Float, cy: Float) {
+        buttonPaint.color = ColorTokens.TEXT
+        buttonPaint.style = Paint.Style.FILL
+        canvas.drawCircle(cx - dp(7f), cy, dp(2.3f), buttonPaint)
+        canvas.drawCircle(cx, cy, dp(2.3f), buttonPaint)
+        canvas.drawCircle(cx + dp(7f), cy, dp(2.3f), buttonPaint)
     }
 
     private fun drawBubbleWave(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
@@ -335,47 +397,70 @@ private class RecognitionOverlayView(
         drawText(
             canvas,
             context.getString(R.string.recognition_float_listening),
-            dp(18f),
-            dp(60f),
-            dp(18f),
+            dp(12f),
+            dp(39f),
+            dp(11.4f),
             ColorTokens.TEXT,
             boldPaint,
-            dp(226f),
+            width - dp(76f),
         )
         drawText(
             canvas,
             context.getString(R.string.recognition_float_time, elapsedSeconds, maxSeconds),
-            dp(18f),
-            dp(58f),
-            dp(10.5f),
+            dp(12f),
+            dp(37f),
+            dp(7.8f),
             ColorTokens.ROSE,
             boldPaint,
-            width - dp(36f),
+            width - dp(16f),
             alignRight = true,
         )
         drawWaveform(
             canvas = canvas,
-            left = dp(18f),
-            top = dp(72f),
-            right = width - dp(104f),
-            bottom = dp(99f),
+            left = dp(12f),
+            top = dp(46f),
+            right = width - dp(70f),
+            bottom = dp(66f),
             accent = ColorTokens.ROSE,
         )
-        drawText(
-            canvas,
-            context.getString(R.string.recognition_float_tip),
-            dp(18f),
-            height - dp(16f),
-            dp(10.2f),
-            ColorTokens.MUTED,
-            textPaint,
-            width - dp(116f),
-        )
-        stopRect.set(width - dp(92f), height - dp(42f), width - dp(16f), height - dp(12f))
+        stopRect.set(width - dp(64f), height - dp(32f), width - dp(10f), height - dp(10f))
         drawPillButton(
             canvas,
             stopRect,
             context.getString(R.string.recognition_float_stop),
+            ColorTokens.ROSE,
+            ColorTokens.TEXT,
+        )
+    }
+
+    private fun drawIdle(canvas: Canvas) {
+        drawCardBackground(canvas)
+        drawHeader(canvas, context.getString(R.string.recognition_float_idle_brand))
+        drawText(
+            canvas,
+            context.getString(R.string.recognition_float_idle_title),
+            dp(12f),
+            dp(39f),
+            dp(11.4f),
+            ColorTokens.TEXT,
+            boldPaint,
+            width - dp(76f),
+        )
+        drawText(
+            canvas,
+            context.getString(R.string.recognition_float_idle_tip),
+            dp(12f),
+            dp(56f),
+            dp(8.6f),
+            ColorTokens.MUTED,
+            textPaint,
+            width - dp(76f),
+        )
+        actionRect.set(width - dp(64f), height - dp(32f), width - dp(10f), height - dp(10f))
+        drawPillButton(
+            canvas,
+            actionRect,
+            context.getString(R.string.recognition_float_idle_action),
             ColorTokens.ROSE,
             ColorTokens.TEXT,
         )
@@ -387,43 +472,35 @@ private class RecognitionOverlayView(
             canvas,
             context.getString(R.string.recognition_float_result_title),
             ColorTokens.SUCCESS,
-            showCollapse = false,
         )
         drawText(
             canvas,
             songTitle.ifBlank { context.getString(R.string.recognition_success) },
-            dp(18f),
-            dp(57f),
-            dp(17f),
+            dp(12f),
+            dp(38f),
+            dp(11.4f),
             ColorTokens.TEXT,
             boldPaint,
-            width - dp(36f),
+            width - dp(76f),
         )
         drawText(
             canvas,
-            songArtist,
-            dp(18f),
-            dp(78f),
-            dp(11.5f),
+            buildString {
+                append(songArtist)
+                if (confidence > 0.0) {
+                    if (isNotEmpty()) append(" · ")
+                    append((confidence * 100).toInt().coerceIn(0, 100))
+                    append('%')
+                }
+            },
+            dp(12f),
+            dp(55f),
+            dp(8.6f),
             ColorTokens.MUTED,
             textPaint,
-            width - dp(38f),
+            width - dp(76f),
         )
-        val confidenceText = context.getString(
-            R.string.recognition_confidence,
-            (confidence * 100).toInt().coerceIn(0, 100),
-        )
-        drawText(
-            canvas,
-            confidenceText,
-            dp(18f),
-            dp(102f),
-            dp(10.5f),
-            ColorTokens.SUCCESS,
-            boldPaint,
-            width - dp(36f),
-        )
-        actionRect.set(dp(18f), height - dp(42f), dp(132f), height - dp(12f))
+        actionRect.set(width - dp(66f), height - dp(32f), width - dp(10f), height - dp(10f))
         drawPillButton(
             canvas,
             actionRect,
@@ -439,29 +516,28 @@ private class RecognitionOverlayView(
             canvas,
             context.getString(R.string.recognition_float_brand),
             if (isErrorMessage) ColorTokens.ROSE else ColorTokens.SUCCESS,
-            showCollapse = false,
         )
         drawText(
             canvas,
             messageTitle,
-            dp(18f),
-            dp(58f),
-            dp(17f),
+            dp(12f),
+            dp(38f),
+            dp(11.4f),
             if (isErrorMessage) ColorTokens.ROSE else ColorTokens.TEXT,
             boldPaint,
-            width - dp(36f),
+            width - dp(76f),
         )
         drawText(
             canvas,
             messageSubtitle,
-            dp(18f),
-            dp(82f),
-            dp(11.5f),
+            dp(12f),
+            dp(55f),
+            dp(8.6f),
             ColorTokens.MUTED,
             textPaint,
-            width - dp(36f),
+            width - dp(76f),
         )
-        actionRect.set(dp(18f), height - dp(42f), dp(112f), height - dp(12f))
+        actionRect.set(width - dp(62f), height - dp(32f), width - dp(10f), height - dp(10f))
         drawPillButton(
             canvas,
             actionRect,
@@ -482,11 +558,11 @@ private class RecognitionOverlayView(
             null,
             Shader.TileMode.CLAMP,
         )
-        canvas.drawRoundRect(rect, dp(20f), dp(20f), fillPaint)
+        canvas.drawRoundRect(rect, dp(16f), dp(16f), fillPaint)
         fillPaint.shader = null
         strokePaint.color = ColorTokens.ROSE.withAlpha(0.38f)
         strokePaint.strokeWidth = dp(1f)
-        canvas.drawRoundRect(rect, dp(20f), dp(20f), strokePaint)
+        canvas.drawRoundRect(rect, dp(16f), dp(16f), strokePaint)
         fillPaint.shader = RadialGradient(
             width * 0.86f,
             dp(10f),
@@ -495,7 +571,7 @@ private class RecognitionOverlayView(
             floatArrayOf(0f, 1f),
             Shader.TileMode.CLAMP,
         )
-        canvas.drawRoundRect(rect, dp(20f), dp(20f), fillPaint)
+        canvas.drawRoundRect(rect, dp(16f), dp(16f), fillPaint)
         fillPaint.shader = null
     }
 
@@ -503,28 +579,23 @@ private class RecognitionOverlayView(
         canvas: Canvas,
         title: String,
         accent: Int = ColorTokens.ROSE,
-        showCollapse: Boolean = true,
     ) {
         buttonPaint.color = accent
         buttonPaint.style = Paint.Style.FILL
-        canvas.drawCircle(dp(20f), dp(22f), dp(3f), buttonPaint)
+        canvas.drawCircle(dp(11f), dp(14f), dp(2.2f), buttonPaint)
         drawText(
             canvas,
             title,
-            dp(29f),
-            dp(26f),
-            dp(10.2f),
+            dp(18f),
+            dp(18f),
+            dp(7.8f),
             accent,
             boldPaint,
-            width - dp(102f),
+            width - dp(62f),
         )
-        if (showCollapse) {
-            collapseRect.set(width - dp(68f), dp(8f), width - dp(40f), dp(38f))
-            drawWindowIcon(canvas, collapseRect, Icon.Minimize)
-        } else {
-            collapseRect.setEmpty()
-        }
-        closeRect.set(width - dp(38f), dp(8f), width - dp(10f), dp(38f))
+        collapseRect.set(width - dp(58f), dp(2f), width - dp(32f), dp(28f))
+        closeRect.set(width - dp(32f), dp(2f), width - dp(6f), dp(28f))
+        drawWindowIcon(canvas, collapseRect, Icon.Minimize)
         drawWindowIcon(canvas, closeRect, Icon.Close)
     }
 
@@ -581,7 +652,7 @@ private class RecognitionOverlayView(
         fillPaint.style = Paint.Style.FILL
         canvas.drawRoundRect(rect, rect.height() / 2f, rect.height() / 2f, fillPaint)
         textPaint.textAlign = Paint.Align.CENTER
-        textPaint.textSize = dp(11f)
+        textPaint.textSize = dp(8.2f)
         textPaint.typeface = Typeface.create("sans-serif", Typeface.BOLD)
         textPaint.color = foreground
         val baseline = rect.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
@@ -600,7 +671,8 @@ private class RecognitionOverlayView(
         maxWidth: Float,
         alignRight: Boolean = false,
     ) {
-        paint.textSize = textSizeDp * scaledDensity
+        // Callers already convert the logical text size to pixels with dp().
+        paint.textSize = textSizeDp
         paint.color = color
         paint.textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
         val widthLimit = (maxWidth - x).coerceAtLeast(dp(20f))
@@ -623,7 +695,9 @@ private class RecognitionOverlayView(
                 lastRawX = event.rawX
                 lastRawY = event.rawY
                 bubbleDragging = false
+                panelDragging = false
                 pressedAction = hitAction(event.x, event.y)
+                panelCanDrag = mode != OverlayMode.Bubble && pressedAction == Action.None
                 return true
             }
 
@@ -637,6 +711,15 @@ private class RecognitionOverlayView(
                     if (bubbleDragging) {
                         onDrag(event.rawX - lastRawX, event.rawY - lastRawY)
                     }
+                } else if (panelCanDrag) {
+                    val totalDx = event.rawX - downRawX
+                    val totalDy = event.rawY - downRawY
+                    if (!panelDragging && abs(totalDx) + abs(totalDy) > touchSlop) {
+                        panelDragging = true
+                    }
+                    if (panelDragging) {
+                        onDrag(event.rawX - lastRawX, event.rawY - lastRawY)
+                    }
                 }
                 lastRawX = event.rawX
                 lastRawY = event.rawY
@@ -645,13 +728,23 @@ private class RecognitionOverlayView(
 
             MotionEvent.ACTION_UP -> {
                 if (mode == OverlayMode.Bubble) {
-                    if (!bubbleDragging) onExpand()
-                } else if (pressedAction != Action.None && hitAction(event.x, event.y) == pressedAction) {
+                    if (bubbleDragging) {
+                        onDragEnd()
+                    } else {
+                        onExpand()
+                    }
+                } else if (
+                    !panelDragging &&
+                    pressedAction != Action.None &&
+                    hitAction(event.x, event.y) == pressedAction
+                ) {
                     when (pressedAction) {
                         Action.Expand -> onExpand()
                         Action.Collapse -> onCollapse()
-                        Action.Close, Action.Stop -> onStop()
+                        Action.Stop -> onStopRecognition()
+                        Action.Close -> onClose()
                         Action.OpenApp -> onOpenApp()
+                        Action.StartRecognition -> onStartRecognition()
                         Action.None -> Unit
                     }
                 }
@@ -661,6 +754,9 @@ private class RecognitionOverlayView(
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                if (bubbleDragging) onDragEnd()
+                panelDragging = false
+                panelCanDrag = false
                 pressedAction = Action.None
                 return true
             }
@@ -678,6 +774,7 @@ private class RecognitionOverlayView(
         if (closeRect.contains(x, y)) return Action.Close
         if (collapseRect.contains(x, y)) return Action.Collapse
         if (mode == OverlayMode.Panel && stopRect.contains(x, y)) return Action.Stop
+        if (mode == OverlayMode.Idle && actionRect.contains(x, y)) return Action.StartRecognition
         if (mode == OverlayMode.Result && actionRect.contains(x, y)) return Action.OpenApp
         if (mode == OverlayMode.Message && actionRect.contains(x, y)) return Action.Close
         return Action.None
@@ -704,6 +801,7 @@ private class RecognitionOverlayView(
         Close,
         Stop,
         OpenApp,
+        StartRecognition,
     }
 
     private object ColorTokens {
