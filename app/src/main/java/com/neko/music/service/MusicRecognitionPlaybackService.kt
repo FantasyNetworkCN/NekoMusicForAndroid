@@ -41,6 +41,7 @@ class MusicRecognitionPlaybackService : Service() {
     private var recognitionJob: Job? = null
     private var pcmChannel: Channel<ByteArray>? = null
     private var audioRecord: AudioRecord? = null
+    @Volatile private var audioProcessor: RecognitionAudioProcessor? = null
     private var recording = false
     private var foregroundStarted = false
     private var floatingWindow: RecognitionFloatingWindow? = null
@@ -180,6 +181,8 @@ class MusicRecognitionPlaybackService : Service() {
         ).show()
         acquireKeepAliveLocks()
         showFloatingWindowIfAllowed(idle = false)
+        audioProcessor?.close()
+        audioProcessor = RecognitionAudioProcessor()
         if (BuildConfig.DEBUG) {
             audioExporter = RecognitionAudioExporter(applicationContext)
         }
@@ -221,6 +224,7 @@ class MusicRecognitionPlaybackService : Service() {
                         throw IOException("后台录音读取失败: $read")
                     }
                     capturedBytes += read
+                    audioProcessor?.process(readBuffer, read)
                     audioExporter?.append(readBuffer, 0, read)
                     channel.send(readBuffer.copyOf(read))
                     val elapsed = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
@@ -245,6 +249,8 @@ class MusicRecognitionPlaybackService : Service() {
                     // Already stopped.
                 }
                 created.release()
+                audioProcessor?.close()
+                audioProcessor = null
                 if (pcmChannel === channel) pcmChannel = null
                 if (captureJob?.isCompleted == true) captureJob = null
             }
@@ -315,6 +321,8 @@ class MusicRecognitionPlaybackService : Service() {
         captureJob = null
         pcmChannel?.cancel()
         pcmChannel = null
+        audioProcessor?.close()
+        audioProcessor = null
         releaseKeepAliveLocks()
         publishDebugAudio()
     }
@@ -367,6 +375,8 @@ class MusicRecognitionPlaybackService : Service() {
         captureJob = null
         pcmChannel?.cancel()
         pcmChannel = null
+        audioProcessor?.close()
+        audioProcessor = null
         recognitionJob?.cancel()
         recognitionJob = null
         releaseKeepAliveLocks()

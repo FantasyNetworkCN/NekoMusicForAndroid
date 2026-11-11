@@ -109,6 +109,7 @@ import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.MusicRecognitionPlaybackService
+import com.neko.music.service.RecognitionAudioProcessor
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -1576,6 +1577,7 @@ private fun RecognitionPrivacyHint(mutedColor: Color) {
 private class RecognitionAudioRecorder {
     @Volatile private var recording = false
     private var audioRecord: AudioRecord? = null
+    private var audioProcessor: RecognitionAudioProcessor? = null
     private var captureJob: Job? = null
     private var pcmChannel: Channel<ByteArray>? = null
 
@@ -1622,6 +1624,8 @@ private class RecognitionAudioRecorder {
             channel.cancel()
             throw error
         }
+        audioProcessor?.close()
+        audioProcessor = RecognitionAudioProcessor()
 
         captureJob = scope.launch(Dispatchers.IO) {
             val maximumBytes = STREAM_SAMPLE_RATE * PCM_BYTES_PER_SAMPLE * MAX_RECORDING_SECONDS
@@ -1636,6 +1640,7 @@ private class RecognitionAudioRecorder {
                         throw IOException("Audio capture failed: $read")
                     }
                     capturedBytes += read
+                    audioProcessor?.process(readBuffer, read)
                     channel.send(readBuffer.copyOf(read))
                 }
             } catch (error: Exception) {
@@ -1657,6 +1662,8 @@ private class RecognitionAudioRecorder {
                     // Recorder is already stopped.
                 }
                 created.release()
+                audioProcessor?.close()
+                audioProcessor = null
                 channel.close()
             }
         }
@@ -1672,6 +1679,8 @@ private class RecognitionAudioRecorder {
         }
         captureJob?.cancel()
         pcmChannel?.cancel()
+        audioProcessor?.close()
+        audioProcessor = null
         captureJob = null
         pcmChannel = null
     }
