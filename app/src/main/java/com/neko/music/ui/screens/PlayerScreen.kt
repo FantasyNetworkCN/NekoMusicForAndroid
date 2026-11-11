@@ -184,6 +184,7 @@ data class LrcLine(
     val time: Float, // 时间（秒）
     val text: String, // 歌词文本
     val translation: String = "", // 翻译文本（可选）
+    val romanization: String = "", // 罗马音（可选）
     val syllables: List<LrcSyllable> = emptyList(), // 增强 LRC 的逐字时间戳（可选）
     val endTime: Float? = null,
 )
@@ -238,11 +239,18 @@ fun parseLrcLyrics(lrcText: String): List<LrcLine> {
                     var content = nextLine.substring(1, nextLine.length - 1)
                     // 去掉转义字符和引号
                     content = content.replace("\\", "").replace("\"", "").replace("'", "")
-                    translation = content.trim()
+                    translation = cleanLyricDisplayText(content)
                 }
             }
 
-            result.add(LrcLine(time, text, translation ?: "", syllables))
+            result.add(
+                LrcLine(
+                    time = time,
+                    text = cleanLyricDisplayText(text),
+                    translation = translation.orEmpty(),
+                    syllables = syllables,
+                )
+            )
 
             // 如果有翻译行，跳过它
             if (hasTranslation) {
@@ -262,8 +270,9 @@ fun parseLyricsPayload(payload: LyricsPayload): List<LrcLine> {
         return payload.richLines.map { line ->
             LrcLine(
                 time = line.startMs / 1000f,
-                text = line.text,
-                translation = line.translation,
+                text = cleanLyricDisplayText(line.text),
+                translation = cleanLyricDisplayText(line.translation),
+                romanization = cleanLyricDisplayText(line.romanization),
                 syllables = line.words.map { word ->
                     LrcSyllable(
                         time = word.startMs / 1000f,
@@ -275,6 +284,11 @@ fun parseLyricsPayload(payload: LyricsPayload): List<LrcLine> {
         }
     }
     return parseLrcLyrics(payload.lyrics)
+}
+
+internal fun cleanLyricDisplayText(value: String?): String {
+    val trimmed = value?.trim().orEmpty()
+    return if (trimmed.isEmpty() || trimmed.equals("null", ignoreCase = true)) "" else value.orEmpty()
 }
 
 private fun parseSyllableTimestamps(

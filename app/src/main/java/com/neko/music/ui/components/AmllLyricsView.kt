@@ -288,6 +288,23 @@ fun AmllLyricsView(
                                     )
                                 }
 
+                                if (line.romanization.isNotEmpty()) {
+                                    Text(
+                                        text = line.romanization,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = baseTextColor.copy(
+                                            alpha = if (isCurrentLine) 0.60f else 0.44f,
+                                        ),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                    )
+                                }
+
                                 if (line.translation.isNotEmpty()) {
                                     Text(
                                         text = line.translation,

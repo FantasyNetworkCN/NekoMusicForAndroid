@@ -556,21 +556,21 @@ class MusicApi(private val context: Context) {
             val rows = root["lines"] as? JsonArray ?: return emptyList()
             rows.mapNotNull { rowElement ->
                 val row = rowElement as? JsonObject ?: return@mapNotNull null
-                val text = jsonText(row["text"])
+                val text = jsonLyricText(row["text"])
                 val words = (row["words"] as? JsonArray).orEmpty().mapNotNull { wordElement ->
                     val word = wordElement as? JsonObject ?: return@mapNotNull null
                     RichLyricWord(
                         startMs = jsonLong(word["startMs"]),
                         endMs = jsonLong(word["endMs"]),
-                        text = jsonText(word["text"]),
+                        text = jsonLyricText(word["text"]),
                     )
                 }
                 RichLyricLine(
                     startMs = jsonLong(row["startMs"]),
                     endMs = jsonLong(row["endMs"]),
                     text = text,
-                    translation = jsonText(row["translation"]),
-                    romanization = jsonText(row["romanization"]),
+                    translation = jsonLyricText(row["translation"]),
+                    romanization = jsonLyricText(row["romanization"]),
                     background = (row["background"] as? JsonPrimitive)?.content?.toBoolean() ?: false,
                     words = words,
                 )
@@ -581,13 +581,20 @@ class MusicApi(private val context: Context) {
         }
     }
 
-    private fun jsonText(element: JsonElement?): String =
-        (element as? JsonPrimitive)?.content ?: ""
-
     private fun jsonLong(element: JsonElement?): Long =
         (element as? JsonPrimitive)?.content?.toLongOrNull() ?: 0L
 
     /** 旧缓存中可能仍含 JSON 字面量 `\/`，读缓存时顺带规范化。 */
     private fun sanitizeLyricsJsonEscapes(text: String): String =
         text.replace("\\/", "/")
+}
+
+/**
+ * 歌词 JSON 中的可选字段可能是真正的 `null`。kotlinx.serialization 的 JsonNull 属于
+ * JsonPrimitive，直接取 content 会得到字面量 "null"，最终被显示到播放页上。
+ */
+internal fun jsonLyricText(element: JsonElement?): String {
+    if (element == null || element is JsonNull) return ""
+    val value = (element as? JsonPrimitive)?.content ?: return ""
+    return value.takeUnless { it.trim().equals("null", ignoreCase = true) }.orEmpty()
 }
