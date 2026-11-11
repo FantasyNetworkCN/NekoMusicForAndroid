@@ -20,6 +20,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
@@ -143,6 +144,11 @@ class MusicRecognitionPlaybackService : Service() {
             finishWithStatus(STATUS_ERROR, error.message ?: "后台录音启动失败")
             return
         }
+        Toast.makeText(
+            this,
+            getString(R.string.recognition_background_toast),
+            Toast.LENGTH_SHORT,
+        ).show()
 
         val maxBytes = SAMPLE_RATE * BYTES_PER_SAMPLE * maxSeconds
         val channel = Channel<ByteArray>(capacity = 64)
@@ -183,7 +189,14 @@ class MusicRecognitionPlaybackService : Service() {
                     capturedBytes += read
                     channel.send(readBuffer.copyOf(read))
                     val elapsed = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
-                    serviceScope.launch { updateOverlay("正在后台识别 · ${elapsed.coerceAtMost(maxSeconds)} 秒") }
+                    serviceScope.launch {
+                        updateOverlay(
+                            getString(
+                                R.string.recognition_background_overlay,
+                                elapsed.coerceAtMost(maxSeconds),
+                            ),
+                        )
+                    }
                 }
             } catch (_: CancellationException) {
                 // Explicit stop or service destruction.
@@ -263,10 +276,14 @@ class MusicRecognitionPlaybackService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_music_recognition)
-            .setContentTitle("正在后台听歌识曲")
-            .setContentText("后台录音将在 ${maxSeconds} 秒内完成")
+            .setContentTitle(getString(R.string.recognition_background_title))
+            .setContentText(getString(R.string.recognition_background_text, maxSeconds))
             .setOngoing(true)
-            .addAction(R.drawable.ic_stop_recording, "停止", stopIntent)
+            .addAction(
+                R.drawable.ic_stop_recording,
+                getString(R.string.recognition_background_stop),
+                stopIntent,
+            )
             .build()
     }
 
@@ -279,7 +296,7 @@ class MusicRecognitionPlaybackService : Service() {
             setBackgroundColor(0xEE202027.toInt())
         }
         val text = TextView(this).apply {
-            text = "正在后台识别 · 0 秒"
+            text = getString(R.string.recognition_background_overlay, 0)
             setTextColor(0xFFFFFFFF.toInt())
         }
         val stop = Button(this).apply {

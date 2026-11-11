@@ -38,9 +38,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -88,6 +90,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -130,6 +133,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 
 private const val MAX_RECORDING_SECONDS = 20
@@ -191,7 +195,10 @@ fun MusicRecognitionScreen(
                     context,
                     Intent(context, MusicRecognitionPlaybackService::class.java)
                         .setAction(MusicRecognitionPlaybackService.ACTION_PREPARE)
-                        .putExtra(MusicRecognitionPlaybackService.EXTRA_MAX_SECONDS, MAX_RECORDING_SECONDS),
+                        .putExtra(
+                            MusicRecognitionPlaybackService.EXTRA_MAX_SECONDS,
+                            MAX_RECORDING_SECONDS,
+                        ),
                 )
             }
             recognitionJob = scope.launch {
@@ -217,7 +224,7 @@ fun MusicRecognitionScreen(
                             stage = RecognitionStage.Error
                             recorder.cancel()
                             context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
-                        }
+                        },
                     )
                 } catch (_: CancellationException) {
                     // User stopped listening or left the page.
@@ -424,6 +431,7 @@ fun MusicRecognitionScreen(
         animationSpec = tween(320),
         label = "recognitionAccent",
     )
+    val secondaryAccent = if (isDark) Color(0xFF8B7CFF) else Color(0xFFFF9AB4)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -433,6 +441,11 @@ fun MusicRecognitionScreen(
         ) {
             AppPageBackgroundImage(modifier = Modifier.fillMaxSize())
             PlaylistPageDarkTintOverlay(enabled = isDark)
+            RecognitionAtmosphere(
+                accent = accent,
+                secondaryAccent = secondaryAccent,
+                isDark = isDark,
+            )
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
@@ -457,33 +470,48 @@ fun MusicRecognitionScreen(
                         .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.Start,
                 ) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = stringResource(R.string.recognition_hero_title),
-                        color = titleColor,
-                        fontSize = 32.sp,
-                        lineHeight = 37.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.6).sp,
+                    Spacer(modifier = Modifier.height(12.dp))
+                    RecognitionHero(
+                        titleColor = titleColor,
+                        mutedColor = mutedColor,
+                        accent = accent,
                     )
-                    Spacer(modifier = Modifier.height(9.dp))
-                    Text(
-                        text = stringResource(R.string.recognition_hero_subtitle),
-                        color = mutedColor,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
+                    Spacer(modifier = Modifier.height(15.dp))
+                    RecognitionBackgroundHint(
+                        isDark = isDark,
+                        accent = accent,
+                        mutedColor = mutedColor,
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(13.dp))
 
                     RecognitionStageCard(
                         stage = stage,
                         elapsedSeconds = elapsedSeconds,
-                        errorMessage = errorMessage,
-                        requestFailedText = requestFailedText,
                         isDark = isDark,
                         accent = accent,
+                        secondaryAccent = secondaryAccent,
+                        onClick = {
+                            when (stage) {
+                                RecognitionStage.Recording -> stopListening()
+                                else -> requestRecording()
+                            }
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    RecognitionStatusCopy(
+                        stage = stage,
+                        elapsedSeconds = elapsedSeconds,
+                        errorMessage = errorMessage,
+                        requestFailedText = requestFailedText,
                         titleColor = titleColor,
                         mutedColor = mutedColor,
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    RecognitionActionButton(
+                        stage = stage,
+                        isDark = isDark,
+                        accent = accent,
+                        secondaryAccent = secondaryAccent,
                         onClick = {
                             when (stage) {
                                 RecognitionStage.Recording -> stopListening()
@@ -500,14 +528,11 @@ fun MusicRecognitionScreen(
                         match?.let { value ->
                             Column {
                                 Spacer(modifier = Modifier.height(22.dp))
-                                Text(
-                                    text = stringResource(R.string.recognition_result_title),
-                                    color = mutedColor,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 0.3.sp,
+                                RecognitionResultHeader(
+                                    mutedColor = mutedColor,
+                                    accent = accent,
                                 )
-                                Spacer(modifier = Modifier.height(9.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
                                 RecognitionMatchCard(
                                     match = value,
                                     isDark = isDark,
@@ -518,7 +543,7 @@ fun MusicRecognitionScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(22.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
                     RecognitionPrivacyHint(mutedColor = mutedColor)
                     Spacer(modifier = Modifier.height(28.dp))
                 }
@@ -545,7 +570,7 @@ private fun RecognitionTopBar(
         GlassSurface(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .size(44.dp),
+                .size(42.dp),
             shape = CircleShape,
             backgroundAlpha = glass.tint.background(isDark),
             borderAlpha = glass.tint.border(isDark),
@@ -571,6 +596,175 @@ private fun RecognitionTopBar(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.align(Alignment.Center),
         )
+        GlassSurface(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .height(30.dp)
+                .width(54.dp),
+            shape = RoundedCornerShape(15.dp),
+            backgroundAlpha = glass.tint.background(isDark),
+            borderAlpha = glass.tint.border(isDark),
+            highlightAlpha = glass.tint.highlight(isDark),
+            borderColor = if (isDark) Color.White.copy(alpha = 0.12f) else scheme.outline.copy(alpha = 0.6f),
+            liquidBlur = 6.dp,
+            liquidLensHeight = 12.dp,
+            liquidLensAmount = 22.dp,
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.recognition_duration_badge),
+                    color = mutedColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecognitionAtmosphere(
+    accent: Color,
+    secondaryAccent: Color,
+    isDark: Boolean,
+) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val glowAlpha = if (isDark) 0.30f else 0.20f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    accent.copy(alpha = glowAlpha),
+                    Color.Transparent,
+                ),
+                center = Offset(size.width * 0.86f, size.height * 0.20f),
+                radius = size.width * 0.72f,
+            ),
+            radius = size.width * 0.72f,
+            center = Offset(size.width * 0.86f, size.height * 0.20f),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    secondaryAccent.copy(alpha = glowAlpha * 0.68f),
+                    Color.Transparent,
+                ),
+                center = Offset(size.width * 0.08f, size.height * 0.54f),
+                radius = size.width * 0.82f,
+            ),
+            radius = size.width * 0.82f,
+            center = Offset(size.width * 0.08f, size.height * 0.54f),
+        )
+    }
+}
+
+@Composable
+private fun RecognitionHero(
+    titleColor: Color,
+    mutedColor: Color,
+    accent: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(accent, CircleShape),
+        )
+        Spacer(modifier = Modifier.width(7.dp))
+        Text(
+            text = stringResource(R.string.recognition_page_eyebrow),
+            color = accent,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.35.sp,
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            accent.copy(alpha = 0.30f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+    }
+    Spacer(modifier = Modifier.height(13.dp))
+    Text(
+        text = stringResource(R.string.recognition_hero_title),
+        color = titleColor,
+        fontSize = 36.sp,
+        lineHeight = 41.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = (-0.9).sp,
+    )
+    Spacer(modifier = Modifier.height(9.dp))
+    Text(
+        text = stringResource(R.string.recognition_hero_subtitle),
+        color = mutedColor,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.Medium,
+    )
+}
+
+@Composable
+private fun RecognitionBackgroundHint(
+    isDark: Boolean,
+    accent: Color,
+    mutedColor: Color,
+) {
+    val containerColor = if (isDark) {
+        Color.White.copy(alpha = 0.07f)
+    } else {
+        Color.White.copy(alpha = 0.52f)
+    }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(17.dp))
+                .background(containerColor)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(accent, CircleShape),
+            )
+            Spacer(modifier = Modifier.width(9.dp))
+            Text(
+                text = stringResource(R.string.recognition_background_ready_title),
+                color = accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.recognition_background_ready_badge),
+                color = mutedColor.copy(alpha = 0.78f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(
+            text = stringResource(R.string.recognition_background_ready_hint),
+            color = mutedColor.copy(alpha = 0.80f),
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            modifier = Modifier.padding(horizontal = 3.dp),
+        )
     }
 }
 
@@ -578,123 +772,85 @@ private fun RecognitionTopBar(
 private fun RecognitionStageCard(
     stage: RecognitionStage,
     elapsedSeconds: Int,
-    errorMessage: String?,
-    requestFailedText: String,
     isDark: Boolean,
     accent: Color,
-    titleColor: Color,
-    mutedColor: Color,
+    secondaryAccent: Color,
     onClick: () -> Unit,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val glass = LiquidGlassDefaults.homeHeroShortcutCard
-    val actionLabel = when (stage) {
-        RecognitionStage.Ready -> stringResource(R.string.recognition_action_listen)
-        RecognitionStage.Recording -> stringResource(R.string.recognition_action_stop)
-        RecognitionStage.Matched -> stringResource(R.string.recognition_action_again)
-        RecognitionStage.NoMatch, RecognitionStage.Error -> stringResource(R.string.recognition_action_retry)
-    }
+    RecognitionOrb(
+        stage = stage,
+        elapsedSeconds = elapsedSeconds,
+        isDark = isDark,
+        accent = accent,
+        secondaryAccent = secondaryAccent,
+        onClick = onClick,
+    )
+}
 
-    GlassSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(30.dp),
-        backgroundAlpha = (glass.tint.background(isDark) + 0.04f).coerceAtMost(0.48f),
-        borderAlpha = (glass.tint.border(isDark) + 0.04f).coerceAtMost(0.32f),
-        highlightAlpha = glass.tint.highlight(isDark),
-        borderColor = if (isDark) accent else scheme.outline,
-        liquidBlur = glass.liquid.blur,
-        liquidLensHeight = glass.liquid.lensHeight,
-        liquidLensAmount = glass.liquid.lensAmount,
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                accent.copy(alpha = if (isDark) 0.14f else 0.08f),
-                                Color.Transparent,
-                            ),
-                        ),
-                    ),
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                RecognitionOrb(
-                    stage = stage,
-                    elapsedSeconds = elapsedSeconds,
-                    isDark = isDark,
-                    accent = accent,
-                    onClick = onClick,
+@Composable
+private fun RecognitionStatusCopy(
+    stage: RecognitionStage,
+    elapsedSeconds: Int,
+    errorMessage: String?,
+    requestFailedText: String,
+    titleColor: Color,
+    mutedColor: Color,
+) {
+    val scheme = MaterialTheme.colorScheme
+    AnimatedContent(
+        targetState = stage,
+        transitionSpec = {
+            (fadeIn(tween(220)) + slideInVertically(tween(280)) { it / 5 })
+                .togetherWith(
+                    fadeOut(tween(150)) + slideOutVertically(tween(200)) { -it / 5 },
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                AnimatedContent(
-                    targetState = stage,
-                    transitionSpec = {
-                        (fadeIn(tween(220)) + slideInVertically(tween(280)) { it / 5 })
-                            .togetherWith(
-                                fadeOut(tween(150)) + slideOutVertically(tween(200)) { -it / 5 },
-                            )
-                            .using(SizeTransform(clip = false))
-                    },
-                    contentAlignment = Alignment.Center,
-                    label = "recognitionStatus",
-                ) { animatedStage ->
-                    val statusText = when (animatedStage) {
-                        RecognitionStage.Ready -> stringResource(R.string.recognition_ready)
-                        RecognitionStage.Recording -> stringResource(
-                            R.string.recognition_listening,
-                            elapsedSeconds,
-                        )
-                        RecognitionStage.Matched -> stringResource(R.string.recognition_success)
-                        RecognitionStage.NoMatch -> stringResource(R.string.recognition_no_match)
-                        RecognitionStage.Error -> errorMessage?.takeIf { it.isNotBlank() }
-                            ?: requestFailedText
-                    }
-                    val hintText = when (animatedStage) {
-                        RecognitionStage.Ready -> stringResource(R.string.recognition_ready_hint)
-                        RecognitionStage.Recording -> stringResource(R.string.recognition_recording_hint)
-                        RecognitionStage.Matched -> stringResource(R.string.recognition_matched_hint)
-                        RecognitionStage.NoMatch -> stringResource(R.string.recognition_no_match_hint)
-                        RecognitionStage.Error -> null
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = statusText,
-                            color = if (animatedStage == RecognitionStage.Error) scheme.error else titleColor,
-                            fontSize = 19.sp,
-                            lineHeight = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (hintText != null) {
-                            Spacer(modifier = Modifier.height(5.dp))
-                            Text(
-                                text = hintText,
-                                color = mutedColor,
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(18.dp))
-                RecognitionActionButton(
-                    stage = stage,
-                    label = actionLabel,
-                    isDark = isDark,
-                    accent = accent,
-                    onClick = onClick,
+                .using(SizeTransform(clip = false))
+        },
+        contentAlignment = Alignment.Center,
+        label = "recognitionStatus",
+    ) { animatedStage ->
+        val statusText = when (animatedStage) {
+            RecognitionStage.Ready -> stringResource(R.string.recognition_ready)
+            RecognitionStage.Recording -> stringResource(
+                R.string.recognition_listening,
+                elapsedSeconds,
+            )
+            RecognitionStage.Matched -> stringResource(R.string.recognition_success)
+            RecognitionStage.NoMatch -> stringResource(R.string.recognition_no_match)
+            RecognitionStage.Error -> errorMessage?.takeIf { it.isNotBlank() }
+                ?: requestFailedText
+        }
+        val hintText = when (animatedStage) {
+            RecognitionStage.Ready -> stringResource(R.string.recognition_ready_hint)
+            RecognitionStage.Recording -> stringResource(R.string.recognition_recording_hint)
+            RecognitionStage.Matched -> stringResource(R.string.recognition_matched_hint)
+            RecognitionStage.NoMatch -> stringResource(R.string.recognition_no_match_hint)
+            RecognitionStage.Error -> null
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = statusText,
+                color = if (animatedStage == RecognitionStage.Error) scheme.error else titleColor,
+                fontSize = 20.sp,
+                lineHeight = 25.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (hintText != null) {
+                Spacer(modifier = Modifier.height(5.dp))
+                Text(
+                    text = hintText,
+                    color = mutedColor,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -707,18 +863,30 @@ private fun RecognitionOrb(
     elapsedSeconds: Int,
     isDark: Boolean,
     accent: Color,
+    secondaryAccent: Color,
     onClick: () -> Unit,
 ) {
     val recording = stage == RecognitionStage.Recording
-    val infiniteTransition = rememberInfiniteTransition(label = "recognitionPulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "recognitionOrbit")
     val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.72f,
+        initialValue = 0.55f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(900),
+            animation = tween(1050),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "recognitionPulseAlpha",
+    )
+    val orbit by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = if (recording) 4600 else 9000,
+                easing = LinearEasing,
+            ),
+        ),
+        label = "recognitionOrbitRotation",
     )
     val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -741,90 +909,196 @@ private fun RecognitionOrb(
         ),
         label = "recognitionOrbPress",
     )
-    val tint = LiquidGlassDefaults.screenListCard
+    val tint = LiquidGlassDefaults.homeHeroShortcutCard
 
-    Box(
-        modifier = Modifier
-            .size(218.dp)
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
+        val stageSize = minOf(maxWidth, 300.dp)
         Box(
             modifier = Modifier
-                .size(188.dp)
-                .background(
-                    Brush.radialGradient(
+                .size(stageSize)
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val outerRadius = size.minDimension * 0.455f
+                val progressRadius = size.minDimension * 0.425f
+                val thinStroke = 1.dp.toPx()
+
+                drawCircle(
+                    brush = Brush.radialGradient(
                         colors = listOf(
-                            accent.copy(alpha = if (recording) 0.20f * pulse else 0.11f),
+                            accent.copy(alpha = if (recording) 0.24f * pulse else 0.16f),
+                            secondaryAccent.copy(alpha = 0.07f),
                             Color.Transparent,
                         ),
+                        center = center,
+                        radius = outerRadius * 1.16f,
                     ),
-                    CircleShape,
-                ),
-        )
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val thinStroke = 1.dp.toPx()
-            drawCircle(
-                color = accent.copy(alpha = if (recording) 0.16f * pulse else 0.10f),
-                radius = size.minDimension * 0.48f,
-                style = Stroke(width = thinStroke),
-            )
-            drawCircle(
-                color = accent.copy(alpha = if (recording) 0.32f * pulse else 0.18f),
-                radius = size.minDimension * 0.40f,
-                style = Stroke(width = thinStroke),
-            )
-            if (recording) {
-                drawArc(
-                    color = accent,
-                    startAngle = -90f,
-                    sweepAngle = 360f * (elapsedSeconds.toFloat() / MAX_RECORDING_SECONDS),
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.06f, size.height * 0.06f),
-                    size = Size(size.width * 0.88f, size.height * 0.88f),
-                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round),
+                    radius = outerRadius * 1.16f,
+                    center = center,
                 )
-            }
-        }
+                drawCircle(
+                    color = Color.White.copy(alpha = if (isDark) 0.08f else 0.34f),
+                    radius = outerRadius,
+                    center = center,
+                    style = Stroke(width = thinStroke),
+                )
+                drawCircle(
+                    color = accent.copy(alpha = if (recording) 0.22f * pulse else 0.12f),
+                    radius = outerRadius * 0.78f,
+                    center = center,
+                    style = Stroke(width = thinStroke),
+                )
+                drawCircle(
+                    color = accent.copy(alpha = if (recording) 0.16f * pulse else 0.08f),
+                    radius = outerRadius * 0.58f,
+                    center = center,
+                    style = Stroke(width = thinStroke),
+                )
 
-        GlassSurface(
-            modifier = Modifier.size(148.dp),
-            shape = CircleShape,
-            backgroundAlpha = (tint.background(isDark) + 0.06f).coerceAtMost(0.46f),
-            borderAlpha = (tint.border(isDark) + 0.14f).coerceAtMost(0.36f),
-            highlightAlpha = tint.highlight(isDark),
-            borderColor = accent,
-            liquidBlur = LiquidGlassDefaults.liquidMedium.blur,
-            liquidLensHeight = LiquidGlassDefaults.liquidMedium.lensHeight,
-            liquidLensAmount = LiquidGlassDefaults.liquidMedium.lensAmount,
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                when (stage) {
-                    RecognitionStage.Matched -> Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = stringResource(R.string.recognition_success),
-                        tint = accent,
-                        modifier = Modifier.size(44.dp),
+                rotate(orbit) {
+                    drawArc(
+                        color = accent.copy(alpha = 0.82f),
+                        startAngle = 12f,
+                        sweepAngle = 54f,
+                        useCenter = false,
+                        topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+                        size = Size(outerRadius * 2f, outerRadius * 2f),
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
                     )
-                    RecognitionStage.Error, RecognitionStage.NoMatch -> Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.retry),
-                        tint = accent,
-                        modifier = Modifier.size(40.dp),
+                    drawArc(
+                        color = secondaryAccent.copy(alpha = 0.52f),
+                        startAngle = 196f,
+                        sweepAngle = 74f,
+                        useCenter = false,
+                        topLeft = Offset(center.x - outerRadius, center.y - outerRadius),
+                        size = Size(outerRadius * 2f, outerRadius * 2f),
+                        style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
                     )
-                    RecognitionStage.Ready, RecognitionStage.Recording -> RecognitionWaveform(
-                        phase = wavePhase,
-                        active = recording,
+                }
+
+                repeat(3) { index ->
+                    val angle = Math.toRadians((orbit + index * 120f).toDouble())
+                    drawCircle(
+                        color = if (index == 0) {
+                            accent
+                        } else {
+                            secondaryAccent.copy(alpha = 0.72f)
+                        },
+                        radius = if (index == 0) 3.dp.toPx() else 2.dp.toPx(),
+                        center = Offset(
+                            center.x + cos(angle).toFloat() * outerRadius,
+                            center.y + sin(angle).toFloat() * outerRadius,
+                        ),
+                    )
+                }
+
+                drawArc(
+                    color = Color.White.copy(alpha = if (isDark) 0.10f else 0.32f),
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = Offset(
+                        center.x - progressRadius,
+                        center.y - progressRadius,
+                    ),
+                    size = Size(progressRadius * 2f, progressRadius * 2f),
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
+                )
+                if (recording) {
+                    val sweep = 360f * (elapsedSeconds.toFloat() / MAX_RECORDING_SECONDS)
+                    drawArc(
                         color = accent,
+                        startAngle = -90f,
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        topLeft = Offset(
+                            center.x - progressRadius,
+                            center.y - progressRadius,
+                        ),
+                        size = Size(progressRadius * 2f, progressRadius * 2f),
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
                     )
+                    val progressAngle = Math.toRadians((-90f + sweep).toDouble())
+                    drawCircle(
+                        color = Color.White,
+                        radius = 3.5.dp.toPx(),
+                        center = Offset(
+                            center.x + cos(progressAngle).toFloat() * progressRadius,
+                            center.y + sin(progressAngle).toFloat() * progressRadius,
+                        ),
+                    )
+                }
+            }
+
+            GlassSurface(
+                modifier = Modifier.size(164.dp),
+                shape = CircleShape,
+                backgroundAlpha = (tint.tint.background(isDark) + 0.10f).coerceAtMost(0.50f),
+                borderAlpha = (tint.tint.border(isDark) + 0.18f).coerceAtMost(0.42f),
+                highlightAlpha = tint.tint.highlight(isDark),
+                borderColor = accent,
+                surfaceTint = accent.copy(alpha = if (recording) 0.12f else 0.06f),
+                liquidBlur = LiquidGlassDefaults.liquidMedium.blur,
+                liquidLensHeight = LiquidGlassDefaults.liquidMedium.lensHeight,
+                liquidLensAmount = LiquidGlassDefaults.liquidMedium.lensAmount,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    when (stage) {
+                        RecognitionStage.Matched -> Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = stringResource(R.string.recognition_success),
+                            tint = accent,
+                            modifier = Modifier.size(52.dp),
+                        )
+                        RecognitionStage.Error, RecognitionStage.NoMatch -> Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.retry),
+                            tint = accent,
+                            modifier = Modifier.size(46.dp),
+                        )
+                        RecognitionStage.Ready, RecognitionStage.Recording -> {
+                            RecognitionWaveform(
+                                phase = wavePhase,
+                                active = recording,
+                                color = accent,
+                                modifier = Modifier
+                                    .width(82.dp)
+                                    .height(44.dp),
+                            )
+                            if (recording) {
+                                Spacer(modifier = Modifier.height(7.dp))
+                                Text(
+                                    text = elapsedSeconds.toString().padStart(2, '0'),
+                                    color = accent,
+                                    fontSize = 28.sp,
+                                    lineHeight = 29.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = (-0.8).sp,
+                                )
+                                Text(
+                                    text = "SEC",
+                                    color = accent.copy(alpha = 0.62f),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.1.sp,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -836,12 +1110,11 @@ private fun RecognitionWaveform(
     phase: Float,
     active: Boolean,
     color: Color,
+    modifier: Modifier = Modifier
+        .width(76.dp)
+        .height(52.dp),
 ) {
-    Canvas(
-        modifier = Modifier
-            .width(76.dp)
-            .height(52.dp),
-    ) {
+    Canvas(modifier = modifier) {
         val barCount = 9
         val slotWidth = size.width / barCount
         val barWidth = slotWidth * 0.36f
@@ -869,16 +1142,22 @@ private fun RecognitionWaveform(
 @Composable
 private fun RecognitionActionButton(
     stage: RecognitionStage,
-    label: String,
     isDark: Boolean,
     accent: Color,
+    secondaryAccent: Color,
     onClick: () -> Unit,
 ) {
-    val tint = LiquidGlassDefaults.screenListCard
+    val label = when (stage) {
+        RecognitionStage.Ready -> stringResource(R.string.recognition_action_listen)
+        RecognitionStage.Recording -> stringResource(R.string.recognition_action_stop)
+        RecognitionStage.Matched -> stringResource(R.string.recognition_action_again)
+        RecognitionStage.NoMatch, RecognitionStage.Error -> stringResource(R.string.recognition_action_retry)
+    }
+    val contentColor = if (isDark) Color(0xFF1D1020) else Color.White
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
+        targetValue = if (isPressed) 0.975f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -889,56 +1168,117 @@ private fun RecognitionActionButton(
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(58.dp)
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(26.dp),
-        backgroundAlpha = (tint.background(isDark) + 0.10f).coerceAtMost(0.48f),
-        borderAlpha = (tint.border(isDark) + 0.10f).coerceAtMost(0.34f),
-        highlightAlpha = tint.highlight(isDark),
-        borderColor = accent,
-        surfaceTint = accent.copy(alpha = if (isDark) 0.16f else 0.10f),
-        liquidBlur = 10.dp,
-        liquidLensHeight = 18.dp,
-        liquidLensAmount = 30.dp,
+        shape = RoundedCornerShape(22.dp),
+        backgroundAlpha = 0.42f,
+        borderAlpha = 0.34f,
+        highlightAlpha = 0.18f,
+        borderColor = Color.White.copy(alpha = 0.34f),
+        surfaceTint = accent.copy(alpha = if (isDark) 0.66f else 0.88f),
+        liquidBlur = 12.dp,
+        liquidLensHeight = 20.dp,
+        liquidLensAmount = 34.dp,
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            accent.copy(alpha = if (isDark) 0.30f else 0.18f),
+                            secondaryAccent.copy(alpha = if (isDark) 0.24f else 0.12f),
+                        ),
+                    ),
+                ),
+        )
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            when (stage) {
-                RecognitionStage.Recording -> Icon(
-                    painter = painterResource(R.drawable.ic_stop_recording),
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(19.dp),
-                )
-                RecognitionStage.Matched, RecognitionStage.NoMatch, RecognitionStage.Error -> Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(19.dp),
-                )
-                RecognitionStage.Ready -> Icon(
-                    painter = painterResource(R.drawable.ic_music_recognition),
-                    contentDescription = null,
-                    tint = accent,
-                    modifier = Modifier.size(19.dp),
-                )
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(contentColor.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (stage) {
+                    RecognitionStage.Recording -> Icon(
+                        painter = painterResource(R.drawable.ic_stop_recording),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    RecognitionStage.Matched, RecognitionStage.NoMatch, RecognitionStage.Error -> Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(19.dp),
+                    )
+                    RecognitionStage.Ready -> Icon(
+                        painter = painterResource(R.drawable.ic_music_recognition),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = label,
-                color = accent,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
             )
         }
+    }
+}
+
+@Composable
+private fun RecognitionResultHeader(
+    mutedColor: Color,
+    accent: Color,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(accent, CircleShape),
+        )
+        Spacer(modifier = Modifier.width(7.dp))
+        Text(
+            text = stringResource(R.string.recognition_result_title),
+            color = mutedColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.3.sp,
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            accent.copy(alpha = 0.36f),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
     }
 }
 
@@ -971,9 +1311,9 @@ private fun RecognitionMatchCard(
                 indication = null,
                 onClick = onClick,
             ),
-        shape = RoundedCornerShape(24.dp),
-        backgroundAlpha = tint.tint.background(isDark),
-        borderAlpha = tint.tint.border(isDark),
+        shape = RoundedCornerShape(28.dp),
+        backgroundAlpha = (tint.tint.background(isDark) + 0.08f).coerceAtMost(0.48f),
+        borderAlpha = (tint.tint.border(isDark) + 0.08f).coerceAtMost(0.34f),
         highlightAlpha = tint.tint.highlight(isDark),
         borderColor = if (isDark) accent else scheme.outline,
         liquidBlur = tint.liquid.blur,
@@ -983,29 +1323,36 @@ private fun RecognitionMatchCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
                 model = UrlConfig.buildMusicCoverUrl(match.music.id, match.music.coverFilePath),
                 contentDescription = stringResource(R.string.content_description_cover),
                 modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(18.dp)),
+                    .size(86.dp)
+                    .clip(RoundedCornerShape(22.dp)),
                 contentScale = ContentScale.Crop,
             )
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(15.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
+                    text = stringResource(R.string.recognition_success),
+                    color = accent,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.7.sp,
+                )
+                Text(
                     text = match.music.title,
                     color = if (isDark) Color(0xFFF0F0F5) else scheme.onSurface,
-                    fontSize = 17.sp,
-                    lineHeight = 21.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -1015,38 +1362,73 @@ private fun RecognitionMatchCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = if (isDark) 0.16f else 0.10f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                ) {
+                if (match.music.album.isNotBlank()) {
                     Text(
-                        text = stringResource(
-                            R.string.recognition_confidence,
-                            (match.confidence * 100).toInt().coerceIn(0, 100),
-                        ),
-                        color = accent,
+                        text = match.music.album,
+                        color = if (isDark) {
+                            Color(0xFFB8B8D1).copy(alpha = 0.58f)
+                        } else {
+                            scheme.onSurfaceVariant.copy(alpha = 0.64f)
+                        },
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
-                    .background(accent.copy(alpha = if (isDark) 0.16f else 0.10f)),
+                    .background(accent),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = stringResource(R.string.recognition_open_result),
-                    tint = accent,
-                    modifier = Modifier.size(24.dp),
+                    tint = if (isDark) Color(0xFF102018) else Color.White,
+                    modifier = Modifier.size(26.dp),
                 )
             }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = if (isDark) 0.10f else 0.42f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(match.confidence.toFloat().coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    accent.copy(alpha = 0.74f),
+                                    accent,
+                                ),
+                            ),
+                        ),
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringResource(
+                    R.string.recognition_confidence,
+                    (match.confidence * 100).toInt().coerceIn(0, 100),
+                ),
+                color = accent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

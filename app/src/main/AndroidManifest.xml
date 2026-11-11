@@ -136,7 +136,7 @@
             android:foregroundServiceType="mediaPlayback"
             android:stopWithTask="false" />
 
-        <!-- 后台听歌识曲：使用麦克风采集并显示悬浮控件 -->
+        <!-- 后台听歌识曲：使用麦克风监听手机外放并保持前台服务 -->
         <service
             android:name=".service.MusicRecognitionPlaybackService"
             android:exported="false"
