@@ -650,8 +650,8 @@
     <string name="recognition_action_retry">重新识曲</string>
     <string name="recognition_action_again">再次识别</string>
     <string name="recognition_result_title">这首歌，找到了</string>
-    <string name="recognition_overlay_permission_title">开启后台悬浮窗</string>
-    <string name="recognition_overlay_permission_message">切到后台听歌识曲时，需要悬浮窗权限显示录音状态和停止按钮。不开启也可以继续录音，但不会显示悬浮窗。</string>
+    <string name="recognition_overlay_permission_title">开启悬浮识曲</string>
+    <string name="recognition_overlay_permission_message">切到后台后，可以在悬浮球和识别卡片里查看进度、收起或停止。不开也能继续后台识曲，只是不会显示悬浮控件</string>
     <string name="recognition_overlay_permission_authorize">去授权</string>
     <string name="recognition_privacy_hint">仅在识别时使用麦克风，录音不会保留</string>
     <string name="recognition_background_title">正在后台听歌识曲</string>
@@ -662,6 +662,19 @@
     <string name="recognition_background_ready_title">后台识别</string>
     <string name="recognition_background_ready_badge">自动接管</string>
     <string name="recognition_background_ready_hint">切到后台后，Neko 会继续用麦克风听手机外放，并自动开始识别</string>
+    <string name="recognition_test_audio_saved">测试音频已保存到 %1$s</string>
+    <string name="recognition_test_audio_save_failed">测试音频保存失败：%1$s</string>
+    <string name="recognition_float_brand">NEKO · 后台识曲</string>
+    <string name="recognition_float_listening">正在识别手机外放</string>
+    <string name="recognition_float_time">%1$d / %2$d 秒</string>
+    <string name="recognition_float_tip">保持媒体音量开启，靠近手机扬声器</string>
+    <string name="recognition_float_stop">停止</string>
+    <string name="recognition_float_result_title">这首歌，找到了</string>
+    <string name="recognition_float_open_app">打开查看</string>
+    <string name="recognition_float_no_match">这次没有听出来</string>
+    <string name="recognition_float_no_match_tip">确认媒体音量大于 0，再试一次</string>
+    <string name="recognition_float_error">识别中断了</string>
+    <string name="recognition_float_close">关闭</string>
 
     <!-- 扫码登录 -->
     <string name="qr_scan">扫一扫</string>

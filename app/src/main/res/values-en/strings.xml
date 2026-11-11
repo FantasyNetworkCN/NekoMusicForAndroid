@@ -678,6 +678,9 @@
     <string name="recognition_action_retry">Identify again</string>
     <string name="recognition_action_again">Identify again</string>
     <string name="recognition_result_title">Found this song</string>
+    <string name="recognition_overlay_permission_title">Enable floating recognition</string>
+    <string name="recognition_overlay_permission_message">See progress, collapse the panel, or stop recognition while Neko is in the background. Background recognition still works without this permission</string>
+    <string name="recognition_overlay_permission_authorize">Allow</string>
     <string name="recognition_privacy_hint">The microphone is used only while identifying. Recordings are not kept</string>
     <string name="recognition_background_title">Identifying music in the background</string>
     <string name="recognition_background_text">Recognizing audio for up to %1$d seconds</string>
@@ -687,6 +690,19 @@
     <string name="recognition_background_ready_title">Background recognition</string>
     <string name="recognition_background_ready_badge">AUTO</string>
     <string name="recognition_background_ready_hint">When you leave the page, Neko keeps listening through the microphone and starts recognizing automatically</string>
+    <string name="recognition_test_audio_saved">Test audio saved to %1$s</string>
+    <string name="recognition_test_audio_save_failed">Unable to save test audio: %1$s</string>
+    <string name="recognition_float_brand">NEKO · LISTENING</string>
+    <string name="recognition_float_listening">Recognizing phone audio</string>
+    <string name="recognition_float_time">%1$d / %2$d sec</string>
+    <string name="recognition_float_tip">Keep media volume above zero and face the phone speaker</string>
+    <string name="recognition_float_stop">Stop</string>
+    <string name="recognition_float_result_title">Found this song</string>
+    <string name="recognition_float_open_app">Open Neko</string>
+    <string name="recognition_float_no_match">No match this time</string>
+    <string name="recognition_float_no_match_tip">Make sure media volume is above zero and try again</string>
+    <string name="recognition_float_error">Recognition stopped</string>
+    <string name="recognition_float_close">Close</string>
 
     <!-- QR login -->
     <string name="qr_scan">Scan QR</string>

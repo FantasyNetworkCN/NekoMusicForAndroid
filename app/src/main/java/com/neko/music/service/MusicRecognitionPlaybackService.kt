@@ -7,21 +7,20 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.PixelFormat
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
-import android.view.Gravity
-import android.view.WindowManager
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import com.neko.music.BuildConfig
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import java.io.IOException
@@ -31,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -43,9 +43,13 @@ class MusicRecognitionPlaybackService : Service() {
     private var audioRecord: AudioRecord? = null
     private var recording = false
     private var foregroundStarted = false
-    private var overlay: LinearLayout? = null
-    private var overlayText: TextView? = null
-    private var overlayAdded = false
+    private var floatingWindow: RecognitionFloatingWindow? = null
+    private var floatingWindowRequested = false
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+    private var stopAfterResultJob: Job? = null
+    private var terminalStatusSent = false
+    private var audioExporter: RecognitionAudioExporter? = null
     private lateinit var api: MusicApi
 
     private val notificationManager by lazy {
@@ -61,6 +65,8 @@ class MusicRecognitionPlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PREPARE -> {
+                stopAfterResultJob?.cancel()
+                stopAfterResultJob = null
                 val maxSeconds = intent.getIntExtra(EXTRA_MAX_SECONDS, MAX_SECONDS).coerceIn(1, MAX_SECONDS)
                 try {
                     ensureForeground(maxSeconds)
@@ -75,7 +81,10 @@ class MusicRecognitionPlaybackService : Service() {
             }
             ACTION_START -> {
                 if (captureJob == null) {
+                    stopAfterResultJob?.cancel()
+                    stopAfterResultJob = null
                     val maxSeconds = intent.getIntExtra(EXTRA_MAX_SECONDS, MAX_SECONDS).coerceIn(1, MAX_SECONDS)
+                    terminalStatusSent = false
                     Log.d(TAG, "Starting background recognition, maxSeconds=$maxSeconds, overlay=${Settings.canDrawOverlays(this)}")
                     try {
                         ensureForeground(maxSeconds)
@@ -90,7 +99,20 @@ class MusicRecognitionPlaybackService : Service() {
                         )
                         stopSelf()
                     }
+                } else {
+                    showFloatingWindowIfAllowed()
                 }
+            }
+            ACTION_SHOW_OVERLAY -> {
+                if (captureJob != null || recognitionJob != null) {
+                    showFloatingWindowIfAllowed()
+                } else {
+                    stopSelf()
+                }
+            }
+            ACTION_HIDE_OVERLAY -> {
+                hideFloatingWindow()
+                if (captureJob == null && recognitionJob == null) stopSelf()
             }
             ACTION_STOP -> stopCaptureAndService(STATUS_STOPPED)
         }
@@ -104,12 +126,6 @@ class MusicRecognitionPlaybackService : Service() {
     }
 
     private fun startMicrophoneCapture(maxSeconds: Int) {
-        if (Settings.canDrawOverlays(this)) {
-            showOverlay()
-        } else {
-            Log.w(TAG, "Overlay permission is not granted; background recognition will use notification only")
-        }
-
         val format = AudioFormat.Builder()
             .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
             .setSampleRate(SAMPLE_RATE)
@@ -149,6 +165,11 @@ class MusicRecognitionPlaybackService : Service() {
             getString(R.string.recognition_background_toast),
             Toast.LENGTH_SHORT,
         ).show()
+        acquireKeepAliveLocks()
+        showFloatingWindowIfAllowed()
+        if (BuildConfig.DEBUG) {
+            audioExporter = RecognitionAudioExporter(applicationContext)
+        }
 
         val maxBytes = SAMPLE_RATE * BYTES_PER_SAMPLE * maxSeconds
         val channel = Channel<ByteArray>(capacity = 64)
@@ -187,14 +208,13 @@ class MusicRecognitionPlaybackService : Service() {
                         throw IOException("后台录音读取失败: $read")
                     }
                     capturedBytes += read
+                    audioExporter?.append(readBuffer, 0, read)
                     channel.send(readBuffer.copyOf(read))
                     val elapsed = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
                     serviceScope.launch {
-                        updateOverlay(
-                            getString(
-                                R.string.recognition_background_overlay,
-                                elapsed.coerceAtMost(maxSeconds),
-                            ),
+                        floatingWindow?.updateRecording(
+                            elapsedSeconds = elapsed.coerceAtMost(maxSeconds),
+                            maxSeconds = maxSeconds,
                         )
                     }
                 }
@@ -230,16 +250,71 @@ class MusicRecognitionPlaybackService : Service() {
             putExtra(EXTRA_OFFSET_SECONDS, match.offsetSeconds)
             putExtra(EXTRA_SAMPLE_DURATION_SECONDS, match.sampleDurationSeconds)
         }
+        terminalStatusSent = true
         sendBroadcast(intent)
-        stopCaptureAndService(null)
+        finishCaptureKeepAlive()
+        if (floatingWindowRequested && floatingWindow?.isVisible == true) {
+            val title = match.music.title
+            val artist = match.music.artist
+            val confidence = match.confidence
+            Handler(Looper.getMainLooper()).post {
+                floatingWindow?.showMatch(title, artist, confidence)
+            }
+            scheduleServiceStop(RESULT_HOLD_MS)
+        } else {
+            stopCaptureAndService(null)
+        }
     }
 
     private fun finishWithStatus(status: String, message: String) {
+        terminalStatusSent = true
         sendBroadcast(baseResultIntent(status).putExtra(EXTRA_MESSAGE, message))
-        stopCaptureAndService(null)
+        finishCaptureKeepAlive()
+        if (floatingWindowRequested && floatingWindow?.isVisible == true) {
+            val title = if (status == STATUS_NO_MATCH) {
+                getString(R.string.recognition_float_no_match)
+            } else {
+                getString(R.string.recognition_float_error)
+            }
+            val subtitle = if (status == STATUS_NO_MATCH) {
+                getString(R.string.recognition_float_no_match_tip)
+            } else {
+                message
+            }
+            val error = status != STATUS_NO_MATCH
+            Handler(Looper.getMainLooper()).post {
+                floatingWindow?.showMessage(title, subtitle, error)
+            }
+            scheduleServiceStop(MESSAGE_HOLD_MS)
+        } else {
+            stopCaptureAndService(null)
+        }
+    }
+
+    private fun finishCaptureKeepAlive() {
+        recording = false
+        try {
+            audioRecord?.stop()
+        } catch (_: IllegalStateException) {
+            // Already stopped.
+        }
+        captureJob?.cancel()
+        captureJob = null
+        pcmChannel?.cancel()
+        pcmChannel = null
+    }
+
+    private fun scheduleServiceStop(delayMillis: Long) {
+        stopAfterResultJob?.cancel()
+        stopAfterResultJob = serviceScope.launch {
+            delay(delayMillis)
+            stopCaptureAndService(null)
+        }
     }
 
     private fun stopCaptureAndService(status: String?) {
+        stopAfterResultJob?.cancel()
+        stopAfterResultJob = null
         recording = false
         try {
             audioRecord?.stop()
@@ -252,8 +327,37 @@ class MusicRecognitionPlaybackService : Service() {
         pcmChannel = null
         recognitionJob?.cancel()
         recognitionJob = null
+        releaseKeepAliveLocks()
+        publishDebugAudio()
         if (status != null) sendBroadcast(baseResultIntent(status))
+        hideFloatingWindow()
         stopSelf()
+    }
+
+    private fun publishDebugAudio() {
+        val exporter = audioExporter ?: return
+        audioExporter = null
+        exporter.finishAndPublish().fold(
+            onSuccess = { path ->
+                Log.i(TAG, "Debug recognition audio saved to $path")
+                showToastOnMain(getString(R.string.recognition_test_audio_saved, path))
+            },
+            onFailure = { error ->
+                Log.e(TAG, "Unable to save debug recognition audio", error)
+                showToastOnMain(
+                    getString(
+                        R.string.recognition_test_audio_save_failed,
+                        error.message ?: "unknown error",
+                    ),
+                )
+            },
+        )
+    }
+
+    private fun showToastOnMain(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun baseResultIntent(status: String): Intent =
@@ -287,68 +391,84 @@ class MusicRecognitionPlaybackService : Service() {
             .build()
     }
 
-    private fun showOverlay() {
-        if (overlayAdded) return
-        val manager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(24, 12, 12, 12)
-            setBackgroundColor(0xEE202027.toInt())
+    private fun showFloatingWindowIfAllowed() {
+        if (!Settings.canDrawOverlays(this)) {
+            Log.w(TAG, "Overlay permission is not granted; background recognition will use notification only")
+            floatingWindowRequested = false
+            return
         }
-        val text = TextView(this).apply {
-            text = getString(R.string.recognition_background_overlay, 0)
-            setTextColor(0xFFFFFFFF.toInt())
+        floatingWindowRequested = true
+        val window = floatingWindow ?: RecognitionFloatingWindow(
+            context = this,
+            onStop = ::closeFromFloatingWindow,
+            onOpenApp = ::openRecognitionApp,
+        ).also { floatingWindow = it }
+        window.show()
+    }
+
+    private fun hideFloatingWindow() {
+        floatingWindowRequested = false
+        Handler(Looper.getMainLooper()).post {
+            floatingWindow?.hide()
         }
-        val stop = Button(this).apply {
-            this.text = "停止"
-            setOnClickListener { stopCaptureAndService(STATUS_STOPPED) }
+    }
+
+    private fun closeFromFloatingWindow() {
+        stopCaptureAndService(if (terminalStatusSent) null else STATUS_STOPPED)
+    }
+
+    private fun openRecognitionApp() {
+        floatingWindowRequested = false
+        floatingWindow?.hide()
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        root.addView(text, LinearLayout.LayoutParams(0, WindowManager.LayoutParams.WRAP_CONTENT, 1f))
-        root.addView(stop, LinearLayout.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT))
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
+        runCatching { launchIntent?.let(::startActivity) }
+        scheduleServiceStop(800L)
+    }
+
+    private fun acquireKeepAliveLocks() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(PowerManager::class.java)
+            wakeLock = powerManager?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "$packageName:recognition",
+            )?.apply {
+                setReferenceCounted(false)
+                acquire((MAX_SECONDS + 10L) * 1_000L)
+            }
+        }
+        if (wifiLock == null) {
+            val wifiManager = applicationContext.getSystemService(WifiManager::class.java)
             @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        ).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; y = 96 }
-        try {
-            manager.addView(root, params)
-            overlay = root
-            overlayText = text
-            overlayAdded = true
-        } catch (error: Exception) {
-            // Overlay permission may be revoked between the check and addView;
-            // some OEM WindowManagers throw BadTokenException instead.
-            Log.w(TAG, "Unable to show recognition overlay", error)
+            val lockMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            } else {
+                WifiManager.WIFI_MODE_FULL
+            }
+            wifiLock = wifiManager?.createWifiLock(lockMode, "$packageName:recognition")?.apply {
+                setReferenceCounted(false)
+                acquire()
+            }
         }
     }
 
-    private fun updateOverlay(value: String) {
-        overlayText?.text = value
-    }
-
-    private fun removeOverlay() {
-        val root = overlay ?: return
-        try {
-            (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(root)
-        } catch (_: Exception) {
-            // View was already removed.
+    private fun releaseKeepAliveLocks() {
+        wakeLock?.let { lock ->
+            if (lock.isHeld) runCatching { lock.release() }
         }
-        overlay = null
-        overlayText = null
-        overlayAdded = false
+        wifiLock?.let { lock ->
+            if (lock.isHeld) runCatching { lock.release() }
+        }
+        wakeLock = null
+        wifiLock = null
     }
 
     override fun onDestroy() {
         stopCaptureAndService(null)
-        removeOverlay()
+        floatingWindow?.remove()
+        floatingWindow = null
+        releaseKeepAliveLocks()
         api.close()
         serviceScope.cancel()
         super.onDestroy()
@@ -359,6 +479,8 @@ class MusicRecognitionPlaybackService : Service() {
     companion object {
         const val ACTION_START = "com.neko.music.action.START_RECOGNITION_PLAYBACK"
         const val ACTION_PREPARE = "com.neko.music.action.PREPARE_RECOGNITION_PLAYBACK"
+        const val ACTION_SHOW_OVERLAY = "com.neko.music.action.SHOW_RECOGNITION_OVERLAY"
+        const val ACTION_HIDE_OVERLAY = "com.neko.music.action.HIDE_RECOGNITION_OVERLAY"
         const val ACTION_STOP = "com.neko.music.action.STOP_RECOGNITION_PLAYBACK"
         const val ACTION_RESULT = "com.neko.music.action.RECOGNITION_PLAYBACK_RESULT"
         const val EXTRA_MAX_SECONDS = "max_seconds"
@@ -382,6 +504,8 @@ class MusicRecognitionPlaybackService : Service() {
         private const val SAMPLE_RATE = 16_000
         private const val BYTES_PER_SAMPLE = 2
         private const val MAX_SECONDS = 20
+        private const val RESULT_HOLD_MS = 8_000L
+        private const val MESSAGE_HOLD_MS = 4_500L
         private const val TAG = "MusicRecognitionService"
     }
 }

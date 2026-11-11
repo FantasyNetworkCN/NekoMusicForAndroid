@@ -380,6 +380,16 @@ fun MusicRecognitionScreen(
                     elapsedSeconds = 0
                     stage = RecognitionStage.Ready
                 }
+            } else if (
+                event == Lifecycle.Event.ON_RESUME &&
+                latestStage != RecognitionStage.Ready
+            ) {
+                runCatching {
+                    context.startService(
+                        Intent(context, MusicRecognitionPlaybackService::class.java)
+                            .setAction(MusicRecognitionPlaybackService.ACTION_HIDE_OVERLAY),
+                    )
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
