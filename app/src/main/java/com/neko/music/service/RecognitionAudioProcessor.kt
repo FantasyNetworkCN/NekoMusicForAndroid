@@ -16,6 +16,7 @@ import kotlin.math.sqrt
  * - a soft limiter prevents clipping after gain.
  */
 internal class RecognitionAudioProcessor : Closeable {
+    // TODO(recognition): 降噪和增益还需优化，重点处理低音量音乐与键鼠瞬态噪声。
     private var previousInput = 0f
     private var previousOutput = 0f
     private var noiseFloorRms = 90f
