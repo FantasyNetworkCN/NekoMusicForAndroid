@@ -20,22 +20,24 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
 import io.ktor.http.ContentType.Application.Json
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import java.io.File
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerializationException
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.encodeToString
@@ -67,6 +69,7 @@ class MusicApi(private val context: Context) {
         install(ContentNegotiation) {
             json(json)
         }
+        install(WebSockets)
     }
     
     private val baseUrl = UrlConfig.getBaseUrl()
@@ -79,6 +82,7 @@ class MusicApi(private val context: Context) {
     private companion object {
         const val BATCH_SEARCH_TIMEOUT_MS = 600_000L
         const val BATCH_SEARCH_CHUNK_SIZE = 40
+        const val WS_RECOGNITION_TIMEOUT_MS = 45_000L
     }
     
     data class BatchSearchResult(
@@ -99,54 +103,98 @@ class MusicApi(private val context: Context) {
         val match: RecognitionMatch?,
     )
 
-    suspend fun recognizeMusic(recording: File): Result<RecognitionResult> {
+    /**
+     * 实时识曲：边录音边发送 16 kHz / 单声道 / s16le PCM。
+     * 服务端匹配成功会立即返回；录音结束后如果没有命中，也会返回 match=null。
+     */
+    suspend fun recognizeMusicStream(frames: ReceiveChannel<ByteArray>): Result<RecognitionResult> {
         return try {
-            val audioBytes = withContext(Dispatchers.IO) { recording.readBytes() }
-            val extension = recording.extension.lowercase().takeIf { it in setOf("wav", "m4a") } ?: "wav"
-            val contentType = if (extension == "wav") "audio/wav" else "audio/mp4"
-            val response = client.post("$baseUrl/api/music/recognize") {
-                setBody(
-                    MultiPartFormDataContent(
-                        formData {
-                            append("audio", audioBytes, Headers.build {
-                                append(HttpHeaders.ContentDisposition, "filename=recognition.$extension")
-                                append(HttpHeaders.ContentType, contentType)
-                            })
+            withTimeout(WS_RECOGNITION_TIMEOUT_MS) {
+                val outcome = CompletableDeferred<Result<RecognitionResult>>()
+                client.webSocket(urlString = UrlConfig.getMusicRecognitionWsUrl()) {
+                    val ready = CompletableDeferred<Unit>()
+                    val started = CompletableDeferred<Unit>()
+                    val sender = launch {
+                        ready.await()
+                        send(
+                            Frame.Text(
+                                """{"type":"start","format":"pcm_s16le","sampleRate":16000,"channels":1}"""
+                            )
+                        )
+                        started.await()
+                        for (pcm in frames) {
+                            if (pcm.isNotEmpty()) {
+                                send(Frame.Binary(true, pcm))
+                            }
                         }
-                    )
-                )
+                        send(Frame.Text("""{"type":"finish"}"""))
+                    }
+
+                    try {
+                        for (frame in incoming) {
+                            if (frame !is Frame.Text) continue
+                            val root = json.parseToJsonElement(frame.readText()) as? JsonObject ?: continue
+                            when ((root["type"] as? JsonPrimitive)?.content) {
+                                "ready" -> ready.complete(Unit)
+                                "started" -> started.complete(Unit)
+                                "result" -> {
+                                    outcome.complete(parseRecognitionResponse(root))
+                                    break
+                                }
+                                "error" -> {
+                                    val message = (root["message"] as? JsonPrimitive)?.content.orEmpty()
+                                    outcome.complete(
+                                        Result.failure(IOException(message.ifBlank { "识曲请求失败" }))
+                                    )
+                                    break
+                                }
+                            }
+                        }
+                        if (!outcome.isCompleted) {
+                            outcome.complete(
+                                Result.failure(IOException("识曲连接已关闭，未收到识别结果"))
+                            )
+                        }
+                    } finally {
+                        sender.cancel()
+                    }
+                }
+                outcome.await()
             }
-            val responseText = response.body<String>()
-            val root = json.parseToJsonElement(responseText) as? JsonObject
-                ?: return Result.failure(IOException("识曲服务返回了无效响应"))
-            val success = (root["success"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
-            val matched = (root["matched"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
-            val message = (root["message"] as? JsonPrimitive)?.content.orEmpty()
-            if (!success) {
-                return Result.failure(IOException(message.ifBlank { "识曲请求失败" }))
-            }
-            val data = root["data"] as? JsonObject
-            if (!matched || data == null) {
-                return Result.success(RecognitionResult(message = message, match = null))
-            }
-            val music = json.decodeFromJsonElement<Music>(data)
-            Result.success(
-                RecognitionResult(
-                    message = message,
-                    match = RecognitionMatch(
-                        music = music,
-                        confidence = (data["confidence"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
-                        offsetSeconds = (data["offsetSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
-                        sampleDurationSeconds = (data["sampleDurationSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
-                    ),
-                )
-            )
+        } catch (e: TimeoutCancellationException) {
+            Log.e("MusicApi", "Streaming music recognition timed out", e)
+            Result.failure(IOException("识曲连接超时，请稍后重试", e))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e("MusicApi", "Music recognition failed${e.protocolLogSuffixOrEmpty()}", e)
+            Log.e("MusicApi", "Streaming music recognition failed${e.protocolLogSuffixOrEmpty()}", e)
             Result.failure(e)
         }
+    }
+
+    private fun parseRecognitionResponse(root: JsonObject): Result<RecognitionResult> {
+        val success = (root["success"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
+        val matched = (root["matched"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull() ?: false
+        val message = (root["message"] as? JsonPrimitive)?.content.orEmpty()
+        if (!success) {
+            return Result.failure(IOException(message.ifBlank { "识曲请求失败" }))
+        }
+        val data = root["data"] as? JsonObject
+        if (!matched || data == null) {
+            return Result.success(RecognitionResult(message = message, match = null))
+        }
+        val music = json.decodeFromJsonElement<Music>(data)
+        return Result.success(
+            RecognitionResult(
+                message = message,
+                match = RecognitionMatch(
+                    music = music,
+                    confidence = (data["confidence"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                    offsetSeconds = (data["offsetSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                    sampleDurationSeconds = (data["sampleDurationSeconds"] as? JsonPrimitive)?.content?.toDoubleOrNull() ?: 0.0,
+                ),
+            )
+        )
     }
 
     suspend fun searchMusicBatch(items: List<SearchItem>): Result<BatchSearchResult> {

@@ -23,18 +23,12 @@ import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -43,8 +37,8 @@ import kotlinx.coroutines.launch
 class MusicRecognitionPlaybackService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var captureJob: Job? = null
-    private var uploadJob: Job? = null
-    private var snapshotChannel: Channel<File>? = null
+    private var recognitionJob: Job? = null
+    private var pcmChannel: Channel<ByteArray>? = null
     private var audioRecord: AudioRecord? = null
     private var recording = false
     private var foregroundStarted = false
@@ -151,74 +145,52 @@ class MusicRecognitionPlaybackService : Service() {
         }
 
         val maxBytes = SAMPLE_RATE * BYTES_PER_SAMPLE * maxSeconds
-        val intervalBytes = SAMPLE_RATE * BYTES_PER_SAMPLE * SNAPSHOT_SECONDS
-        val channel = Channel<File>(
-            capacity = 1,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST,
-            onUndeliveredElement = { it.delete() },
-        )
-        snapshotChannel = channel
-        uploadJob = serviceScope.launch(Dispatchers.IO) {
+        val channel = Channel<ByteArray>(capacity = 64)
+        pcmChannel = channel
+        recognitionJob = serviceScope.launch(Dispatchers.IO) {
             try {
-                for (snapshot in channel) {
-                    val result = try {
-                        api.recognizeMusic(snapshot)
-                    } finally {
-                        snapshot.delete()
+                api.recognizeMusicStream(channel).fold(
+                    onSuccess = { result ->
+                        val matched = result.match
+                        if (matched != null) {
+                            sendMatch(matched)
+                        } else {
+                            finishWithStatus(STATUS_NO_MATCH, "未在当前曲库识别到歌曲")
+                        }
+                    },
+                    onFailure = { error ->
+                        finishWithStatus(STATUS_ERROR, error.message ?: "识曲请求失败")
                     }
-                    val matched = result.getOrNull()?.match
-                    if (matched != null) {
-                        sendMatch(matched)
-                        return@launch
-                    }
-                    if (result.isFailure) {
-                        finishWithStatus(STATUS_ERROR, result.exceptionOrNull()?.message ?: "识曲请求失败")
-                        return@launch
-                    }
-                }
+                )
             } catch (_: CancellationException) {
                 // Explicit stop or service destruction.
             }
         }
         captureJob = serviceScope.launch(Dispatchers.IO) {
-            val pcm = ByteArrayOutputStream(maxBytes)
             val readBuffer = ByteArray(maxOf(minimumBuffer * 2, 4096))
-            var nextSnapshotBytes = intervalBytes
             val startedAt = System.currentTimeMillis()
-            var reachedEnd = false
+            var capturedBytes = 0
             try {
                 while (isActive && recording
-                    && pcm.size() < maxBytes
+                    && capturedBytes < maxBytes
                     && (System.currentTimeMillis() - startedAt) < maxSeconds * 1_000L) {
-                    val requested = minOf(readBuffer.size, maxBytes - pcm.size())
+                    val requested = minOf(readBuffer.size, maxBytes - capturedBytes)
                     val read = created.read(readBuffer, 0, requested, AudioRecord.READ_BLOCKING)
                     if (read <= 0) {
                         if (!recording || !isActive) break
                         throw IOException("后台录音读取失败: $read")
                     }
-                    pcm.write(readBuffer, 0, read)
+                    capturedBytes += read
+                    channel.send(readBuffer.copyOf(read))
                     val elapsed = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
                     serviceScope.launch { updateOverlay("正在后台识别 · ${elapsed.coerceAtMost(maxSeconds)} 秒") }
-                    val reachedMaximum = pcm.size() >= maxBytes
-                    if (pcm.size() >= nextSnapshotBytes || reachedMaximum) {
-                        val snapshot = writeWaveSnapshot(pcm.toByteArray())
-                        if (!channel.trySend(snapshot).isSuccess) {
-                            snapshot.delete()
-                        }
-                        while (nextSnapshotBytes <= pcm.size()) nextSnapshotBytes += intervalBytes
-                    }
                 }
-                reachedEnd = recording
             } catch (_: CancellationException) {
                 // Explicit stop or service destruction.
             } catch (error: Exception) {
-                if (recording) finishWithStatus(STATUS_ERROR, error.message ?: "后台录音失败")
+                channel.close(error)
             } finally {
                 channel.close()
-                if (reachedEnd && isActive) {
-                    uploadJob?.join()
-                    if (recording) finishWithStatus(STATUS_NO_MATCH, "未在当前曲库识别到歌曲")
-                }
                 recording = false
                 if (audioRecord === created) audioRecord = null
                 try {
@@ -227,8 +199,8 @@ class MusicRecognitionPlaybackService : Service() {
                     // Already stopped.
                 }
                 created.release()
-                if (snapshotChannel === channel) snapshotChannel = null
-                if (uploadJob?.isCompleted == true) uploadJob = null
+                if (pcmChannel === channel) pcmChannel = null
+                if (captureJob?.isCompleted == true) captureJob = null
             }
         }
     }
@@ -263,10 +235,10 @@ class MusicRecognitionPlaybackService : Service() {
         }
         captureJob?.cancel()
         captureJob = null
-        snapshotChannel?.cancel()
-        snapshotChannel = null
-        uploadJob?.cancel()
-        uploadJob = null
+        pcmChannel?.cancel()
+        pcmChannel = null
+        recognitionJob?.cancel()
+        recognitionJob = null
         if (status != null) sendBroadcast(baseResultIntent(status))
         stopSelf()
     }
@@ -357,34 +329,6 @@ class MusicRecognitionPlaybackService : Service() {
         overlayAdded = false
     }
 
-    private fun writeWaveSnapshot(pcm: ByteArray): File {
-        val target = File.createTempFile("music-recognition-playback-", ".wav", cacheDir)
-        try {
-            FileOutputStream(target).use { output ->
-                val header = ByteBuffer.allocate(WAVE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
-                header.put("RIFF".toByteArray(Charsets.US_ASCII))
-                header.putInt(36 + pcm.size)
-                header.put("WAVE".toByteArray(Charsets.US_ASCII))
-                header.put("fmt ".toByteArray(Charsets.US_ASCII))
-                header.putInt(16)
-                header.putShort(1.toShort())
-                header.putShort(1.toShort())
-                header.putInt(SAMPLE_RATE)
-                header.putInt(SAMPLE_RATE * BYTES_PER_SAMPLE)
-                header.putShort(BYTES_PER_SAMPLE.toShort())
-                header.putShort(16.toShort())
-                header.put("data".toByteArray(Charsets.US_ASCII))
-                header.putInt(pcm.size)
-                output.write(header.array())
-                output.write(pcm)
-            }
-            return target
-        } catch (error: Exception) {
-            target.delete()
-            throw error
-        }
-    }
-
     override fun onDestroy() {
         stopCaptureAndService(null)
         removeOverlay()
@@ -420,9 +364,7 @@ class MusicRecognitionPlaybackService : Service() {
         private const val NOTIFICATION_ID = 37
         private const val SAMPLE_RATE = 16_000
         private const val BYTES_PER_SAMPLE = 2
-        private const val SNAPSHOT_SECONDS = 4
         private const val MAX_SECONDS = 20
-        private const val WAVE_HEADER_BYTES = 44
         private const val TAG = "MusicRecognitionService"
     }
 }

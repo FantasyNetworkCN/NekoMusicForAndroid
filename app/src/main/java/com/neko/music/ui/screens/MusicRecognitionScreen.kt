@@ -118,12 +118,7 @@ import com.neko.music.ui.theme.LightRose
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,7 +126,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlin.math.PI
@@ -140,7 +134,6 @@ import kotlin.math.sin
 
 private const val MAX_RECORDING_SECONDS = 20
 private const val MIN_RECOGNITION_SECONDS = 3
-private const val SNAPSHOT_INTERVAL_SECONDS = 4
 
 private enum class RecognitionStage {
     Ready,
@@ -160,7 +153,7 @@ fun MusicRecognitionScreen(
     val scope = rememberCoroutineScope()
     val api = remember(context) { MusicApi(context.applicationContext) }
     val playerManager = remember(context) { MusicPlayerManager.getInstance(context) }
-    val recorder = remember(context) { RecognitionAudioRecorder(context.applicationContext) }
+    val recorder = remember { RecognitionAudioRecorder() }
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
@@ -186,7 +179,7 @@ fun MusicRecognitionScreen(
         errorMessage = null
         playerManager.pause()
         try {
-            val snapshots = recorder.start(scope)
+            val pcmFrames = recorder.start(scope)
             recordingStartedAt = SystemClock.elapsedRealtime()
             elapsedSeconds = 0
             stage = RecognitionStage.Recording
@@ -203,43 +196,34 @@ fun MusicRecognitionScreen(
             }
             recognitionJob = scope.launch {
                 try {
-                    for (snapshot in snapshots) {
-                        val result = try {
-                            api.recognizeMusic(snapshot)
-                        } finally {
-                            snapshot.delete()
-                        }
-                        var matched = false
-                        result.fold(
-                            onSuccess = { response ->
-                                if (response.match != null) {
-                                    match = response.match
-                                    errorMessage = null
-                                    stage = RecognitionStage.Matched
-                                    matched = true
-                                    context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
-                                }
-                            },
-                            onFailure = { error ->
-                                recorder.cancel()
-                                context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
-                                errorMessage = error.message?.takeIf { it.isNotBlank() } ?: requestFailedText
-                                stage = RecognitionStage.Error
-                            },
-                        )
-                        if (matched || result.isFailure) {
+                    val result = api.recognizeMusicStream(pcmFrames)
+                    result.fold(
+                        onSuccess = { response ->
+                            val matched = response.match
+                            if (matched != null) {
+                                match = matched
+                                errorMessage = null
+                                stage = RecognitionStage.Matched
+                            } else {
+                                match = null
+                                errorMessage = null
+                                stage = RecognitionStage.NoMatch
+                            }
                             recorder.cancel()
-                            return@launch
+                            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
+                        },
+                        onFailure = { error ->
+                            errorMessage = error.message?.takeIf { it.isNotBlank() } ?: requestFailedText
+                            stage = RecognitionStage.Error
+                            recorder.cancel()
+                            context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
                         }
-                    }
-                    if (stage == RecognitionStage.Recording) {
-                        context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
-                        stage = RecognitionStage.NoMatch
-                    }
+                    )
                 } catch (_: CancellationException) {
                     // User stopped listening or left the page.
                 } catch (_: Exception) {
                     recorder.cancel()
+                    context.stopService(Intent(context, MusicRecognitionPlaybackService::class.java))
                     errorMessage = recordingFailedText
                     stage = RecognitionStage.Error
                 }
@@ -291,8 +275,8 @@ fun MusicRecognitionScreen(
                     .toInt()
                     .coerceAtMost(MAX_RECORDING_SECONDS)
                 if (elapsedSeconds >= MAX_RECORDING_SECONDS) {
-                    // Close the microphone at the hard limit, but let the recognition
-                    // coroutine finish uploading the last snapshot already queued.
+                    // Close the microphone at the hard limit, but let the WebSocket
+                    // finish sending the remaining PCM frames.
                     recorder.stopAtLimit()
                     break
                 }
@@ -1091,15 +1075,14 @@ private fun RecognitionPrivacyHint(mutedColor: Color) {
     }
 }
 
-private class RecognitionAudioRecorder(context: Context) {
-    private val cacheDir = context.applicationContext.cacheDir
+private class RecognitionAudioRecorder {
     @Volatile private var recording = false
     private var audioRecord: AudioRecord? = null
     private var captureJob: Job? = null
-    private var snapshotChannel: Channel<File>? = null
+    private var pcmChannel: Channel<ByteArray>? = null
 
     @SuppressLint("MissingPermission")
-    fun start(scope: CoroutineScope): ReceiveChannel<File> {
+    fun start(scope: CoroutineScope): ReceiveChannel<ByteArray> {
         cancel()
         val minimumBuffer = AudioRecord.getMinBufferSize(
             STREAM_SAMPLE_RATE,
@@ -1127,13 +1110,9 @@ private class RecognitionAudioRecorder(context: Context) {
             throw IOException("Audio recorder failed to initialize")
         }
 
-        val channel = Channel<File>(
-            capacity = 1,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST,
-            onUndeliveredElement = { it.delete() },
-        )
+        val channel = Channel<ByteArray>(capacity = 64)
         audioRecord = created
-        snapshotChannel = channel
+        pcmChannel = channel
         recording = true
         try {
             created.startRecording()
@@ -1141,37 +1120,25 @@ private class RecognitionAudioRecorder(context: Context) {
             recording = false
             created.release()
             audioRecord = null
-            snapshotChannel = null
+            pcmChannel = null
             channel.cancel()
             throw error
         }
 
         captureJob = scope.launch(Dispatchers.IO) {
             val maximumBytes = STREAM_SAMPLE_RATE * PCM_BYTES_PER_SAMPLE * MAX_RECORDING_SECONDS
-            val intervalBytes = STREAM_SAMPLE_RATE * PCM_BYTES_PER_SAMPLE * SNAPSHOT_INTERVAL_SECONDS
-            val pcm = ByteArrayOutputStream(maximumBytes)
             val readBuffer = ByteArray(bufferSize)
-            var nextSnapshotBytes = intervalBytes
+            var capturedBytes = 0
             try {
-                while (isActive && recording && pcm.size() < maximumBytes) {
-                    val requested = minOf(readBuffer.size, maximumBytes - pcm.size())
+                while (isActive && recording && capturedBytes < maximumBytes) {
+                    val requested = minOf(readBuffer.size, maximumBytes - capturedBytes)
                     val read = created.read(readBuffer, 0, requested, AudioRecord.READ_BLOCKING)
                     if (read <= 0) {
                         if (!recording || !isActive) break
                         throw IOException("Audio capture failed: $read")
                     }
-                    pcm.write(readBuffer, 0, read)
-
-                    val reachedMaximum = pcm.size() >= maximumBytes
-                    if (pcm.size() >= nextSnapshotBytes || reachedMaximum) {
-                        val snapshot = writeWaveSnapshot(pcm.toByteArray())
-                        if (!channel.trySend(snapshot).isSuccess) {
-                            snapshot.delete()
-                        }
-                        while (nextSnapshotBytes <= pcm.size()) {
-                            nextSnapshotBytes += intervalBytes
-                        }
-                    }
+                    capturedBytes += read
+                    channel.send(readBuffer.copyOf(read))
                 }
             } catch (error: Exception) {
                 if (recording && isActive) {
@@ -1182,7 +1149,7 @@ private class RecognitionAudioRecorder(context: Context) {
                     recording = false
                     audioRecord = null
                     captureJob = null
-                    snapshotChannel = null
+                    pcmChannel = null
                 }
                 try {
                     if (created.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -1206,12 +1173,12 @@ private class RecognitionAudioRecorder(context: Context) {
             // Recorder was not running or has already stopped.
         }
         captureJob?.cancel()
-        snapshotChannel?.cancel()
+        pcmChannel?.cancel()
         captureJob = null
-        snapshotChannel = null
+        pcmChannel = null
     }
 
-    /** Stops microphone capture at the duration limit without cancelling queued uploads. */
+    /** Stops microphone capture at the duration limit while leaving queued PCM frames deliverable. */
     fun stopAtLimit() {
         if (!recording) return
         recording = false
@@ -1224,37 +1191,8 @@ private class RecognitionAudioRecorder(context: Context) {
 
     fun isRecording(): Boolean = recording
 
-    private fun writeWaveSnapshot(pcm: ByteArray): File {
-        val target = File.createTempFile("music-recognition-", ".wav", cacheDir)
-        try {
-            FileOutputStream(target).use { output ->
-                val header = ByteBuffer.allocate(WAVE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
-                header.put("RIFF".toByteArray(Charsets.US_ASCII))
-                header.putInt(36 + pcm.size)
-                header.put("WAVE".toByteArray(Charsets.US_ASCII))
-                header.put("fmt ".toByteArray(Charsets.US_ASCII))
-                header.putInt(16)
-                header.putShort(1.toShort())
-                header.putShort(1.toShort())
-                header.putInt(STREAM_SAMPLE_RATE)
-                header.putInt(STREAM_SAMPLE_RATE * PCM_BYTES_PER_SAMPLE)
-                header.putShort(PCM_BYTES_PER_SAMPLE.toShort())
-                header.putShort(16.toShort())
-                header.put("data".toByteArray(Charsets.US_ASCII))
-                header.putInt(pcm.size)
-                output.write(header.array())
-                output.write(pcm)
-            }
-            return target
-        } catch (error: Exception) {
-            target.delete()
-            throw error
-        }
-    }
-
     private companion object {
         const val STREAM_SAMPLE_RATE = 16_000
         const val PCM_BYTES_PER_SAMPLE = 2
-        const val WAVE_HEADER_BYTES = 44
     }
 }

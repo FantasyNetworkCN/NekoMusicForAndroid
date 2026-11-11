@@ -53,6 +53,16 @@ object UrlConfig {
      */
     fun getApiUrl(path: String): String = "${BASE_URL}$path"
 
+    /** 听歌识曲 WebSocket 端点；HTTPS 站点对应 WSS。 */
+    fun getMusicRecognitionWsUrl(): String {
+        val wsBase = when {
+            BASE_URL.startsWith("https://") -> "wss://" + BASE_URL.removePrefix("https://")
+            BASE_URL.startsWith("http://") -> "ws://" + BASE_URL.removePrefix("http://")
+            else -> BASE_URL
+        }
+        return "$wsBase/api/music/recognize/ws"
+    }
+
     /**
      * 获取艺术家搜索URL
      */
