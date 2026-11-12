@@ -81,6 +81,8 @@ import androidx.navigation.navArgument
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.BottomNavigationBar
@@ -808,6 +810,10 @@ fun MainScreen() {
     // 但播放列表浮层依赖 [liquidBackdrop] 录 NavHost 内容做真液态，故 showPlaylist 时仍开启主录屏（与 page 为不同 LayerBackdrop）。
     val backdropFill = MaterialTheme.colorScheme.background
     val liquidBackdrop = rememberLiquidPageBackdrop(backdropFill)
+    // 首页可见内容由 NavHost 外的 HomeLiquidHeroOverlay 绘制。底栏必须同时采样底图与
+    // 这层前景，否则迷你播放器的玻璃只会映射到壁纸，无法映射其正后方的首页内容。
+    val homeContentBackdrop = rememberLayerBackdrop()
+    val bottomChromeBackdrop = rememberCombinedBackdrop(liquidBackdrop, homeContentBackdrop)
     val homeLiquidHeroState = remember { HomeLiquidHeroState() }
     var homeHeroInsetPx by remember { mutableIntStateOf(0) }
     val rankingLiquidBarState = remember { RankingLiquidBarState() }
@@ -1501,6 +1507,7 @@ fun MainScreen() {
                     .align(androidx.compose.ui.Alignment.TopStart)
                     .fillMaxSize()
                     .zIndex(1f)
+                    .layerBackdrop(homeContentBackdrop)
             ) {
                 CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                     HomeLiquidHeroOverlay(
@@ -1607,7 +1614,7 @@ fun MainScreen() {
                 .zIndex(8f),
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
-                val useLiquidBottomChrome = isLiquidGlassEffectActive(liquidBackdrop)
+                val useLiquidBottomChrome = isLiquidGlassEffectActive(bottomChromeBackdrop)
                 AnimatedVisibility(
                     visible = bottomChromeVisible,
                     modifier = Modifier
@@ -1641,10 +1648,12 @@ fun MainScreen() {
                                     navController.navigate("player/$id/$encodedTitle/$encodedArtist")
                                 },
                                 onPlaylistClick = { showPlaylist = true },
+                                sampleBackdrop = bottomChromeBackdrop,
                             )
                             BottomNavigationBar(
                                 navController = navController,
                                 modifier = Modifier.width(220.dp),
+                                sampleBackdrop = bottomChromeBackdrop,
                             )
                         }
                     } else {
@@ -1672,8 +1681,12 @@ fun MainScreen() {
                                     navController.navigate("player/$id/$encodedTitle/$encodedArtist")
                                 },
                                 onPlaylistClick = { showPlaylist = true },
+                                sampleBackdrop = bottomChromeBackdrop,
                             )
-                            BottomNavigationBar(navController = navController)
+                            BottomNavigationBar(
+                                navController = navController,
+                                sampleBackdrop = bottomChromeBackdrop,
+                            )
                         }
                     }
                 }

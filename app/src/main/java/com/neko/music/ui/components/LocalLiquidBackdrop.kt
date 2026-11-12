@@ -3,6 +3,7 @@ package com.neko.music.ui.components
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 /**
@@ -27,7 +28,7 @@ val LocalNavHostRecordingBackdrop = compositionLocalOf<LayerBackdrop?> { null as
 
 /** 当前是否真正使用 Kyant 硬件液态玻璃；关闭开关、缺少采样层或系统版本不足时统一走 Material 3。 */
 @Composable
-internal fun isLiquidGlassEffectActive(backdrop: LayerBackdrop?): Boolean =
+internal fun isLiquidGlassEffectActive(backdrop: Backdrop?): Boolean =
     backdrop != null &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         LocalLiquidGlassHardwareEffectsEnabled.current

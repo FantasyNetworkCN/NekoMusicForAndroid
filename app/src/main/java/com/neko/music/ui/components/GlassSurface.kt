@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -91,9 +91,10 @@ fun GlassSurface(
     shape: Shape = RoundedCornerShape(20.dp),
     /**
      * 与 `Modifier.layerBackdrop(同一实例)` 对应；非空时优先于 [LocalLiquidLayerBackdrop]。
-     * 对齐教程在父级 `rememberLayerBackdrop { drawRect(..); drawContent() }` 后传入同一 [LayerBackdrop]。
+     * 对齐教程在父级 `rememberLayerBackdrop { drawRect(..); drawContent() }` 后传入同一 `LayerBackdrop`。
+     * 也支持 [com.kyant.backdrop.backdrops.rememberCombinedBackdrop] 组合出的多层采样源。
      */
-    sampleBackdrop: LayerBackdrop? = null,
+    sampleBackdrop: Backdrop? = null,
     backgroundAlpha: Float = 0.28f,
     borderAlpha: Float = 0.14f,
     highlightAlpha: Float = 0.08f,

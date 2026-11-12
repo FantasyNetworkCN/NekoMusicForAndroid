@@ -139,6 +139,7 @@ internal val LocalLiquidTabScale = staticCompositionLocalOf<() -> Float> { { 1f 
 fun BottomNavigationBar(
     navController: NavController,
     modifier: Modifier = Modifier,
+    sampleBackdrop: Backdrop? = null,
 ) {
     val items = listOf(
         BottomNavItem.Home,
@@ -148,7 +149,7 @@ fun BottomNavigationBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedIndex = items.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
-    val pageBackdrop = LocalLiquidLayerBackdrop.current
+    val pageBackdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val isDarkBar = isAppDarkTheme()
     val useLiquidGlass = pageBackdrop != null && isLiquidGlassEffectActive(pageBackdrop)
     val view = LocalView.current
@@ -601,7 +602,8 @@ fun MiniPlayer(
     progress: () -> Float = { 0f },
     onPlayPauseClick: () -> Unit = {},
     onPlayerClick: () -> Unit = {},
-    onPlaylistClick: () -> Unit = {}
+    onPlaylistClick: () -> Unit = {},
+    sampleBackdrop: Backdrop? = null,
 ) {
     val playerInteractionSource = remember {
         androidx.compose.foundation.interaction.MutableInteractionSource()
@@ -627,7 +629,8 @@ fun MiniPlayer(
     )
 
     val colorScheme = MaterialTheme.colorScheme
-    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val glassBackdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
+    val useLiquidStyle = isLiquidGlassEffectActive(glassBackdrop)
     val isDarkTheme = isAppDarkTheme()
     val titleColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.98f) else colorScheme.onSurface
@@ -711,6 +714,7 @@ fun MiniPlayer(
         liquidBlur = miniLiq.blur,
         liquidLensHeight = miniLiq.lensHeight,
         liquidLensAmount = miniLiq.lensAmount,
+        sampleBackdrop = glassBackdrop,
         material3Elevation = if (useLiquidStyle) 0.dp else 1.dp,
     ) {
         Box(
