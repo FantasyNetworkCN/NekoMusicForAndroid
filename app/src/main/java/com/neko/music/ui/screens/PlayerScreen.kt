@@ -2576,6 +2576,8 @@ fun PlaybackControls(
     playMode: PlayMode,
     isFavorite: Boolean,
     compact: Boolean = false,
+    showPlayMode: Boolean = true,
+    showFavorite: Boolean = true,
     onPlayPauseClick: () -> Unit,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
@@ -2603,21 +2605,25 @@ fun PlaybackControls(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlayerTransportButton(
-            onClick = onPlayModeClick,
-            size = transportSize,
-        ) {
-            val iconRes = when (playMode) {
-                PlayMode.LIST_LOOP -> R.drawable.list_loop
-                PlayMode.SINGLE_LOOP -> R.drawable.single_loop
-                PlayMode.SHUFFLE -> R.drawable.shuffle
+        if (showPlayMode) {
+            PlayerTransportButton(
+                onClick = onPlayModeClick,
+                size = transportSize,
+            ) {
+                val iconRes = when (playMode) {
+                    PlayMode.LIST_LOOP -> R.drawable.list_loop
+                    PlayMode.SINGLE_LOOP -> R.drawable.single_loop
+                    PlayMode.SHUFFLE -> R.drawable.shuffle
+                }
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = stringResource(id = R.string.player_play_mode),
+                    tint = secondaryIconColor,
+                    modifier = Modifier.size(20.dp),
+                )
             }
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = stringResource(id = R.string.player_play_mode),
-                tint = secondaryIconColor,
-                modifier = Modifier.size(20.dp),
-            )
+        } else {
+            Spacer(modifier = Modifier.size(transportSize))
         }
 
         PlayerTransportButton(
@@ -2719,21 +2725,25 @@ fun PlaybackControls(
             )
         }
 
-        PlayerTransportButton(
-            onClick = onFavoriteClick,
-            size = transportSize,
-        ) {
-            Icon(
-                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
-                tint = when {
-                    isFavorite && useLiquidStyle -> RoseRed
-                    isFavorite -> scheme.primary
-                    useLiquidStyle -> iconColor.copy(alpha = 0.56f)
-                    else -> secondaryIconColor
-                },
-                modifier = Modifier.size(if (compact) 21.dp else 23.dp),
-            )
+        if (showFavorite) {
+            PlayerTransportButton(
+                onClick = onFavoriteClick,
+                size = transportSize,
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
+                    tint = when {
+                        isFavorite && useLiquidStyle -> RoseRed
+                        isFavorite -> scheme.primary
+                        useLiquidStyle -> iconColor.copy(alpha = 0.56f)
+                        else -> secondaryIconColor
+                    },
+                    modifier = Modifier.size(if (compact) 21.dp else 23.dp),
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.size(transportSize))
         }
     }
 }

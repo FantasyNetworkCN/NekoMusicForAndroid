@@ -16,23 +16,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,14 +49,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.TogetherApi
@@ -65,11 +74,22 @@ import com.neko.music.data.api.TogetherTrack
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.PlayMode
+import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LiquidGlassSlider
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
+import com.neko.music.ui.components.isLiquidGlassEffectActive
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
+import com.neko.music.ui.theme.RoseRed
+import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -95,7 +115,6 @@ private data class TogetherUiState(
  * 安卓一起听房间。房间内的播放与临时歌单全部以服务端 WebSocket 广播为准，
  * 客户端只提交操作意图，不在本地直接修改共享列表。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TogetherRoomScreen(
     roomToken: String,
@@ -309,6 +328,27 @@ fun TogetherRoomScreen(
         }
     }
 
+    LaunchedEffect(showSearch, searchQuery) {
+        if (!showSearch || searchQuery.isBlank()) {
+            if (!showSearch) searchResults = emptyList()
+            return@LaunchedEffect
+        }
+        delay(350)
+        searching = true
+        musicApi.searchMusic(searchQuery).fold(
+            onSuccess = { searchResults = it },
+            onFailure = { searchResults = emptyList() },
+        )
+        searching = false
+    }
+
+    LaunchedEffect(sliderPosition, dragging) {
+        if (!dragging || currentItem == null) return@LaunchedEffect
+        delay(260)
+        dragging = false
+        sendControl("playback.seek") { put("positionMs", sliderPosition.toLong()) }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             leaving = true
@@ -320,345 +360,727 @@ fun TogetherRoomScreen(
 
     BackHandler { leaveAndExit() }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.together_title)) },
-                navigationIcon = {
-                    TextButton(onClick = { leaveAndExit() }) {
-                        Text("‹", fontSize = 28.sp)
-                    }
-                },
-                actions = {
-                    if (room?.ownerUserId == currentUserId && room != null) {
-                        TextButton(onClick = { leaveAndExit(closeRoom = true) }) {
-                            Text(stringResource(R.string.together_close_room))
-                        }
-                    }
-                    TextButton(
-                        enabled = shareUrl.isNotBlank(),
-                        onClick = {
-                            clipboard.setText(AnnotatedString(shareUrl))
-                            Toast.makeText(context, R.string.together_link_copied, Toast.LENGTH_SHORT).show()
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
+    val liquidGlass = LiquidGlassDefaults.playlistDetail
+    val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
+        ) {
+            AppPageBackgroundImage(modifier = Modifier.fillMaxSize())
+            PlaylistPageDarkTintOverlay(enabled = isDark)
+        }
+
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                TogetherTopBar(
+                    title = stringResource(R.string.together_title),
+                    shareEnabled = shareUrl.isNotBlank(),
+                    canCloseRoom = room?.ownerUserId == currentUserId && room != null,
+                    onBack = { leaveAndExit() },
+                    onShare = {
+                        clipboard.setText(AnnotatedString(shareUrl))
+                        Toast.makeText(context, R.string.together_link_copied, Toast.LENGTH_SHORT).show()
+                    },
+                    onCloseRoom = { leaveAndExit(closeRoom = true) },
+                )
+
+                when {
+                    !isLoggedIn -> TogetherPageMessage(
+                        title = stringResource(R.string.together_login_required),
+                        action = stringResource(R.string.together_login),
+                        onAction = onLoginClick,
+                    )
+                    activeToken.isBlank() -> TogetherPageMessage(
+                        title = statusText.ifBlank { stringResource(R.string.together_create_hint) },
+                        action = stringResource(R.string.together_create_room),
+                        enabled = !loading,
+                        onAction = {
+                            tokenManager.getToken()?.let { userToken ->
+                                scope.launch {
+                                    loading = true
+                                    statusText = ""
+                                    api.createRoom(userToken).fold(
+                                        onSuccess = { url ->
+                                            val token = URI(url).path.substringAfterLast('/')
+                                            activeToken = token
+                                            shareUrl = url
+                                            loading = false
+                                        },
+                                        onFailure = {
+                                            loading = false
+                                            statusText = it.message
+                                                ?: context.getString(R.string.together_create_failed)
+                                        },
+                                    )
+                                }
+                            }
                         },
+                    )
+                    loading -> Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Text(stringResource(R.string.together_share))
+                        CircularProgressIndicator(color = scheme.primary)
                     }
-                },
-            )
-        },
-        floatingActionButton = {
-            if (room != null) {
-                FloatingActionButton(onClick = { showSearch = true }) {
-                    Text("+", fontSize = 28.sp)
+                    room == null -> TogetherPageMessage(
+                        title = statusText.ifBlank { stringResource(R.string.together_join_failed) },
+                        action = stringResource(R.string.together_retry),
+                        onAction = {
+                            if (activeToken.isNotBlank()) {
+                                loading = true
+                                statusText = ""
+                                retryNonce++
+                            }
+                        },
+                    )
+                    else -> TogetherRoomContent(
+                        room = room!!,
+                        currentItem = currentItem,
+                        connected = connected,
+                        statusText = statusText,
+                        displayPositionMs = displayPositionMs,
+                        sliderPosition = sliderPosition,
+                        liquidGlass = liquidGlass,
+                        pageBackdrop = pageBackdrop,
+                        onSliderChange = {
+                            dragging = true
+                            sliderPosition = it
+                        },
+                        onTogglePlay = {
+                            if (room!!.playback.playing) {
+                                sendControl("playback.pause")
+                            } else {
+                                sendControl("playback.play") {
+                                    currentItem?.entryId?.let { put("entryId", it) }
+                                }
+                            }
+                        },
+                        onPrevious = { sendControl("playback.prev") },
+                        onNext = { sendControl("playback.next") },
+                        onSelect = { entryId ->
+                            sendControl("playback.select") { put("entryId", entryId) }
+                        },
+                        onRemove = { entryId ->
+                            sendControl("playlist.remove") {
+                                put("entryId", entryId)
+                                put("playlistRevision", room!!.playlist.revision)
+                            }
+                        },
+                        onAddMusic = { showSearch = true },
+                    )
                 }
             }
-        },
-    ) { padding ->
-        when {
-            !isLoggedIn -> TogetherCenteredMessage(
-                modifier = Modifier.padding(padding),
-                title = stringResource(R.string.together_login_required),
-                action = stringResource(R.string.together_login),
-                onAction = onLoginClick,
-            )
-            activeToken.isBlank() -> TogetherCenteredMessage(
-                modifier = Modifier.padding(padding),
-                title = statusText.ifBlank { stringResource(R.string.together_create_hint) },
-                action = stringResource(R.string.together_create_room),
-                enabled = !loading,
-                onAction = {
-                    tokenManager.getToken()?.let { userToken ->
-                        scope.launch {
-                            loading = true
-                            statusText = ""
-                            api.createRoom(userToken).fold(
-                                onSuccess = { url ->
-                                    val token = URI(url).path.substringAfterLast('/')
-                                    activeToken = token
-                                    shareUrl = url
-                                    loading = false
-                                },
-                                onFailure = {
-                                    loading = false
-                                    statusText = it.message
-                                        ?: context.getString(R.string.together_create_failed)
-                                },
-                            )
-                        }
-                    }
-                },
-            )
-            loading -> Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
-            room == null -> TogetherCenteredMessage(
-                modifier = Modifier.padding(padding),
-                title = statusText.ifBlank { stringResource(R.string.together_join_failed) },
-                action = stringResource(R.string.together_retry),
-                onAction = {
-                    if (activeToken.isNotBlank()) {
-                        loading = true
-                        statusText = ""
-                        retryNonce++
-                    }
-                },
-            )
-            else -> TogetherRoomContent(
-                modifier = Modifier.padding(padding),
-                room = room!!,
-                currentItem = currentItem,
-                connected = connected,
-                statusText = statusText,
-                sliderPosition = sliderPosition,
-                onSliderChange = {
-                    dragging = true
-                    sliderPosition = it
-                },
-                onSliderFinished = {
-                    dragging = false
-                    sendControl("playback.seek") { put("positionMs", sliderPosition.toLong()) }
-                },
-                onTogglePlay = {
-                    if (room!!.playback.playing) {
-                        sendControl("playback.pause")
-                    } else {
-                        sendControl("playback.play") {
-                            currentItem?.entryId?.let { put("entryId", it) }
-                        }
-                    }
-                },
-                onPrevious = { sendControl("playback.prev") },
-                onNext = { sendControl("playback.next") },
-                onSelect = { entryId ->
-                    sendControl("playback.select") { put("entryId", entryId) }
-                },
-                onRemove = { entryId ->
-                    sendControl("playlist.remove") {
-                        put("entryId", entryId)
-                        put("playlistRevision", room!!.playlist.revision)
-                    }
-                },
-            )
         }
     }
 
     if (showSearch) {
-        AlertDialog(
-            onDismissRequest = { showSearch = false },
-            title = { Text(stringResource(R.string.together_add_music)) },
-            text = {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            placeholder = { Text(stringResource(R.string.together_search_hint)) },
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            enabled = !searching && searchQuery.isNotBlank(),
-                            onClick = {
-                                scope.launch {
-                                    searching = true
-                                    musicApi.searchMusic(searchQuery).fold(
-                                        onSuccess = { searchResults = it },
-                                        onFailure = { searchResults = emptyList() },
-                                    )
-                                    searching = false
-                                }
-                            },
-                        ) {
-                            Text(stringResource(R.string.together_search))
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    if (searching) {
-                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                    } else {
-                        LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                            items(searchResults, key = { it.id }) { music ->
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            sendControl("playlist.add") { put("trackId", music.id) }
-                                            showSearch = false
-                                        }
-                                        .padding(vertical = 10.dp, horizontal = 4.dp),
-                                ) {
-                                    Text(music.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(
-                                        music.artist,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showSearch = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
+        TogetherSearchSheet(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            results = searchResults,
+            searching = searching,
+            liquidGlass = liquidGlass,
+            onDismiss = { showSearch = false },
+            onAdd = { music ->
+                sendControl("playlist.add") { put("trackId", music.id) }
+                showSearch = false
             },
         )
     }
 }
 
 @Composable
-private fun TogetherCenteredMessage(
-    modifier: Modifier,
+private fun TogetherTopBar(
+    title: String,
+    shareEnabled: Boolean,
+    canCloseRoom: Boolean,
+    onBack: () -> Unit,
+    onShare: () -> Unit,
+    onCloseRoom: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (canCloseRoom) {
+                TextButton(onClick = onCloseRoom) {
+                    Text(stringResource(R.string.together_close_room))
+                }
+            }
+            TextButton(enabled = shareEnabled, onClick = onShare) {
+                Text(stringResource(R.string.together_share))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogetherPageMessage(
     title: String,
     action: String,
     enabled: Boolean = true,
     onAction: () -> Unit,
 ) {
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(16.dp))
-            Button(enabled = enabled, onClick = onAction) { Text(action) }
+    val isDark = isAppDarkTheme()
+    val glass = LiquidGlassDefaults.playlistDetail
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 190.dp),
+            shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(24.dp),
+            material3Container = MaterialTheme.colorScheme.surfaceContainerHigh,
+            backgroundAlpha = if (isDark) glass.musicRowBackgroundAlphaDark else glass.musicRowBackgroundAlphaLight,
+            borderAlpha = if (isDark) glass.musicRowBorderAlphaDark else glass.musicRowBorderAlphaLight,
+            highlightAlpha = if (isDark) glass.musicRowHighlightAlphaDark else glass.musicRowHighlightAlphaLight,
+            borderColor = if (isDark) Color.White else MaterialTheme.colorScheme.outline,
+            liquidBlur = glass.musicRowLiquidBlur,
+            liquidLensHeight = glass.musicRowLiquidLensHeight,
+            liquidLensAmount = glass.musicRowLiquidLensAmount,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = title,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(18.dp))
+                Button(
+                    enabled = enabled,
+                    onClick = onAction,
+                    shape = RoundedCornerShape(21.dp),
+                ) {
+                    Text(action)
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun TogetherRoomContent(
-    modifier: Modifier,
     room: TogetherUiState,
     currentItem: TogetherPlaylistItem?,
     connected: Boolean,
     statusText: String,
+    displayPositionMs: Long,
     sliderPosition: Float,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
+    pageBackdrop: com.kyant.backdrop.Backdrop,
     onSliderChange: (Float) -> Unit,
-    onSliderFinished: () -> Unit,
     onTogglePlay: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSelect: (String) -> Unit,
     onRemove: (String) -> Unit,
+    onAddMusic: () -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        Text(
-            text = stringResource(
-                R.string.together_member_count_format,
-                room.memberCount,
-                room.maxMembers,
-            ) + if (connected) "" else stringResource(R.string.together_reconnecting),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
-        )
-        if (statusText.isNotBlank()) {
-            Text(
-                text = statusText,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-            )
-        }
-        Text(
-            text = room.members.joinToString(" · ") { it.nickname },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 12.sp,
-        )
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
+    val useLiquid = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val coverUrl = currentItem?.track?.let { UrlConfig.getMusicCoverUrl(it.id) }
+    val durationMs = (currentItem?.track?.duration ?: 0) * 1000L
 
-        Column(
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
             modifier = Modifier
-                .padding(16.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = currentItem?.track?.title ?: stringResource(R.string.together_playlist_empty),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
+            AsyncImage(
+                model = coverUrl,
+                contentDescription = stringResource(R.string.cover),
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.music),
+                error = painterResource(R.drawable.music),
             )
-            Text(
-                text = currentItem?.track?.artist ?: "",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = sliderPosition,
-                onValueChange = onSliderChange,
-                onValueChangeFinished = onSliderFinished,
-                valueRange = 0f..((currentItem?.track?.duration ?: 0) * 1000f).coerceAtLeast(1f),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onPrevious) { Text("⏮") }
-                Spacer(Modifier.width(12.dp))
-                Button(onClick = onTogglePlay, enabled = currentItem != null) {
-                    Text(if (room.playback.playing) "⏸" else "▶")
-                }
-                Spacer(Modifier.width(12.dp))
-                TextButton(onClick = onNext, enabled = room.playlist.items.isNotEmpty()) {
-                    Text("⏭")
-                }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.together_title),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (useLiquid && isDark) Color.White else scheme.onSurface,
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = stringResource(
+                        R.string.together_member_count_format,
+                        room.memberCount,
+                        room.maxMembers,
+                    ) + if (connected) "" else stringResource(R.string.together_reconnecting),
+                    fontSize = 13.sp,
+                    color = scheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = room.members.joinToString(" · ") { it.nickname },
+                    fontSize = 12.sp,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
 
-        Text(
-            text = stringResource(R.string.together_temporary_playlist),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            fontWeight = FontWeight.SemiBold,
-        )
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(bottom = 96.dp),
+        if (statusText.isNotBlank()) {
+            Text(
+                text = statusText,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                color = scheme.error,
+                fontSize = 12.sp,
+            )
+        }
+
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(24.dp),
+            material3Container = scheme.surfaceContainerHigh,
+            backgroundAlpha = if (isDark) {
+                liquidGlass.musicRowBackgroundAlphaDark
+            } else {
+                liquidGlass.musicRowBackgroundAlphaLight
+            },
+            borderAlpha = if (isDark) {
+                liquidGlass.musicRowBorderAlphaDark
+            } else {
+                liquidGlass.musicRowBorderAlphaLight
+            },
+            highlightAlpha = if (isDark) {
+                liquidGlass.musicRowHighlightAlphaDark
+            } else {
+                liquidGlass.musicRowHighlightAlphaLight
+            },
+            borderColor = if (isDark) Color.White else scheme.outline,
+            liquidBlur = liquidGlass.musicRowLiquidBlur,
+            liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+            liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
         ) {
-            items(room.playlist.items, key = { it.entryId }) { item ->
-                val selected = item.entryId == room.playlist.currentEntryId
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(item.entryId) }
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = currentItem?.track?.title
+                        ?: stringResource(R.string.together_playlist_empty),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                )
+                Text(
+                    text = currentItem?.track?.artist.orEmpty(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = scheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                if (currentItem != null) {
+                    LiquidGlassSlider(
+                        value = sliderPosition,
+                        onValueChange = onSliderChange,
+                        valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
+                        backdrop = pageBackdrop,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
                         Text(
-                            item.track.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            text = formatTime(displayPositionMs),
+                            fontSize = 10.sp,
+                            color = scheme.onSurfaceVariant,
                         )
                         Text(
-                            item.track.artist,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp,
+                            text = formatTime(durationMs),
+                            fontSize = 10.sp,
+                            color = scheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = { onRemove(item.entryId) }) {
-                        Text(stringResource(R.string.together_remove))
+                    Spacer(Modifier.height(4.dp))
+                }
+                PlaybackControls(
+                    isPlaying = room.playback.playing,
+                    isLoading = false,
+                    musicFileUrl = currentItem?.let { "room:${it.entryId}" },
+                    playMode = when (room.playlist.repeatMode) {
+                        "single_repeat" -> PlayMode.SINGLE_LOOP
+                        "shuffle" -> PlayMode.SHUFFLE
+                        else -> PlayMode.LIST_LOOP
+                    },
+                    isFavorite = false,
+                    compact = true,
+                    showPlayMode = false,
+                    showFavorite = false,
+                    onPlayPauseClick = onTogglePlay,
+                    onPreviousClick = onPrevious,
+                    onNextClick = onNext,
+                    onFavoriteClick = {},
+                    onPlayModeClick = {},
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.together_temporary_playlist),
+                modifier = Modifier.weight(1f),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Button(
+                onClick = onAddMusic,
+                modifier = Modifier.height(38.dp),
+                shape = RoundedCornerShape(19.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (useLiquid) {
+                        RoseRed.copy(alpha = 0.16f)
+                    } else {
+                        scheme.secondaryContainer
+                    },
+                    contentColor = if (useLiquid) RoseRed else scheme.onSecondaryContainer,
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.together_add_music), fontSize = 13.sp)
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            itemsIndexed(room.playlist.items, key = { _, item -> item.entryId }) { index, item ->
+                TogetherTrackRow(
+                    index = index,
+                    item = item,
+                    selected = item.entryId == room.playlist.currentEntryId,
+                    liquidGlass = liquidGlass,
+                    onSelect = { onSelect(item.entryId) },
+                    onRemove = { onRemove(item.entryId) },
+                )
+            }
+            if (room.playlist.items.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.together_playlist_empty),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        textAlign = TextAlign.Center,
+                        color = scheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogetherTrackRow(
+    index: Int,
+    item: TogetherPlaylistItem,
+    selected: Boolean,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
+    onSelect: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
+    GlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clickable(onClick = onSelect),
+        shape = RoundedCornerShape(liquidGlass.musicRowCornerDp),
+        material3Shape = RoundedCornerShape(16.dp),
+        material3Container = scheme.surfaceContainerLow,
+        backgroundAlpha = if (selected) {
+            if (isDark) 0.20f else 0.14f
+        } else if (isDark) {
+            liquidGlass.musicRowBackgroundAlphaDark
+        } else {
+            liquidGlass.musicRowBackgroundAlphaLight
+        },
+        borderAlpha = if (selected) 0.36f else if (isDark) {
+            liquidGlass.musicRowBorderAlphaDark
+        } else {
+            liquidGlass.musicRowBorderAlphaLight
+        },
+        highlightAlpha = if (isDark) {
+            liquidGlass.musicRowHighlightAlphaDark
+        } else {
+            liquidGlass.musicRowHighlightAlphaLight
+        },
+        borderColor = if (selected) RoseRed.copy(alpha = 0.7f) else if (isDark) Color.White else scheme.outline,
+        liquidBlur = liquidGlass.musicRowLiquidBlur,
+        liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+        liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "${index + 1}",
+                modifier = Modifier.width(24.dp),
+                textAlign = TextAlign.Center,
+                color = if (selected) RoseRed else scheme.onSurfaceVariant,
+                fontSize = 13.sp,
+            )
+            AsyncImage(
+                model = UrlConfig.getMusicCoverUrl(item.track.id),
+                contentDescription = stringResource(R.string.cover),
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.music),
+                error = painterResource(R.drawable.music),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.track.title,
+                    fontSize = 14.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (selected) RoseRed else scheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = item.track.artist,
+                    fontSize = 11.sp,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.together_remove),
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogetherSearchSheet(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<Music>,
+    searching: Boolean,
+    liquidGlass: PlaylistDetailLiquidGlassParams,
+    onDismiss: () -> Unit,
+    onAdd: (Music) -> Unit,
+) {
+    val isDark = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.46f))
+            .clickable(onClick = onDismiss)
+    ) {
+        GlassSurface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .heightIn(min = 520.dp, max = 680.dp)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            material3Shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            material3Container = scheme.surfaceContainerHigh,
+            backgroundAlpha = if (isDark) {
+                liquidGlass.musicRowBackgroundAlphaDark
+            } else {
+                liquidGlass.musicRowBackgroundAlphaLight
+            },
+            borderAlpha = if (isDark) {
+                liquidGlass.musicRowBorderAlphaDark
+            } else {
+                liquidGlass.musicRowBorderAlphaLight
+            },
+            highlightAlpha = if (isDark) {
+                liquidGlass.musicRowHighlightAlphaDark
+            } else {
+                liquidGlass.musicRowHighlightAlphaLight
+            },
+            borderColor = if (isDark) Color.White else scheme.outline,
+            liquidBlur = liquidGlass.musicRowLiquidBlur,
+            liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+            liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.together_add_music),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(android.R.string.cancel))
+                    }
+                }
+                PlaylistSearchBar(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    liquidGlass = liquidGlass,
+                    placeholder = stringResource(R.string.together_search_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                if (searching) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = scheme.primary)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        items(results, key = { it.id }) { music ->
+                            GlassSurface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                                    .clickable { onAdd(music) },
+                                shape = RoundedCornerShape(14.dp),
+                                material3Shape = RoundedCornerShape(14.dp),
+                                material3Container = scheme.surfaceContainerLow,
+                                backgroundAlpha = if (isDark) {
+                                    liquidGlass.musicRowBackgroundAlphaDark
+                                } else {
+                                    liquidGlass.musicRowBackgroundAlphaLight
+                                },
+                                borderAlpha = if (isDark) {
+                                    liquidGlass.musicRowBorderAlphaDark
+                                } else {
+                                    liquidGlass.musicRowBorderAlphaLight
+                                },
+                                highlightAlpha = if (isDark) {
+                                    liquidGlass.musicRowHighlightAlphaDark
+                                } else {
+                                    liquidGlass.musicRowHighlightAlphaLight
+                                },
+                                borderColor = if (isDark) Color.White else scheme.outline,
+                                liquidBlur = liquidGlass.musicRowLiquidBlur,
+                                liquidLensHeight = liquidGlass.musicRowLiquidLensHeight,
+                                liquidLensAmount = liquidGlass.musicRowLiquidLensAmount,
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            music.title,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                        Text(
+                                            music.artist,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = scheme.onSurfaceVariant,
+                                            fontSize = 12.sp,
+                                        )
+                                    }
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = stringResource(R.string.together_add_music),
+                                        tint = RoseRed,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
