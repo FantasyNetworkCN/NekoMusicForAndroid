@@ -190,6 +190,7 @@ private fun TogetherRoomPlaylistContent(
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
     val glass = LiquidGlassDefaults.playlistDetail
+    val onlineCount = state.members.count { it.online }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -207,7 +208,7 @@ private fun TogetherRoomPlaylistContent(
                 Text(
                     text = stringResource(
                         R.string.together_member_count_format,
-                        state.memberCount,
+                        onlineCount,
                         state.maxMembers,
                     ),
                     fontSize = 12.sp,

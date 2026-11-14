@@ -2703,6 +2703,7 @@ private fun TogetherMemberAvatarStrip(
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val dark = isAppDarkTheme()
+    val onlineMembers = remember(members) { members.filter { it.online } }
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -2712,7 +2713,7 @@ private fun TogetherMemberAvatarStrip(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            items(members, key = { it.userId }) { member ->
+            items(onlineMembers, key = { it.userId }) { member ->
                 Box(
                     modifier = Modifier
                         .size(38.dp)
@@ -2740,7 +2741,7 @@ private fun TogetherMemberAvatarStrip(
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "${members.size}/10" + if (connected) "" else " · …",
+            text = "${onlineMembers.size}/10" + if (connected) "" else " · …",
             color = if (useLiquidStyle && dark) Color.White.copy(alpha = 0.56f)
             else scheme.onSurfaceVariant,
             fontSize = 11.sp,

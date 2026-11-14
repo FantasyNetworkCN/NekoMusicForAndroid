@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.service.MusicPlayerManager
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -212,6 +213,12 @@ class MusicPlayerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // 用户划掉任务时不一定能走正常页面退出；立即撤销房间在线状态，服务端心跳再兜底异常断网。
+        TogetherSessionManager.leave()
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun createNotificationChannel() {
