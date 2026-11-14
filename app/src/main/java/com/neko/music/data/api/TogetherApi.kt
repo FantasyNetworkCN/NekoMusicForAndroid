@@ -83,6 +83,8 @@ data class TogetherEvent(
     val memberCount: Int = 0,
     val maxMembers: Int = 10,
     val serverTime: Long = 0,
+    val clientTime: Long = 0,
+    val requestId: String? = null,
     val members: List<TogetherMember>? = null,
     val playlist: TogetherPlaylist? = null,
     val playback: TogetherPlayback? = null,

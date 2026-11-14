@@ -870,13 +870,11 @@ fun PlayerScreen(
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        if (pagerState.currentPage == 2) {
-                            TogetherMemberAvatarStrip(
-                                members = togetherState?.members.orEmpty(),
-                                connected = togetherConnected,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        TogetherMemberAvatarStrip(
+                            members = togetherState?.members.orEmpty(),
+                            connected = togetherConnected,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
 

@@ -14,6 +14,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.util.UrlConfig
 import java.net.URI
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +71,8 @@ object TogetherSessionManager {
     private var outgoing: Channel<String>? = null
     private var closing = false
     private var serverOffsetMs = 0L
+    private var bestClockRttMs = Long.MAX_VALUE
+    private val clockSentAt = ConcurrentHashMap<String, Long>()
 
     val isActive: Boolean
         get() = _state.value != null
@@ -172,6 +175,9 @@ object TogetherSessionManager {
     }
 
     private suspend fun connect(roomToken: String, userToken: String) {
+        bestClockRttMs = Long.MAX_VALUE
+        serverOffsetMs = 0L
+        clockSentAt.clear()
         val joined = api!!.joinRoom(roomToken, userToken).getOrThrow()
         applyEvent(joined.room)
         val channel = Channel<String>(Channel.UNLIMITED)
@@ -179,32 +185,42 @@ object TogetherSessionManager {
         connectionJob?.cancel()
         connectionJob = scope.launch {
             var currentTicket = joined.ticket
-            while (isActive && !closing) {
-                _connected.value = true
-                try {
-                    api!!.runSocket(currentTicket, channel) { event -> applyEvent(event) }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    _lastError.value = e.message
-                    Log.w("TogetherSession", "WebSocket disconnected", e)
-                } finally {
-                    _connected.value = false
+            val clockJob = launch {
+                while (isActive && !closing) {
+                    sendClockPing()
+                    delay(15_000)
                 }
-                if (!isActive || closing) break
-                delay(2_000)
-                currentTicket = api!!.issueTicket(roomToken, userToken).getOrElse {
-                    _lastError.value = it.message
+            }
+            try {
+                while (isActive && !closing) {
+                    _connected.value = true
+                    try {
+                        api!!.runSocket(currentTicket, channel) { event -> applyEvent(event) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        _lastError.value = e.message
+                        Log.w("TogetherSession", "WebSocket disconnected", e)
+                    } finally {
+                        _connected.value = false
+                    }
+                    if (!isActive || closing) break
                     delay(2_000)
-                    return@launch
+                    currentTicket = api!!.issueTicket(roomToken, userToken).getOrElse {
+                        _lastError.value = it.message
+                        delay(2_000)
+                        return@launch
+                    }
                 }
+            } finally {
+                clockJob.cancel()
             }
         }
         syncJob?.cancel()
         syncJob = scope.launch {
             while (isActive && !closing) {
                 syncPlayer()
-                delay(2_000)
+                delay(1_500)
             }
         }
     }
@@ -232,6 +248,9 @@ object TogetherSessionManager {
                     playback = event.playback ?: current.playback,
                 )
             }
+            "clock" -> {
+                applyClockSample(event)
+            }
             "room.closed" -> {
                 _lastError.value = event.message ?: "房间已关闭"
                 stopInternal(leaveServer = false)
@@ -250,14 +269,6 @@ object TogetherSessionManager {
             if (player.isPlaying.value) player.pause()
             return
         }
-        val nowServer = System.currentTimeMillis() + serverOffsetMs
-        val target = if (current.playback.playing) {
-            current.playback.positionMs +
-                (nowServer - current.playback.effectiveAt).coerceAtLeast(0L)
-        } else {
-            current.playback.positionMs
-        }.coerceIn(0L, track.duration.coerceAtLeast(0) * 1000L)
-
         if (player.currentMusicId.value != track.id) {
             val music = track.toMusic()
             val url = musicApi!!.getMusicFileUrl(music)
@@ -269,13 +280,59 @@ object TogetherSessionManager {
                 "",
                 UrlConfig.getMusicCoverUrl(track.id),
             )
-            delay(450)
+            for (attempt in 0 until 20) {
+                if (player.currentMusicId.value == track.id && player.duration.value > 0) {
+                    break
+                }
+                delay(100)
+            }
         }
-        if (abs(player.currentPosition.value - target) > 800L) {
+        // 切歌/加载会耗时，必须拿最新的房间状态重新计算目标进度，不能复用加载前的值。
+        val latest = _state.value ?: return
+        val latestItem = latest.currentItem ?: return
+        val nowServer = System.currentTimeMillis() + serverOffsetMs
+        val target = if (latest.playback.playing) {
+            latest.playback.positionMs +
+                (nowServer - latest.playback.effectiveAt).coerceAtLeast(0L)
+        } else {
+            latest.playback.positionMs
+        }.coerceIn(0L, latestItem.track.duration.coerceAtLeast(0) * 1000L)
+
+        if (abs(player.currentPosition.value - target) > 500L) {
             player.seekTo(target)
         }
-        if (player.isPlaying.value != current.playback.playing) {
+        if (player.isPlaying.value != latest.playback.playing) {
             player.togglePlayPause()
+        }
+    }
+
+    private fun sendClockPing() {
+        val channel = outgoing ?: return
+        val requestId = UUID.randomUUID().toString()
+        val sentAt = System.currentTimeMillis()
+        clockSentAt[requestId] = sentAt
+        if (clockSentAt.size > 8) {
+            clockSentAt.keys.firstOrNull()?.let(clockSentAt::remove)
+        }
+        channel.trySend(
+            buildJsonObject {
+                put("type", "clock")
+                put("requestId", requestId)
+                put("clientTime", sentAt)
+            }.toString()
+        )
+    }
+
+    private fun applyClockSample(event: TogetherEvent) {
+        val requestId = event.requestId ?: return
+        val sentAt = clockSentAt.remove(requestId) ?: return
+        val receivedAt = System.currentTimeMillis()
+        val rtt = (receivedAt - sentAt).coerceAtLeast(0L)
+        val sampleOffset = event.serverTime - (sentAt + rtt / 2)
+        if (rtt <= bestClockRttMs || rtt <= bestClockRttMs + 20L) {
+            bestClockRttMs = minOf(bestClockRttMs, rtt)
+            serverOffsetMs = sampleOffset
+            scope.launch { syncPlayer() }
         }
     }
 
