@@ -30,8 +30,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObjectBuilder
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -99,11 +97,19 @@ object TogetherSessionManager {
             }
 
             override fun playTracks(musicIds: List<Int>, startIndex: Int) {
-                sendControl("playlist.playList") {
-                    put("startIndex", startIndex)
-                    put("trackIds", buildJsonArray {
-                        musicIds.forEach { add(it) }
-                    })
+                val ids = musicIds.asSequence()
+                    .filter { it > 0 }
+                    .take(200)
+                    .toList()
+                if (ids.isEmpty()) return
+                // 兼容尚未部署批量动作的服务端：同一 WS 通道顺序执行清空、逐首加入、起播。
+                sendControl("playlist.clear")
+                ids.forEach { musicId ->
+                    sendControl("playlist.add") { put("trackId", musicId) }
+                }
+                sendControl("playback.play")
+                repeat(startIndex.coerceIn(0, ids.lastIndex)) {
+                    sendControl("playback.next")
                 }
             }
 
