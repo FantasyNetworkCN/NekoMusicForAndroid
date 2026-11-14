@@ -303,7 +303,7 @@ class DesktopLyricService : Service() {
                         }
                         ?.start()
                 } else {
-                    tvLyric?.text = newText
+                    tvLyric.text = newText
                     tvTranslation?.text = newTranslation
                 }
             } catch (e: Exception) {

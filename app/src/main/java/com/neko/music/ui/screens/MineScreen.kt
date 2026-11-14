@@ -43,6 +43,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.*
 import com.neko.music.data.manager.AppBackgroundKind
 import com.neko.music.data.manager.NotificationCenter
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
@@ -554,6 +555,8 @@ fun MineMenu(
     onUploadClick: () -> Unit = {},
     uploadCount: Int? = null,
 ) {
+    val togetherState by TogetherSessionManager.state.collectAsState()
+    val togetherActive = togetherState != null
     Column(modifier = Modifier.fillMaxWidth()) {
         MenuItem(
             title = stringResource(id = R.string.recent_play),
@@ -561,13 +564,15 @@ fun MineMenu(
             iconColor = RoseRed,
             onClick = onRecentPlayClick,
         )
-        MineMenuDivider()
-        MenuItem(
-            title = stringResource(id = R.string.local_music),
-            iconResId = R.drawable.music,
-            iconColor = SkyBlue,
-            onClick = onLocalMusicClick,
-        )
+        if (!togetherActive) {
+            MineMenuDivider()
+            MenuItem(
+                title = stringResource(id = R.string.local_music),
+                iconResId = R.drawable.music,
+                iconColor = SkyBlue,
+                onClick = onLocalMusicClick,
+            )
+        }
         MineMenuDivider()
         MenuItem(
             title = stringResource(id = R.string.vip_menu_entry),

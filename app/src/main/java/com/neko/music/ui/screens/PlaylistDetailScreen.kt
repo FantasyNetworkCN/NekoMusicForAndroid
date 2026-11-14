@@ -46,7 +46,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -429,7 +429,7 @@ fun PlaylistDetailScreen(
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
                                 tint = if (isDarkTheme) {
                                     Color(0xFFB8B8D1).copy(alpha = 0.9f)
@@ -652,7 +652,7 @@ fun PlaylistDetailScreen(
                                         else
                                             stringResource(
                                                 id = R.string.creator_id_info,
-                                                displayCreatorUserId ?: 0
+                                                displayCreatorUserId
                                             ),
                                         fontSize = 12.sp,
                                         color = if (isDarkTheme) {

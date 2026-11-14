@@ -14,7 +14,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.takeFrom
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -136,7 +136,7 @@ class ExternalPlaylistPullApi {
             var completed = false
 
             while (true) {
-                val line = channel.readUTF8Line() ?: break
+                val line = channel.readLine() ?: break
                 when {
                     line.isEmpty() -> {
                         if (dispatchEvent(eventName, data.toString(), callbacks)) completed = true

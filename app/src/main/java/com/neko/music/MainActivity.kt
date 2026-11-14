@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
@@ -51,7 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -187,12 +188,16 @@ class MainActivity : ComponentActivity() {
         // 先切回正常主题，避免原生 Splash 背景一直显示
         setTheme(R.style.Theme_Neko歌姬计划)
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT,
+            )
+        )
         // 播放页与底部渐隐层需要真正延伸到系统导航栏区域，避免系统自动添加白色对比度遮罩。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         privacyAccepted = PrivacyConsentManager.hasAccepted(this)
         pendingIntentAfterConsent = intent
 
@@ -1009,7 +1014,15 @@ fun MainScreen() {
                         showLogoutDialog = true
                     },
                     onLocalMusicClick = {
-                        navController.navigate("local_music")
+                        if (togetherActive) {
+                            Toast.makeText(
+                                context,
+                                R.string.together_local_playback_disabled,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        } else {
+                            navController.navigate("local_music")
+                        }
                     },
                     onAboutClick = {
                         navController.navigate("about")

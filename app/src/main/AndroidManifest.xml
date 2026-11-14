@@ -175,9 +175,6 @@
                 android:resource="@xml/music_widget_info" />
         </receiver>
 
-        <!-- 桌面组件更新服务 -->
-        <service android:name=".widget.MusicWidgetUpdateService"
-            android:exported="false" />
     </application>
 
 </manifest>

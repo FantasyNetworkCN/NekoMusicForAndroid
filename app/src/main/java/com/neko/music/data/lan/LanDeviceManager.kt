@@ -601,7 +601,8 @@ class LanDeviceManager private constructor(private val context: Context) {
         val wifi = mutableListOf<NetworkInterface>()
         val fallback = mutableListOf<NetworkInterface>()
         val seen = HashSet<String>()
-        for (network in connectivity.allNetworks) {
+        val networks = connectivity.activeNetwork?.let(::listOf).orEmpty()
+        for (network in networks) {
             val capabilities = connectivity.getNetworkCapabilities(network) ?: continue
             val linkProperties = connectivity.getLinkProperties(network) ?: continue
             for (linkAddress in linkProperties.linkAddresses) {

@@ -16,8 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,7 +90,7 @@ fun PrivacyPolicyScreen(
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(
-                                Icons.Default.ArrowBack,
+                                Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
                                 tint = mutedColor,
                             )
@@ -108,7 +108,7 @@ fun PrivacyPolicyScreen(
 //                            }
 //                        ) {
 //                            Icon(
-//                                Icons.Default.KeyboardArrowRight,
+//                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
 //                                contentDescription = null,
 //                                tint = RoseRed,
 //                            )

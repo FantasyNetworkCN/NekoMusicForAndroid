@@ -17,9 +17,9 @@ class PlaylistManager private constructor(context: Context) {
     
     // 数据库迁移：从版本1到版本2
     private val MIGRATION_1_2 = object : Migration(1, 2) {
-        override fun migrate(database: SupportSQLiteDatabase) {
+        override fun migrate(db: SupportSQLiteDatabase) {
             // 创建新表
-            database.execSQL(
+            db.execSQL(
                 """
                 CREATE TABLE IF NOT EXISTS playlist_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -38,7 +38,7 @@ class PlaylistManager private constructor(context: Context) {
             )
             
             // 复制数据
-            database.execSQL(
+            db.execSQL(
                 """
                 INSERT INTO playlist_new (musicId, title, artist, album, duration, filePath, coverFilePath, uploadUserId, createdAt, addedAt)
                 SELECT musicId, title, artist, album, duration, filePath, coverFilePath, uploadUserId, createdAt, addedAt
@@ -47,10 +47,10 @@ class PlaylistManager private constructor(context: Context) {
             )
             
             // 删除旧表
-            database.execSQL("DROP TABLE IF EXISTS playlist")
+            db.execSQL("DROP TABLE IF EXISTS playlist")
             
             // 重命名新表
-            database.execSQL("ALTER TABLE playlist_new RENAME TO playlist")
+            db.execSQL("ALTER TABLE playlist_new RENAME TO playlist")
         }
     }
     
@@ -60,7 +60,7 @@ class PlaylistManager private constructor(context: Context) {
         "music-playlist-db"
     )
         .addMigrations(MIGRATION_1_2)
-        .fallbackToDestructiveMigration()
+        .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
     
     private val dao = database.playlistDao()

@@ -2,8 +2,9 @@ package com.neko.music.util
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.State
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * 用于在播放页面、灵动岛和桌面歌词之间同步歌词滚动状态
  */
 object LyricScrollManager {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     
     // 当前歌词索引
     private val _currentLyricIndex = MutableStateFlow(0)
@@ -51,7 +53,7 @@ object LyricScrollManager {
                 try {
                     isPlayerPageScrolling = true
                     // 使用 scrollToItem 而不是 animateScrollToItem，避免需要 MonotonicFrameClock
-                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                    scope.launch {
                         state.scrollToItem(index, 0)
                         kotlinx.coroutines.delay(300)
                         isPlayerPageScrolling = false

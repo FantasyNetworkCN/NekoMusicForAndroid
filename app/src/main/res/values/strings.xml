@@ -734,4 +734,5 @@
     <string name="together_joined">已加入一起听房间</string>
     <string name="together_leave">离开一起听</string>
     <string name="together_left">已离开一起听</string>
+    <string name="together_local_playback_disabled">一起听房间中无法播放本地音乐，请先离开一起听</string>
 </resources>

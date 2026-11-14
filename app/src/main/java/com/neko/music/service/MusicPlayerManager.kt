@@ -66,6 +66,7 @@ interface RoomPlaybackDelegate {
     fun togglePlayMode()
 }
 
+@Suppress("DEPRECATION")
 class MusicPlayerManager private constructor(context: Context) {
     
     private val playlistManager = PlaylistManager.getInstance(context)
@@ -912,7 +913,7 @@ class MusicPlayerManager private constructor(context: Context) {
     /** 与 [coverBitmap] 对应的封面 URL，用于判断缓存位图是否仍适用于当前歌曲 */
     private var coverBitmapSourceUrl: String? = null
     private var mediaArtworkChangedListener: (() -> Unit)? = null
-    private lateinit var playerListener: Player.Listener
+    private val playerListener: Player.Listener
 
     init {
         // 设置 MediaSession 回调（如果 MediaSession 已初始化）

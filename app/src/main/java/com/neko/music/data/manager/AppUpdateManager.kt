@@ -11,6 +11,7 @@ import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -112,11 +113,7 @@ class AppUpdateManager(private val context: Context) {
                 0
             )
             val versionName = packageInfo.versionName ?: "1.0.0"
-            val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode.toInt()
-            } else {
-                packageInfo.versionCode
-            }
+            val versionCode = PackageInfoCompat.getLongVersionCode(packageInfo).toInt()
             Pair(versionName, versionCode)
         } catch (e: Exception) {
             Log.e("AppUpdateManager", "获取当前版本失败", e)
@@ -184,7 +181,7 @@ class AppUpdateManager(private val context: Context) {
         for (pattern in patterns) {
             val match = pattern.find(versionName)
             if (match != null) {
-                return match.groupValues.get(1)?.toIntOrNull() ?: 1
+                return match.groupValues.get(1).toIntOrNull() ?: 1
             }
         }
         

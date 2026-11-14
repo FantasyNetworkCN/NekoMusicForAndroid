@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -60,6 +60,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.data.manager.LocalMusicManager
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.AppPageBackgroundImage
@@ -84,6 +85,8 @@ fun LocalMusicScreen(
     val scope = rememberCoroutineScope()
     val playerManager = remember { MusicPlayerManager.getInstance(context) }
     val localMusicManager = remember { LocalMusicManager(context) }
+    val togetherState by TogetherSessionManager.state.collectAsState()
+    val togetherActive = togetherState != null
     val readAudioPermission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_AUDIO
@@ -106,7 +109,7 @@ fun LocalMusicScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     fun loadLocalMusic() {
-        if (!hasPermission || isLoading) return
+        if (!hasPermission || isLoading || togetherActive) return
         isLoading = true
         scope.launch {
             localMusic = localMusicManager.scanLocalMusic()
@@ -114,8 +117,8 @@ fun LocalMusicScreen(
         }
     }
 
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) {
+    LaunchedEffect(hasPermission, togetherActive) {
+        if (hasPermission && !togetherActive) {
             loadLocalMusic()
         }
     }
@@ -134,6 +137,14 @@ fun LocalMusicScreen(
     }
 
     fun playMusicList(startIndexInFiltered: Int) {
+        if (togetherActive) {
+            android.widget.Toast.makeText(
+                context,
+                R.string.together_local_playback_disabled,
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
         if (filteredMusic.isEmpty()) return
         scope.launch {
             playerManager.playMusicListAndAwait(filteredMusic, startIndexInFiltered)
@@ -162,10 +173,10 @@ fun LocalMusicScreen(
                     isDarkTheme = isDarkTheme,
                     onBackClick = onBackClick,
                     onRefreshClick = { loadLocalMusic() },
-                    canRefresh = hasPermission && !isLoading,
+                    canRefresh = hasPermission && !isLoading && !togetherActive,
                 )
 
-                if (hasPermission) {
+                if (hasPermission && !togetherActive) {
                     LocalMusicSearchBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -220,6 +231,23 @@ fun LocalMusicScreen(
                         .fillMaxWidth(),
                 ) {
                     when {
+                        togetherActive -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(
+                                        R.string.together_local_playback_disabled
+                                    ),
+                                    color = scheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        }
+
                         !hasPermission -> {
                             LocalMusicPermissionState(
                                 onRequestPermission = { permissionState.launchPermissionRequest() },
@@ -300,7 +328,7 @@ private fun LocalMusicTopBar(
             modifier = Modifier.size(48.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface,
             )

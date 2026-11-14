@@ -777,4 +777,5 @@
     <string name="together_joined">Joined the listening room</string>
     <string name="together_leave">Leave Listen Together</string>
     <string name="together_left">Left Listen Together</string>
+    <string name="together_local_playback_disabled">Local playback is unavailable in Listen Together. Leave the room first.</string>
 </resources>

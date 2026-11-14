@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.neko.music.util
 
 import android.app.DownloadManager

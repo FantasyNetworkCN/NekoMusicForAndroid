@@ -3,6 +3,7 @@ package com.neko.music
 import android.app.Application
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import androidx.core.content.pm.PackageInfoCompat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -118,6 +119,7 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
     /**
      * 应用语言设置
      */
+    @Suppress("DEPRECATION")
     private fun applyLanguage() {
         val languagePrefs = getSharedPreferences("app_settings", MODE_PRIVATE)
         val language = languagePrefs.getString("language", "system") ?: "system"
@@ -148,13 +150,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
     private fun checkAndCleanupUpdateFiles() {
         try {
             val currentVersionCode = try {
-                packageManager.getPackageInfo(packageName, 0).let {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                        it.longVersionCode.toInt()
-                    } else {
-                        it.versionCode
-                    }
-                }
+                PackageInfoCompat.getLongVersionCode(
+                    packageManager.getPackageInfo(packageName, 0)
+                ).toInt()
             } catch (e: Exception) {
                 return
             }

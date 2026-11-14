@@ -32,7 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
@@ -42,7 +42,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -65,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,6 +95,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.data.api.UploadedMusic
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
@@ -220,7 +223,7 @@ fun UploadedMusicScreen(
                         navigationIcon = {
                             IconButton(onClick = onBackClick) {
                                 Icon(
-                                    imageVector = Icons.Default.ArrowBack,
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = stringResource(id = R.string.back),
                                     tint = if (isDarkTheme) Color.White else scheme.onSurface
                                 )
@@ -603,6 +606,8 @@ fun UploadMusicDialog(
     val mutedColor = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val togetherState by TogetherSessionManager.state.collectAsState()
+    val togetherActive = togetherState != null
     
     // 预加载字符串资源（用于在非 Composable 上下文中使用）
     val pleaseSelectLanguage = stringResource(id = R.string.please_select_language)
@@ -984,7 +989,7 @@ fun UploadMusicDialog(
                     }
                 }
                 
-                Divider()
+                HorizontalDivider()
                 
                 // 音乐信息输入
                 OutlinedTextField(
@@ -1028,7 +1033,7 @@ fun UploadMusicDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(),
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                         singleLine = true,
                         enabled = !isUploading
                     )
@@ -1230,8 +1235,19 @@ fun UploadMusicDialog(
         )
     }
     
-    // 试听对话框
-    if (showPreviewPlayDialog && audioFile != null) {
+    LaunchedEffect(togetherActive) {
+        if (togetherActive && showPreviewPlayDialog) {
+            showPreviewPlayDialog = false
+            android.widget.Toast.makeText(
+                context,
+                R.string.together_local_playback_disabled,
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    // 一起听房间内禁止播放任何本地临时文件。
+    if (showPreviewPlayDialog && audioFile != null && !togetherActive) {
         val currentAudioFile = audioFile!!
         val currentLyricsText = if (languageCode != "instrumental" && fullLyricsContent.isNotEmpty()) {
             fullLyricsContent
@@ -1388,10 +1404,18 @@ fun UploadMusicDialog(
                     // 试听按钮
                     Button(
                         onClick = {
-                            showPreviewDialog = false
-                            showPreviewPlayDialog = true
+                            if (togetherActive) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    R.string.together_local_playback_disabled,
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                showPreviewDialog = false
+                                showPreviewPlayDialog = true
+                            }
                         },
-                        enabled = audioFile != null,
+                        enabled = audioFile != null && !togetherActive,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
                         )
@@ -1590,6 +1614,7 @@ private fun formatDurationFromMs(ms: Long): String {
 }
 
 // 试听对话框
+@Suppress("DEPRECATION")
 @Composable
 private fun PreviewPlayDialog(
     onDismiss: () -> Unit,

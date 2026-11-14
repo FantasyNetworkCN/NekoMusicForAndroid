@@ -11,11 +11,15 @@ import androidx.core.graphics.drawable.toBitmap
 import coil3.asDrawable
 import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class MusicWidgetProvider : AppWidgetProvider() {
 
     companion object {
+        private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         const val ACTION_PLAY_PAUSE = "com.neko.music.action.PLAY_PAUSE"
         const val ACTION_PREVIOUS = "com.neko.music.action.PREVIOUS"
         const val ACTION_NEXT = "com.neko.music.action.NEXT"
@@ -138,7 +142,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
             // 实际上在 Widget 中加载图片通常需要一个专门的 Service 或者使用 Glide/Coil 的 Target
             // 这里我们利用 MusicWidgetUpdateService 或者直接在 Provider 中处理
             
-            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            widgetScope.launch {
                 try {
                     val request = coil3.request.ImageRequest.Builder(context)
                         .data(cachedFile ?: coverUrl)

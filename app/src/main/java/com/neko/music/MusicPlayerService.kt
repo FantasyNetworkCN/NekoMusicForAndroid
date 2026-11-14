@@ -12,13 +12,18 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.service.MusicPlayerManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 class MusicPlayerService : Service() {
 
     private lateinit var playerManager: MusicPlayerManager
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val notificationManager by lazy {
         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
@@ -70,20 +75,20 @@ class MusicPlayerService : Service() {
 
         // 如果是冷启动且没有当前音乐，尝试恢复最后播放
         if (playerManager.currentMusicId.value == null) {
-            kotlinx.coroutines.GlobalScope.launch {
+            serviceScope.launch {
                 playerManager.restoreLastPlayed(this@MusicPlayerService)
             }
         }
 
         // 监听定时关闭剩余时间变化
-        kotlinx.coroutines.GlobalScope.launch {
+        serviceScope.launch {
             playerManager.sleepTimerRemainingSeconds.collect { remainingSeconds ->
                 updateMusicNotification()
             }
         }
 
         // 监听播放状态变化
-        kotlinx.coroutines.GlobalScope.launch {
+        serviceScope.launch {
             playerManager.isPlaying.collect { isPlaying ->
                 updateMusicNotification()
                 // 发送广播更新桌面组件
@@ -95,7 +100,7 @@ class MusicPlayerService : Service() {
         }
 
         // 监听当前音乐变化
-        kotlinx.coroutines.GlobalScope.launch {
+        serviceScope.launch {
             playerManager.currentMusicTitle.collect {
                 updateMusicNotification()
                 // 发送广播更新桌面组件
@@ -109,7 +114,7 @@ class MusicPlayerService : Service() {
         // 监听播放位置变化，实时更新进度条
         // 添加防抖机制，避免过于频繁的更新
         @OptIn(FlowPreview::class)
-        kotlinx.coroutines.GlobalScope.launch {
+        serviceScope.launch {
             playerManager.currentPosition
                 .debounce(1000) // 防抖1秒，限制通知栏更新频率
                 .collect {
@@ -120,7 +125,7 @@ class MusicPlayerService : Service() {
 
         // 单独监听播放位置变化用于更新桌面组件和浮动窗口
         @OptIn(FlowPreview::class)
-        kotlinx.coroutines.GlobalScope.launch {
+        serviceScope.launch {
             playerManager.currentPosition
                 .debounce(200) // 缩短防抖时间，使进度条更平滑
                 .collect {
@@ -201,7 +206,7 @@ class MusicPlayerService : Service() {
                     updateMusicNotification()
                     
                     // 延迟重置标志位，防止快速连续点击
-                    kotlinx.coroutines.GlobalScope.launch {
+                    serviceScope.launch {
                         kotlinx.coroutines.delay(500)
                         isProcessingLyricToggle = false
                     }
@@ -219,6 +224,11 @@ class MusicPlayerService : Service() {
         // 用户划掉任务时不一定能走正常页面退出；立即撤销房间在线状态，服务端心跳再兜底异常断网。
         TogetherSessionManager.leave()
         super.onTaskRemoved(rootIntent)
+    }
+
+    override fun onDestroy() {
+        serviceScope.cancel()
+        super.onDestroy()
     }
 
     private fun createNotificationChannel() {

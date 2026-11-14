@@ -62,13 +62,6 @@ android {
         }
     }
 
-    sourceSets {
-        // 使用更通用的 getByName("main") 或者直接使用命名方法
-        named("main") {
-            jniLibs.srcDirs("src/main/jniLibs")
-        }
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -155,7 +148,7 @@ android {
 // ── 请求标头守卫 ────────────────────────────────────────────────
 // 所有 Ktor 客户端都必须调用 installNekoClientHeader()，否则请求会漏掉
 // User-Agent。这里在 preBuild 前扫描源码，发现遗漏直接失败。
-val verifyNekoClientHeader by tasks.registering {
+val verifyNekoClientHeader = tasks.register("verifyNekoClientHeader") {
     group = "verification"
     description = "校验所有 Ktor 客户端都注入了 User-Agent"
     val sourcesDir = layout.projectDirectory.dir("src/main/java")
