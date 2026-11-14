@@ -11,4 +11,12 @@ class UrlConfigTest {
             UrlConfig.getMusicRecognitionWsUrl(),
         )
     }
+
+    @Test
+    fun togetherUsesSecureWebSocketAndEncodesTicket() {
+        assertEquals(
+            "wss://music.nekocore.cn/api/listen/ws?ticket=a%2Bb%2Fc",
+            UrlConfig.getTogetherWsUrl("a+b/c"),
+        )
+    }
 }

@@ -63,6 +63,18 @@ object UrlConfig {
         return "$wsBase/api/music/recognize/ws"
     }
 
+    /** 一起听实时连接；ticket 只能用于一次建连。 */
+    fun getTogetherWsUrl(ticket: String): String {
+        val wsBase = when {
+            BASE_URL.startsWith("https://") -> "wss://" + BASE_URL.removePrefix("https://")
+            BASE_URL.startsWith("http://") -> "ws://" + BASE_URL.removePrefix("http://")
+            else -> BASE_URL
+        }
+        return "$wsBase/api/listen/ws?ticket=${java.net.URLEncoder.encode(ticket, "UTF-8")}"
+    }
+
+    fun getTogetherRoomUrl(token: String): String = "$BASE_URL/together/$token"
+
     /**
      * 获取艺术家搜索URL
      */

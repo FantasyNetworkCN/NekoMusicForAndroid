@@ -704,4 +704,27 @@
     <string name="comment_time_hours_format">%1$d 小时前喵</string>
     <string name="comment_time_days_format">%1$d 天前喵</string>
     <string name="comment_no_more">没有更多评论了喵</string>
+    <string name="mine_together">一起听喵</string>
+    <string name="together_title">一起听</string>
+    <string name="together_close_room">关闭房间</string>
+    <string name="together_share">分享</string>
+    <string name="together_link_copied">房间链接已复制</string>
+    <string name="together_login_required">登录后即可加入一起听房间</string>
+    <string name="together_login">去登录</string>
+    <string name="together_create_hint">创建一个只有临时播放列表的一起听房间</string>
+    <string name="together_create_room">创建房间</string>
+    <string name="together_create_failed">创建一起听房间失败</string>
+    <string name="together_join_failed">加入一起听房间失败</string>
+    <string name="together_retry">重试</string>
+    <string name="together_connect_failed">实时连接失败，正在重试</string>
+    <string name="together_member_count_format">房间成员 %1$d / %2$d</string>
+    <string name="together_reconnecting"> · 正在重连</string>
+    <string name="together_playlist_empty">临时播放列表为空</string>
+    <string name="together_temporary_playlist">房间临时播放列表</string>
+    <string name="together_remove">移除</string>
+    <string name="together_add_music">添加歌曲</string>
+    <string name="together_search_hint">搜索歌曲</string>
+    <string name="together_search">搜索</string>
+    <string name="together_room_closed">房间已关闭</string>
+    <string name="together_operation_failed">操作失败</string>
 </resources>

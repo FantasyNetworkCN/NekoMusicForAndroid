@@ -43,6 +43,16 @@ adb shell am start -a android.intent.action.VIEW -d "nekomusic://player/48" com.
 nekomusic://playlist/{playlistId}
 ```
 
+### 一起听房间
+
+分享网页 `/together/{token}` 只负责拉起客户端。Android 处理以下深链后会加入对应房间：
+
+```
+nekomusic://together/{token}
+```
+
+客户端内也可以从「我的 → 一起听」创建房间，创建后复制随机房间 URL 分享给其他用户。
+
 ### 网页调用示例
 
 在 HTML 中放置以下链接，用户点击即可唤醒应用：

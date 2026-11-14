@@ -65,6 +65,7 @@ fun MineScreen(
     onVipCenterClick: () -> Unit = {},
     onQrScanClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
+    onTogetherClick: () -> Unit = {},
     isLoggedIn: Boolean = false,
     nickname: String? = null,
     userId: Int = -1,
@@ -179,6 +180,7 @@ fun MineScreen(
                                     onLocalMusicClick = onLocalMusicClick,
                                     onVipCenterClick = onVipCenterClick,
                                     onUploadClick = onUploadClick,
+                                    onTogetherClick = onTogetherClick,
                                     uploadCount = uploadCount,
                                 )
                             }
@@ -552,6 +554,7 @@ fun MineMenu(
     onLocalMusicClick: () -> Unit = {},
     onVipCenterClick: () -> Unit = {},
     onUploadClick: () -> Unit = {},
+    onTogetherClick: () -> Unit = {},
     uploadCount: Int? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -582,6 +585,13 @@ fun MineMenu(
             iconColor = Lilac,
             trailingText = uploadCount?.let { stringResource(R.string.songs_count_label, it) },
             onClick = onUploadClick,
+        )
+        MineMenuDivider()
+        MenuItem(
+            title = stringResource(id = R.string.mine_together),
+            iconResId = R.drawable.music,
+            iconColor = SkyBlue,
+            onClick = onTogetherClick,
         )
     }
 }

@@ -1,6 +1,6 @@
 package com.neko.music.util
 
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 
 /**
  * Deep Link 路由事件处理器
@@ -8,7 +8,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  */
 object DeepLinkHandler {
 
-    val deepLinkEvent = MutableSharedFlow<DeepLinkRoute>(extraBufferCapacity = 1)
+    /**
+     * 单消费者事件队列。
+     *
+     * Channel 会保留冷启动时尚未建立订阅的事件；之前用无 replay 的 SharedFlow 时，
+     * onCreate 里解析出的 deep link 可能在任何收集器挂载前就丢失。
+     */
+    val deepLinkEvent = Channel<DeepLinkRoute>(Channel.BUFFERED)
 
     sealed class DeepLinkRoute {
         /**
@@ -25,5 +31,8 @@ object DeepLinkHandler {
 
         /** 打开隐私政策页 */
         data object PrivacyPolicy : DeepLinkRoute()
+
+        /** 加入一起听房间；token 来自随机分享 URL。 */
+        data class Together(val token: String) : DeepLinkRoute()
     }
 }

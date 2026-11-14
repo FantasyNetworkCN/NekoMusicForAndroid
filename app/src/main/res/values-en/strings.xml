@@ -747,4 +747,27 @@
     <string name="comment_time_hours_format">%1$d h ago</string>
     <string name="comment_time_days_format">%1$d d ago</string>
     <string name="comment_no_more">No more comments</string>
+    <string name="mine_together">Listen Together</string>
+    <string name="together_title">Listen Together</string>
+    <string name="together_close_room">Close room</string>
+    <string name="together_share">Share</string>
+    <string name="together_link_copied">Room link copied</string>
+    <string name="together_login_required">Sign in to join a Listen Together room</string>
+    <string name="together_login">Sign in</string>
+    <string name="together_create_hint">Create a room with an empty temporary playlist</string>
+    <string name="together_create_room">Create room</string>
+    <string name="together_create_failed">Failed to create the room</string>
+    <string name="together_join_failed">Failed to join the room</string>
+    <string name="together_retry">Retry</string>
+    <string name="together_connect_failed">Realtime connection failed. Retrying…</string>
+    <string name="together_member_count_format">Room members %1$d / %2$d</string>
+    <string name="together_reconnecting"> · Reconnecting</string>
+    <string name="together_playlist_empty">The temporary playlist is empty</string>
+    <string name="together_temporary_playlist">Room temporary playlist</string>
+    <string name="together_remove">Remove</string>
+    <string name="together_add_music">Add music</string>
+    <string name="together_search_hint">Search music</string>
+    <string name="together_search">Search</string>
+    <string name="together_room_closed">The room has been closed</string>
+    <string name="together_operation_failed">Operation failed</string>
 </resources>

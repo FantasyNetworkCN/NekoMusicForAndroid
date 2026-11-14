@@ -125,6 +125,7 @@ import com.neko.music.ui.screens.MyPlaylistsScreen
 import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
 import com.neko.music.ui.screens.LatestScreen
+import com.neko.music.ui.screens.TogetherRoomScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
@@ -141,6 +142,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.net.URLEncoder
 
 class MainActivity : ComponentActivity() {
@@ -265,7 +267,7 @@ class MainActivity : ComponentActivity() {
                 "player" -> {
                     val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
                     if (id != null) {
-                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                             com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                         )
                         android.util.Log.d("MainActivity", "Deep Link -> Player: id=$id")
@@ -274,10 +276,19 @@ class MainActivity : ComponentActivity() {
                 "playlist" -> {
                     val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
                     if (id != null) {
-                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                             com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
                         )
                         android.util.Log.d("MainActivity", "Deep Link -> Playlist: id=$id")
+                    }
+                }
+                "together" -> {
+                    val token = uri.pathSegments.firstOrNull()?.trim().orEmpty()
+                    if (token.isNotBlank()) {
+                        com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
+                            com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together(token)
+                        )
+                        android.util.Log.d("MainActivity", "Deep Link -> Together room")
                     }
                 }
                 else -> {
@@ -292,7 +303,7 @@ class MainActivity : ComponentActivity() {
                         path.startsWith("/detail/") -> {
                             val id = path.removePrefix("/detail/").substringBefore("/").substringBefore("?").toIntOrNull()
                             if (id != null) {
-                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                                 )
                                 android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player (detail): id=$id")
@@ -301,7 +312,7 @@ class MainActivity : ComponentActivity() {
                         path.startsWith("/player/") -> {
                             val id = path.removePrefix("/player/").substringBefore("/").substringBefore("?").toIntOrNull()
                             if (id != null) {
-                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                                 )
                                 android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player: id=$id")
@@ -310,14 +321,26 @@ class MainActivity : ComponentActivity() {
                         path.startsWith("/playlist/") -> {
                             val id = path.removePrefix("/playlist/").substringBefore("/").substringBefore("?").toIntOrNull()
                             if (id != null) {
-                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
                                 )
                                 android.util.Log.d("MainActivity", "Deep Link HTTPS -> Playlist: id=$id")
                             }
                         }
+                        path.startsWith("/together/") -> {
+                            val token = path.removePrefix("/together/")
+                                .substringBefore("/")
+                                .substringBefore("?")
+                                .trim()
+                            if (token.isNotBlank()) {
+                                com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
+                                    com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together(token)
+                                )
+                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Together room")
+                            }
+                        }
                         path == "/privacy" || path == "/privacy/" -> {
-                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                 com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy
                             )
                             android.util.Log.d("MainActivity", "Deep Link HTTPS -> PrivacyPolicy")
@@ -513,6 +536,7 @@ fun MainScreen() {
     val isPlayerScreen = currentRoute?.startsWith("player") == true
     val isAuthScreen = AuthRoutes.isAuthRoute(currentRoute)
     val isRecognitionScreen = currentRoute == "music_recognition"
+    val isTogetherScreen = currentRoute?.startsWith("together") == true
 
     // 获取播放器状态
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -557,8 +581,8 @@ fun MainScreen() {
 
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
 
-    androidx.compose.runtime.LaunchedEffect(isAuthScreen, showLogoutDialog) {
-        showBottomControls = !isAuthScreen && !showLogoutDialog
+    androidx.compose.runtime.LaunchedEffect(isAuthScreen, isTogetherScreen, showLogoutDialog) {
+        showBottomControls = !isAuthScreen && !isTogetherScreen && !showLogoutDialog
     }
 
     // 登录状态，用于触发界面更新
@@ -671,7 +695,7 @@ fun MainScreen() {
 
     // 监听 Deep Link 事件并导航
     androidx.compose.runtime.LaunchedEffect(navController) {
-        com.neko.music.util.DeepLinkHandler.deepLinkEvent.collect { route ->
+        com.neko.music.util.DeepLinkHandler.deepLinkEvent.receiveAsFlow().collect { route ->
             when (route) {
                 is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player -> {
                     // 通过API获取音乐详情后再跳转，不依赖外部传入标题和歌手
@@ -763,6 +787,11 @@ fun MainScreen() {
                 }
                 com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy -> {
                     navController.navigate("privacy_policy") {
+                        launchSingleTop = true
+                    }
+                }
+                is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together -> {
+                    navController.navigate("together?token=${android.net.Uri.encode(route.token)}") {
                         launchSingleTop = true
                     }
                 }
@@ -972,6 +1001,10 @@ fun MainScreen() {
                     onNotificationsClick = {
                         navController.navigate("notifications")
                     },
+                    onTogetherClick = {
+                        if (isLoggedIn) navController.navigate("together")
+                        else navController.navigate(AuthRoutes.LOGIN)
+                    },
                     isLoggedIn = isLoggedIn,
                     nickname = currentNickname,
                     userId = currentUserId,
@@ -1008,7 +1041,7 @@ fun MainScreen() {
                             .substringBefore("?")
                             .toIntOrNull()
                         if (musicId != null) {
-                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.tryEmit(
+                            com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                 com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(musicId)
                             )
                         }
@@ -1227,6 +1260,22 @@ fun MainScreen() {
                     onPlaylistBatchModeChange = { inBatch ->
                         playlistBatchHidingChrome = inBatch
                     }
+                )
+            }
+            composable(
+                route = "together?token={token}",
+                arguments = listOf(
+                    navArgument("token") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    }
+                )
+            ) { entry ->
+                TogetherRoomScreen(
+                    roomToken = android.net.Uri.decode(entry.arguments?.getString("token").orEmpty()),
+                    isLoggedIn = isLoggedIn,
+                    onBackClick = { navController.popBackStack() },
+                    onLoginClick = { navController.navigate(AuthRoutes.LOGIN) },
                 )
             }
             composable(AuthRoutes.LOGIN) {
