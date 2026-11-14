@@ -127,6 +127,7 @@ import com.neko.music.data.api.PlaylistApi
 import com.neko.music.data.api.PlaylistInfo
 import com.neko.music.data.api.PlaylistListResponse
 import com.neko.music.data.model.Music
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.PlayMode
 import com.neko.music.service.AudioQuality
@@ -339,6 +340,9 @@ fun PlayerScreen(
     val context = LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
+    val togetherState by TogetherSessionManager.state.collectAsState()
+    val togetherConnected by TogetherSessionManager.connected.collectAsState()
+    val togetherActive = togetherState != null
 
     val isPlaying by playerManager.isPlaying.collectAsState()
     val isBuffering by playerManager.isBuffering.collectAsState()
@@ -890,8 +894,8 @@ fun PlayerScreen(
                             ) {
                                 if (isLandscape) {
                                     val artSize = minOf(
-                                        maxWidth * 0.28f,
-                                        220.dp,
+                                        maxWidth * (if (togetherActive) 0.22f else 0.28f),
+                                        if (togetherActive) 180.dp else 220.dp,
                                         (maxHeight - 20.dp).coerceAtLeast(96.dp),
                                     )
                                     Row(
@@ -912,8 +916,8 @@ fun PlayerScreen(
                                     }
                                 } else {
                                     val artSize = minOf(
-                                        maxWidth * 0.72f,
-                                        330.dp,
+                                        maxWidth * (if (togetherActive) 0.58f else 0.72f),
+                                        if (togetherActive) 260.dp else 330.dp,
                                         (maxHeight - 96.dp).coerceAtLeast(160.dp),
                                     )
                                     Column(
@@ -933,18 +937,31 @@ fun PlayerScreen(
                         }
 
                         2 -> {
-                            Box(modifier = Modifier.fillMaxSize()) {
+                            Column(modifier = Modifier.fillMaxSize()) {
                                 androidx.compose.runtime.LaunchedEffect(Unit) {
                                     com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                                }
+                                if (togetherActive) {
+                                    TogetherMemberAvatarStrip(
+                                        members = togetherState?.members.orEmpty(),
+                                        connected = togetherConnected,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    )
                                 }
                                 AmllLyricsView(
                                     lyrics = lyrics,
                                     currentProgressSeconds = currentProgressSeconds,
                                     isLoading = isLoading,
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier.weight(1f),
                                     listState = lyricsListState,
                                     onLineClick = { lineTime ->
-                                        playerManager.seekTo((lineTime * 1000f).toLong())
+                                        if (togetherActive) {
+                                            TogetherSessionManager.seekTo((lineTime * 1000f).toLong())
+                                        } else {
+                                            playerManager.seekTo((lineTime * 1000f).toLong())
+                                        }
                                     },
                                 )
                             }
@@ -994,12 +1011,26 @@ fun PlayerScreen(
                 maxQuality = maxQuality,
                 onProgressChange = { value ->
                     if (duration > 0) {
-                        playerManager.seekTo((value * duration).toLong())
+                        val position = (value * duration).toLong()
+                        if (togetherActive) {
+                            TogetherSessionManager.seekTo(position)
+                        } else {
+                            playerManager.seekTo(position)
+                        }
                     }
                 },
-                onPlayPauseClick = { playerManager.togglePlayPause() },
-                onPreviousClick = { playerManager.previous() },
-                onNextClick = { playerManager.next() },
+                onPlayPauseClick = {
+                    if (togetherActive) TogetherSessionManager.toggle()
+                    else playerManager.togglePlayPause()
+                },
+                onPreviousClick = {
+                    if (togetherActive) TogetherSessionManager.previous()
+                    else playerManager.previous()
+                },
+                onNextClick = {
+                    if (togetherActive) TogetherSessionManager.next()
+                    else playerManager.next()
+                },
                 onFavoriteClick = onFavoriteToggle,
                 onPlaylistClick = onPlaylistClick,
                 onPlayModeClick = { playerManager.togglePlayMode() },
@@ -1185,6 +1216,50 @@ fun PlayerScreen(
                     onDownloadVideo = {
                         showShareDialog = false
                         downloadRenderedVideo()
+                    },
+                    togetherActive = togetherActive,
+                    onTogetherClick = {
+                        showShareDialog = false
+                        scope.launch {
+                            val token = tokenManager.getToken()
+                            if (token.isNullOrBlank()) {
+                                Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                            } else if (TogetherSessionManager.isActive) {
+                                TogetherSessionManager.addMusic(currentMusic)
+                                Toast.makeText(
+                                    context,
+                                    R.string.together_added,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                TogetherSessionManager.startWithCurrentMusic(
+                                    context,
+                                    token,
+                                    currentMusic,
+                                ).onSuccess { url ->
+                                    val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                            as android.content.ClipboardManager
+                                    clipboard.setPrimaryClip(
+                                        android.content.ClipData.newPlainText(
+                                            context.getString(R.string.together_title),
+                                            url,
+                                        )
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        R.string.together_created_copied,
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }.onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        it.message ?: context.getString(R.string.together_create_failed),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
+                        }
                     },
                 )
             }
@@ -2569,6 +2644,60 @@ fun ProgressSlider(
 }
 
 @Composable
+private fun TogetherMemberAvatarStrip(
+    members: List<com.neko.music.data.api.TogetherMember>,
+    connected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val dark = isAppDarkTheme()
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LazyRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(members, key = { it.userId }) { member ->
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = if (member.owner) 2.dp else 1.dp,
+                            color = when {
+                                member.owner -> RoseRed
+                                useLiquidStyle && dark -> Color.White.copy(alpha = 0.34f)
+                                useLiquidStyle -> Color.Black.copy(alpha = 0.16f)
+                                else -> scheme.outlineVariant
+                            },
+                            shape = CircleShape,
+                        )
+                        .alpha(if (member.online) 1f else 0.48f),
+                ) {
+                    AsyncImage(
+                        model = UrlConfig.getUserAvatarUrl(member.userId),
+                        contentDescription = member.nickname,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "${members.size}/10" + if (connected) "" else " · …",
+            color = if (useLiquidStyle && dark) Color.White.copy(alpha = 0.56f)
+            else scheme.onSurfaceVariant,
+            fontSize = 11.sp,
+        )
+    }
+}
+
+@Composable
 fun PlaybackControls(
     isPlaying: Boolean,
     isLoading: Boolean,
@@ -2924,6 +3053,8 @@ fun ShareDialog(
     videoRenderStatus: String? = null,
     canDownloadVideo: Boolean = false,
     onDownloadVideo: () -> Unit = {},
+    togetherActive: Boolean = false,
+    onTogetherClick: () -> Unit = {},
 ) {
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
@@ -3054,7 +3185,9 @@ fun ShareDialog(
                     videoRenderStatus = videoRenderStatus,
                     canDownloadVideo = canDownloadVideo,
                     onDownloadVideo = onDownloadVideo,
-                    onShowCustomSleepTimer = { showCustomSleepTimerDialog = true }
+                    onShowCustomSleepTimer = { showCustomSleepTimerDialog = true },
+                    togetherActive = togetherActive,
+                    onTogetherClick = onTogetherClick,
                 )
             }
         }
@@ -3102,7 +3235,9 @@ fun ShareDialogContent(
     videoRenderStatus: String?,
     canDownloadVideo: Boolean,
     onDownloadVideo: () -> Unit,
-    onShowCustomSleepTimer: () -> Unit
+    onShowCustomSleepTimer: () -> Unit,
+    togetherActive: Boolean,
+    onTogetherClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -3125,6 +3260,17 @@ fun ShareDialogContent(
                     .padding(horizontal = 10.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.playlist,
+                        label = stringResource(
+                            if (togetherActive) R.string.together_add_to_room else R.string.together_menu
+                        ),
+                        color = RoseRed,
+                        labelColor = shareLabelTint,
+                        onClick = onTogetherClick
+                    )
+                }
                 item {
                     ShareGridItem(
                         iconRes = R.drawable.twitter,

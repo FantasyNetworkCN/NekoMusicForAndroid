@@ -51,7 +51,7 @@ nekomusic://playlist/{playlistId}
 nekomusic://together/{token}
 ```
 
-客户端内也可以从「我的 → 一起听」创建房间，创建后复制随机房间 URL 分享给其他用户。
+客户端内在播放页右上角分享菜单选择「一起听」即可创建或添加到房间；创建后会自动复制随机房间 URL。
 
 ### 网页调用示例
 

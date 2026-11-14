@@ -770,4 +770,9 @@
     <string name="together_search">Search</string>
     <string name="together_room_closed">The room has been closed</string>
     <string name="together_operation_failed">Operation failed</string>
+    <string name="together_menu">Listen Together</string>
+    <string name="together_add_to_room">Add to Listen Together</string>
+    <string name="together_created_copied">Listening room created. Link copied.</string>
+    <string name="together_added">Added to Listen Together</string>
+    <string name="together_joined">Joined the listening room</string>
 </resources>

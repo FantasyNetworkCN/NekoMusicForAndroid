@@ -742,4 +742,9 @@
     <string name="together_search">搜索</string>
     <string name="together_room_closed">房间已关闭</string>
     <string name="together_operation_failed">操作失败</string>
+    <string name="together_menu">一起听</string>
+    <string name="together_add_to_room">添加到一起听</string>
+    <string name="together_created_copied">一起听房间已创建，链接已复制</string>
+    <string name="together_added">已添加到一起听</string>
+    <string name="together_joined">已加入一起听房间</string>
 </resources>

@@ -125,13 +125,13 @@ import com.neko.music.ui.screens.MyPlaylistsScreen
 import com.neko.music.ui.screens.PlaylistDetailScreen
 import com.neko.music.ui.screens.RankingScreen
 import com.neko.music.ui.screens.LatestScreen
-import com.neko.music.ui.screens.TogetherRoomScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
 import com.neko.music.data.lan.LanDeviceManager
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.PrivacyConsentManager
+import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Neko歌姬计划
 import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
@@ -527,6 +527,8 @@ fun MainScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val scope = rememberCoroutineScope()
+    val togetherState by TogetherSessionManager.state.collectAsState()
+    val togetherActive = togetherState != null
 
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -536,7 +538,6 @@ fun MainScreen() {
     val isPlayerScreen = currentRoute?.startsWith("player") == true
     val isAuthScreen = AuthRoutes.isAuthRoute(currentRoute)
     val isRecognitionScreen = currentRoute == "music_recognition"
-    val isTogetherScreen = currentRoute?.startsWith("together") == true
 
     // 获取播放器状态
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -581,8 +582,8 @@ fun MainScreen() {
 
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
 
-    androidx.compose.runtime.LaunchedEffect(isAuthScreen, isTogetherScreen, showLogoutDialog) {
-        showBottomControls = !isAuthScreen && !isTogetherScreen && !showLogoutDialog
+    androidx.compose.runtime.LaunchedEffect(isAuthScreen, showLogoutDialog) {
+        showBottomControls = !isAuthScreen && !showLogoutDialog
     }
 
     // 登录状态，用于触发界面更新
@@ -592,6 +593,7 @@ fun MainScreen() {
     var currentUserToken by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
     var currentUserIsVip by androidx.compose.runtime.remember { mutableStateOf(false) }
     var currentVipExpiresAt by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
+    var pendingTogetherToken by androidx.compose.runtime.remember { mutableStateOf<String?>(null) }
 
     fun refreshUserSessionFromDisk() {
         val tokenManager = com.neko.music.data.manager.TokenManager(context)
@@ -630,6 +632,24 @@ fun MainScreen() {
             }
             launchSingleTop = true
         }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(isLoggedIn, currentUserToken, pendingTogetherToken) {
+        val roomToken = pendingTogetherToken ?: return@LaunchedEffect
+        val userToken = currentUserToken ?: return@LaunchedEffect
+        TogetherSessionManager.join(context, userToken, roomToken)
+            .onSuccess {
+                pendingTogetherToken = null
+                Toast.makeText(context, R.string.together_joined, Toast.LENGTH_SHORT).show()
+            }
+            .onFailure {
+                pendingTogetherToken = null
+                Toast.makeText(
+                    context,
+                    it.message ?: context.getString(R.string.together_join_failed),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
     }
 
     // 前台期间周期校验登录态，回到前台时 repeatOnLifecycle 会立即重新执行一次。
@@ -791,8 +811,31 @@ fun MainScreen() {
                     }
                 }
                 is com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together -> {
-                    navController.navigate("together?token=${android.net.Uri.encode(route.token)}") {
-                        launchSingleTop = true
+                    val userToken = currentUserToken
+                        ?: com.neko.music.data.manager.TokenManager(context).getToken()
+                    if (userToken.isNullOrBlank()) {
+                        pendingTogetherToken = route.token
+                        navController.navigate(AuthRoutes.LOGIN) {
+                            launchSingleTop = true
+                        }
+                    } else {
+                        scope.launch {
+                            TogetherSessionManager.join(context, userToken, route.token)
+                                .onSuccess {
+                                    Toast.makeText(
+                                        context,
+                                        R.string.together_joined,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                .onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        it.message ?: context.getString(R.string.together_join_failed),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                        }
                     }
                 }
             }
@@ -1000,10 +1043,6 @@ fun MainScreen() {
                     },
                     onNotificationsClick = {
                         navController.navigate("notifications")
-                    },
-                    onTogetherClick = {
-                        if (isLoggedIn) navController.navigate("together")
-                        else navController.navigate(AuthRoutes.LOGIN)
                     },
                     isLoggedIn = isLoggedIn,
                     nickname = currentNickname,
@@ -1260,22 +1299,6 @@ fun MainScreen() {
                     onPlaylistBatchModeChange = { inBatch ->
                         playlistBatchHidingChrome = inBatch
                     }
-                )
-            }
-            composable(
-                route = "together?token={token}",
-                arguments = listOf(
-                    navArgument("token") {
-                        type = NavType.StringType
-                        defaultValue = ""
-                    }
-                )
-            ) { entry ->
-                TogetherRoomScreen(
-                    roomToken = android.net.Uri.decode(entry.arguments?.getString("token").orEmpty()),
-                    isLoggedIn = isLoggedIn,
-                    onBackClick = { navController.popBackStack() },
-                    onLoginClick = { navController.navigate(AuthRoutes.LOGIN) },
                 )
             }
             composable(AuthRoutes.LOGIN) {
@@ -1689,7 +1712,10 @@ fun MainScreen() {
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
                                 progress = miniPlayerProgress,
-                                onPlayPauseClick = { playerManager.togglePlayPause() },
+                                onPlayPauseClick = {
+                                    if (togetherActive) TogetherSessionManager.toggle()
+                                    else playerManager.togglePlayPause()
+                                },
                                 onPlayerClick = {
                                     val id = currentMusicId ?: 0
                                     val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
@@ -1722,7 +1748,10 @@ fun MainScreen() {
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
                                 progress = miniPlayerProgress,
-                                onPlayPauseClick = { playerManager.togglePlayPause() },
+                                onPlayPauseClick = {
+                                    if (togetherActive) TogetherSessionManager.toggle()
+                                    else playerManager.togglePlayPause()
+                                },
                                 onPlayerClick = {
                                     val id = currentMusicId ?: 0
                                     val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
