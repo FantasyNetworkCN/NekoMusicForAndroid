@@ -53,6 +53,19 @@ enum class AudioQuality(val id: String) {
     }
 }
 
+/** 一起听房间接管播放器用户操作时使用；内部应用服务端状态时必须绕过。 */
+interface RoomPlaybackDelegate {
+    fun playTrack(musicId: Int)
+    fun playTracks(musicIds: List<Int>, startIndex: Int)
+    fun playNext(musicId: Int)
+    fun toggle()
+    fun pause()
+    fun next()
+    fun previous()
+    fun seekTo(positionMs: Long)
+    fun togglePlayMode()
+}
+
 class MusicPlayerManager private constructor(context: Context) {
     
     private val playlistManager = PlaylistManager.getInstance(context)
@@ -83,6 +96,29 @@ class MusicPlayerManager private constructor(context: Context) {
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
+
+    @Volatile
+    private var roomPlaybackDelegate: RoomPlaybackDelegate? = null
+
+    @Volatile
+    private var applyingRoomState = false
+
+    fun setRoomPlaybackDelegate(delegate: RoomPlaybackDelegate?) {
+        roomPlaybackDelegate = delegate
+    }
+
+    /** 房间同步写入真实播放器时临时关闭路由，避免再次把服务端状态发回服务器。 */
+    fun applyRoomPlayback(block: () -> Unit) {
+        applyingRoomState = true
+        try {
+            block()
+        } finally {
+            applyingRoomState = false
+        }
+    }
+
+    private fun activeRoomDelegate(): RoomPlaybackDelegate? =
+        roomPlaybackDelegate?.takeIf { !applyingRoomState }
 
     /** 音频属性（USAGE_MEDIA / CONTENT_TYPE_MUSIC），创建与接管播放器时复用同一份。 */
     private fun buildAudioAttributes(): com.google.android.exoplayer2.audio.AudioAttributes =
@@ -576,6 +612,10 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun togglePlayMode() {
+        activeRoomDelegate()?.let {
+            it.togglePlayMode()
+            return
+        }
         _playMode.value = when (_playMode.value) {
             PlayMode.LIST_LOOP -> PlayMode.SINGLE_LOOP
             PlayMode.SINGLE_LOOP -> PlayMode.SHUFFLE
@@ -596,6 +636,10 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 下一曲
     fun next() {
+        activeRoomDelegate()?.let {
+            it.next()
+            return
+        }
         // 「下一首播放」优先：插播队列非空时忽略播放模式，直接播用户指定的那一首
         if (playForcedNext()) return
 
@@ -693,6 +737,10 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 上一曲
     fun previous() {
+        activeRoomDelegate()?.let {
+            it.previous()
+            return
+        }
         val currentId = _currentMusicId.value ?: return
         android.util.Log.d("MusicPlayerManager", "previous() called, currentId: $currentId, playHistory size: ${playHistory.size}")
 
@@ -760,6 +808,10 @@ class MusicPlayerManager private constructor(context: Context) {
      * 若当前没有正在播放的歌曲，则直接开始播放。
      */
     fun playNext(music: Music) {
+        activeRoomDelegate()?.let { delegate ->
+            if (music.id > 0) delegate.playNext(music.id)
+            return
+        }
         if (_currentMusicId.value == null) {
             // 队列里还没有正在播放的歌曲，"下一首"就是现在这一首
             scope.launch {
@@ -955,6 +1007,11 @@ class MusicPlayerManager private constructor(context: Context) {
                         if (isReleased) return
 
                         _isBuffering.value = false
+                        if (activeRoomDelegate() != null) {
+                            // 房间切歌由服务端统一推进，避免每个客户端都触发 next 造成连跳。
+                            updatePlaybackState()
+                            return
+                        }
                         activePlayer.seekTo(0)
                         updatePlaybackState()
 
@@ -1005,17 +1062,17 @@ class MusicPlayerManager private constructor(context: Context) {
 
             mediaSession?.setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
-                    fadeIn()
+                    if (!_isPlaying.value) togglePlayPause()
                 }
 
                 override fun onPause() {
                     // 系统 / 蓝牙 / 车机回控暂停：正常走淡出，并记一条日志便于排查"莫名暂停"
                     Log.d("MusicPlayerManager", "MediaSession.onPause（系统/蓝牙/车机回控）")
-                    fadeOut {}
+                    if (_isPlaying.value) togglePlayPause()
                 }
 
                 override fun onSeekTo(pos: Long) {
-                    activePlayer.seekTo(pos)
+                    seekTo(pos)
                 }
 
                 override fun onSkipToNext() {
@@ -1467,6 +1524,12 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun playMusic(url: String, id: Int? = null, title: String? = null, artist: String? = null, cover: String? = null, fullCoverUrl: String? = null) {
+        activeRoomDelegate()?.let { delegate ->
+            if (id != null && id > 0) {
+                delegate.playTrack(id)
+            }
+            return
+        }
         val baseUrl = if (UrlConfig.isLocalUri(url)) url else UrlConfig.buildFullUrl(url)
         if (isLocalMusicId(id) && !UrlConfig.isLocalUri(baseUrl)) {
             Log.e("MusicPlayerManager", "拒绝为本地音乐使用非本地地址: id=$id, url=$baseUrl")
@@ -1650,6 +1713,13 @@ class MusicPlayerManager private constructor(context: Context) {
 
     suspend fun playMusicListAndAwait(musicList: List<com.neko.music.data.model.Music>, startIndex: Int = 0) {
         if (musicList.isEmpty()) return
+        activeRoomDelegate()?.let { delegate ->
+            val ids = musicList.mapNotNull { it.id.takeIf { id -> id > 0 } }
+            if (ids.isNotEmpty()) {
+                delegate.playTracks(ids, startIndex.coerceIn(0, ids.lastIndex))
+            }
+            return
+        }
 
         try {
             playlistManager.replacePlaylist(musicList)
@@ -1682,10 +1752,18 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun pause() {
+        activeRoomDelegate()?.let {
+            it.pause()
+            return
+        }
         fadeOut {}
     }
     
     fun togglePlayPause() {
+        activeRoomDelegate()?.let {
+            it.toggle()
+            return
+        }
         if (_isPlaying.value) {
             fadeOut {}
         } else {
@@ -1694,6 +1772,10 @@ class MusicPlayerManager private constructor(context: Context) {
     }
     
     fun seekTo(position: Long) {
+        activeRoomDelegate()?.let {
+            it.seekTo(position)
+            return
+        }
         activePlayer.seekTo(position)
         _currentPosition.value = position
         updatePlaybackState()

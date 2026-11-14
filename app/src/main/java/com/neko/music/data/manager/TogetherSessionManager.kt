@@ -11,6 +11,7 @@ import com.neko.music.data.api.TogetherPlaylistItem
 import com.neko.music.data.api.TogetherTrack
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.RoomPlaybackDelegate
 import com.neko.music.util.UrlConfig
 import java.net.URI
 import java.util.UUID
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -89,6 +92,35 @@ object TogetherSessionManager {
         }
     }
 
+    private fun installPlaybackDelegate() {
+        playerManager?.setRoomPlaybackDelegate(object : RoomPlaybackDelegate {
+            override fun playTrack(musicId: Int) {
+                sendControl("playback.playTrack") { put("trackId", musicId) }
+            }
+
+            override fun playTracks(musicIds: List<Int>, startIndex: Int) {
+                sendControl("playlist.playList") {
+                    put("startIndex", startIndex)
+                    put("trackIds", buildJsonArray {
+                        musicIds.forEach { add(it) }
+                    })
+                }
+            }
+
+            override fun playNext(musicId: Int) {
+                sendControl("playlist.addNext") { put("trackId", musicId) }
+            }
+
+            override fun toggle() = TogetherSessionManager.toggle()
+            override fun pause() = sendControl("playback.pause")
+            override fun next() = TogetherSessionManager.next()
+            override fun previous() = TogetherSessionManager.previous()
+            override fun seekTo(positionMs: Long) =
+                TogetherSessionManager.seekTo(positionMs)
+            override fun togglePlayMode() = TogetherSessionManager.cyclePlayMode()
+        })
+    }
+
     /**
      * 从播放页分享菜单创建房间，并把当前歌曲加入空临时列表后开始播放。
      * 返回可分享的房间 URL。
@@ -100,6 +132,7 @@ object TogetherSessionManager {
     ): Result<String> = runCatching {
         ensure(context)
         stopInternal(leaveServer = true)
+        installPlaybackDelegate()
         closing = false
         val created = api!!.createRoom(userToken).getOrThrow()
         val roomToken = URI(created).path.substringAfterLast('/')
@@ -107,7 +140,7 @@ object TogetherSessionManager {
         addMusic(music)
         sendControl("playback.play")
         created
-    }
+    }.onFailure { stopInternal(leaveServer = false) }
 
     /** 分享链接进入房间；不创建独立页面，现有播放页继续作为唯一操控入口。 */
     suspend fun join(
@@ -117,9 +150,10 @@ object TogetherSessionManager {
     ): Result<Unit> = runCatching {
         ensure(context)
         stopInternal(leaveServer = false)
+        installPlaybackDelegate()
         closing = false
         connect(roomToken, userToken)
-    }
+    }.onFailure { stopInternal(leaveServer = false) }
 
     fun addMusic(music: Music) {
         if (!isActive || music.id <= 0) return
@@ -266,20 +300,24 @@ object TogetherSessionManager {
         val item = current.currentItem
         val track = item?.track
         if (track == null) {
-            if (player.isPlaying.value) player.pause()
+            if (player.isPlaying.value) {
+                player.applyRoomPlayback { player.pause() }
+            }
             return
         }
         if (player.currentMusicId.value != track.id) {
             val music = track.toMusic()
             val url = musicApi!!.getMusicFileUrl(music)
-            player.playMusic(
-                url,
-                track.id,
-                track.title,
-                track.artist,
-                "",
-                UrlConfig.getMusicCoverUrl(track.id),
-            )
+            player.applyRoomPlayback {
+                player.playMusic(
+                    url,
+                    track.id,
+                    track.title,
+                    track.artist,
+                    "",
+                    UrlConfig.getMusicCoverUrl(track.id),
+                )
+            }
             for (attempt in 0 until 20) {
                 if (player.currentMusicId.value == track.id && player.duration.value > 0) {
                     break
@@ -299,10 +337,10 @@ object TogetherSessionManager {
         }.coerceIn(0L, latestItem.track.duration.coerceAtLeast(0) * 1000L)
 
         if (abs(player.currentPosition.value - target) > 500L) {
-            player.seekTo(target)
+            player.applyRoomPlayback { player.seekTo(target) }
         }
         if (player.isPlaying.value != latest.playback.playing) {
-            player.togglePlayPause()
+            player.applyRoomPlayback { player.togglePlayPause() }
         }
     }
 
@@ -369,6 +407,7 @@ object TogetherSessionManager {
         syncJob = null
         _connected.value = false
         _state.value = null
+        playerManager?.setRoomPlaybackDelegate(null)
         closing = false
     }
 
