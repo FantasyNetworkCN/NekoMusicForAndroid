@@ -190,24 +190,8 @@ fun DailyRecommendationScreen(
         scope.launch {
             try {
                 if (musicList.isEmpty()) return@launch
-                playlistManager.clearPlaylist()
-                musicList.forEach { music ->
-                    val url = musicApi.getMusicFileUrl(music)
-                    playlistManager.addToPlaylist(
-                        Music(
-                            id = music.id,
-                            title = music.title,
-                            artist = music.artist,
-                            album = music.album,
-                            duration = music.duration,
-                            filePath = url,
-                            coverFilePath = music.coverFilePath ?: "",
-                            uploadUserId = music.uploadUserId,
-                            createdAt = music.createdAt
-                        )
-                    )
-                }
-                playMusicAndNavigate(musicList.first())
+                playerManager.playMusicListAndAwait(musicList, 0)
+                onNavigateToPlayer(musicList.first())
             } catch (e: Exception) {
                 Log.e("DailyRecommendationScreen", "播放全部失败", e)
             }

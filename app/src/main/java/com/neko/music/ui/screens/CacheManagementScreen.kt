@@ -121,10 +121,7 @@ fun CacheManagementScreen(
                                 isLoading = true
                                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                                     try {
-                                        // 1. 清空当前播放列表
-                                        playlistManager.clearPlaylist()
-                                        
-                                        // 2. 构造所有缓存音乐的Music对象并添加到播放列表
+                                        // 构造所有缓存音乐的 Music 对象。
                                         val musicList = mutableListOf<com.neko.music.data.model.Music>()
                                         
                                         for (item in cachedItems) {
@@ -143,33 +140,15 @@ fun CacheManagementScreen(
                                                     createdAt = null
                                                 )
                                                 
-                                                // 添加到播放列表
-                                                playlistManager.addToPlaylist(tempMusic)
                                                 musicList.add(tempMusic)
                                             } catch (e: Exception) {
                                                 android.util.Log.e("CacheManagementScreen", "添加音乐失败: ${item.first}", e)
                                             }
                                         }
                                         
-                                        // 3. 如果有音乐,在主线程开始播放第一首
                                         if (musicList.isNotEmpty()) {
                                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                                val firstMusic = musicList.first()
-                                                val musicApi = com.neko.music.data.api.MusicApi(context)
-                                                val fullCoverUrl = if (!firstMusic.coverFilePath.isNullOrEmpty()) {
-                                                    UrlConfig.buildFullUrl("${firstMusic.coverFilePath}")
-                                                } else {
-                                                    UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                                }
-                                                val musicUrl = musicApi.getMusicFileUrl(firstMusic)
-                                                musicPlayerManager.playMusic(
-                                                    musicUrl,
-                                                    firstMusic.id,
-                                                    firstMusic.title,
-                                                    firstMusic.artist,
-                                                    firstMusic.coverFilePath ?: "",
-                                                    fullCoverUrl
-                                                )
+                                                musicPlayerManager.playMusicListAndAwait(musicList, 0)
                                             }
                                         }
                                     } catch (e: Exception) {

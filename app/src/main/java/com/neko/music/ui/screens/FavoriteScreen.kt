@@ -98,29 +98,11 @@ fun FavoriteScreen(
     val musicApi = com.neko.music.data.api.MusicApi(context)
 
     suspend fun playAllFavorites() {
-        playlistManager.clearPlaylist()
-        filteredFavorites.forEach { favorite ->
-            playlistManager.addToPlaylist(favorite.toMusic())
-        }
-
-        if (filteredFavorites.isNotEmpty()) {
-            val firstFavorite = filteredFavorites[0]
-            val music = firstFavorite.toMusic()
-            val url = musicApi.getMusicFileUrl(music)
-            val fullCoverUrl = if (firstFavorite.cover.isNotEmpty()) {
-                UrlConfig.buildFullUrl("${firstFavorite.cover}")
-            } else {
-                UrlConfig.getMusicCoverUrl(firstFavorite.id)
-            }
-            playerManager.playMusic(
-                url,
-                firstFavorite.id,
-                firstFavorite.title,
-                firstFavorite.artist,
-                firstFavorite.cover,
-                fullCoverUrl
-            )
-        }
+        if (filteredFavorites.isEmpty()) return
+        playerManager.playMusicListAndAwait(
+            filteredFavorites.map { it.toMusic() },
+            0,
+        )
     }
 
     suspend fun playFavorite(favorite: com.neko.music.data.api.FavoriteMusic) {

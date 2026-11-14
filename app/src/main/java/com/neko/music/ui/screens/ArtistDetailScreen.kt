@@ -356,44 +356,10 @@ fun ArtistDetailScreen(
                                             .clickable {
                                                 scope.launch {
                                                     try {
-                                                        val playlistManager =
-                                                            com.neko.music.data.manager.PlaylistManager.getInstance(
-                                                                context
-                                                            )
-
-                                                        playlistManager.clearPlaylist()
-
-                                                        musicList.forEach { music ->
-                                                            val url = musicApi.getMusicFileUrl(music)
-                                                            playlistManager.addToPlaylist(
-                                                                Music(
-                                                                    music.id,
-                                                                    music.title,
-                                                                    music.artist,
-                                                                    "",
-                                                                    music.duration,
-                                                                    url,
-                                                                    "",
-                                                                    0,
-                                                                    ""
-                                                                )
-                                                            )
-                                                        }
-
-                                                        if (musicList.isNotEmpty()) {
-                                                            val firstMusic = musicList[0]
-                                                            val url = musicApi.getMusicFileUrl(firstMusic)
-                                                            val fullCoverUrl =
-                                                                UrlConfig.getMusicCoverUrl(firstMusic.id)
-                                                            playerManager.playMusic(
-                                                                url,
-                                                                firstMusic.id,
-                                                                firstMusic.title,
-                                                                firstMusic.artist,
-                                                                firstMusic.coverFilePath ?: "",
-                                                                fullCoverUrl
-                                                            )
-                                                        }
+                                                        playerManager.playMusicListAndAwait(
+                                                            musicList,
+                                                            0,
+                                                        )
                                                     } catch (e: Exception) {
                                                         Log.e("ArtistDetailScreen", "播放全部失败", e)
                                                         android.widget.Toast.makeText(

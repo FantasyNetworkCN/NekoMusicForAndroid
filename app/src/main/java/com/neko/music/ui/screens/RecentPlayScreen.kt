@@ -108,21 +108,8 @@ fun RecentPlayScreen(
     }
 
     suspend fun playAllRecent() {
-        playlistManager.clearPlaylist()
-        filteredList.forEach { music ->
-            playlistManager.addToPlaylist(music)
-        }
-
-        filteredList.firstOrNull()?.let { music ->
-            playerManager.playMusic(
-                musicApi.getMusicFileUrl(music),
-                music.id,
-                music.title,
-                music.artist,
-                music.coverFilePath,
-                music.displayCoverUrl()
-            )
-        }
+        if (filteredList.isEmpty()) return
+        playerManager.playMusicListAndAwait(filteredList, 0)
     }
 
     suspend fun playRecent(music: Music) {
