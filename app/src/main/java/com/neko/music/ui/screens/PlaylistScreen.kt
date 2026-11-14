@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +28,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -55,10 +59,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +76,7 @@ import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.manager.PlaylistManager
+import com.neko.music.data.manager.TogetherRoomViewState
 import com.neko.music.data.lan.LanDevice
 import com.neko.music.data.lan.LanDeviceManager
 import com.neko.music.data.lan.LanMusic
@@ -76,6 +85,7 @@ import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
 import java.util.Collections
@@ -87,7 +97,11 @@ fun PlaylistScreen(
     isVisible: Boolean,
     currentMusicId: Int?,
     onBackClick: () -> Unit,
-    onMusicClick: (Music) -> Unit
+    onMusicClick: (Music) -> Unit,
+    togetherState: TogetherRoomViewState? = null,
+    onTogetherSelect: (String) -> Unit = {},
+    onTogetherRemove: (String) -> Unit = {},
+    onTogetherAddCurrent: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val playlistManager = PlaylistManager.getInstance(context)
@@ -138,18 +152,194 @@ fun PlaylistScreen(
                 liquidLensHeight = modalGlass.liquid.lensHeight,
                 liquidLensAmount = modalGlass.liquid.lensAmount
             ) {
-                PlaylistContent(
-                    playlist = playlist,
-                    currentMusicId = currentMusicId,
-                    lanDevices = lanDevices,
-                    selectedDeviceId = selectedDeviceId,
-                    remoteQueue = remoteQueue,
-                    onSelectDevice = { lanManager.selectDevice(it) },
-                    onBackClick = onBackClick,
-                    onMusicClick = onMusicClick,
-                    playlistManager = playlistManager,
-                    scope = scope
+                if (togetherState != null) {
+                    TogetherRoomPlaylistContent(
+                        state = togetherState,
+                        onBackClick = onBackClick,
+                        onSelect = onTogetherSelect,
+                        onRemove = onTogetherRemove,
+                        onAddCurrent = onTogetherAddCurrent,
+                    )
+                } else {
+                    PlaylistContent(
+                        playlist = playlist,
+                        currentMusicId = currentMusicId,
+                        lanDevices = lanDevices,
+                        selectedDeviceId = selectedDeviceId,
+                        remoteQueue = remoteQueue,
+                        onSelectDevice = { lanManager.selectDevice(it) },
+                        onBackClick = onBackClick,
+                        onMusicClick = onMusicClick,
+                        playlistManager = playlistManager,
+                        scope = scope
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TogetherRoomPlaylistContent(
+    state: TogetherRoomViewState,
+    onBackClick: () -> Unit,
+    onSelect: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onAddCurrent: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val isDark = isAppDarkTheme()
+    val glass = LiquidGlassDefaults.playlistDetail
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.together_temporary_playlist),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface,
                 )
+                Text(
+                    text = stringResource(
+                        R.string.together_member_count_format,
+                        state.memberCount,
+                        state.maxMembers,
+                    ),
+                    fontSize = 12.sp,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+            Button(
+                onClick = onAddCurrent,
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(17.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.together_add_current), fontSize = 12.sp)
+            }
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.close),
+                    tint = scheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            itemsIndexed(state.playlist.items, key = { _, item -> item.entryId }) { index, item ->
+                val selected = item.entryId == state.playlist.currentEntryId
+                GlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(62.dp)
+                        .combinedClickable(
+                            onClick = { onSelect(item.entryId) },
+                            onLongClick = {},
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    material3Shape = RoundedCornerShape(16.dp),
+                    material3Container = scheme.surfaceContainerLow,
+                    backgroundAlpha = if (selected) {
+                        if (isDark) 0.20f else 0.14f
+                    } else if (isDark) {
+                        glass.musicRowBackgroundAlphaDark
+                    } else {
+                        glass.musicRowBackgroundAlphaLight
+                    },
+                    borderAlpha = if (isDark) {
+                        glass.musicRowBorderAlphaDark
+                    } else {
+                        glass.musicRowBorderAlphaLight
+                    },
+                    highlightAlpha = if (isDark) {
+                        glass.musicRowHighlightAlphaDark
+                    } else {
+                        glass.musicRowHighlightAlphaLight
+                    },
+                    borderColor = if (selected) RoseRed else if (isDark) Color.White else scheme.outline,
+                    liquidBlur = glass.musicRowLiquidBlur,
+                    liquidLensHeight = glass.musicRowLiquidLensHeight,
+                    liquidLensAmount = glass.musicRowLiquidLensAmount,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            modifier = Modifier.width(24.dp),
+                            textAlign = TextAlign.Center,
+                            color = if (selected) RoseRed else scheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                        )
+                        AsyncImage(
+                            model = UrlConfig.getMusicCoverUrl(item.track.id),
+                            contentDescription = stringResource(R.string.cover),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.music),
+                            error = painterResource(R.drawable.music),
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.track.title,
+                                fontSize = 14.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) RoseRed else scheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = item.track.artist,
+                                fontSize = 11.sp,
+                                color = scheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        IconButton(onClick = { onRemove(item.entryId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.together_remove),
+                                tint = scheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+            if (state.playlist.items.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.together_playlist_empty),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        textAlign = TextAlign.Center,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

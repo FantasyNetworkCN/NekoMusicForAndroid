@@ -1004,7 +1004,15 @@ fun PlayerScreen(
                 isBuffering = isBuffering,
                 isPlaying = isPlaying,
                 musicFileUrl = musicFileUrl,
-                playMode = playMode,
+                playMode = if (togetherActive) {
+                    when (togetherState?.playlist?.repeatMode) {
+                        "single_repeat" -> PlayMode.SINGLE_LOOP
+                        "shuffle" -> PlayMode.SHUFFLE
+                        else -> PlayMode.LIST_LOOP
+                    }
+                } else {
+                    playMode
+                },
                 isFavorite = isFavorite,
                 isDesktopLyricEnabled = isDesktopLyricEnabled,
                 audioQuality = audioQuality,
@@ -1033,7 +1041,10 @@ fun PlayerScreen(
                 },
                 onFavoriteClick = onFavoriteToggle,
                 onPlaylistClick = onPlaylistClick,
-                onPlayModeClick = { playerManager.togglePlayMode() },
+                onPlayModeClick = {
+                    if (togetherActive) TogetherSessionManager.cyclePlayMode()
+                    else playerManager.togglePlayMode()
+                },
                 onQualitySelected = { playerManager.setAudioQuality(it) },
                 onDesktopLyricClick = toggleDesktopLyric,
             )

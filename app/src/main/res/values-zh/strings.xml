@@ -747,4 +747,5 @@
     <string name="together_created_copied">一起听房间已创建，链接已复制</string>
     <string name="together_added">已添加到一起听</string>
     <string name="together_joined">已加入一起听房间</string>
+    <string name="together_add_current">添加当前</string>
 </resources>

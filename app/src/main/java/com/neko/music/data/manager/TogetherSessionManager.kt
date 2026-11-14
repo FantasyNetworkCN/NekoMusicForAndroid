@@ -146,6 +146,15 @@ object TogetherSessionManager {
         sendControl("playback.seek") { put("positionMs", positionMs.coerceAtLeast(0L)) }
     }
 
+    fun cyclePlayMode() {
+        val next = when (_state.value?.playlist?.repeatMode) {
+            "list_repeat" -> "single_repeat"
+            "single_repeat" -> "shuffle"
+            else -> "list_repeat"
+        }
+        sendControl("playlist.mode") { put("mode", next) }
+    }
+
     fun select(entryId: String) {
         sendControl("playback.select") { put("entryId", entryId) }
     }

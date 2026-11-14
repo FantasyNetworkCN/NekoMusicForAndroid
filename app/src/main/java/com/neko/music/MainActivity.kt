@@ -1777,6 +1777,40 @@ fun MainScreen() {
                     PlaylistScreen(
                         isVisible = showPlaylist,
                         currentMusicId = currentMusicId,
+                        togetherState = togetherState,
+                        onTogetherSelect = { entryId ->
+                            TogetherSessionManager.select(entryId)
+                        },
+                        onTogetherRemove = { entryId ->
+                            TogetherSessionManager.remove(entryId)
+                        },
+                        onTogetherAddCurrent = {
+                            val id = currentMusicId
+                            if (id == null || id <= 0) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.local_music_cloud_action_unavailable),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                TogetherSessionManager.addMusic(
+                                    Music(
+                                        id = id,
+                                        title = currentMusicTitle.orEmpty(),
+                                        artist = currentMusicArtist.orEmpty(),
+                                        album = "",
+                                        duration = duration.toInt(),
+                                        filePath = currentMusicUrl ?: "",
+                                        coverFilePath = currentMusicCover ?: "",
+                                    )
+                                )
+                                Toast.makeText(
+                                    context,
+                                    R.string.together_added,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        },
                         onBackClick = {
                             showPlaylist = false
                         },
