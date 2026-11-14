@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -101,7 +100,6 @@ fun PlaylistScreen(
     togetherState: TogetherRoomViewState? = null,
     onTogetherSelect: (String) -> Unit = {},
     onTogetherRemove: (String) -> Unit = {},
-    onTogetherAddCurrent: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val playlistManager = PlaylistManager.getInstance(context)
@@ -158,7 +156,6 @@ fun PlaylistScreen(
                         onBackClick = onBackClick,
                         onSelect = onTogetherSelect,
                         onRemove = onTogetherRemove,
-                        onAddCurrent = onTogetherAddCurrent,
                     )
                 } else {
                     PlaylistContent(
@@ -185,7 +182,6 @@ private fun TogetherRoomPlaylistContent(
     onBackClick: () -> Unit,
     onSelect: (String) -> Unit,
     onRemove: (String) -> Unit,
-    onAddCurrent: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
@@ -214,19 +210,6 @@ private fun TogetherRoomPlaylistContent(
                     fontSize = 12.sp,
                     color = scheme.onSurfaceVariant,
                 )
-            }
-            Button(
-                onClick = onAddCurrent,
-                shape = RoundedCornerShape(20.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.together_add_current), fontSize = 12.sp)
             }
             IconButton(onClick = onBackClick) {
                 Icon(
