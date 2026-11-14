@@ -1,5 +1,6 @@
 package com.neko.music.widget
 
+import com.neko.music.debug.NekoLog as Log
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -46,7 +47,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
             try {
                 com.neko.music.MusicPlayerService.startService(context)
             } catch (e: Exception) {
-                android.util.Log.e("MusicWidgetProvider", "无法启动播放服务", e)
+                Log.e("MusicWidgetProvider", "无法启动播放服务", e)
             }
         }
 
@@ -156,7 +157,7 @@ class MusicWidgetProvider : AppWidgetProvider() {
                         appWidgetManager.updateAppWidget(appWidgetId, views)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("MusicWidgetProvider", "加载封面失败", e)
+                    Log.e("MusicWidgetProvider", "加载封面失败", e)
                 }
             }
         } else {

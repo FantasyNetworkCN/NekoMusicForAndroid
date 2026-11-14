@@ -1,7 +1,7 @@
 package com.neko.music.ui.screens
 
 import android.content.res.Configuration
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -1071,7 +1071,7 @@ fun RankingMusicCard(
                 interactionSource = interactionSource,
                 indication = if (useLiquidStyle) null else ripple(),
             ) {
-                android.util.Log.d("RankingMusicCard", "点击热门音乐，共${musicList.size}首")
+                Log.d("RankingMusicCard", "点击热门音乐，共${musicList.size}首")
                 onClick()
             },
         horizontalAlignment = Alignment.CenterHorizontally

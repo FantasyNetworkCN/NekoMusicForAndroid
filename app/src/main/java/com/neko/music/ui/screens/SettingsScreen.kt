@@ -7,7 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.Image
 import com.neko.music.R
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.neko.music.ui.theme.isAppDarkTheme

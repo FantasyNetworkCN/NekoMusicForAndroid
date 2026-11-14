@@ -1,6 +1,6 @@
 package com.neko.music.ui.screens
 
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring

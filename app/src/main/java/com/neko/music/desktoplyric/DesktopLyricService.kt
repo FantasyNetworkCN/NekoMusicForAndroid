@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.util.DesktopLyricRenderer
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +76,7 @@ class DesktopLyricService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        android.util.Log.d("DesktopLyricService", "Service onCreate")
+        Log.d("DesktopLyricService", "Service onCreate")
         instance = this
 
         // 在onCreate中初始化touchSlop，此时Context已经准备好
@@ -85,9 +86,9 @@ class DesktopLyricService : Service() {
         if (useJNIRenderer) {
             try {
                 DesktopLyricRenderer.initialize()
-                android.util.Log.d("DesktopLyricService", "JNI renderer initialized successfully")
+                Log.d("DesktopLyricService", "JNI renderer initialized successfully")
             } catch (e: Exception) {
-                android.util.Log.e("DesktopLyricService", "Failed to initialize JNI renderer, falling back to Kotlin", e)
+                Log.e("DesktopLyricService", "Failed to initialize JNI renderer, falling back to Kotlin", e)
                 useJNIRenderer = false
             }
         }
@@ -191,9 +192,9 @@ class DesktopLyricService : Service() {
             isViewAdded = true
 
             updateLyricView()
-            android.util.Log.d("DesktopLyricService", "Lyric view added successfully at y=$savedPosition")
+            Log.d("DesktopLyricService", "Lyric view added successfully at y=$savedPosition")
         } catch (e: Exception) {
-            android.util.Log.e("DesktopLyricService", "Error showing lyric view", e)
+            Log.e("DesktopLyricService", "Error showing lyric view", e)
         }
     }
 
@@ -224,7 +225,7 @@ class DesktopLyricService : Service() {
     private fun savePosition() {
         val y = layoutParams?.y ?: 100
         positionPrefs.edit().putInt("lyric_y_position", y).apply()
-        android.util.Log.d("DesktopLyricService", "Saved position: y=$y")
+        Log.d("DesktopLyricService", "Saved position: y=$y")
     }
 
     private fun loadPosition(): Int {
@@ -307,7 +308,7 @@ class DesktopLyricService : Service() {
                     tvTranslation?.text = newTranslation
                 }
             } catch (e: Exception) {
-                android.util.Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
+                Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
                 useJNIRenderer = false
                 // 回退到Kotlin实现
                 updateLyricViewKotlin(tvLyric, tvTranslation, currentTime)
@@ -374,7 +375,7 @@ class DesktopLyricService : Service() {
                             DesktopLyricRenderer.parseLyrics(lyricsText, musicId)
                             currentLyrics = emptyList() // 清空Kotlin数据
                         } catch (e: Exception) {
-                            android.util.Log.e("DesktopLyricService", "JNI parse error, using Kotlin", e)
+                            Log.e("DesktopLyricService", "JNI parse error, using Kotlin", e)
                             useJNIRenderer = false
                             currentLyrics = parseLrcLyrics(lyricsText)
                         }
@@ -383,7 +384,7 @@ class DesktopLyricService : Service() {
                     }
                 },
                 onFailure = { error ->
-                    android.util.Log.e("DesktopLyricService", "Failed to load lyrics", error)
+                    Log.e("DesktopLyricService", "Failed to load lyrics", error)
                     currentLyrics = emptyList()
                     if (useJNIRenderer) {
                         DesktopLyricRenderer.parseLyrics("", -1)
@@ -391,7 +392,7 @@ class DesktopLyricService : Service() {
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e("DesktopLyricService", "Error loading lyrics", e)
+            Log.e("DesktopLyricService", "Error loading lyrics", e)
             currentLyrics = emptyList()
             if (useJNIRenderer) {
                 DesktopLyricRenderer.parseLyrics("", -1)
@@ -463,7 +464,7 @@ class DesktopLyricService : Service() {
             try {
                 DesktopLyricRenderer.cleanup()
             } catch (e: Exception) {
-                android.util.Log.e("DesktopLyricService", "Error cleaning up JNI renderer", e)
+                Log.e("DesktopLyricService", "Error cleaning up JNI renderer", e)
             }
         }
 

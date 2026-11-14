@@ -24,6 +24,11 @@
         name="temp_files"
         path="temp/" />
 
+    <!-- Debug 日志导出目录 -->
+    <cache-path
+        name="debug_logs"
+        path="debug_logs/" />
+
     <!-- 应用私有外部存储 -->
     <external-files-path
         name="app_files"

@@ -6,7 +6,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.service.MusicPlayerManager

@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility

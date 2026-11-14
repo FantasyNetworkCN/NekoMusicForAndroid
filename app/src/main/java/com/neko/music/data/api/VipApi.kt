@@ -1,6 +1,6 @@
 package com.neko.music.data.api
 
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.NEKO_USER_AGENT_HEADER
 import com.neko.music.util.NEKO_USER_AGENT_VALUE
 import com.neko.music.util.UrlConfig

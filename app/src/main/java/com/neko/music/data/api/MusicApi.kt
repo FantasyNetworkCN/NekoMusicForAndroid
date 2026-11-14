@@ -1,7 +1,7 @@
 package com.neko.music.data.api
 
 import android.content.Context
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.data.model.BatchSearchRequest
 import com.neko.music.data.model.LyricsPayload

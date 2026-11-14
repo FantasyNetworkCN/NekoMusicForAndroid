@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.debug.NekoLog as Log
 import android.content.res.Configuration
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -93,7 +94,7 @@ fun LatestMusicCard(
                 interactionSource = interactionSource,
                 indication = if (useLiquidStyle) null else ripple(),
             ) {
-                android.util.Log.d("LatestMusicCard", clickLatestMusicInfo)
+                Log.d("LatestMusicCard", clickLatestMusicInfo)
                 onClick()
             },
         horizontalAlignment = Alignment.CenterHorizontally

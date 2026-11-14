@@ -1,6 +1,6 @@
 package com.neko.music.ui.screens
 
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.Image

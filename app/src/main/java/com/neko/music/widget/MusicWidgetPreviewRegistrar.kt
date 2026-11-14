@@ -5,7 +5,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import android.widget.RemoteViews
 import com.neko.music.R
 

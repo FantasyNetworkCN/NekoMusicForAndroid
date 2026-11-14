@@ -1,5 +1,6 @@
 package com.neko.music.ui.components
 
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -56,7 +57,7 @@ fun PlaylistBottomSheet(
     val playlist by playlistManager.playlist.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
-    android.util.Log.d("PlaylistBottomSheet", "PlaylistBottomSheet 渲染: isVisible=$isVisible, playlist size=${playlist.size}")
+    Log.d("PlaylistBottomSheet", "PlaylistBottomSheet 渲染: isVisible=$isVisible, playlist size=${playlist.size}")
 
     AnimatedVisibility(
         visible = isVisible,
@@ -197,7 +198,7 @@ fun PlaylistItem(
             } else {
                 UrlConfig.getMusicCoverUrl(music.id)
             }
-            android.util.Log.d("PlaylistBottomSheet", "音乐: ${music.title}, coverFilePath: ${music.coverFilePath}, 最终URL: $coverUrl")
+            Log.d("PlaylistBottomSheet", "音乐: ${music.title}, coverFilePath: ${music.coverFilePath}, 最终URL: $coverUrl")
             AsyncImage(
                 model = coverUrl,
                 contentDescription = "封面",

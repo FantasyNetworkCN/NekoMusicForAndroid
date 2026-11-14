@@ -5,7 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.core.content.getSystemService
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi

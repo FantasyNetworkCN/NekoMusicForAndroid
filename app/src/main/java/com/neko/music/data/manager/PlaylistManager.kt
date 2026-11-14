@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.neko.music.data.database.AppDatabase
 import com.neko.music.data.database.PlaylistEntity
 import com.neko.music.data.model.Music
+import com.neko.music.debug.NekoLog as Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -72,9 +73,9 @@ class PlaylistManager private constructor(context: Context) {
     val events: SharedFlow<Unit> = _events
     
     val playlist: Flow<List<Music>> = dao.getAllPlaylist().map { entities ->
-        android.util.Log.d("PlaylistManager", "从数据库读取 ${entities.size} 首音乐")
+        Log.d("PlaylistManager", "从数据库读取 ${entities.size} 首音乐")
         entities.map { entity ->
-            android.util.Log.d("PlaylistManager", "读取音乐: id=${entity.musicId}, title=${entity.title}, coverFilePath=${entity.coverFilePath}")
+            Log.d("PlaylistManager", "读取音乐: id=${entity.musicId}, title=${entity.title}, coverFilePath=${entity.coverFilePath}")
             Music(
                 id = entity.musicId,
                 title = entity.title,
@@ -104,11 +105,11 @@ class PlaylistManager private constructor(context: Context) {
                 uploadUserId = music.uploadUserId,
                 createdAt = music.createdAt
             )
-            android.util.Log.d("PlaylistManager", "添加到数据库: id=${music.id}, title=${music.title}, coverFilePath=${entity.coverFilePath}")
+            Log.d("PlaylistManager", "添加到数据库: id=${music.id}, title=${music.title}, coverFilePath=${entity.coverFilePath}")
             dao.addToPlaylist(entity)
             _events.tryEmit(Unit)
         } else {
-            android.util.Log.d("PlaylistManager", "音乐已存在，跳过: id=${music.id}")
+            Log.d("PlaylistManager", "音乐已存在，跳过: id=${music.id}")
         }
     }
     
@@ -134,7 +135,7 @@ class PlaylistManager private constructor(context: Context) {
         if (anchorIndex < 0) return false
         order.add(anchorIndex + 1, music.id)
         applyQueueOrder(order)
-        android.util.Log.d(
+        Log.d(
             "PlaylistManager",
             "下一首播放插队: ${music.title}(${music.id}) 排到 $afterMusicId 之后"
         )
@@ -149,7 +150,7 @@ class PlaylistManager private constructor(context: Context) {
         if (musicIds.isEmpty() || db.size != musicIds.size) return
         if (musicIds.toSet().size != musicIds.size) return
         if (db.map { it.musicId }.toSet() != musicIds.toSet()) {
-            android.util.Log.w("PlaylistManager", "applyQueueOrder: 与数据库曲目集合不一致，已忽略")
+            Log.w("PlaylistManager", "applyQueueOrder: 与数据库曲目集合不一致，已忽略")
             return
         }
         val map = db.associateBy { it.musicId }
@@ -227,9 +228,9 @@ class PlaylistManager private constructor(context: Context) {
     }
     
     suspend fun getNextMusic(currentMusicId: Int): Music? {
-        android.util.Log.d("PlaylistManager", "getNextMusic called with currentMusicId: $currentMusicId")
+        Log.d("PlaylistManager", "getNextMusic called with currentMusicId: $currentMusicId")
         val entity = dao.getNextMusic(currentMusicId)
-        android.util.Log.d("PlaylistManager", "getNextMusic result: $entity")
+        Log.d("PlaylistManager", "getNextMusic result: $entity")
         return entity?.let {
             Music(
                 id = it.musicId,
@@ -246,9 +247,9 @@ class PlaylistManager private constructor(context: Context) {
     }
     
     suspend fun getFirstMusic(): Music? {
-        android.util.Log.d("PlaylistManager", "getFirstMusic called")
+        Log.d("PlaylistManager", "getFirstMusic called")
         val entity = dao.getFirstMusic()
-        android.util.Log.d("PlaylistManager", "getFirstMusic result: $entity")
+        Log.d("PlaylistManager", "getFirstMusic result: $entity")
         return entity?.let {
             Music(
                 id = it.musicId,
@@ -305,16 +306,16 @@ class PlaylistManager private constructor(context: Context) {
     suspend fun dedupePlaylist(): Int {
         val removed = dao.removeDuplicateRows()
         if (removed > 0) {
-            android.util.Log.w("PlaylistManager", "清理重复曲目 $removed 行")
+            Log.w("PlaylistManager", "清理重复曲目 $removed 行")
             _events.tryEmit(Unit)
         }
         return removed
     }
     
     suspend fun getPlaylistMusicById(musicId: Int): Music? {
-        android.util.Log.d("PlaylistManager", "getPlaylistMusicById called with musicId: $musicId")
+        Log.d("PlaylistManager", "getPlaylistMusicById called with musicId: $musicId")
         val entity = dao.getMusicById(musicId)
-        android.util.Log.d("PlaylistManager", "getPlaylistMusicById result: $entity")
+        Log.d("PlaylistManager", "getPlaylistMusicById result: $entity")
         return entity?.let {
             Music(
                 id = it.musicId,
@@ -331,9 +332,9 @@ class PlaylistManager private constructor(context: Context) {
     }
     
     suspend fun getLastMusic(): Music? {
-        android.util.Log.d("PlaylistManager", "getLastMusic called")
+        Log.d("PlaylistManager", "getLastMusic called")
         val entity = dao.getLastMusic()
-        android.util.Log.d("PlaylistManager", "getLastMusic result: $entity")
+        Log.d("PlaylistManager", "getLastMusic result: $entity")
         return entity?.let {
             Music(
                 id = it.musicId,

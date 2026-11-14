@@ -7,7 +7,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -129,6 +129,7 @@ import com.neko.music.ui.screens.LatestScreen
 import com.neko.music.ui.screens.UploadedMusicScreen
 import com.neko.music.ui.screens.DailyRecommendationScreen
 import com.neko.music.config.AppConfig
+import com.neko.music.debug.DebugLogOverlayService
 import com.neko.music.data.lan.LanDeviceManager
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.PrivacyConsentManager
@@ -228,7 +229,7 @@ class MainActivity : ComponentActivity() {
                     } else if (!privacyAccepted) {
                         PrivacyConsentScreen(
                             onAgree = {
-                                PrivacyConsentManager.accept(this)
+                                PrivacyConsentManager.accept(this@MainActivity)
                                 privacyAccepted = true
                                 startAppServicesAfterPrivacyAccepted()
                             },
@@ -250,6 +251,11 @@ class MainActivity : ComponentActivity() {
             checkAndStartServices()
             appServicesStarted = true
         }
+        if (BuildConfig.DEBUG) {
+            window.decorView.post {
+                DebugLogOverlayService.ensureRunning(this, requestPermission = true)
+            }
+        }
         pendingIntentAfterConsent?.let {
             handleIntent(it)
             pendingIntentAfterConsent = null
@@ -262,7 +268,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun handleIntent(intent: Intent?) {
         intent?.data?.let { uri ->
-            android.util.Log.d("MainActivity", "收到 Deep Link: $uri")
+            Log.d("MainActivity", "收到 Deep Link: $uri")
             when (uri.host) {
                 "sso" -> {
                     if (uri.path == "/complete") {
@@ -275,7 +281,7 @@ class MainActivity : ComponentActivity() {
                         com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                             com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                         )
-                        android.util.Log.d("MainActivity", "Deep Link -> Player: id=$id")
+                        Log.d("MainActivity", "Deep Link -> Player: id=$id")
                     }
                 }
                 "playlist" -> {
@@ -284,7 +290,7 @@ class MainActivity : ComponentActivity() {
                         com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                             com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
                         )
-                        android.util.Log.d("MainActivity", "Deep Link -> Playlist: id=$id")
+                        Log.d("MainActivity", "Deep Link -> Playlist: id=$id")
                     }
                 }
                 "together" -> {
@@ -293,7 +299,7 @@ class MainActivity : ComponentActivity() {
                         com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                             com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together(token)
                         )
-                        android.util.Log.d("MainActivity", "Deep Link -> Together room")
+                        Log.d("MainActivity", "Deep Link -> Together room")
                     }
                 }
                 else -> {
@@ -311,7 +317,7 @@ class MainActivity : ComponentActivity() {
                                 com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                                 )
-                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player (detail): id=$id")
+                                Log.d("MainActivity", "Deep Link HTTPS -> Player (detail): id=$id")
                             }
                         }
                         path.startsWith("/player/") -> {
@@ -320,7 +326,7 @@ class MainActivity : ComponentActivity() {
                                 com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Player(id)
                                 )
-                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Player: id=$id")
+                                Log.d("MainActivity", "Deep Link HTTPS -> Player: id=$id")
                             }
                         }
                         path.startsWith("/playlist/") -> {
@@ -329,7 +335,7 @@ class MainActivity : ComponentActivity() {
                                 com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Playlist(id)
                                 )
-                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Playlist: id=$id")
+                                Log.d("MainActivity", "Deep Link HTTPS -> Playlist: id=$id")
                             }
                         }
                         path.startsWith("/together/") -> {
@@ -341,14 +347,14 @@ class MainActivity : ComponentActivity() {
                                 com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                     com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Together(token)
                                 )
-                                android.util.Log.d("MainActivity", "Deep Link HTTPS -> Together room")
+                                Log.d("MainActivity", "Deep Link HTTPS -> Together room")
                             }
                         }
                         path == "/privacy" || path == "/privacy/" -> {
                             com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
                                 com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy
                             )
-                            android.util.Log.d("MainActivity", "Deep Link HTTPS -> PrivacyPolicy")
+                            Log.d("MainActivity", "Deep Link HTTPS -> PrivacyPolicy")
                         }
                     }
                 }
@@ -419,6 +425,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (privacyAccepted && BuildConfig.DEBUG) {
+            DebugLogOverlayService.ensureRunning(this, requestPermission = false)
+        }
     }
 
     override fun onPause() {
@@ -679,7 +688,7 @@ fun MainScreen() {
                         refreshUserSessionFromDisk()
                     }
                     is com.neko.music.data.api.UserInfoResult.Unauthorized -> {
-                        android.util.Log.w(
+                        Log.w(
                             "MainActivity",
                             "登录态失效（HTTP 401），清理本地会话: ${result.message}",
                         )
@@ -693,7 +702,7 @@ fun MainScreen() {
                         break
                     }
                     is com.neko.music.data.api.UserInfoResult.Err -> {
-                        android.util.Log.w(
+                        Log.w(
                             "MainActivity",
                             "刷新用户信息失败，保留本地会话: ${result.message}",
                         )

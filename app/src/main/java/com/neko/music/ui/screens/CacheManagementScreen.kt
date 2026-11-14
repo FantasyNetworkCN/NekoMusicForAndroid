@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -142,7 +143,7 @@ fun CacheManagementScreen(
                                                 
                                                 musicList.add(tempMusic)
                                             } catch (e: Exception) {
-                                                android.util.Log.e("CacheManagementScreen", "添加音乐失败: ${item.first}", e)
+                                                Log.e("CacheManagementScreen", "添加音乐失败: ${item.first}", e)
                                             }
                                         }
                                         
@@ -152,7 +153,7 @@ fun CacheManagementScreen(
                                             }
                                         }
                                     } catch (e: Exception) {
-                                        android.util.Log.e("CacheManagementScreen", "播放全部失败", e)
+                                        Log.e("CacheManagementScreen", "播放全部失败", e)
                                     } finally {
                                         isLoading = false
                                     }

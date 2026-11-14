@@ -1,6 +1,6 @@
 package com.neko.music.ui.screens
 
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

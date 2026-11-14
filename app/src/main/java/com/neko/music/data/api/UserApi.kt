@@ -12,7 +12,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import io.ktor.client.plugins.ResponseException

@@ -1,6 +1,6 @@
 package com.neko.music.util
 
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout

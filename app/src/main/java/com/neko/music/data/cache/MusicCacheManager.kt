@@ -1,7 +1,7 @@
 package com.neko.music.data.cache
 
 import android.content.Context
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.MusicUrlResolver
 import com.neko.music.util.applyNekoClientHeaders
 import kotlinx.coroutines.Dispatchers

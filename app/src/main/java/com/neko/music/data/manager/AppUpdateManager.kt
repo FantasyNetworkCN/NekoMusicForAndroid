@@ -9,7 +9,7 @@ import android.provider.Settings
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
 import io.ktor.client.*

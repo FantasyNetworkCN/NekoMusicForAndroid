@@ -7,7 +7,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.NekoAcceptLanguage
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
@@ -161,14 +161,14 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
             // 如果版本号变化了，说明更新成功，删除更新文件
             if (lastVersionCode != -1 && lastVersionCode != currentVersionCode) {
-                android.util.Log.d("NekoMusicApplication", "检测到版本更新，清理更新文件")
+                Log.d("NekoMusicApplication", "检测到版本更新，清理更新文件")
                 cleanupUpdateFiles()
             }
 
             // 更新当前版本号
             prefs.edit().putInt("last_version_code", currentVersionCode).apply()
         } catch (e: Exception) {
-            android.util.Log.e("NekoMusicApplication", "检查更新文件失败", e)
+            Log.e("NekoMusicApplication", "检查更新文件失败", e)
         }
     }
 
@@ -179,12 +179,12 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
                 externalDir.listFiles()?.filter {
                     it.name.endsWith(".apk") || it.name.startsWith("update_temp")
                 }?.forEach {
-                    android.util.Log.d("NekoMusicApplication", "删除更新文件: ${it.name}")
+                    Log.d("NekoMusicApplication", "删除更新文件: ${it.name}")
                     it.delete()
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("NekoMusicApplication", "清理更新文件失败", e)
+            Log.e("NekoMusicApplication", "清理更新文件失败", e)
         }
     }
 }

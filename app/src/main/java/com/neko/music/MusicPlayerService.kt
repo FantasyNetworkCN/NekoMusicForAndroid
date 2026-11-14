@@ -1,5 +1,6 @@
 package com.neko.music
 
+import com.neko.music.debug.NekoLog as Log
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -168,7 +169,7 @@ class MusicPlayerService : Service() {
                 "ACTION_TOGGLE_LYRIC" -> {
                     // 防止快速连续点击
                     if (isProcessingLyricToggle) {
-                        android.util.Log.d("MusicPlayerService", "正在处理桌面歌词切换，忽略此次点击")
+                        Log.d("MusicPlayerService", "正在处理桌面歌词切换，忽略此次点击")
                         return@let
                     }
                     
@@ -182,7 +183,7 @@ class MusicPlayerService : Service() {
                     // 如果要开启但没有悬浮窗权限，先请求权限
                     if (newState && !android.provider.Settings.canDrawOverlays(this)) {
                         // 需要权限，但通知栏无法直接请求权限，所以先不开启
-                        android.util.Log.d("MusicPlayerService", "桌面歌词需要悬浮窗权限")
+                        Log.d("MusicPlayerService", "桌面歌词需要悬浮窗权限")
                         isProcessingLyricToggle = false
                     } else {
                         // 直接切换状态
@@ -199,7 +200,7 @@ class MusicPlayerService : Service() {
                             startService(lyricServiceIntent)
                         }
                         
-                        android.util.Log.d("MusicPlayerService", "桌面歌词已${if (newState) "开启" else "关闭"}")
+                        Log.d("MusicPlayerService", "桌面歌词已${if (newState) "开启" else "关闭"}")
                     }
                     
                     // 更新通知以反映当前状态

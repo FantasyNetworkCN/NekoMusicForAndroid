@@ -1,5 +1,6 @@
 package com.neko.music.util
 
+import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.State
 import kotlinx.coroutines.CoroutineScope
@@ -43,7 +44,7 @@ object LyricScrollManager {
             return
         }
         
-        android.util.Log.d("LyricScrollManager", "setCurrentLyricIndex: index=$index, source=$source")
+        Log.d("LyricScrollManager", "setCurrentLyricIndex: index=$index, source=$source")
         
         _currentLyricIndex.value = index
         
@@ -59,7 +60,7 @@ object LyricScrollManager {
                         isPlayerPageScrolling = false
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("LyricScrollManager", "Failed to sync player page scroll", e)
+                    Log.e("LyricScrollManager", "Failed to sync player page scroll", e)
                     isPlayerPageScrolling = false
                 }
             }

@@ -6,7 +6,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.data.model.Music
 import kotlinx.coroutines.Dispatchers

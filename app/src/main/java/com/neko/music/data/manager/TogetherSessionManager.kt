@@ -1,7 +1,7 @@
 package com.neko.music.data.manager
 
 import android.content.Context
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.api.TogetherApi
 import com.neko.music.data.api.TogetherEvent

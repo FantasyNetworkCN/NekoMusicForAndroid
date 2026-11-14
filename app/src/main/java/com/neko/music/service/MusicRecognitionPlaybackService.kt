@@ -17,7 +17,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.neko.music.BuildConfig

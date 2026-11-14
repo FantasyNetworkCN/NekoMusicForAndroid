@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.NEKO_REQUEST_HEADERS
 import com.neko.music.util.installNekoClientHeader

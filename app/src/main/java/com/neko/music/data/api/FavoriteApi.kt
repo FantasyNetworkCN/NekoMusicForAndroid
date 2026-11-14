@@ -9,7 +9,7 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.model.Music
 import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader

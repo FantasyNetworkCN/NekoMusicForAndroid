@@ -8,7 +8,7 @@ import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import android.util.Log
+import com.neko.music.debug.NekoLog as Log
 import coil3.ImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.ImageRequest
@@ -645,7 +645,7 @@ class MusicPlayerManager private constructor(context: Context) {
         if (playForcedNext()) return
 
         val currentId = _currentMusicId.value ?: return
-        android.util.Log.d("MusicPlayerManager", "next() called, currentId: $currentId, playMode: ${_playMode.value}")
+        Log.d("MusicPlayerManager", "next() called, currentId: $currentId, playMode: ${_playMode.value}")
 
         // 随机播放：由洗牌袋顺序决定，一轮内不重复
         if (_playMode.value == PlayMode.SHUFFLE) {
@@ -655,7 +655,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
         // 检查是否有预加载的下一首音乐
         if (preloadedNextMusic != null && preloadedNextMusicUrl != null && preloadedNextMusicFullCoverUrl != null) {
-            android.util.Log.d("MusicPlayerManager", "使用预加载的下一首音乐: ${preloadedNextMusic!!.title}")
+            Log.d("MusicPlayerManager", "使用预加载的下一首音乐: ${preloadedNextMusic!!.title}")
             playMusic(
                 preloadedNextMusicUrl!!,
                 preloadedNextMusic!!.id,
@@ -676,21 +676,21 @@ class MusicPlayerManager private constructor(context: Context) {
             when (_playMode.value) {
                 PlayMode.LIST_LOOP -> {
                     // 列表循环：播放下一首，如果没有下一首则回到第一首
-                    android.util.Log.d("MusicPlayerManager", "LIST_LOOP mode, getting next music")
+                    Log.d("MusicPlayerManager", "LIST_LOOP mode, getting next music")
                     val nextMusic = playlistManager.getNextMusic(currentId)
-                    android.util.Log.d("MusicPlayerManager", "nextMusic: $nextMusic")
+                    Log.d("MusicPlayerManager", "nextMusic: $nextMusic")
                     if (nextMusic != null) {
                                                     val fullCoverUrl = buildPlayableCoverUrl(nextMusic)
-                                                    android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
+                                                    Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                                                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                                                     val musicApi = com.neko.music.data.api.MusicApi(appContext)
                                                     val musicUrl = musicApi.getMusicFileUrl(nextMusic)
                                                     playMusic(musicUrl, nextMusic.id, nextMusic.title, nextMusic.artist, nextMusic.coverFilePath ?: "", fullCoverUrl)
                     } else {
                         // 没有下一首，回到第一首
-                        android.util.Log.d("MusicPlayerManager", "No next music found, getting first music")
+                        Log.d("MusicPlayerManager", "No next music found, getting first music")
                         val firstMusic = playlistManager.getFirstMusic()
-                        android.util.Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
+                        Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
                         if (firstMusic != null) {
                             val fullCoverUrl = buildPlayableCoverUrl(firstMusic)
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -703,21 +703,21 @@ class MusicPlayerManager private constructor(context: Context) {
                 PlayMode.SINGLE_LOOP -> {
                     // 单曲循环：用户手动点击下一首时，可以切换到下一首歌曲
                     // 只有在播放结束时才自动循环当前歌曲
-                    android.util.Log.d("MusicPlayerManager", "SINGLE_LOOP mode, getting next music")
+                    Log.d("MusicPlayerManager", "SINGLE_LOOP mode, getting next music")
                     val nextMusic = playlistManager.getNextMusic(currentId)
-                    android.util.Log.d("MusicPlayerManager", "nextMusic: $nextMusic")
+                    Log.d("MusicPlayerManager", "nextMusic: $nextMusic")
                     if (nextMusic != null) {
                         val fullCoverUrl = buildPlayableCoverUrl(nextMusic)
-                        android.util.Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
+                        Log.d("MusicPlayerManager", "最终封面URL: $fullCoverUrl")
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
                         val musicApi = com.neko.music.data.api.MusicApi(appContext)
                         val musicUrl = musicApi.getMusicFileUrl(nextMusic)
                         playMusic(musicUrl, nextMusic.id, nextMusic.title, nextMusic.artist, nextMusic.coverFilePath ?: "", fullCoverUrl)
                     } else {
                         // 没有下一首，回到第一首
-                        android.util.Log.d("MusicPlayerManager", "No next music found, getting first music")
+                        Log.d("MusicPlayerManager", "No next music found, getting first music")
                         val firstMusic = playlistManager.getFirstMusic()
-                        android.util.Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
+                        Log.d("MusicPlayerManager", "firstMusic: $firstMusic")
                         if (firstMusic != null) {
                             val fullCoverUrl = buildPlayableCoverUrl(firstMusic)
                             // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -729,7 +729,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 }
                 PlayMode.SHUFFLE -> {
                     // 随机播放：兜底路径（正常已在 next() 开头由 nextInShuffle 处理）
-                    android.util.Log.d("MusicPlayerManager", "SHUFFLE mode, nextInShuffle")
+                    Log.d("MusicPlayerManager", "SHUFFLE mode, nextInShuffle")
                     nextInShuffle()
                 }
             }
@@ -743,7 +743,7 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
         val currentId = _currentMusicId.value ?: return
-        android.util.Log.d("MusicPlayerManager", "previous() called, currentId: $currentId, playHistory size: ${playHistory.size}")
+        Log.d("MusicPlayerManager", "previous() called, currentId: $currentId, playHistory size: ${playHistory.size}")
 
         // 随机播放：沿洗牌袋历史回退，"上一首"后再按"下一首"可回到原曲
         if (_playMode.value == PlayMode.SHUFFLE) {
@@ -759,11 +759,11 @@ class MusicPlayerManager private constructor(context: Context) {
                 playHistory.removeAt(playHistory.size - 1)
                 // 获取上一首
                 val previousId = playHistory.lastOrNull()
-                android.util.Log.d("MusicPlayerManager", "previousId: $previousId")
+                Log.d("MusicPlayerManager", "previousId: $previousId")
                 if (previousId != null) {
                     // 从数据库中获取上一首歌曲信息
                     val previousMusic = playlistManager.getPlaylistMusicById(previousId)
-                    android.util.Log.d("MusicPlayerManager", "previousMusic: $previousMusic")
+                    Log.d("MusicPlayerManager", "previousMusic: $previousMusic")
                     if (previousMusic != null) {
                         val fullCoverUrl = buildPlayableCoverUrl(previousMusic)
                         // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -776,9 +776,9 @@ class MusicPlayerManager private constructor(context: Context) {
             }
 
             // 历史记录中没有更多歌曲，按照列表顺序向上播放
-            android.util.Log.d("MusicPlayerManager", "No more history, getting previous music by list order")
+            Log.d("MusicPlayerManager", "No more history, getting previous music by list order")
             val previousMusic = playlistManager.getPreviousMusic(currentId)
-            android.util.Log.d("MusicPlayerManager", "previousMusic by list: $previousMusic")
+            Log.d("MusicPlayerManager", "previousMusic by list: $previousMusic")
 
             if (previousMusic != null) {
                 val fullCoverUrl = buildPlayableCoverUrl(previousMusic)
@@ -788,9 +788,9 @@ class MusicPlayerManager private constructor(context: Context) {
                 playMusic(musicUrl, previousMusic.id, previousMusic.title, previousMusic.artist, previousMusic.coverFilePath ?: "", fullCoverUrl)
             } else {
                 // 列表上面没有了，循环到最后一首
-                android.util.Log.d("MusicPlayerManager", "No previous music in list, getting last music")
+                Log.d("MusicPlayerManager", "No previous music in list, getting last music")
                 val lastMusic = playlistManager.getLastMusic()
-                android.util.Log.d("MusicPlayerManager", "lastMusic: $lastMusic")
+                Log.d("MusicPlayerManager", "lastMusic: $lastMusic")
                 if (lastMusic != null) {
                     val fullCoverUrl = buildPlayableCoverUrl(lastMusic)
                     // 使用 MusicApi 获取正确的播放 URL（包括缓存逻辑）
@@ -1791,7 +1791,7 @@ class MusicPlayerManager private constructor(context: Context) {
         val ids = all.map { it.id }.distinct()
         shufflePoolCache = ids
         if (all.size != ids.size) {
-            android.util.Log.w(
+            Log.w(
                 "MusicPlayerManager",
                 "随机池存在重复行：总行数=${all.size}，去重后=${ids.size}，已按去重结果随机"
             )
@@ -1809,16 +1809,16 @@ class MusicPlayerManager private constructor(context: Context) {
         kotlinx.coroutines.runBlocking {
             val pool = shufflePool()
             if (pool.isEmpty()) {
-                android.util.Log.d("MusicPlayerManager", "随机播放：曲库为空，忽略切歌")
+                Log.d("MusicPlayerManager", "随机播放：曲库为空，忽略切歌")
                 return@runBlocking
             }
             val nextId = shuffleBag.commitNext(pool)
             persistShuffleBag()
             if (nextId == null) {
-                android.util.Log.w("MusicPlayerManager", "随机播放：洗牌袋未给出下一首（池大小=${pool.size}）")
+                Log.w("MusicPlayerManager", "随机播放：洗牌袋未给出下一首（池大小=${pool.size}）")
                 return@runBlocking
             }
-            android.util.Log.d(
+            Log.d(
                 "MusicPlayerManager",
                 "随机播放：下一首 id=$nextId，池=${pool.size}，游标=${shuffleBag.cursorPosition}/${shuffleBag.totalSize}，待播=${shuffleBag.pendingCount}"
             )
@@ -1841,7 +1841,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
             val music = playlistManager.getPlaylistMusicById(nextId)
             if (music == null) {
-                android.util.Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$nextId，忽略")
+                Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$nextId，忽略")
                 return@runBlocking
             }
             val fullCoverUrl = buildPlayableCoverUrl(music)
@@ -1858,15 +1858,15 @@ class MusicPlayerManager private constructor(context: Context) {
             val prevId = shuffleBag.previous(pool)
             persistShuffleBag()
             if (prevId == null) {
-                android.util.Log.d("MusicPlayerManager", "随机播放：没有更早的历史，忽略上一首")
+                Log.d("MusicPlayerManager", "随机播放：没有更早的历史，忽略上一首")
                 return@runBlocking
             }
             val music = playlistManager.getPlaylistMusicById(prevId)
             if (music == null) {
-                android.util.Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$prevId，忽略")
+                Log.w("MusicPlayerManager", "随机播放：曲库里已找不到 id=$prevId，忽略")
                 return@runBlocking
             }
-            android.util.Log.d("MusicPlayerManager", "随机播放：上一首 ${music.title}")
+            Log.d("MusicPlayerManager", "随机播放：上一首 ${music.title}")
             val fullCoverUrl = buildPlayableCoverUrl(music)
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
             val musicUrl = musicApi.getMusicFileUrl(music)
