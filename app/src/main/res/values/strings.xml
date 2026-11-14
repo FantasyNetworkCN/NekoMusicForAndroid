@@ -733,4 +733,6 @@
     <string name="together_added">已添加到一起听</string>
     <string name="together_joined">已加入一起听房间</string>
     <string name="together_add_current">添加当前</string>
+    <string name="together_leave">离开一起听</string>
+    <string name="together_left">已离开一起听</string>
 </resources>

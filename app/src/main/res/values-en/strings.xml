@@ -776,4 +776,6 @@
     <string name="together_added">Added to Listen Together</string>
     <string name="together_joined">Joined the listening room</string>
     <string name="together_add_current">Add current</string>
+    <string name="together_leave">Leave Listen Together</string>
+    <string name="together_left">Left Listen Together</string>
 </resources>

@@ -995,6 +995,15 @@ fun PlayerScreen(
                         scope.launch { pagerState.animateScrollToPage(2) }
                     },
                     onMenuClick = { showShareDialog = true },
+                    togetherActive = togetherActive,
+                    onLeaveTogetherClick = {
+                        TogetherSessionManager.leave()
+                        Toast.makeText(
+                            context,
+                            R.string.together_left,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
                 )
             }
 
@@ -1235,7 +1244,6 @@ fun PlayerScreen(
                         showShareDialog = false
                         downloadRenderedVideo()
                     },
-                    togetherActive = togetherActive,
                     onTogetherClick = {
                         showShareDialog = false
                         scope.launch {
@@ -1243,10 +1251,19 @@ fun PlayerScreen(
                             if (token.isNullOrBlank()) {
                                 Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
                             } else if (TogetherSessionManager.isActive) {
-                                TogetherSessionManager.addMusic(currentMusic)
+                                val url = TogetherSessionManager.roomUrl().orEmpty()
+                                val clipboard =
+                                    context.getSystemService(Context.CLIPBOARD_SERVICE)
+                                        as android.content.ClipboardManager
+                                clipboard.setPrimaryClip(
+                                    android.content.ClipData.newPlainText(
+                                        context.getString(R.string.together_title),
+                                        url,
+                                    )
+                                )
                                 Toast.makeText(
                                     context,
-                                    R.string.together_added,
+                                    R.string.together_link_copied,
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             } else {
@@ -1630,6 +1647,8 @@ fun TopBar(
     onCommentsClick: () -> Unit,
     onLyricsClick: () -> Unit,
     onMenuClick: () -> Unit,
+    togetherActive: Boolean = false,
+    onLeaveTogetherClick: () -> Unit = {},
 ) {
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val foreground = if (useLiquidStyle) {
@@ -1677,6 +1696,20 @@ fun TopBar(
             onLyricsClick = onLyricsClick,
             onMenuClick = onMenuClick,
         )
+        if (togetherActive) {
+            Spacer(modifier = Modifier.width(6.dp))
+            PlayerGlassIconButton(
+                onClick = onLeaveTogetherClick,
+                isDarkTheme = isDarkTheme,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.logout),
+                    contentDescription = stringResource(R.string.together_leave),
+                    tint = foreground,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
     }
 }
 
@@ -3071,7 +3104,6 @@ fun ShareDialog(
     videoRenderStatus: String? = null,
     canDownloadVideo: Boolean = false,
     onDownloadVideo: () -> Unit = {},
-    togetherActive: Boolean = false,
     onTogetherClick: () -> Unit = {},
 ) {
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
@@ -3204,7 +3236,6 @@ fun ShareDialog(
                     canDownloadVideo = canDownloadVideo,
                     onDownloadVideo = onDownloadVideo,
                     onShowCustomSleepTimer = { showCustomSleepTimerDialog = true },
-                    togetherActive = togetherActive,
                     onTogetherClick = onTogetherClick,
                 )
             }
@@ -3254,7 +3285,6 @@ fun ShareDialogContent(
     canDownloadVideo: Boolean,
     onDownloadVideo: () -> Unit,
     onShowCustomSleepTimer: () -> Unit,
-    togetherActive: Boolean,
     onTogetherClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -3281,9 +3311,7 @@ fun ShareDialogContent(
                 item {
                     ShareGridItem(
                         iconRes = R.drawable.playlist,
-                        label = stringResource(
-                            if (togetherActive) R.string.together_add_to_room else R.string.together_menu
-                        ),
+                        label = stringResource(R.string.together_menu),
                         color = RoseRed,
                         labelColor = shareLabelTint,
                         onClick = onTogetherClick
