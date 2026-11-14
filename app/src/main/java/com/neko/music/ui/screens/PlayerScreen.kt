@@ -862,6 +862,24 @@ fun PlayerScreen(
             ) {
                 Spacer(modifier = Modifier.height(if (isLandscape) 48.dp else 76.dp))
 
+                if (togetherActive) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (pagerState.currentPage == 2) {
+                            TogetherMemberAvatarStrip(
+                                members = togetherState?.members.orEmpty(),
+                                connected = togetherConnected,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+
                 // 评论 / 封面 / 歌词共用一个可横滑容器，保持原有手势与状态。
                 HorizontalPager(
                     state = pagerState,
@@ -937,24 +955,15 @@ fun PlayerScreen(
                         }
 
                         2 -> {
-                            Column(modifier = Modifier.fillMaxSize()) {
+                            Box(modifier = Modifier.fillMaxSize()) {
                                 androidx.compose.runtime.LaunchedEffect(Unit) {
                                     com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
-                                }
-                                if (togetherActive) {
-                                    TogetherMemberAvatarStrip(
-                                        members = togetherState?.members.orEmpty(),
-                                        connected = togetherConnected,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                                    )
                                 }
                                 AmllLyricsView(
                                     lyrics = lyrics,
                                     currentProgressSeconds = currentProgressSeconds,
                                     isLoading = isLoading,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxSize(),
                                     listState = lyricsListState,
                                     onLineClick = { lineTime ->
                                         if (togetherActive) {
