@@ -1767,9 +1767,13 @@ fun MainScreen() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    bottom = if (useLiquidBottomChrome) 16.dp else 14.dp,
+                                ),
                             verticalArrangement = Arrangement.spacedBy(
-                                if (useLiquidBottomChrome) 4.dp else 8.dp,
+                                if (useLiquidBottomChrome) 4.dp else 6.dp,
                             ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {

@@ -18,6 +18,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,8 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -549,11 +552,15 @@ private fun BottomNavigationFallback(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(80.dp),
-        shape = RoundedCornerShape(28.dp),
-        color = scheme.surfaceContainer,
+            .height(72.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = scheme.surfaceContainerHigh,
         contentColor = scheme.onSurface,
-        shadowElevation = 1.dp,
+        shadowElevation = 2.dp,
+        border = BorderStroke(
+            0.5.dp,
+            scheme.outlineVariant.copy(alpha = 0.48f),
+        ),
     ) {
         NavigationBar(
             modifier = Modifier.fillMaxSize(),
@@ -569,12 +576,14 @@ private fun BottomNavigationFallback(
                         Icon(
                             imageVector = item.icon,
                             contentDescription = null,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     },
                     label = {
                         Text(
                             text = stringResource(id = item.titleResId),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -670,7 +679,7 @@ fun MiniPlayer(
     val playlistButtonBorder = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.18f) else colorScheme.outline.copy(alpha = 0.35f)
     } else {
-        Color.Transparent
+        colorScheme.outlineVariant.copy(alpha = 0.42f)
     }
     val playlistIconTint = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.85f) else colorScheme.onSurface.copy(alpha = 0.88f)
@@ -685,8 +694,8 @@ fun MiniPlayer(
 
     val miniTint = LiquidGlassDefaults.miniPlayerBar
     val miniLiq = LiquidGlassDefaults.liquidSoft
-    val miniShape = if (useLiquidStyle) RoundedCornerShape(34.dp) else RoundedCornerShape(16.dp)
-    val coverShape = if (useLiquidStyle) RoundedCornerShape(14.dp) else RoundedCornerShape(16.dp)
+    val miniShape = if (useLiquidStyle) RoundedCornerShape(34.dp) else RoundedCornerShape(20.dp)
+    val coverShape = if (useLiquidStyle) RoundedCornerShape(14.dp) else RoundedCornerShape(12.dp)
     val coverSize = if (useLiquidStyle) 48.dp else 44.dp
     val contentSpacing = if (useLiquidStyle) 14.dp else 12.dp
     val playButtonSize = if (useLiquidStyle) 36.dp else 40.dp
@@ -703,10 +712,10 @@ fun MiniPlayer(
     GlassSurface(
         modifier = modifier
             .fillMaxWidth()
-            .height(if (useLiquidStyle) 68.dp else 64.dp),
+            .height(68.dp),
         // 液态路径保持胶囊；Material 3 回退使用 M3 large 圆角与高一级的 tonal 容器。
         shape = miniShape,
-        material3Shape = RoundedCornerShape(16.dp),
+        material3Shape = RoundedCornerShape(20.dp),
         material3Container = colorScheme.surfaceContainerHigh,
         backgroundAlpha = miniTint.backgroundAlpha,
         borderAlpha = miniTint.borderAlpha,
@@ -715,7 +724,9 @@ fun MiniPlayer(
         liquidLensHeight = miniLiq.lensHeight,
         liquidLensAmount = miniLiq.lensAmount,
         sampleBackdrop = glassBackdrop,
-        material3Elevation = if (useLiquidStyle) 0.dp else 1.dp,
+        material3BorderColor = colorScheme.outlineVariant.copy(alpha = 0.48f),
+        material3BorderWidth = if (useLiquidStyle) 0.dp else 0.5.dp,
+        material3Elevation = if (useLiquidStyle) 0.dp else 2.dp,
     ) {
         Box(
             modifier = Modifier
@@ -726,8 +737,10 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
-                        horizontal = 16.dp,
-                        vertical = if (useLiquidStyle) 10.dp else 8.dp,
+                        start = if (useLiquidStyle) 16.dp else 14.dp,
+                        end = if (useLiquidStyle) 16.dp else 14.dp,
+                        top = if (useLiquidStyle) 10.dp else 8.dp,
+                        bottom = if (useLiquidStyle) 10.dp else 14.dp,
                     )
                     .then(if (useLiquidStyle) Modifier.scale(scaleValue) else Modifier),
                 verticalAlignment = Alignment.CenterVertically,
@@ -904,16 +917,10 @@ fun MiniPlayer(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(playlistButtonBg)
-                            .then(
-                                if (useLiquidStyle) {
-                                    Modifier.border(
-                                        width = 0.5.dp,
-                                        color = playlistButtonBorder,
-                                        shape = CircleShape,
-                                    )
-                                } else {
-                                    Modifier
-                                }
+                            .border(
+                                width = 0.5.dp,
+                                color = playlistButtonBorder,
+                                shape = CircleShape,
                             )
                             .clickable(onClick = onPlaylistClick),
                         contentAlignment = Alignment.Center
@@ -932,12 +939,13 @@ fun MiniPlayer(
             if (!useLiquidStyle) {
                 MiniPlayerLinearProgress(
                     progress = progress,
-                    trackColor = colorScheme.surfaceVariant,
+                    trackColor = colorScheme.surfaceVariant.copy(alpha = 0.58f),
                     activeColor = colorScheme.primary,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(2.dp),
+                        .padding(horizontal = 14.dp)
+                        .height(12.dp),
                 )
             }
         }
@@ -945,6 +953,7 @@ fun MiniPlayer(
 }
 
 /** 单独隔开 M3 回退进度，避免进度变化重组整个迷你播放器。 */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MiniPlayerLinearProgress(
     progress: () -> Float,
@@ -952,15 +961,12 @@ private fun MiniPlayerLinearProgress(
     activeColor: Color,
     modifier: Modifier = Modifier,
 ) {
-    val value = progress().coerceIn(0f, 1f)
-    Box(modifier = modifier.background(trackColor)) {
-        if (value > 0f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(value)
-                    .fillMaxHeight()
-                    .background(activeColor),
-            )
-        }
-    }
+    LinearWavyProgressIndicator(
+        progress = progress,
+        modifier = modifier,
+        color = activeColor,
+        trackColor = trackColor,
+        amplitude = { 0.58f },
+        wavelength = 10.dp,
+    )
 }
