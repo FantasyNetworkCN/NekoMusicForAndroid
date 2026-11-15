@@ -88,6 +88,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -366,6 +367,11 @@ fun PlayerScreen(
 
     var musicFileUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    // 路由只负责首次进入播放页（含深链）时的起播。Activity 因横竖屏重建后，
+    // 路由里的歌曲可能已不是播放器当前曲目，不能再用它覆盖正在播放的队列位置。
+    var routePlaybackHandled by rememberSaveable(music.id) {
+        mutableStateOf(currentMusicId == music.id)
+    }
     var lyrics by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
     val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val isFavorite by playerManager.isFavorite.collectAsState()
@@ -579,8 +585,11 @@ fun PlayerScreen(
             }
             isLoading = false
             musicFileUrl?.let { url ->
-                // 只在音乐ID不同时才播放
-                if (currentMusicId != music.id) {
+                // 已有播放器状态时，仅允许该路由首次接管；配置变更后恢复的旧路由不再重新起播。
+                val shouldStartFromRoute = currentMusicId == null ||
+                    (currentMusicId != music.id && !routePlaybackHandled)
+                if (shouldStartFromRoute) {
+                    routePlaybackHandled = true
                     // 获取完整的封面URL
                     val fullCoverUrl = when {
                         music.id < 0 && music.coverFilePath.isNullOrEmpty() -> null
