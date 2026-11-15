@@ -66,6 +66,7 @@ import com.neko.music.data.api.CommentItem
 import com.neko.music.data.api.CommentReply
 import com.neko.music.data.api.CommentUser
 import com.neko.music.data.manager.TokenManager
+import com.neko.music.ui.components.softEdgeFade
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
@@ -349,88 +350,94 @@ fun CommentPage(
             state = rememberPullToRefreshState(),
             modifier = Modifier.weight(1f),
         ) {
-            when {
-                isLoading && comments.isEmpty() -> CommentLoadingState(palette = palette)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .softEdgeFade(topFade = 28.dp, bottomFade = 34.dp),
+            ) {
+                when {
+                    isLoading && comments.isEmpty() -> CommentLoadingState(palette = palette)
 
-                // 用 LazyColumn 撑满，空态时也能下拉刷新
-                comments.isEmpty() -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        item {
-                            CommentEmptyState(
-                                modifier = Modifier
-                                    .fillParentMaxSize()
-                                    .padding(horizontal = 20.dp),
-                                message = when {
-                                    musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
-                                    loadFailed -> stringResource(id = R.string.comment_load_failed)
-                                    else -> stringResource(id = R.string.comment_empty)
-                                },
-                                showRetry = loadFailed && musicId >= 0,
-                                onRetry = { scope.launch { loadComments(reset = true) } },
-                                palette = palette,
-                            )
+                    // 用 LazyColumn 撑满，空态时也能下拉刷新
+                    comments.isEmpty() -> {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                CommentEmptyState(
+                                    modifier = Modifier
+                                        .fillParentMaxSize()
+                                        .padding(horizontal = 20.dp),
+                                    message = when {
+                                        musicId < 0 -> stringResource(id = R.string.local_music_cloud_action_unavailable)
+                                        loadFailed -> stringResource(id = R.string.comment_load_failed)
+                                        else -> stringResource(id = R.string.comment_empty)
+                                    },
+                                    showRetry = loadFailed && musicId >= 0,
+                                    onRetry = { scope.launch { loadComments(reset = true) } },
+                                    palette = palette,
+                                )
+                            }
                         }
                     }
-                }
 
-                else -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            start = 14.dp,
-                            end = 14.dp,
-                            top = 12.dp,
-                            bottom = 16.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(items = comments, key = { it.id }) { floor ->
-                            CommentFloorCard(
-                                floor = floor,
-                                palette = palette,
-                                showAllReplies = expandedReplyFloors.contains(floor.id),
-                                onShowAllReplies = {
-                                    expandedReplyFloors = expandedReplyFloors + floor.id
-                                },
-                                onReply = { target ->
-                                    if (isLoggedIn) replyTarget = target else onRequestLogin()
-                                },
-                                onDelete = { target -> deleteTarget = target },
-                            )
-                        }
-                        item(key = "footer") {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                when {
-                                    isLoadingMore -> CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        color = RoseRed,
-                                        strokeWidth = 2.dp,
-                                    )
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                start = 14.dp,
+                                end = 14.dp,
+                                top = 12.dp,
+                                bottom = 16.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(items = comments, key = { it.id }) { floor ->
+                                CommentFloorCard(
+                                    floor = floor,
+                                    palette = palette,
+                                    showAllReplies = expandedReplyFloors.contains(floor.id),
+                                    onShowAllReplies = {
+                                        expandedReplyFloors = expandedReplyFloors + floor.id
+                                    },
+                                    onReply = { target ->
+                                        if (isLoggedIn) replyTarget = target else onRequestLogin()
+                                    },
+                                    onDelete = { target -> deleteTarget = target },
+                                )
+                            }
+                            item(key = "footer") {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    when {
+                                        isLoadingMore -> CircularProgressIndicator(
+                                            modifier = Modifier.size(22.dp),
+                                            color = RoseRed,
+                                            strokeWidth = 2.dp,
+                                        )
 
-                                    hasMore -> Text(
-                                        text = stringResource(id = R.string.comment_load_more),
-                                        fontSize = 12.sp,
-                                        color = RoseRed.copy(alpha = 0.9f),
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .background(palette.accentSoft)
-                                            .clickable(enabled = !isLoadingMore) {
-                                                scope.launch { loadComments(reset = false) }
-                                            }
-                                            .padding(horizontal = 18.dp, vertical = 9.dp),
-                                    )
+                                        hasMore -> Text(
+                                            text = stringResource(id = R.string.comment_load_more),
+                                            fontSize = 12.sp,
+                                            color = RoseRed.copy(alpha = 0.9f),
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .background(palette.accentSoft)
+                                                .clickable(enabled = !isLoadingMore) {
+                                                    scope.launch { loadComments(reset = false) }
+                                                }
+                                                .padding(horizontal = 18.dp, vertical = 9.dp),
+                                        )
 
-                                    else -> Text(
-                                        text = stringResource(id = R.string.comment_no_more),
-                                        fontSize = 11.5.sp,
-                                        color = palette.tertiary,
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                    )
+                                        else -> Text(
+                                            text = stringResource(id = R.string.comment_no_more),
+                                            fontSize = 11.5.sp,
+                                            color = palette.tertiary,
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
