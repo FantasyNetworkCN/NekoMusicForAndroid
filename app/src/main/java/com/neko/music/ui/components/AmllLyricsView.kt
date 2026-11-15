@@ -42,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,6 +105,8 @@ fun AmllLyricsView(
     lyrics: List<LrcLine>,
     currentProgressSeconds: State<Float>,
     isLoading: Boolean,
+    isPlaying: Boolean = false,
+    playbackSpeed: Float = 1f,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
     onLineClick: (Float) -> Unit = {},
@@ -142,12 +145,25 @@ fun AmllLyricsView(
             lyrics
         }
     }
-    // 播放器位置约 10Hz 更新；用短线性动画补帧，避免真实逐字时间轴按 100ms 跳动。
-    val smoothPlayhead by animateFloatAsState(
-        targetValue = currentProgressSeconds.value,
-        animationSpec = tween(durationMillis = 130, easing = LinearEasing),
-        label = "amll_playhead",
-    )
+    // 播放器位置约 10Hz 更新。动画补帧会始终追赶旧目标，导致逐字高亮晚约一到两帧；
+    // 改为从最新位置按帧时钟向前推算，并在每次位置回调时重新对齐。
+    val reportedPlayhead = currentProgressSeconds.value
+    var smoothPlayhead by remember { mutableFloatStateOf(reportedPlayhead) }
+    LaunchedEffect(reportedPlayhead, isPlaying, playbackSpeed) {
+        if (!isPlaying) {
+            smoothPlayhead = reportedPlayhead
+            return@LaunchedEffect
+        }
+
+        val anchorFrameNanos = withFrameNanos { it }
+        smoothPlayhead = reportedPlayhead
+        while (true) {
+            withFrameNanos { frameTimeNanos ->
+                val elapsedSeconds = (frameTimeNanos - anchorFrameNanos) / 1_000_000_000f
+                smoothPlayhead = reportedPlayhead + elapsedSeconds * playbackSpeed.coerceAtLeast(0f)
+            }
+        }
+    }
     val currentIndex by remember(displayLyrics, currentProgressSeconds) {
         androidx.compose.runtime.derivedStateOf {
             displayLyrics.indexOfLast { it.time <= smoothPlayhead }

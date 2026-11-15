@@ -970,6 +970,8 @@ fun PlayerScreen(
                                     lyrics = lyrics,
                                     currentProgressSeconds = currentProgressSeconds,
                                     isLoading = isLoading,
+                                    isPlaying = isPlaying && !isBuffering,
+                                    playbackSpeed = playbackSpeed,
                                     modifier = Modifier.fillMaxSize(),
                                     listState = lyricsListState,
                                     onLineClick = { lineTime ->
