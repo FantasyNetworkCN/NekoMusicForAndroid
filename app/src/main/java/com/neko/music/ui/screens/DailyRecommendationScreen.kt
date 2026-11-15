@@ -30,9 +30,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,8 +40,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -94,7 +93,7 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 
-@OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyRecommendationScreen(
     onNavigateToPlayer: (Music) -> Unit = {},
@@ -271,15 +270,12 @@ fun DailyRecommendationScreen(
                         )
                     }
                     else -> {
-                        val pullRefreshState = rememberPullRefreshState(
-                            refreshing = refreshing,
-                            onRefresh = { refreshData() }
-                        )
-                        Box(
+                        PullToRefreshBox(
+                            isRefreshing = refreshing,
+                            onRefresh = { refreshData() },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
-                                .pullRefresh(pullRefreshState)
+                                .weight(1f),
                         ) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
@@ -323,15 +319,6 @@ fun DailyRecommendationScreen(
                                 }
                             }
 
-                            PullRefreshIndicator(
-                                refreshing = refreshing,
-                                state = pullRefreshState,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 4.dp),
-                                backgroundColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
                         }
                     }
                 }

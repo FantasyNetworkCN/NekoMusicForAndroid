@@ -25,13 +25,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -82,7 +81,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(androidx.compose.material.ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LatestScreen(
     liquidBarState: LatestLiquidBarState,
@@ -246,14 +245,10 @@ fun LatestScreen(
                     )
                 }
                 else -> {
-                    val pullRefreshState = rememberPullRefreshState(
-                        refreshing = refreshing,
+                    PullToRefreshBox(
+                        isRefreshing = refreshing,
                         onRefresh = { refreshData() },
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pullRefresh(pullRefreshState),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         LazyColumn(
                             state = listState,
@@ -305,15 +300,6 @@ fun LatestScreen(
                             }
                         }
 
-                        PullRefreshIndicator(
-                            refreshing = refreshing,
-                            state = pullRefreshState,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = topBarInsetDp + 4.dp),
-                            backgroundColor = scheme.surface,
-                            contentColor = scheme.primary,
-                        )
                     }
                 }
             }

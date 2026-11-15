@@ -34,13 +34,6 @@ android {
     namespace = "com.neko.music"
     compileSdk = 37
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }
-
     defaultConfig {
         applicationId = "com.neko.music"
         minSdk = 24
@@ -55,11 +48,6 @@ android {
             abiFilters.addAll(listOf("arm64-v8a"))
         }
 
-        externalNativeBuild {
-            cmake {
-                arguments("-DANDROID_STL=c++_static")
-            }
-        }
     }
 
     packaging {
@@ -204,7 +192,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.foundation.layout)
