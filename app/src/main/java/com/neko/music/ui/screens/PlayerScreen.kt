@@ -14,6 +14,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -47,6 +48,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -734,8 +736,16 @@ fun PlayerScreen(
     val pageBackdrop = rememberLiquidPageBackdrop(colorScheme.background)
     val useLiquidStyle = isLiquidGlassEffectActive(pageBackdrop)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    // 底部控制区已改为无边界悬浮层：预留与控制区等高的安全区，避免封面/歌词被控件压住。
-    val bottomGlassReserve = if (isLandscape) 138.dp else 240.dp
+    val isCommentsPage = pagerState.currentPage == 0
+    // 评论页只保留悬浮迷你播放器，给评论列表和输入框让出完整空间。
+    val fullBottomReserve = if (isLandscape) 132.dp else 232.dp
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val miniPlayerReserve = 84.dp + navigationBarBottom
+    val bottomGlassReserve by animateDpAsState(
+        targetValue = if (isCommentsPage) miniPlayerReserve else fullBottomReserve,
+        animationSpec = tween(durationMillis = 240),
+        label = "player_bottom_reserve",
+    )
     val pageBaseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
 
     val onFavoriteToggle: () -> Unit = {
@@ -981,7 +991,11 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .zIndex(1f),
                 isLandscape = isLandscape,
+                compactForComments = isCommentsPage,
                 isDarkTheme = isDarkTheme,
+                coverUrl = coverUrl,
+                musicTitle = currentMusic.title,
+                musicArtist = currentMusic.artist,
                 positionMillis = currentPosition,
                 durationMillis = duration,
                 isLoading = isLoading,
@@ -1031,6 +1045,9 @@ fun PlayerScreen(
                 },
                 onQualitySelected = { playerManager.setAudioQuality(it) },
                 onDesktopLyricClick = toggleDesktopLyric,
+                onOpenPlayer = {
+                    scope.launch { pagerState.animateScrollToPage(1) }
+                },
             )
             if (showShareDialog) {
                 ShareDialog(
@@ -2423,10 +2440,197 @@ fun LyricsSongInfo(
         }
 
 @Composable
+private fun PlayerMiniPlayerBar(
+    modifier: Modifier = Modifier,
+    isDarkTheme: Boolean,
+    coverUrl: String?,
+    musicTitle: String,
+    musicArtist: String,
+    positionMillis: State<Long>,
+    durationMillis: Long,
+    isPlaying: Boolean,
+    isLoading: Boolean,
+    musicFileUrl: String?,
+    onPlayPauseClick: () -> Unit,
+    onNextClick: () -> Unit,
+    onOpenPlayer: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+    val dockShape = RoundedCornerShape(28.dp)
+    val dockColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color(0xFF121216).copy(alpha = 0.90f) else Color.White.copy(alpha = 0.84f)
+    } else {
+        scheme.surfaceContainerHigh
+    }
+    val borderColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.92f)
+    } else {
+        scheme.outlineVariant
+    }
+    val primary = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else Color(0xFF17171A)
+    } else {
+        scheme.onSurface
+    }
+    val secondary = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.56f) else Color(0xFF6E6E73)
+    } else {
+        scheme.onSurfaceVariant
+    }
+    val progressTarget = if (durationMillis > 0) {
+        (positionMillis.value.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val progress by animateFloatAsState(
+        targetValue = progressTarget,
+        animationSpec = tween(durationMillis = 160),
+        label = "mini_player_progress",
+    )
+
+    Box(
+        modifier = modifier
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.Transparent,
+                        baseColor.copy(alpha = 0.48f),
+                        baseColor.copy(alpha = 0.86f),
+                    ),
+                ),
+            )
+            .windowInsetsPadding(WindowInsets.navigationBars),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clip(dockShape)
+                .background(dockColor)
+                .border(0.6.dp, borderColor, dockShape),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenPlayer)
+                    .padding(start = 8.dp, end = 6.dp, top = 7.dp, bottom = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!coverUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(R.drawable.music),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(11.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = musicTitle,
+                        color = primary,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.15).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = musicArtist,
+                        color = secondary,
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                PlayerTransportButton(
+                    onClick = onPlayPauseClick,
+                    size = 40.dp,
+                    background = if (useLiquidStyle) {
+                        if (isDarkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.045f)
+                    } else {
+                        scheme.surfaceContainer
+                    },
+                ) {
+                    when {
+                        isLoading -> MusicLoadingIndicator(
+                            color = primary,
+                            modifier = Modifier.size(width = 22.dp, height = 18.dp),
+                        )
+                        musicFileUrl == null -> Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = stringResource(id = R.string.loading),
+                            tint = primary.copy(alpha = 0.5f),
+                            modifier = Modifier.size(22.dp),
+                        )
+                        else -> Icon(
+                            painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
+                            contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
+                            tint = primary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                PlayerTransportButton(
+                    onClick = onNextClick,
+                    size = 38.dp,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.next_song),
+                        contentDescription = stringResource(id = R.string.next),
+                        tint = primary.copy(alpha = 0.86f),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .height(2.dp)
+                    .clip(CircleShape)
+                    .background(primary.copy(alpha = 0.12f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .height(2.dp)
+                        .background(primary.copy(alpha = 0.66f)),
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
 private fun PlayerBottomBar(
     modifier: Modifier = Modifier,
     isLandscape: Boolean,
+    compactForComments: Boolean,
     isDarkTheme: Boolean,
+    coverUrl: String?,
+    musicTitle: String,
+    musicArtist: String,
     positionMillis: State<Long>,
     durationMillis: Long,
     isLoading: Boolean,
@@ -2447,11 +2651,32 @@ private fun PlayerBottomBar(
     onPlayModeClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
     onDesktopLyricClick: () -> Unit,
+    onOpenPlayer: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+
+    if (compactForComments) {
+        PlayerMiniPlayerBar(
+            modifier = modifier,
+            isDarkTheme = isDarkTheme,
+            coverUrl = coverUrl,
+            musicTitle = musicTitle,
+            musicArtist = musicArtist,
+            positionMillis = positionMillis,
+            durationMillis = durationMillis,
+            isPlaying = isPlaying,
+            isLoading = isLoading || isBuffering,
+            musicFileUrl = musicFileUrl,
+            onPlayPauseClick = onPlayPauseClick,
+            onNextClick = onNextClick,
+            onOpenPlayer = onOpenPlayer,
+        )
+        return
+    }
+
     val backgroundBrush = if (useLiquidStyle) {
-        val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
         Brush.verticalGradient(
             colors = listOf(
                 Color.Transparent,
@@ -2477,7 +2702,7 @@ private fun PlayerBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 8.dp),
+                    .padding(horizontal = 22.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(22.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2524,7 +2749,7 @@ private fun PlayerBottomBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 28.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 10.dp, bottom = 20.dp),
             ) {
                 ProgressSlider(
                     positionMillis = positionMillis,
@@ -2532,7 +2757,7 @@ private fun PlayerBottomBar(
                     isLoading = isLoading,
                     onProgressChange = onProgressChange,
                 )
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 PlaybackControls(
                     isPlaying = isPlaying,
                     isLoading = isLoading || isBuffering,
@@ -2545,7 +2770,7 @@ private fun PlayerBottomBar(
                     onFavoriteClick = onFavoriteClick,
                     onPlayModeClick = onPlayModeClick,
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
                 PlayerUtilityRow(
                     isDarkTheme = isDarkTheme,
                     isDesktopLyricEnabled = isDesktopLyricEnabled,
