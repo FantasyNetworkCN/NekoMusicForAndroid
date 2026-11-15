@@ -38,6 +38,7 @@ import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.isLiquidGlassEffectActive
+import com.neko.music.ui.components.softEdgeFade
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.data.api.FavoriteApi
 import com.neko.music.data.manager.TokenManager
@@ -427,7 +428,8 @@ fun FavoriteScreen(
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .weight(1f),
+                                        .weight(1f)
+                                        .softEdgeFade(topFade = 28.dp, bottomFade = 48.dp),
                                     contentPadding = PaddingValues(
                                         start = 16.dp,
                                         end = 16.dp,

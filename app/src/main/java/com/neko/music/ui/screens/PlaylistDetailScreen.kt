@@ -11,8 +11,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -42,6 +44,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,6 +87,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,11 +100,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -245,6 +251,30 @@ fun PlaylistDetailScreen(
     }
     // 判断是否是自己的歌单
     val isOwnPlaylist = tokenManager.getUserId() == actualCreatorUserId
+    val listState = rememberLazyListState()
+    val collapseDistancePx = with(LocalDensity.current) { 140.dp.toPx() }
+    val collapseTarget by remember(listState, collapseDistancePx) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / collapseDistancePx).coerceIn(0f, 1f)
+            }
+        }
+    }
+    val collapseProgress by animateFloatAsState(
+        targetValue = collapseTarget,
+        animationSpec = tween(durationMillis = 140),
+        label = "playlist_header_collapse",
+    )
+    val coverSize = lerp(120.dp, 60.dp, collapseProgress)
+    val headerGap = lerp(16.dp, 6.dp, collapseProgress)
+
+    LaunchedEffect(searchQuery) {
+        if (filteredMusicList.isNotEmpty()) {
+            listState.scrollToItem(0)
+        }
+    }
 
     BackHandler(enabled = batchMode) {
         batchMode = false
@@ -523,19 +553,31 @@ fun PlaylistDetailScreen(
                         }
                     }
 
-                    if (!isLoading && errorMessage.isEmpty() && musicList.isNotEmpty() && !batchMode) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        PlaylistSearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            liquidGlass = liquidGlass,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
+                    AnimatedVisibility(
+                        visible = !isLoading &&
+                            errorMessage.isEmpty() &&
+                            musicList.isNotEmpty() &&
+                            !batchMode &&
+                            collapseProgress < 0.32f,
+                        enter = fadeIn(tween(160)) +
+                            expandVertically(animationSpec = tween(200), expandFrom = Alignment.Top),
+                        exit = fadeOut(tween(120)) +
+                            shrinkVertically(animationSpec = tween(200), shrinkTowards = Alignment.Top),
+                    ) {
+                        Column {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PlaylistSearchBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                liquidGlass = liquidGlass,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(headerGap))
 
                     Row(
                         modifier = Modifier
@@ -546,7 +588,7 @@ fun PlaylistDetailScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(120.dp)
+                                .size(coverSize)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isDarkTheme) {
@@ -579,7 +621,7 @@ fun PlaylistDetailScreen(
                                     id = R.string.songs_count_label,
                                     musicList.size
                                 ),
-                                fontSize = 14.sp,
+                                fontSize = (14f - 2f * collapseProgress).sp,
                                 color = if (isDarkTheme) {
                                     Color(0xFFB8B8D1).copy(alpha = 0.8f)
                                 } else {
@@ -587,138 +629,164 @@ fun PlaylistDetailScreen(
                                 }
                             )
 
-                            if (currentDescription.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = currentDescription,
-                                    fontSize = 13.sp,
-                                    color = if (isDarkTheme) {
-                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                            AnimatedVisibility(
+                                visible = collapseProgress < 0.62f,
+                                enter = fadeIn(tween(160)) +
+                                    expandVertically(
+                                        animationSpec = tween(200),
+                                        expandFrom = Alignment.Top,
+                                    ),
+                                exit = fadeOut(tween(120)) +
+                                    shrinkVertically(
+                                        animationSpec = tween(200),
+                                        shrinkTowards = Alignment.Top,
+                                    ),
+                            ) {
+                                Column {
+                                    if (currentDescription.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = currentDescription,
+                                            fontSize = 13.sp,
+                                            color = if (isDarkTheme) {
+                                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                            } else {
+                                                Color.Gray
+                                            },
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.clickable {
+                                                editingDescription = currentDescription
+                                                showEditDescriptionDialog = true
+                                            }
+                                        )
                                     } else {
-                                        Color.Gray
-                                    },
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable {
-                                        editingDescription = currentDescription
-                                        showEditDescriptionDialog = true
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = stringResource(id = R.string.no_description_click_to_edit),
+                                            fontSize = 13.sp,
+                                            color = if (isDarkTheme) {
+                                                Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                            } else {
+                                                Color.Gray
+                                            },
+                                            modifier = Modifier.clickable {
+                                                editingDescription = ""
+                                                showEditDescriptionDialog = true
+                                            }
+                                        )
                                     }
-                                )
-                            } else {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = stringResource(id = R.string.no_description_click_to_edit),
-                                    fontSize = 13.sp,
-                                    color = if (isDarkTheme) {
-                                        Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                                    } else {
-                                        Color.Gray
-                                    },
-                                    modifier = Modifier.clickable {
-                                        editingDescription = ""
-                                        showEditDescriptionDialog = true
-                                    }
-                                )
-                            }
 
-                            // 创建者信息
-                            val displayCreatorNickname = actualCreatorNickname ?: creatorNickname
-                            val displayCreatorUserId = actualCreatorUserId ?: creatorUserId
+                                    val displayCreatorNickname = actualCreatorNickname ?: creatorNickname
+                                    val displayCreatorUserId = actualCreatorUserId ?: creatorUserId
 
-                            if (displayCreatorUserId != null && displayCreatorUserId != -1) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(UrlConfig.getUserAvatarUrl(displayCreatorUserId))
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = "创建者头像",
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape),
-                                        placeholder = painterResource(R.drawable.user),
-                                        error = painterResource(R.drawable.user)
-                                    )
-                                    Text(
-                                        text = if (displayCreatorNickname != null)
-                                            stringResource(
-                                                id = R.string.creator_info,
-                                                displayCreatorNickname
+                                    if (displayCreatorUserId != null && displayCreatorUserId != -1) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(LocalContext.current)
+                                                    .data(UrlConfig.getUserAvatarUrl(displayCreatorUserId))
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = "创建者头像",
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .clip(CircleShape),
+                                                placeholder = painterResource(R.drawable.user),
+                                                error = painterResource(R.drawable.user)
                                             )
-                                        else
-                                            stringResource(
-                                                id = R.string.creator_id_info,
-                                                displayCreatorUserId
-                                            ),
-                                        fontSize = 12.sp,
-                                        color = if (isDarkTheme) {
-                                            Color(0xFFB8B8D1).copy(alpha = 0.8f)
-                                        } else {
-                                            Color.Gray
+                                            Text(
+                                                text = if (displayCreatorNickname != null)
+                                                    stringResource(
+                                                        id = R.string.creator_info,
+                                                        displayCreatorNickname
+                                                    )
+                                                else
+                                                    stringResource(
+                                                        id = R.string.creator_id_info,
+                                                        displayCreatorUserId
+                                                    ),
+                                                fontSize = 12.sp,
+                                                color = if (isDarkTheme) {
+                                                    Color(0xFFB8B8D1).copy(alpha = 0.8f)
+                                                } else {
+                                                    Color.Gray
+                                                }
+                                            )
                                         }
-                                    )
+                                    }
                                 }
                             }
-
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    AnimatedVisibility(
+                        visible = collapseProgress < 0.48f,
+                        enter = fadeIn(tween(160)) +
+                            expandVertically(animationSpec = tween(200), expandFrom = Alignment.Top),
+                        exit = fadeOut(tween(120)) +
+                            shrinkVertically(animationSpec = tween(200), shrinkTowards = Alignment.Top),
                     ) {
-                        Button(
-                            onClick = {
-                                if (musicList.isNotEmpty()) {
-                                    onPlayAll(musicList, 0)
+                        Column {
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = {
+                                        if (musicList.isNotEmpty()) {
+                                            onPlayAll(musicList, 0)
+                                        }
+                                    },
+                                    enabled = musicList.isNotEmpty(),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(42.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = scheme.primary,
+                                        contentColor = scheme.onPrimary,
+                                        disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
+                                        disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
+                                    ),
+                                    shape = RoundedCornerShape(21.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = stringResource(id = R.string.play_all),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
-                            },
-                            enabled = musicList.isNotEmpty(),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(42.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = scheme.primary,
-                                contentColor = scheme.onPrimary,
-                                disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
-                                disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
-                            ),
-                            shape = RoundedCornerShape(21.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = stringResource(id = R.string.play_all),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+
+                                PlaylistAddToQueueButton(
+                                    enabled = musicList.isNotEmpty(),
+                                    onClick = {
+                                        onAddAllToPlaylist(musicList.map { it.toLocalMusic() })
+                                    },
+                                    liquidGlass = liquidGlass,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
                         }
-
-                        PlaylistAddToQueueButton(
-                            enabled = musicList.isNotEmpty(),
-                            onClick = { onAddAllToPlaylist(musicList.map { it.toLocalMusic() }) },
-                            liquidGlass = liquidGlass,
-                            modifier = Modifier.weight(1f)
-                        )
                     }
-
-                    Spacer(modifier = Modifier.height(20.dp))
 
                     if (isLoading) {
                         Box(
@@ -787,6 +855,7 @@ fun PlaylistDetailScreen(
                                 .weight(1f)
                         ) {
                             LazyColumn(
+                                state = listState,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f),
