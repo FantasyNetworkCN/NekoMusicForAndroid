@@ -1,7 +1,12 @@
 package com.neko.music.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -12,7 +17,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -35,6 +42,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +60,9 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -60,10 +71,12 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
@@ -167,8 +180,36 @@ fun AmllLyricsView(
 
     var isUserBrowsing by remember { mutableStateOf(false) }
     var resumeFollowJob by remember { mutableStateOf<Job?>(null) }
+    var selectedLineIndices by remember(displayLyrics) { mutableStateOf(emptySet<Int>()) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val hapticFeedback = LocalHapticFeedback.current
+    val selectedLineCount = selectedLineIndices.size
+
+    fun clearSelection() {
+        selectedLineIndices = emptySet()
+    }
+
+    fun selectedLyricsText(): String {
+        return selectedLineIndices.sorted()
+            .mapNotNull(displayLyrics::getOrNull)
+            .flatMap { line ->
+                buildList {
+                    if (line.text.isNotBlank()) add(line.text)
+                    if (lyricStyle.showRomanization && line.romanization.isNotBlank()) {
+                        add(line.romanization)
+                    }
+                    if (lyricStyle.showTranslation && line.translation.isNotBlank()) {
+                        add(line.translation)
+                    }
+                }
+            }
+            .joinToString("\n")
+    }
+
+    BackHandler(enabled = selectedLineIndices.isNotEmpty()) {
+        clearSelection()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
@@ -197,8 +238,18 @@ fun AmllLyricsView(
                     val anchorOffsetPx = with(density) { anchorOffset.toPx() }
                     val bottomPadding = maxHeight * 0.2775f + 60.dp
 
-                    LaunchedEffect(currentIndex, displayLyrics.size, isUserBrowsing) {
-                        if (currentIndex < 0 || displayLyrics.isEmpty() || isUserBrowsing) {
+                    LaunchedEffect(
+                        currentIndex,
+                        displayLyrics.size,
+                        isUserBrowsing,
+                        selectedLineIndices,
+                    ) {
+                        if (
+                            currentIndex < 0 ||
+                            displayLyrics.isEmpty() ||
+                            isUserBrowsing ||
+                            selectedLineIndices.isNotEmpty()
+                        ) {
                             return@LaunchedEffect
                         }
                         delay(32)
@@ -248,8 +299,11 @@ fun AmllLyricsView(
                             key = { index, line -> "${line.time}:$index" },
                         ) { index, line ->
                             val isCurrentLine = index == currentIndex
+                            val isSelected = index in selectedLineIndices
                             val lineAlpha by animateFloatAsState(
-                                targetValue = if (isCurrentLine) {
+                                targetValue = if (isSelected) {
+                                    1f
+                                } else if (isCurrentLine) {
                                     lyricStyle.activeAlpha
                                 } else {
                                     lyricStyle.inactiveAlpha
@@ -262,7 +316,11 @@ fun AmllLyricsView(
                                 label = "apple_line_alpha",
                             )
                             val lineScale by animateFloatAsState(
-                                targetValue = if (isCurrentLine || !lyricStyle.scaleCurrentLine) {
+                                targetValue = if (
+                                    isSelected ||
+                                    isCurrentLine ||
+                                    !lyricStyle.scaleCurrentLine
+                                ) {
                                     1.0f
                                 } else {
                                     0.98f
@@ -288,10 +346,44 @@ fun AmllLyricsView(
                                         scaleY = lineScale
                                         transformOrigin = TransformOrigin(0f, 0.5f)
                                     }
-                                    .clickable(
+                                    .drawBehind {
+                                        if (isSelected) {
+                                            drawRoundRect(
+                                                color = highlightColor.copy(alpha = 0.12f),
+                                                cornerRadius = CornerRadius(14.dp.toPx()),
+                                            )
+                                        }
+                                    }
+                                    .combinedClickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
-                                        onClick = { onLineClick(line.time) },
+                                        onClick = {
+                                            if (selectedLineIndices.isNotEmpty()) {
+                                                if (line.text.isNotBlank()) {
+                                                    selectedLineIndices =
+                                                        if (isSelected) {
+                                                            selectedLineIndices - index
+                                                        } else {
+                                                            selectedLineIndices + index
+                                                        }
+                                                }
+                                            } else {
+                                                onLineClick(line.time)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (line.text.isNotBlank()) {
+                                                selectedLineIndices =
+                                                    if (isSelected) {
+                                                        selectedLineIndices - index
+                                                    } else {
+                                                        selectedLineIndices + index
+                                                    }
+                                                hapticFeedback.performHapticFeedback(
+                                                    HapticFeedbackType.LongPress
+                                                )
+                                            }
+                                        },
                                     )
                                     .padding(top = 2.dp, bottom = 10.dp),
                                 horizontalAlignment = if (lyricStyle.centerText) {
@@ -365,7 +457,132 @@ fun AmllLyricsView(
                 }
             }
         }
+
+        if (selectedLineIndices.isNotEmpty()) {
+            val selectedText = selectedLyricsText()
+            LyricSelectionToolbar(
+                selectedCount = selectedLineCount,
+                isDarkTheme = isDarkTheme,
+                accentColor = highlightColor,
+                onCopy = {
+                    if (selectedText.isNotBlank()) {
+                        val clipboard = context.getSystemService(
+                            Context.CLIPBOARD_SERVICE
+                        ) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                context.getString(R.string.player_tab_lyrics),
+                                selectedText,
+                            )
+                        )
+                        Toast.makeText(
+                            context,
+                            R.string.lyric_selection_copied,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    clearSelection()
+                },
+                onShare = {
+                    if (selectedText.isNotBlank()) {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, selectedText)
+                        }
+                        context.startActivity(
+                            Intent.createChooser(
+                                sendIntent,
+                                context.getString(R.string.lyric_selection_share),
+                            )
+                        )
+                    }
+                    clearSelection()
+                },
+                onCancel = ::clearSelection,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+            )
+        }
     }
+}
+
+@Composable
+private fun LyricSelectionToolbar(
+    selectedCount: Int,
+    isDarkTheme: Boolean,
+    accentColor: Color,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val surfaceColor = if (isDarkTheme) Color(0xF21C1C20) else Color(0xF7FFFFFF)
+    val borderColor = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.12f)
+    } else {
+        Color.Black.copy(alpha = 0.08f)
+    }
+    val primaryColor = if (isDarkTheme) Color.White else Color(0xFF17171A)
+    val secondaryColor = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.62f)
+    } else {
+        Color(0xFF6E6E73)
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(12.dp, shape, clip = false)
+            .clip(shape)
+            .background(surfaceColor)
+            .border(0.5.dp, borderColor, shape)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.lyric_selection_count, selectedCount),
+            color = primaryColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        LyricSelectionAction(
+            label = stringResource(R.string.lyric_selection_copy),
+            color = accentColor,
+            onClick = onCopy,
+        )
+        LyricSelectionAction(
+            label = stringResource(R.string.lyric_selection_share),
+            color = accentColor,
+            onClick = onShare,
+        )
+        LyricSelectionAction(
+            label = stringResource(R.string.cancel),
+            color = secondaryColor,
+            onClick = onCancel,
+        )
+    }
+}
+
+@Composable
+private fun LyricSelectionAction(
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = label,
+        color = color,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    )
 }
 
 @Composable

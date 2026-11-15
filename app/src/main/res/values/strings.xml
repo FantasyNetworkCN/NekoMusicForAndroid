@@ -103,6 +103,10 @@
     <string name="lyrics_style_inactive_alpha">其他行透明度喵</string>
     <string name="lyrics_style_highlight_color">高亮颜色喵</string>
     <string name="lyrics_style_reset">恢复默认歌词样式喵</string>
+    <string name="lyric_selection_count">已经叼住 %1$d 行喵</string>
+    <string name="lyric_selection_copy">抄下来喵</string>
+    <string name="lyric_selection_share">分出去喵</string>
+    <string name="lyric_selection_copied">喵词抄好啦</string>
 
     <string name="version">版本喵</string>
     <string name="update_now">立即进化喵！</string>

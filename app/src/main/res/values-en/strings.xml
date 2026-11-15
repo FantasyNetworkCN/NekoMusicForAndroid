@@ -93,6 +93,10 @@
     <string name="lyrics_style_inactive_alpha">Inactive-line opacity</string>
     <string name="lyrics_style_highlight_color">Highlight color</string>
     <string name="lyrics_style_reset">Reset lyric style</string>
+    <string name="lyric_selection_count">%1$d lines selected</string>
+    <string name="lyric_selection_copy">Copy</string>
+    <string name="lyric_selection_share">Share</string>
+    <string name="lyric_selection_copied">Lyrics copied</string>
     
     <!-- Version Info -->
     <string name="version">Version</string>
