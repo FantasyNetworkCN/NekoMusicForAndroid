@@ -3071,9 +3071,7 @@ fun PlaybackControls(
             )
         }
 
-        val playButtonColor = if (useLiquidStyle) {
-            if (isDarkTheme) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.78f)
-        } else if (musicFileUrl == null) {
+        val materialPlayButtonColor = if (musicFileUrl == null) {
             scheme.primary.copy(alpha = 0.38f)
         } else {
             scheme.primary
@@ -3083,66 +3081,68 @@ fun PlaybackControls(
         } else {
             scheme.onPrimary
         }
-        val playButtonModifier = if (useLiquidStyle) {
-            Modifier
-                .size(playSize)
-                .shadow(
-                    elevation = if (compact) 10.dp else 14.dp,
-                    shape = CircleShape,
-                    spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.30f else 0.16f),
-                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                )
-                .border(
-                    width = 0.6.dp,
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.92f),
-                    shape = CircleShape,
-                )
-                .background(playButtonColor, CircleShape)
-                .clickable(
-                    enabled = !isLoading && musicFileUrl != null,
-                    onClick = onPlayPauseClick,
-                    indication = null,
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                )
+        if (useLiquidStyle) {
+            val glass = LiquidGlassDefaults.playerBottomChrome
+            val interactionSource = remember {
+                androidx.compose.foundation.interaction.MutableInteractionSource()
+            }
+            GlassSurface(
+                modifier = Modifier.size(playSize),
+                shape = CircleShape,
+                backgroundAlpha = glass.tint.background(isDarkTheme),
+                borderAlpha = glass.tint.border(isDarkTheme),
+                highlightAlpha = glass.tint.highlight(isDarkTheme),
+                borderColor = if (isDarkTheme) Color.White else Color(0xFF1C1C1E),
+                liquidBlur = glass.liquid.blur,
+                liquidLensHeight = glass.liquid.lensHeight,
+                liquidLensAmount = glass.liquid.lensAmount,
+                surfaceTint = if (musicFileUrl == null) {
+                    scheme.primary.copy(alpha = 0.12f)
+                } else {
+                    null
+                },
+                material3Shape = CircleShape,
+                material3Container = scheme.surfaceContainerHigh,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            enabled = !isLoading && musicFileUrl != null,
+                            onClick = onPlayPauseClick,
+                            indication = null,
+                            interactionSource = interactionSource,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    PlaybackButtonContent(
+                        isLoading = isLoading,
+                        musicFileUrl = musicFileUrl,
+                        isPlaying = isPlaying,
+                        compact = compact,
+                        iconColor = playIconColor,
+                    )
+                }
+            }
         } else {
-            Modifier
-                .size(playSize)
-                .clip(CircleShape)
-                .background(playButtonColor)
-                .clickable(
-                    enabled = !isLoading && musicFileUrl != null,
-                    onClick = onPlayPauseClick,
+            Box(
+                modifier = Modifier
+                    .size(playSize)
+                    .clip(CircleShape)
+                    .background(materialPlayButtonColor)
+                    .clickable(
+                        enabled = !isLoading && musicFileUrl != null,
+                        onClick = onPlayPauseClick,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                PlaybackButtonContent(
+                    isLoading = isLoading,
+                    musicFileUrl = musicFileUrl,
+                    isPlaying = isPlaying,
+                    compact = compact,
+                    iconColor = playIconColor,
                 )
-        }
-        Box(
-            modifier = playButtonModifier,
-            contentAlignment = Alignment.Center,
-        ) {
-            when {
-                isLoading -> {
-                    MusicLoadingIndicator(
-                        color = playIconColor,
-                        modifier = Modifier.size(width = 26.dp, height = 22.dp),
-                    )
-                }
-
-                musicFileUrl == null -> {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = stringResource(id = R.string.loading),
-                        tint = playIconColor.copy(alpha = 0.55f),
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-
-                else -> {
-                    Icon(
-                        painter = painterResource(id = if (isPlaying) R.drawable.pause else R.drawable.play),
-                        contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
-                        tint = playIconColor,
-                        modifier = Modifier.size(if (compact) 26.dp else 30.dp),
-                    )
-                }
             }
         }
 
@@ -3177,6 +3177,42 @@ fun PlaybackControls(
             }
         } else {
             Spacer(modifier = Modifier.size(transportSize))
+        }
+    }
+}
+
+@Composable
+private fun PlaybackButtonContent(
+    isLoading: Boolean,
+    musicFileUrl: String?,
+    isPlaying: Boolean,
+    compact: Boolean,
+    iconColor: Color,
+) {
+    when {
+        isLoading -> {
+            MusicLoadingIndicator(
+                color = iconColor,
+                modifier = Modifier.size(width = 26.dp, height = 22.dp),
+            )
+        }
+
+        musicFileUrl == null -> {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = stringResource(id = R.string.loading),
+                tint = iconColor.copy(alpha = 0.55f),
+                modifier = Modifier.size(28.dp),
+            )
+        }
+
+        else -> {
+            Icon(
+                painter = painterResource(id = if (isPlaying) R.drawable.pause else R.drawable.play),
+                contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
+                tint = iconColor,
+                modifier = Modifier.size(if (compact) 26.dp else 30.dp),
+            )
         }
     }
 }
