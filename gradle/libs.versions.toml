@@ -2,7 +2,6 @@
 agp = "9.5.1"
 kotlin = "2.4.21"
 ksp = "2.3.13"
-# ✅ Room 升级到 2.7.0-alpha11 以解决与新版 Kotlin 的兼容性冲突
 room = "2.8.5"
 coreKtx = "1.19.1"
 junit = "4.13.2"
@@ -11,6 +10,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2026.09.00"
+material3 = "1.5.0-rc01"
 ktor = "3.6.1"
 kotlinxSerialization = "1.12.0"
 navigation = "2.10.2"
@@ -36,7 +36,7 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-material = { group = "androidx.compose.material", name = "material" }
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
@@ -65,7 +65,6 @@ zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-# ✅ 核心修复：定义 ksp 插件，让 alias(libs.plugins.ksp) 有效
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

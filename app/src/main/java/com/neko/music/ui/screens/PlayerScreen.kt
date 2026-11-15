@@ -72,8 +72,10 @@ import com.neko.music.data.api.VideoRenderApi
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -2901,6 +2903,7 @@ private fun PlayerUtilityRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProgressSlider(
     positionMillis: State<Long>,
@@ -2949,22 +2952,44 @@ fun ProgressSlider(
                     .height(if (compact) 36.dp else 40.dp),
             )
         } else {
-            Slider(
-                value = progress.coerceIn(0f, 1f),
-                onValueChange = onProgressChange,
-                enabled = !isLoading,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = ink.copy(alpha = if (isLoading) 0.36f else 0.92f),
-                    inactiveTrackColor = inactiveTrackColor,
-                    thumbColor = ink.copy(alpha = if (isLoading) 0.42f else 1f),
-                    disabledActiveTrackColor = ink.copy(alpha = 0.30f),
-                    disabledInactiveTrackColor = if (useLiquidStyle) ink.copy(alpha = 0.12f) else scheme.surfaceVariant,
-                    disabledThumbColor = ink.copy(alpha = 0.34f),
-                ),
+            val sliderHeight = if (compact) 28.dp else 32.dp
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 28.dp else 32.dp),
-            )
+                    .height(sliderHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                LinearWavyProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp)
+                        .height(if (compact) 18.dp else 20.dp),
+                    color = ink.copy(alpha = if (isLoading) 0.36f else 0.92f),
+                    trackColor = if (isLoading) {
+                        scheme.surfaceVariant.copy(alpha = 0.55f)
+                    } else {
+                        inactiveTrackColor
+                    },
+                )
+
+                Slider(
+                    value = progress.coerceIn(0f, 1f),
+                    onValueChange = onProgressChange,
+                    enabled = !isLoading,
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent,
+                        thumbColor = ink.copy(alpha = if (isLoading) 0.42f else 1f),
+                        disabledActiveTrackColor = Color.Transparent,
+                        disabledInactiveTrackColor = Color.Transparent,
+                        disabledThumbColor = ink.copy(alpha = 0.34f),
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(sliderHeight),
+                )
+            }
         }
         Row(
             modifier = Modifier
