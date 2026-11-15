@@ -29,6 +29,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.pager.HorizontalPager
@@ -107,6 +109,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -151,6 +154,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.pow
 import org.json.JSONObject
+
+private const val LYRICS_CONTROLS_AUTO_HIDE_MS = 5_000L
 
 // 格式化时间显示（毫秒转 mm:ss）
 fun formatTime(milliseconds: Long): String {
@@ -386,6 +391,17 @@ fun PlayerScreen(
         pageCount = { 3 },
     )
     val showLyrics = pagerState.currentPage == 2
+    var lyricsControlsVisible by remember { mutableStateOf(true) }
+    var lyricsInteractionPulse by remember { mutableIntStateOf(0) }
+    LaunchedEffect(showLyrics, lyricsInteractionPulse) {
+        if (!showLyrics) {
+            lyricsControlsVisible = true
+            return@LaunchedEffect
+        }
+        lyricsControlsVisible = true
+        delay(LYRICS_CONTROLS_AUTO_HIDE_MS)
+        lyricsControlsVisible = false
+    }
     val playMode by playerManager.playMode.collectAsState()
     val playbackSpeed by playerManager.playbackSpeed.collectAsState()
     val sleepTimerMinutes by playerManager.sleepTimerMinutes.collectAsState()
@@ -741,8 +757,13 @@ fun PlayerScreen(
     val fullBottomReserve = if (isLandscape) 132.dp else 232.dp
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val miniPlayerReserve = 84.dp + navigationBarBottom
+    val lyricsControlsHidden = showLyrics && !lyricsControlsVisible
     val bottomGlassReserve by animateDpAsState(
-        targetValue = if (isCommentsPage) miniPlayerReserve else fullBottomReserve,
+        targetValue = when {
+            isCommentsPage -> miniPlayerReserve
+            lyricsControlsHidden -> navigationBarBottom
+            else -> fullBottomReserve
+        },
         animationSpec = tween(durationMillis = 240),
         label = "player_bottom_reserve",
     )
@@ -795,7 +816,21 @@ fun PlayerScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(showLyrics) {
+                if (!showLyrics) return@pointerInput
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    lyricsControlsVisible = true
+                    do {
+                        val event = awaitPointerEvent()
+                    } while (event.changes.any { it.pressed })
+                    lyricsInteractionPulse++
+                }
+            },
+    ) {
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
             if (useLiquidStyle) {
                 // 液态模式：模糊封面提供环境色，表面层再做折射。
@@ -985,70 +1020,79 @@ fun PlayerScreen(
                 )
             }
 
-            PlayerBottomBar(
+            AnimatedVisibility(
+                visible = !showLyrics || lyricsControlsVisible,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .zIndex(1f),
-                isLandscape = isLandscape,
-                compactForComments = isCommentsPage,
-                isDarkTheme = isDarkTheme,
-                coverUrl = coverUrl,
-                musicTitle = currentMusic.title,
-                musicArtist = currentMusic.artist,
-                positionMillis = currentPosition,
-                durationMillis = duration,
-                isLoading = isLoading,
-                isBuffering = isBuffering,
-                isPlaying = isPlaying,
-                musicFileUrl = musicFileUrl,
-                playMode = if (togetherActive) {
-                    when (togetherState?.playlist?.repeatMode) {
-                        "single_repeat" -> PlayMode.SINGLE_LOOP
-                        "shuffle" -> PlayMode.SHUFFLE
-                        else -> PlayMode.LIST_LOOP
-                    }
-                } else {
-                    playMode
-                },
-                isFavorite = isFavorite,
-                isDesktopLyricEnabled = isDesktopLyricEnabled,
-                audioQuality = audioQuality,
-                maxQuality = maxQuality,
-                onProgressChange = { value ->
-                    if (duration > 0) {
-                        val position = (value * duration).toLong()
-                        if (togetherActive) {
-                            TogetherSessionManager.seekTo(position)
-                        } else {
-                            playerManager.seekTo(position)
+                enter = fadeIn(tween(220)) +
+                    slideInVertically(tween(260)) { it / 4 },
+                exit = fadeOut(tween(260)) +
+                    slideOutVertically(tween(280)) { it / 4 },
+            ) {
+                PlayerBottomBar(
+                    modifier = Modifier.fillMaxWidth(),
+                    isLandscape = isLandscape,
+                    compactForComments = isCommentsPage,
+                    isDarkTheme = isDarkTheme,
+                    coverUrl = coverUrl,
+                    musicTitle = currentMusic.title,
+                    musicArtist = currentMusic.artist,
+                    positionMillis = currentPosition,
+                    durationMillis = duration,
+                    isLoading = isLoading,
+                    isBuffering = isBuffering,
+                    isPlaying = isPlaying,
+                    musicFileUrl = musicFileUrl,
+                    playMode = if (togetherActive) {
+                        when (togetherState?.playlist?.repeatMode) {
+                            "single_repeat" -> PlayMode.SINGLE_LOOP
+                            "shuffle" -> PlayMode.SHUFFLE
+                            else -> PlayMode.LIST_LOOP
                         }
-                    }
-                },
-                onPlayPauseClick = {
-                    if (togetherActive) TogetherSessionManager.toggle()
-                    else playerManager.togglePlayPause()
-                },
-                onPreviousClick = {
-                    if (togetherActive) TogetherSessionManager.previous()
-                    else playerManager.previous()
-                },
-                onNextClick = {
-                    if (togetherActive) TogetherSessionManager.next()
-                    else playerManager.next()
-                },
-                onFavoriteClick = onFavoriteToggle,
-                onPlaylistClick = onPlaylistClick,
-                onPlayModeClick = {
-                    if (togetherActive) TogetherSessionManager.cyclePlayMode()
-                    else playerManager.togglePlayMode()
-                },
-                onQualitySelected = { playerManager.setAudioQuality(it) },
-                onDesktopLyricClick = toggleDesktopLyric,
-                onOpenPlayer = {
-                    scope.launch { pagerState.animateScrollToPage(1) }
-                },
-            )
+                    } else {
+                        playMode
+                    },
+                    isFavorite = isFavorite,
+                    isDesktopLyricEnabled = isDesktopLyricEnabled,
+                    audioQuality = audioQuality,
+                    maxQuality = maxQuality,
+                    onProgressChange = { value ->
+                        if (duration > 0) {
+                            val position = (value * duration).toLong()
+                            if (togetherActive) {
+                                TogetherSessionManager.seekTo(position)
+                            } else {
+                                playerManager.seekTo(position)
+                            }
+                        }
+                    },
+                    onPlayPauseClick = {
+                        if (togetherActive) TogetherSessionManager.toggle()
+                        else playerManager.togglePlayPause()
+                    },
+                    onPreviousClick = {
+                        if (togetherActive) TogetherSessionManager.previous()
+                        else playerManager.previous()
+                    },
+                    onNextClick = {
+                        if (togetherActive) TogetherSessionManager.next()
+                        else playerManager.next()
+                    },
+                    onFavoriteClick = onFavoriteToggle,
+                    onPlaylistClick = onPlaylistClick,
+                    onPlayModeClick = {
+                        if (togetherActive) TogetherSessionManager.cyclePlayMode()
+                        else playerManager.togglePlayMode()
+                    },
+                    onQualitySelected = { playerManager.setAudioQuality(it) },
+                    onDesktopLyricClick = toggleDesktopLyric,
+                    onOpenPlayer = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
+                    },
+                )
+            }
             if (showShareDialog) {
                 ShareDialog(
                     music = currentMusic,
