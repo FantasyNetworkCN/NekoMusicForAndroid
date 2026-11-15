@@ -911,54 +911,11 @@ fun PlayerScreen(
                         }
 
                         1 -> {
-                            BoxWithConstraints(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = if (isLandscape) 24.dp else 0.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isLandscape) {
-                                    val artSize = minOf(
-                                        maxWidth * (if (togetherActive) 0.22f else 0.28f),
-                                        if (togetherActive) 180.dp else 220.dp,
-                                        (maxHeight - 20.dp).coerceAtLeast(96.dp),
-                                    )
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(24.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        CoverImage(
-                                            music = currentMusic,
-                                            modifier = Modifier.size(artSize),
-                                        )
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.Center,
-                                        ) {
-                                            NowPlayingIdentity(music = currentMusic)
-                                        }
-                                    }
-                                } else {
-                                    val artSize = minOf(
-                                        maxWidth * (if (togetherActive) 0.58f else 0.72f),
-                                        if (togetherActive) 260.dp else 330.dp,
-                                        (maxHeight - 96.dp).coerceAtLeast(160.dp),
-                                    )
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Bottom,
-                                    ) {
-                                        CoverImage(
-                                            music = currentMusic,
-                                            modifier = Modifier.size(artSize),
-                                        )
-                                        Spacer(modifier = Modifier.height(86.dp))
-                                        NowPlayingIdentity(music = currentMusic)
-                                    }
-                                }
-                            }
+                            NowPlayingCoverPage(
+                                music = currentMusic,
+                                isLandscape = isLandscape,
+                                togetherActive = togetherActive,
+                            )
                         }
 
                         2 -> {
@@ -1850,8 +1807,71 @@ private fun CountBadge(
 }
 
 @Composable
+private fun NowPlayingCoverPage(
+    music: Music,
+    isLandscape: Boolean,
+    togetherActive: Boolean,
+) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isLandscape) {
+            val artworkSize = minOf(
+                maxWidth * (if (togetherActive) 0.24f else 0.30f),
+                maxHeight * 0.72f,
+                if (togetherActive) 190.dp else 240.dp,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(30.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CoverImage(
+                    music = music,
+                    modifier = Modifier.size(artworkSize),
+                )
+                NowPlayingIdentity(
+                    music = music,
+                    modifier = Modifier.weight(1f),
+                    alignStart = true,
+                )
+            }
+        } else {
+            val artworkSize = minOf(
+                maxWidth * (if (togetherActive) 0.72f else 0.84f),
+                maxHeight * 0.60f,
+                if (togetherActive) 280.dp else 380.dp,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                CoverImage(
+                    music = music,
+                    modifier = Modifier.size(artworkSize),
+                )
+                Spacer(modifier = Modifier.height(30.dp))
+                NowPlayingIdentity(
+                    music = music,
+                    modifier = Modifier.width(artworkSize),
+                    alignStart = true,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun NowPlayingIdentity(
     music: Music,
+    modifier: Modifier = Modifier,
+    alignStart: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -1866,43 +1886,37 @@ private fun NowPlayingIdentity(
     } else {
         scheme.onSurfaceVariant
     }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = music.title,
-                color = title,
-                fontSize = 21.sp,
-                lineHeight = 26.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (-0.25).sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(
-                text = music.artist,
-                color = secondary,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+    val contentAlignment = if (alignStart) Alignment.Start else Alignment.CenterHorizontally
+    val textAlignment = if (alignStart) TextAlign.Start else TextAlign.Center
 
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = contentAlignment,
+    ) {
+        Text(
+            text = music.title,
+            color = title,
+            fontSize = 24.sp,
+            lineHeight = 29.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.45).sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = textAlignment,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = music.artist,
+            color = secondary,
+            fontSize = 16.sp,
+            lineHeight = 20.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = textAlignment,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -2831,7 +2845,7 @@ fun PlaybackControls(
         }
 
         val playButtonColor = if (useLiquidStyle) {
-            if (isDarkTheme) Color.White.copy(alpha = 0.20f) else Color(0xFF17171A).copy(alpha = 0.08f)
+            if (isDarkTheme) Color.White.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.78f)
         } else if (musicFileUrl == null) {
             scheme.primary.copy(alpha = 0.38f)
         } else {
@@ -2853,7 +2867,7 @@ fun PlaybackControls(
                 )
                 .border(
                     width = 0.6.dp,
-                    color = if (isDarkTheme) Color.White.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.10f),
+                    color = if (isDarkTheme) Color.White.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.92f),
                     shape = CircleShape,
                 )
                 .background(playButtonColor, CircleShape)
