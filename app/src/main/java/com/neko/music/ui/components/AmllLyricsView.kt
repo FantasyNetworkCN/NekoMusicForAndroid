@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,22 +50,28 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.R
@@ -263,34 +271,18 @@ fun AmllLyricsView(
                                         highlightColor = highlightColor,
                                     )
                                 } else {
-                                    Text(
-                                        text = buildKaraokeText(
-                                            line = line,
-                                            playheadSeconds = smoothPlayhead,
-                                            lineEndTime = lineEndTime,
-                                            isCurrentLine = isCurrentLine,
-                                            baseColor = lyricTextColor,
-                                            highlightColor = highlightColor,
-                                        ),
+                                    KaraokeText(
+                                        line = line,
+                                        playheadSeconds = smoothPlayhead,
+                                        lineEndTime = lineEndTime,
+                                        isCurrentLine = isCurrentLine,
+                                        baseColor = lyricTextColor,
+                                        highlightColor = highlightColor,
                                         fontSize = lyricFontSize,
                                         lineHeight = lyricLineHeight,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = (-0.35).sp,
-                                        maxLines = 5,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        style = if (isCurrentLine) {
-                                            TextStyle(
-                                                shadow = Shadow(
-                                                    color = highlightColor.copy(
-                                                        alpha = if (isDarkTheme) 0.16f else 0.10f,
-                                                    ),
-                                                    blurRadius = 12f,
-                                                ),
-                                            )
-                                        } else {
-                                            TextStyle.Default
-                                        },
+                                        shadowColor = highlightColor.copy(
+                                            alpha = if (isDarkTheme) 0.16f else 0.10f,
+                                        ),
                                     )
                                 }
 
@@ -375,68 +367,155 @@ private fun InstrumentalDots(
     }
 }
 
-private fun buildKaraokeText(
+@Composable
+private fun KaraokeText(
     line: LrcLine,
     playheadSeconds: Float,
     lineEndTime: Float,
     isCurrentLine: Boolean,
     baseColor: Color,
     highlightColor: Color,
-): AnnotatedString {
-    if (line.text.isEmpty()) return AnnotatedString("")
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    lineHeight: androidx.compose.ui.unit.TextUnit,
+    shadowColor: Color,
+) {
+    if (line.text.isEmpty()) return
 
-    return buildAnnotatedString {
-        append(line.text)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val textStyle = remember(fontSize, lineHeight, isCurrentLine, shadowColor) {
+        TextStyle(
+            fontSize = fontSize,
+            lineHeight = lineHeight,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.35).sp,
+            shadow = if (isCurrentLine) {
+                Shadow(color = shadowColor, blurRadius = 12f)
+            } else {
+                null
+            },
+        )
+    }
 
-        fun applySweep(start: Int, end: Int, fraction: Float) {
-            if (start >= end) return
-            val boundary = start + (end - start) * fraction.coerceIn(0f, 1f)
-            for (charIndex in start until end) {
-                val fill = (boundary - charIndex).coerceIn(0f, 1f)
-                addStyle(
-                    style = SpanStyle(color = lerp(baseColor, highlightColor, fill)),
-                    start = charIndex,
-                    end = charIndex + 1,
-                )
-            }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val widthPx = with(density) { maxWidth.roundToPx() }.coerceAtLeast(1)
+        val textLayout = remember(line.text, widthPx, textStyle) {
+            measurer.measure(
+                text = AnnotatedString(line.text),
+                style = textStyle,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 5,
+                constraints = Constraints(maxWidth = widthPx),
+            )
+        }
+        val charProgress = remember(line, playheadSeconds, lineEndTime, isCurrentLine) {
+            calculateKaraokeProgress(
+                line = line,
+                playheadSeconds = playheadSeconds,
+                lineEndTime = lineEndTime,
+                isCurrentLine = isCurrentLine,
+            )
         }
 
-        if (!isCurrentLine) {
-            addStyle(
-                style = SpanStyle(color = baseColor),
-                start = 0,
-                end = line.text.length,
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(with(density) { textLayout.size.height.toDp() })
+                .semantics { text = AnnotatedString(line.text) },
+        ) {
+            drawText(
+                textLayoutResult = textLayout,
+                color = baseColor,
+                topLeft = Offset.Zero,
             )
-            return@buildAnnotatedString
-        }
 
-        if (line.syllables.isEmpty()) {
-            // 行级 LRC 不使用模拟逐字扫光；逐字时间戳就绪后再走下方分支。
-            addStyle(
-                style = SpanStyle(color = highlightColor),
-                start = 0,
-                end = line.text.length,
-            )
-        } else {
-            var offset = 0
-            line.syllables.forEachIndexed { syllableIndex, syllable ->
-                val start = offset.coerceAtMost(line.text.length)
-                val end = (offset + syllable.text.length).coerceAtMost(line.text.length)
-                val syllableEnd = line.syllables.getOrNull(syllableIndex + 1)?.time ?: lineEndTime
-                val syllableProgress = (
-                    (playheadSeconds - syllable.time) /
-                        (syllableEnd - syllable.time).coerceAtLeast(0.12f)
-                    ).coerceIn(0f, 1f)
-                applySweep(start, end, syllableProgress)
-                offset += syllable.text.length
+            if (!isCurrentLine || charProgress.isEmpty()) return@Canvas
+
+            // 文本排版只计算一次；高亮进度仅裁剪已经排好的同一份文本，
+            // 因此逐帧更新不会改变英文字母的 kerning、字距或换行位置。
+            val highlightPath = Path()
+            var lastLine = -1
+            var lastLineBottom = 0f
+            charProgress.forEachIndexed { charIndex, progress ->
+                if (progress <= 0f) return@forEachIndexed
+                if (charIndex >= line.text.length) return@forEachIndexed
+
+                val box = textLayout.getBoundingBox(charIndex)
+                val textLine = textLayout.getLineForOffset(charIndex)
+                val lineTop = textLayout.getLineTop(textLine)
+                val lineBottom = textLayout.getLineBottom(textLine)
+                if (textLine != lastLine) {
+                    lastLine = textLine
+                    lastLineBottom = lineBottom
+                }
+
+                val right = box.left + box.width * progress.coerceIn(0f, 1f)
+                if (right > box.left) {
+                    highlightPath.addRect(
+                        Rect(
+                            left = box.left,
+                            top = lineTop,
+                            right = right,
+                            bottom = if (lineBottom > lineTop) lineBottom else lastLineBottom,
+                        ),
+                    )
+                }
             }
-            if (offset < line.text.length) {
-                val fallbackProgress = ((playheadSeconds - line.time) /
-                    (lineEndTime - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
-                applySweep(offset, line.text.length, fallbackProgress)
+
+            if (!highlightPath.isEmpty) {
+                clipPath(highlightPath) {
+                    drawText(
+                        textLayoutResult = textLayout,
+                        color = highlightColor,
+                        topLeft = Offset.Zero,
+                    )
+                }
             }
         }
     }
+}
+
+private fun calculateKaraokeProgress(
+    line: LrcLine,
+    playheadSeconds: Float,
+    lineEndTime: Float,
+    isCurrentLine: Boolean,
+): FloatArray {
+    if (line.text.isEmpty() || !isCurrentLine) return FloatArray(0)
+
+    val progress = FloatArray(line.text.length)
+    if (line.syllables.isEmpty()) {
+        // 行级 LRC 不模拟逐字扫光，整行直接进入高亮色。
+        progress.fill(1f)
+        return progress
+    }
+
+    fun markSweep(start: Int, end: Int, fraction: Float) {
+        if (start >= end) return
+        val boundary = start + (end - start) * fraction.coerceIn(0f, 1f)
+        for (charIndex in start until end) {
+            progress[charIndex] = (boundary - charIndex).coerceIn(0f, 1f)
+        }
+    }
+
+    var offset = 0
+    line.syllables.forEachIndexed { syllableIndex, syllable ->
+        val start = offset.coerceAtMost(line.text.length)
+        val end = (offset + syllable.text.length).coerceAtMost(line.text.length)
+        val syllableEnd = line.syllables.getOrNull(syllableIndex + 1)?.time ?: lineEndTime
+        val syllableProgress = (
+            (playheadSeconds - syllable.time) /
+                (syllableEnd - syllable.time).coerceAtLeast(0.12f)
+            ).coerceIn(0f, 1f)
+        markSweep(start, end, syllableProgress)
+        offset += syllable.text.length
+    }
+    if (offset < line.text.length) {
+        val fallbackProgress = ((playheadSeconds - line.time) /
+            (lineEndTime - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
+        markSweep(offset, line.text.length, fallbackProgress)
+    }
+    return progress
 }
 
 private suspend fun anchorLyricLine(
