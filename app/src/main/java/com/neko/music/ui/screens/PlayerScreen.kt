@@ -2506,7 +2506,7 @@ private fun PlayerMiniPlayerBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .padding(horizontal = 16.dp, vertical = 5.dp)
                 .clip(dockShape)
                 .background(dockColor)
                 .border(0.6.dp, borderColor, dockShape),
@@ -2515,14 +2515,16 @@ private fun PlayerMiniPlayerBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onOpenPlayer)
-                    .padding(start = 8.dp, end = 6.dp, top = 7.dp, bottom = 5.dp),
+                    .padding(start = 8.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val coverShape = RoundedCornerShape(20.dp)
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)),
+                        .clip(coverShape)
+                        .background(if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
+                        .border(0.5.dp, borderColor.copy(alpha = 0.72f), coverShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!coverUrl.isNullOrEmpty()) {
