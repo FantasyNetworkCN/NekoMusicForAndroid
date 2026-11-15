@@ -51,9 +51,13 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
@@ -74,6 +78,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.R
@@ -198,6 +203,7 @@ fun AmllLyricsView(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .lyricEdgeFade(topFade = 52.dp, bottomFade = 84.dp)
                             .pointerInput(Unit) {
                                 awaitEachGesture {
                                     awaitFirstDown(requireUnconsumed = false)
@@ -350,6 +356,32 @@ fun AmllLyricsView(
         }
     }
 }
+
+/**
+ * 用透明度遮罩让歌词在视口顶/底边缘柔和消失，而不是被列表边界硬裁切。
+ * DstIn 只修改歌词层自身的 alpha，不会在动态模糊封面上盖一层固定底色。
+ */
+private fun Modifier.lyricEdgeFade(topFade: Dp, bottomFade: Dp): Modifier =
+    this
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val halfHeight = size.height / 2f
+            val topFadePx = topFade.toPx().coerceIn(0f, halfHeight)
+            val bottomFadePx = bottomFade.toPx().coerceIn(0f, halfHeight)
+            val topStop = (topFadePx / size.height).coerceIn(0f, 0.5f)
+            val bottomStop = (1f - bottomFadePx / size.height).coerceIn(0.5f, 1f)
+
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    topStop to Color.White,
+                    bottomStop to Color.White,
+                    1f to Color.Transparent,
+                ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
 
 @Composable
 private fun InstrumentalDots(
