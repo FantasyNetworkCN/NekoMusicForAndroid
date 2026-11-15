@@ -107,6 +107,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -3172,14 +3173,22 @@ fun PlaybackControls(
             Box(
                 modifier = Modifier
                     .size(playSize)
-                    .clip(CircleShape)
-                    .background(materialPlayButtonColor)
                     .clickable(
                         enabled = !isLoading && musicFileUrl != null,
                         onClick = onPlayPauseClick,
+                        indication = null,
+                        interactionSource = remember {
+                            androidx.compose.foundation.interaction.MutableInteractionSource()
+                        },
                     ),
                 contentAlignment = Alignment.Center,
             ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_gear_play_button_bg),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    colorFilter = ColorFilter.tint(materialPlayButtonColor),
+                )
                 PlaybackButtonContent(
                     isLoading = isLoading,
                     musicFileUrl = musicFileUrl,

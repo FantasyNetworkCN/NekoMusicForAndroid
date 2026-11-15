@@ -102,7 +102,7 @@
                 android:overScrollMode="never"
                 android:scrollbars="none">
 
-                <TextView
+                <com.neko.music.desktoplyric.DesktopLyricKaraokeTextView
                     android:id="@+id/desktop_lyric_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

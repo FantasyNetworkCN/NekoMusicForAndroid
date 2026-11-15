@@ -10,10 +10,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
@@ -78,6 +74,7 @@ class DesktopLyricService : Service() {
     private var wasPlaybackRunning = false
 
     private val lyricBaseColor = android.graphics.Color.argb(178, 255, 255, 255)
+    private val lyricNoKaraokeColor = android.graphics.Color.WHITE
     private val karaokeHighlightColor = android.graphics.Color.rgb(255, 93, 162)
 
     // 拖动相关变量
@@ -553,8 +550,10 @@ class DesktopLyricService : Service() {
     private fun startLyricUpdate() {
         updateJob = serviceScope.launch {
             while (isActive) {
-                updateLyricView()
-                delay(33)
+                if (isViewAdded) {
+                    updateLyricView()
+                }
+                delay(50)
             }
         }
     }
@@ -623,7 +622,9 @@ class DesktopLyricService : Service() {
 
         updatePlaybackControls(playerManager)
 
-        val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
+        val tvLyric = lyricView?.findViewById<DesktopLyricKaraokeTextView>(
+            R.id.desktop_lyric_text
+        )
         val tvLyricScroll = lyricView?.findViewById<HorizontalScrollView>(
             R.id.desktop_lyric_text_scroll
         )
@@ -642,7 +643,7 @@ class DesktopLyricService : Service() {
      * 更新当前歌词、罗马音、翻译和逐字高亮。
      */
     private fun updateLyricViewPhone(
-        tvLyric: TextView?,
+        tvLyric: DesktopLyricKaraokeTextView?,
         tvLyricScroll: HorizontalScrollView?,
         tvRomanization: TextView?,
         tvTranslation: TextView?,
@@ -655,8 +656,7 @@ class DesktopLyricService : Service() {
         val lineChanged = lastRenderedLyricLine != currentLine
 
         if (textChanged) {
-            val spannable = SpannableString(newText)
-            tvLyric?.setText(spannable, TextView.BufferType.SPANNABLE)
+            tvLyric?.text = newText
             configureLyricViewport(tvLyric, tvLyricScroll, newText)
             lyricView?.animate()?.cancel()
             lyricView?.alpha = 0.58f
@@ -670,6 +670,15 @@ class DesktopLyricService : Service() {
 
         if (lineChanged) {
             lastRenderedLyricLine = currentLine
+            tvLyric?.setTextColor(
+                if (currentLine?.syllables.isNullOrEmpty()) {
+                    lyricNoKaraokeColor
+                } else {
+                    lyricBaseColor
+                }
+            )
+            tvLyric?.setKaraokeHighlightColor(karaokeHighlightColor)
+            tvLyric?.setKaraokeProgress(null)
             updateSecondaryLyricText(tvRomanization, currentLine?.romanization)
             updateSecondaryLyricText(tvTranslation, currentLine?.translation)
             val maxWidth = maxLyricWidthPx()
@@ -679,7 +688,7 @@ class DesktopLyricService : Service() {
         }
 
         if (currentLine != null && currentLine.text.isNotBlank()) {
-            applyKaraokeSpans(
+            applyKaraokeHighlight(
                 tvLyric,
                 tvLyricScroll,
                 currentLine,
@@ -751,21 +760,14 @@ class DesktopLyricService : Service() {
         tvLyricScroll.scrollTo(targetScroll.roundToInt(), 0)
     }
 
-    private fun applyKaraokeSpans(
-        tvLyric: TextView?,
+    private fun applyKaraokeHighlight(
+        tvLyric: DesktopLyricKaraokeTextView?,
         tvLyricScroll: HorizontalScrollView?,
         line: LrcLine,
         currentIndex: Int,
         currentTime: Float,
     ) {
-        val text = tvLyric?.text ?: return
-        val spannable = text as? Spannable ?: SpannableString(text).also {
-            tvLyric.setText(it, TextView.BufferType.SPANNABLE)
-        }
-        if (spannable.length != line.text.length) return
-
-        spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java)
-            .forEach(spannable::removeSpan)
+        if (tvLyric == null || tvLyric.text.length != line.text.length) return
 
         val endTime = line.endTime
             ?: currentLyrics.getOrNull(currentIndex + 1)?.time
@@ -773,40 +775,24 @@ class DesktopLyricService : Service() {
         val lineProgress = ((currentTime - line.time) /
             (endTime - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
         if (line.syllables.isEmpty()) {
+            tvLyric.setKaraokeProgress(null)
             updateHorizontalLyricScroll(
                 tvLyric,
                 tvLyricScroll,
                 wordProgress = null,
                 lineProgress = lineProgress,
             )
-            tvLyric.invalidate()
             return
         }
 
         val progress = calculateKaraokeProgress(line, currentTime, endTime)
-        progress.forEachIndexed { index, value ->
-            if (index < spannable.length) {
-                spannable.setSpan(
-                    ForegroundColorSpan(
-                        if (value <= 0f) {
-                            lyricBaseColor
-                        } else {
-                            blendColor(lyricBaseColor, karaokeHighlightColor, value)
-                        }
-                    ),
-                    index,
-                    index + 1,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-                )
-            }
-        }
+        tvLyric.setKaraokeProgress(progress)
         updateHorizontalLyricScroll(
             tvLyric,
             tvLyricScroll,
             wordProgress = progress,
             lineProgress = lineProgress,
         )
-        tvLyric.invalidate()
     }
 
     private fun calculateKaraokeProgress(
@@ -844,24 +830,6 @@ class DesktopLyricService : Service() {
             }
         }
         return progress
-    }
-
-    private fun blendColor(base: Int, highlight: Int, fraction: Float): Int {
-        val value = fraction.coerceIn(0f, 1f)
-        return android.graphics.Color.argb(
-            (android.graphics.Color.alpha(base) +
-                (android.graphics.Color.alpha(highlight) - android.graphics.Color.alpha(base)) * value)
-                .roundToInt(),
-            (android.graphics.Color.red(base) +
-                (android.graphics.Color.red(highlight) - android.graphics.Color.red(base)) * value)
-                .roundToInt(),
-            (android.graphics.Color.green(base) +
-                (android.graphics.Color.green(highlight) - android.graphics.Color.green(base)) * value)
-                .roundToInt(),
-            (android.graphics.Color.blue(base) +
-                (android.graphics.Color.blue(highlight) - android.graphics.Color.blue(base)) * value)
-                .roundToInt(),
-        )
     }
 
     private suspend fun loadLyrics(musicId: Int) {
