@@ -1,12 +1,20 @@
 package com.neko.music.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.neko.music.R
@@ -91,6 +101,30 @@ fun FavoriteScreen(
         favorites.filter { favorite ->
             favorite.title.contains(searchQuery, ignoreCase = true) ||
                     favorite.artist.contains(searchQuery, ignoreCase = true)
+        }
+    }
+    val listState = rememberLazyListState()
+    val collapseDistancePx = with(LocalDensity.current) { 140.dp.toPx() }
+    val collapseTarget by remember(listState, collapseDistancePx) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / collapseDistancePx).coerceIn(0f, 1f)
+            }
+        }
+    }
+    val collapseProgress by animateFloatAsState(
+        targetValue = collapseTarget,
+        animationSpec = tween(durationMillis = 140),
+        label = "favorites_header_collapse",
+    )
+    val coverSize = lerp(120.dp, 60.dp, collapseProgress)
+    val headerGap = lerp(16.dp, 6.dp, collapseProgress)
+
+    LaunchedEffect(searchQuery) {
+        if (filteredFavorites.isNotEmpty()) {
+            listState.scrollToItem(0)
         }
     }
 
@@ -228,17 +262,29 @@ fun FavoriteScreen(
                     }
                 }
 
-                if (isLoggedIn && !isLoading && errorMessage.isEmpty() && favorites.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PlaylistSearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        liquidGlass = liquidGlass,
-                        placeholder = stringResource(id = R.string.search_songs),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    )
+                AnimatedVisibility(
+                    visible = isLoggedIn &&
+                        !isLoading &&
+                        errorMessage.isEmpty() &&
+                        favorites.isNotEmpty() &&
+                        collapseProgress < 0.32f,
+                    enter = fadeIn(tween(160)) +
+                        expandVertically(animationSpec = tween(200), expandFrom = Alignment.Top),
+                    exit = fadeOut(tween(120)) +
+                        shrinkVertically(animationSpec = tween(200), shrinkTowards = Alignment.Top),
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistSearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            liquidGlass = liquidGlass,
+                            placeholder = stringResource(id = R.string.search_songs),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
                 }
 
                 when {
@@ -297,7 +343,7 @@ fun FavoriteScreen(
                                 .fillMaxWidth()
                                 .weight(1f)
                         ) {
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(headerGap))
 
                             Row(
                                 modifier = Modifier
@@ -308,7 +354,7 @@ fun FavoriteScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(120.dp)
+                                        .size(coverSize)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(scheme.surfaceContainerHighest),
                                     contentAlignment = Alignment.Center
@@ -329,7 +375,7 @@ fun FavoriteScreen(
                                 ) {
                                     Text(
                                         text = stringResource(id = R.string.my_favorites_label),
-                                        fontSize = 22.sp,
+                                        fontSize = (22f - 6f * collapseProgress).sp,
                                         fontWeight = FontWeight.Bold,
                                         color = scheme.onSurface,
                                         maxLines = 2,
@@ -338,60 +384,76 @@ fun FavoriteScreen(
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = stringResource(R.string.songs_count_label, favorites.size),
-                                        fontSize = 14.sp,
+                                        fontSize = (14f - 2f * collapseProgress).sp,
                                         color = scheme.onSurfaceVariant
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Button(
-                                    onClick = { scope.launch { playAllFavorites() } },
-                                    enabled = filteredFavorites.isNotEmpty(),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(42.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = scheme.primary,
-                                        contentColor = scheme.onPrimary,
-                                        disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
-                                        disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
+                            AnimatedVisibility(
+                                visible = collapseProgress < 0.48f,
+                                enter = fadeIn(tween(160)) +
+                                    expandVertically(
+                                        animationSpec = tween(200),
+                                        expandFrom = Alignment.Top,
                                     ),
-                                    shape = RoundedCornerShape(21.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.play_all),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                    )
+                                exit = fadeOut(tween(120)) +
+                                    shrinkVertically(
+                                        animationSpec = tween(200),
+                                        shrinkTowards = Alignment.Top,
+                                    ),
+                            ) {
+                                Column {
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Button(
+                                            onClick = { scope.launch { playAllFavorites() } },
+                                            enabled = filteredFavorites.isNotEmpty(),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(42.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = scheme.primary,
+                                                contentColor = scheme.onPrimary,
+                                                disabledContainerColor = scheme.primary.copy(alpha = 0.38f),
+                                                disabledContentColor = scheme.onPrimary.copy(alpha = 0.38f),
+                                            ),
+                                            shape = RoundedCornerShape(21.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(5.dp))
+                                            Text(
+                                                text = stringResource(id = R.string.play_all),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        PlaylistAddToQueueButton(
+                                            enabled = filteredFavorites.isNotEmpty(),
+                                            onClick = addAllFavoritesToQueue,
+                                            liquidGlass = liquidGlass,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(20.dp))
                                 }
-
-                                PlaylistAddToQueueButton(
-                                    enabled = filteredFavorites.isNotEmpty(),
-                                    onClick = addAllFavoritesToQueue,
-                                    liquidGlass = liquidGlass,
-                                    modifier = Modifier.weight(1f)
-                                )
                             }
-
-                            Spacer(modifier = Modifier.height(20.dp))
 
                             if (filteredFavorites.isEmpty()) {
                                 Box(
@@ -426,6 +488,7 @@ fun FavoriteScreen(
                                 }
                             } else {
                                 LazyColumn(
+                                    state = listState,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .weight(1f)
