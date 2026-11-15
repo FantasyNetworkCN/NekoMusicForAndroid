@@ -1,12 +1,19 @@
 package com.neko.music.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.neko.music.debug.NekoLog as Log
 import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -82,8 +89,11 @@ import com.neko.music.data.api.QrLoginApi
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.ui.theme.SakuraPink
 import java.util.concurrent.Executors
+import kotlin.math.ceil
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class QrScanStage { Scanning, Checking, Confirming, Done, Error }
 
@@ -108,6 +118,7 @@ fun QrScanScreen(
     var stage by remember { mutableStateOf(QrScanStage.Scanning) }
     var message by remember { mutableStateOf<String?>(null) }
     var sessionId by remember { mutableStateOf<String?>(null) }
+    var isDecodingGalleryImage by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -153,6 +164,25 @@ fun QrScanScreen(
         }
     }
 
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) {
+            isDecodingGalleryImage = false
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            val raw = decodeQrFromImageUri(context, uri)
+            if (raw == null) {
+                message = context.getString(R.string.qr_scan_gallery_no_code)
+                stage = QrScanStage.Error
+            } else {
+                handleDecoded(raw)
+            }
+            isDecodingGalleryImage = false
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -160,7 +190,7 @@ fun QrScanScreen(
     ) {
         if (hasPermission) {
             CameraPreview(
-                scanningEnabled = stage == QrScanStage.Scanning,
+                scanningEnabled = stage == QrScanStage.Scanning && !isDecodingGalleryImage,
                 onDecoded = { raw -> handleDecoded(raw) },
                 modifier = Modifier.fillMaxSize()
             )
@@ -205,8 +235,39 @@ fun QrScanScreen(
             StageCard(text = stringResource(R.string.qr_scan_checking), showSpinner = true)
         }
 
+        if (isDecodingGalleryImage) {
+            StageCard(
+                text = stringResource(R.string.qr_scan_gallery_decoding),
+                showSpinner = true,
+            )
+        }
+
         if (stage == QrScanStage.Done) {
             StageCard(text = stringResource(R.string.qr_scan_success), showSpinner = false)
+        }
+
+        if (stage == QrScanStage.Scanning && !isDecodingGalleryImage) {
+            TextButton(
+                onClick = {
+                    if (!isDecodingGalleryImage) {
+                        isDecodingGalleryImage = true
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, end = 8.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.46f)),
+            ) {
+                Text(
+                    text = stringResource(R.string.qr_scan_gallery),
+                    color = Color.White,
+                )
+            }
         }
     }
 
@@ -277,6 +338,63 @@ private fun extractSessionId(raw: String): String? {
     val candidate = if (marker >= 0) text.substring(marker + 4) else text
     val sid = candidate.takeWhile { it.isLetterOrDigit() || it == '-' || it == '_' }
     return sid.takeIf { it.length >= 16 }
+}
+
+private suspend fun decodeQrFromImageUri(context: Context, uri: Uri): String? =
+    withContext(Dispatchers.IO) {
+        val bitmap = decodeGalleryBitmap(context, uri) ?: return@withContext null
+        try {
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            val source = RGBLuminanceSource(bitmap.width, bitmap.height, pixels)
+            val result = QRCodeReader().decode(
+                BinaryBitmap(HybridBinarizer(source)),
+                mapOf(DecodeHintType.TRY_HARDER to true),
+            )
+            result.text?.takeIf { it.isNotBlank() }
+        } catch (_: NotFoundException) {
+            null
+        } catch (e: Exception) {
+            Log.w("QrScanScreen", "相册二维码解码失败", e)
+            null
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+private fun decodeGalleryBitmap(context: Context, uri: Uri): Bitmap? {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                val maxDimension = maxOf(info.size.width, info.size.height)
+                if (maxDimension > 1600) {
+                    decoder.setTargetSampleSize(ceil(maxDimension / 1600f).toInt())
+                }
+            }
+        } else {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, bounds)
+            }
+            val maxDimension = maxOf(bounds.outWidth, bounds.outHeight)
+            val sampleSize = if (maxDimension > 1600) {
+                ceil(maxDimension / 1600f).toInt().coerceAtLeast(1)
+            } else {
+                1
+            }
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+            }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+        }
+    } catch (e: Exception) {
+        Log.w("QrScanScreen", "读取相册图片失败", e)
+        null
+    }
 }
 
 private val ScanFrameSize = 260.dp

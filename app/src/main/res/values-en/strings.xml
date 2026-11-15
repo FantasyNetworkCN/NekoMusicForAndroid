@@ -762,6 +762,9 @@
     <string name="qr_scan_failed">Scan failed</string>
     <string name="qr_scan_retry">Scan again</string>
     <string name="qr_scan_invalid">Not a valid login QR code</string>
+    <string name="qr_scan_gallery">Choose from gallery</string>
+    <string name="qr_scan_gallery_decoding">Reading QR code from image…</string>
+    <string name="qr_scan_gallery_no_code">No QR code found in this image</string>
     <string name="qr_scan_permission_message">Camera permission is required to scan the QR code</string>
     <string name="qr_scan_permission_action">Grant camera permission</string>
     <string name="comment_title">Comments</string>

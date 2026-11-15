@@ -719,6 +719,9 @@
     <string name="qr_scan_failed">扫码失败了喵</string>
     <string name="qr_scan_retry">再扫一次喵</string>
     <string name="qr_scan_invalid">这不是登录用的喵码喵</string>
+    <string name="qr_scan_gallery">从相册识别喵</string>
+    <string name="qr_scan_gallery_decoding">正在看相册里的喵码…</string>
+    <string name="qr_scan_gallery_no_code">这张图里没有找到喵码喵</string>
     <string name="qr_scan_permission_message">要给相机权限才能扫喵码喵</string>
     <string name="qr_scan_permission_action">给相机权限喵</string>
     <string name="comment_title">评论喵</string>

@@ -741,6 +741,9 @@
     <string name="qr_scan_failed">扫码失败</string>
     <string name="qr_scan_retry">重新扫描</string>
     <string name="qr_scan_invalid">不是有效的登录二维码</string>
+    <string name="qr_scan_gallery">从相册识别</string>
+    <string name="qr_scan_gallery_decoding">正在识别相册中的二维码…</string>
+    <string name="qr_scan_gallery_no_code">相册图片中未找到二维码</string>
     <string name="qr_scan_permission_message">需要相机权限才能扫描电脑端二维码</string>
     <string name="qr_scan_permission_action">授权相机</string>
     <string name="comment_title">评论</string>
