@@ -105,6 +105,21 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/desktop_lyric_romanization"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="3dp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="3"
+                android:text=""
+                android:textColor="#D8D8E8"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/desktop_lyric_translation"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -116,7 +131,8 @@
                 android:shadowRadius="3"
                 android:text=""
                 android:textColor="#CCCCCC"
-                android:textSize="14sp" />
+                android:textSize="13sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <ImageView

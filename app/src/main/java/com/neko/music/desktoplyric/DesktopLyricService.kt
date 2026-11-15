@@ -9,6 +9,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
@@ -25,7 +29,6 @@ import com.neko.music.config.AppConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.service.MusicPlayerManager
-import com.neko.music.util.DesktopLyricRenderer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,12 +36,24 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.json.JSONObject
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.roundToInt
+
+private val syllableTimestampRegex = Regex("<(\\d{1,3}):(\\d{2})(?:\\.(\\d{1,5}))?>")
 
 data class LrcLine(
     val time: Float, // 时间（秒）
     val text: String, // 歌词文本
-    val translation: String? = null // 翻译（可选）
+    val translation: String? = null, // 翻译（可选）
+    val romanization: String? = null, // 罗马音（可选）
+    val syllables: List<LrcSyllable> = emptyList(), // 逐字时间轴（可选）
+    val endTime: Float? = null, // 当前行结束时间（可选）
+)
+
+data class LrcSyllable(
+    val time: Float,
+    val text: String,
 )
 
 class DesktopLyricService : Service() {
@@ -55,9 +70,14 @@ class DesktopLyricService : Service() {
     private var currentLyrics: List<LrcLine> = emptyList()
     private var currentProgress: Long = 0L
     private var currentMusicId: Int = -1
-    
-    // 使用JNI渲染器
-    private var useJNIRenderer = true
+    private var lastRenderedLyricLine: LrcLine? = null
+    private var karaokeSpannable: SpannableString? = null
+    private var lastReportedPositionMs: Long = -1L
+    private var lastPositionSampleAtMs: Long = 0L
+    private var wasPlaybackRunning = false
+
+    private val lyricBaseColor = android.graphics.Color.WHITE
+    private val karaokeHighlightColor = android.graphics.Color.rgb(255, 126, 182)
 
     // 拖动相关变量
     private var startX = 0f
@@ -67,6 +87,9 @@ class DesktopLyricService : Service() {
     private var viewInitialY = 0
     private var touchSlop = 0f
     private var isLocked = false
+    private var unlockHotspotView: View? = null
+    private var unlockHotspotParams: WindowManager.LayoutParams? = null
+    private var isUnlockHotspotAdded = false
     private var controlsVisible = false
     private var controlsHideJob: Job? = null
     private var lastPlayingState: Boolean? = null
@@ -91,6 +114,7 @@ class DesktopLyricService : Service() {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_DESKTOP_LYRIC"
         const val ACTION_HIDE = "com.neko.music.action.HIDE_DESKTOP_LYRIC"
         const val ACTION_UPDATE = "com.neko.music.action.UPDATE_DESKTOP_LYRIC"
+        const val ACTION_UNLOCK = "com.neko.music.action.UNLOCK_DESKTOP_LYRIC"
         private const val PREFS_DESKTOP_LYRIC = "desktop_lyric"
         private const val KEY_X = "lyric_x_position"
         private const val KEY_Y = "lyric_y_position"
@@ -101,6 +125,7 @@ class DesktopLyricService : Service() {
         fun getInstance(): DesktopLyricService? {
             return instance
         }
+
     }
 
     override fun onCreate() {
@@ -111,17 +136,6 @@ class DesktopLyricService : Service() {
         // 在onCreate中初始化touchSlop，此时Context已经准备好
         touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()
         isLocked = positionPrefs.getBoolean(KEY_LOCKED, false)
-
-        // 初始化JNI渲染器
-        if (useJNIRenderer) {
-            try {
-                DesktopLyricRenderer.initialize()
-                Log.d("DesktopLyricService", "JNI renderer initialized successfully")
-            } catch (e: Exception) {
-                Log.e("DesktopLyricService", "Failed to initialize JNI renderer, falling back to Kotlin", e)
-                useJNIRenderer = false
-            }
-        }
 
         // 创建桌面歌词视图
         createLyricView()
@@ -135,6 +149,7 @@ class DesktopLyricService : Service() {
             ACTION_SHOW -> showLyricView()
             ACTION_HIDE -> hideLyricView()
             ACTION_UPDATE -> updateLyricView()
+            ACTION_UNLOCK -> setLocked(false)
         }
         return START_STICKY
     }
@@ -276,18 +291,135 @@ class DesktopLyricService : Service() {
         params.x = params.x.coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
         params.y = params.y.coerceIn(0, maxY)
         windowManager?.updateViewLayout(view, params)
+        syncUnlockHotspotPosition()
     }
 
     private fun setLocked(locked: Boolean) {
         isLocked = locked
         positionPrefs.edit().putBoolean(KEY_LOCKED, locked).apply()
         updateLockUi()
-        showControls()
+        applyWindowTouchability()
+        if (locked) {
+            hideControls()
+            showUnlockHotspot()
+        } else {
+            hideUnlockHotspot()
+            showControls()
+        }
         Toast.makeText(
             this,
             if (locked) R.string.desktop_lyric_locked else R.string.desktop_lyric_unlocked,
             Toast.LENGTH_SHORT,
         ).show()
+    }
+
+    private fun applyWindowTouchability() {
+        val params = layoutParams ?: return
+        params.flags = if (isLocked) {
+            params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        }
+        if (isViewAdded) {
+            lyricView?.let { windowManager?.updateViewLayout(it, params) }
+        }
+    }
+
+    private fun showUnlockHotspot() {
+        if (!isViewAdded || !isLocked) return
+        val manager = windowManager ?: return
+        val view = unlockHotspotView ?: createUnlockHotspotView().also {
+            unlockHotspotView = it
+        }
+        if (!isUnlockHotspotAdded) {
+            val params = unlockHotspotParams ?: return
+            try {
+                manager.addView(view, params)
+                isUnlockHotspotAdded = true
+            } catch (e: Exception) {
+                Log.e("DesktopLyricService", "添加歌词解锁热区失败", e)
+            }
+        }
+        lyricView?.post { syncUnlockHotspotPosition() }
+    }
+
+    private fun hideUnlockHotspot() {
+        if (!isUnlockHotspotAdded) return
+        try {
+            unlockHotspotView?.let { windowManager?.removeView(it) }
+        } catch (e: Exception) {
+            Log.e("DesktopLyricService", "移除歌词解锁热区失败", e)
+        }
+        isUnlockHotspotAdded = false
+    }
+
+    private fun createUnlockHotspotView(): View {
+        val density = resources.displayMetrics.density
+        val size = (30f * density).toInt().coerceAtLeast(1)
+        val margin = (4f * density).toInt()
+        val view = ImageView(this).apply {
+            setImageResource(R.drawable.ic_desktop_lyric_lock)
+            setBackgroundResource(R.drawable.desktop_lyric_control_background)
+            contentDescription = getString(R.string.desktop_lyric_unlock)
+            alpha = 0.86f
+            setPadding(margin * 2, margin * 2, margin * 2, margin * 2)
+            isLongClickable = true
+            setOnClickListener {
+                Toast.makeText(
+                    this@DesktopLyricService,
+                    R.string.desktop_lyric_drag_locked,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            setOnLongClickListener {
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                setLocked(false)
+                true
+            }
+        }
+        unlockHotspotParams = WindowManager.LayoutParams(
+            size,
+            size,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        }
+        return view
+    }
+
+    private fun syncUnlockHotspotPosition() {
+        if (!isUnlockHotspotAdded || !isLocked) return
+        val mainParams = layoutParams ?: return
+        val hotspotParams = unlockHotspotParams ?: return
+        val mainView = lyricView ?: return
+        val mainWidth = mainView.width.coerceAtLeast(1)
+        val hotspotSize = hotspotParams.width.coerceAtLeast(1)
+        val margin = (4f * resources.displayMetrics.density).toInt()
+        val screenWidth = resources.displayMetrics.widthPixels
+        val screenHeight = resources.displayMetrics.heightPixels
+        hotspotParams.x = mainParams.x + mainWidth / 2 - hotspotSize / 2 - margin
+        hotspotParams.y = (mainParams.y + margin)
+            .coerceIn(0, (screenHeight - hotspotSize).coerceAtLeast(0))
+        hotspotParams.x = hotspotParams.x.coerceIn(
+            -screenWidth / 2,
+            screenWidth / 2 - hotspotSize,
+        )
+        unlockHotspotView?.let {
+            try {
+                windowManager?.updateViewLayout(it, hotspotParams)
+            } catch (e: Exception) {
+                Log.e("DesktopLyricService", "更新歌词解锁热区位置失败", e)
+            }
+        }
     }
 
     private fun updateLockUi() {
@@ -298,8 +430,8 @@ class DesktopLyricService : Service() {
         lockButton?.contentDescription = getString(
             if (isLocked) R.string.desktop_lyric_unlock else R.string.desktop_lyric_lock
         )
-        lyricView?.findViewById<ImageView>(R.id.desktop_lyric_lock_badge)?.visibility =
-            if (isLocked) View.VISIBLE else View.GONE
+        // 锁定时主窗口完全穿透，锁定标识由独立的可触摸长按热区显示。
+        lyricView?.findViewById<ImageView>(R.id.desktop_lyric_lock_badge)?.visibility = View.GONE
     }
 
     private fun updatePlaybackControls(playerManager: MusicPlayerManager) {
@@ -393,8 +525,12 @@ class DesktopLyricService : Service() {
             controlsVisible = false
             lyricView?.findViewById<LinearLayout>(R.id.desktop_lyric_controls)?.visibility = View.GONE
             updateLockUi()
+            applyWindowTouchability()
             updatePlaybackControls(MusicPlayerManager.getInstance(this))
             lyricView?.post { clampPositionToScreen() }
+            if (isLocked) {
+                lyricView?.post { showUnlockHotspot() }
+            }
 
             updateLyricView()
             Log.d(
@@ -410,7 +546,7 @@ class DesktopLyricService : Service() {
         updateJob = serviceScope.launch {
             while (isActive) {
                 updateLyricView()
-                delay(1000) // 每1秒更新一次，减少频繁更新导致的surface断开问题
+                delay(33)
             }
         }
     }
@@ -423,6 +559,7 @@ class DesktopLyricService : Service() {
         try {
             cancelControlsAutoHide()
             hideControls()
+            hideUnlockHotspot()
             // 保存当前位置
             savePosition()
             windowManager?.removeView(lyricView)
@@ -451,112 +588,186 @@ class DesktopLyricService : Service() {
         // 如果音乐ID变化，重新加载歌词
         if (musicId != currentMusicId) {
             currentMusicId = musicId
+            lastReportedPositionMs = -1L
+            lastRenderedLyricLine = null
+            karaokeSpannable = null
+            currentLyrics = emptyList()
             serviceScope.launch {
                 loadLyrics(musicId)
             }
         }
 
-        // 获取当前播放进度
-        currentProgress = playerManager.currentPosition.value
-        val currentTime = currentProgress / 1000f
+        // 播放器位置约 10Hz 更新；桌面歌词在两次回调之间按墙钟补帧，避免逐字扫光卡顿。
+        val reportedPosition = playerManager.currentPosition.value
+        val now = SystemClock.elapsedRealtime()
+        val playbackRunning = playerManager.isPlaying.value && !playerManager.isBuffering.value
+        if (reportedPosition != lastReportedPositionMs || !wasPlaybackRunning) {
+            lastReportedPositionMs = reportedPosition
+            lastPositionSampleAtMs = now
+        }
+        val elapsed = if (playbackRunning) {
+            (now - lastPositionSampleAtMs).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+        wasPlaybackRunning = playbackRunning
+        currentProgress = reportedPosition
+        val currentTime = (reportedPosition + elapsed) / 1000f
 
         updatePlaybackControls(playerManager)
 
-        // 使用原有的TextView更新歌词显示
         val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
+        val tvRomanization = lyricView?.findViewById<TextView>(R.id.desktop_lyric_romanization)
         val tvTranslation = lyricView?.findViewById<TextView>(R.id.desktop_lyric_translation)
-        updateLyricViewPhone(tvLyric, tvTranslation, currentTime)
+        updateLyricViewPhone(tvLyric, tvRomanization, tvTranslation, currentTime)
     }
 
     /**
-     * 更新歌词显示
+     * 更新当前歌词、罗马音、翻译和逐字高亮。
      */
-    private fun updateLyricViewPhone(tvLyric: TextView?, tvTranslation: TextView?, currentTime: Float) {
-        if (useJNIRenderer) {
-            // 使用JNI渲染器
-            try {
-                val jsonData = DesktopLyricRenderer.getCurrentLyric(currentTime)
-                val json = JSONObject(jsonData)
-                val hasLyric = json.optBoolean("hasLyric", false)
+    private fun updateLyricViewPhone(
+        tvLyric: TextView?,
+        tvRomanization: TextView?,
+        tvTranslation: TextView?,
+        currentTime: Float,
+    ) {
+        val currentIndex = currentLyrics.indexOfLast { it.time <= currentTime }
+        val currentLine = currentLyrics.getOrNull(currentIndex)
+        val newText = currentLine?.text?.takeIf { it.isNotBlank() } ?: "暂无歌词"
+        val textChanged = tvLyric?.text?.toString() != newText
+        val lineChanged = lastRenderedLyricLine != currentLine
 
-                val newText = if (hasLyric) json.optString("text", "暂无歌词") else "暂无歌词"
-                val newTranslation = if (hasLyric) json.optString("translation", "") else ""
+        if (textChanged) {
+            val spannable = SpannableString(newText)
+            karaokeSpannable = spannable
+            tvLyric?.setText(spannable, TextView.BufferType.SPANNABLE)
+            lyricView?.animate()?.cancel()
+            lyricView?.alpha = 0.58f
+            lyricView?.translationY = 8f
+            lyricView?.animate()
+                ?.alpha(1f)
+                ?.translationY(0f)
+                ?.setDuration(180)
+                ?.start()
+        }
 
-                // 如果歌词内容变化，添加滚动动画效果
-                val currentText = tvLyric?.text
-                if (currentText != newText) {
-                    // 保存当前文本（用于动画）
-                    val previousText = currentText.toString()
-                    val previousTranslation = tvTranslation?.text?.toString() ?: ""
+        if (lineChanged) {
+            lastRenderedLyricLine = currentLine
+            updateSecondaryLyricText(tvRomanization, currentLine?.romanization)
+            updateSecondaryLyricText(tvTranslation, currentLine?.translation)
+            lyricView?.post { clampPositionToScreen() }
+        }
 
-                    // 临时显示上一句歌词，准备滚动动画
-                    tvLyric?.text = previousText
-                    tvTranslation?.text = previousTranslation
+        if (currentLine != null && currentLine.text.isNotBlank()) {
+            applyKaraokeSpans(tvLyric, currentLine, currentIndex, currentTime)
+        }
+    }
 
-                    // 第一步：当前歌词向下滚动并淡出
-                    lyricView?.animate()
-                        ?.translationY(20f)
-                        ?.alpha(0.3f)
-                        ?.setDuration(150)
-                        ?.withEndAction {
-                            // 更新文本
-                            tvLyric?.text = newText
-                            tvTranslation?.text = newTranslation
+    private fun updateSecondaryLyricText(view: TextView?, value: String?) {
+        val text = value?.trim().orEmpty()
+        view?.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+        if (text.isNotEmpty() && view?.text?.toString() != text) {
+            view?.text = text
+        }
+    }
 
-                            // 重置位置到上方
-                            lyricView?.translationY = -20f
-                            lyricView?.alpha = 0.3f
+    private fun applyKaraokeSpans(
+        tvLyric: TextView?,
+        line: LrcLine,
+        currentIndex: Int,
+        currentTime: Float,
+    ) {
+        val spannable = karaokeSpannable ?: return
+        if (spannable.length != line.text.length) return
 
-                            // 第二步：新歌词从上方滚动进来并淡入
-                            lyricView?.animate()
-                                ?.translationY(0f)
-                                ?.alpha(1f)
-                                ?.setDuration(150)
-                                ?.start()
-                        }
-                        ?.start()
-                } else {
-                    tvLyric.text = newText
-                    tvTranslation?.text = newTranslation
+        spannable.getSpans(0, spannable.length, ForegroundColorSpan::class.java)
+            .forEach(spannable::removeSpan)
+
+        val endTime = line.endTime
+            ?: currentLyrics.getOrNull(currentIndex + 1)?.time
+            ?: (line.time + 4f)
+        val progress = calculateKaraokeProgress(line, currentTime, endTime)
+        progress.forEachIndexed { index, value ->
+            if (value > 0f) {
+                spannable.setSpan(
+                    ForegroundColorSpan(
+                        blendColor(lyricBaseColor, karaokeHighlightColor, value)
+                    ),
+                    index,
+                    index + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+            }
+        }
+        tvLyric?.invalidate()
+    }
+
+    private fun calculateKaraokeProgress(
+        line: LrcLine,
+        currentTime: Float,
+        endTime: Float,
+    ): FloatArray {
+        val length = line.text.length
+        if (length == 0) return FloatArray(0)
+        val progress = FloatArray(length)
+        val safeEnd = endTime.coerceAtLeast(line.time + 0.2f)
+
+        if (line.syllables.isEmpty()) {
+            val lineProgress = ((currentTime - line.time) /
+                (safeEnd - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
+            for (index in 0 until length) {
+                progress[index] = (lineProgress * length - index).coerceIn(0f, 1f)
+            }
+            return progress
+        }
+
+        var offset = 0
+        line.syllables.forEachIndexed { syllableIndex, syllable ->
+            val start = min(offset, length)
+            val end = min(offset + syllable.text.length, length)
+            val syllableEnd = line.syllables.getOrNull(syllableIndex + 1)?.time ?: safeEnd
+            val syllableProgress = ((currentTime - syllable.time) /
+                (syllableEnd - syllable.time).coerceAtLeast(0.12f)).coerceIn(0f, 1f)
+            val charCount = (end - start).coerceAtLeast(0)
+            if (charCount > 0) {
+                for (index in start until end) {
+                    progress[index] = (
+                        syllableProgress * charCount - (index - start)
+                        ).coerceIn(0f, 1f)
                 }
-            } catch (e: Exception) {
-                Log.e("DesktopLyricService", "JNI renderer error, falling back to Kotlin", e)
-                useJNIRenderer = false
-                // 回退到Kotlin实现
-                updateLyricViewKotlin(tvLyric, tvTranslation, currentTime)
             }
-        } else {
-            // 使用Kotlin实现
-            updateLyricViewKotlin(tvLyric, tvTranslation, currentTime)
+            offset += syllable.text.length
         }
-    }
-    
-    private fun updateLyricViewKotlin(tvLyric: TextView?, tvTranslation: TextView?, currentTime: Float) {
-        val (lyricText, translationText) = getCurrentLyricKotlin(currentTime)
-        tvLyric?.text = lyricText
-        tvTranslation?.text = translationText
-    }
-
-    /**
-     * 使用Kotlin实现获取当前歌词（用于HUD和回退）
-     */
-    private fun getCurrentLyricKotlin(currentTime: Float): Pair<String, String> {
-        if (currentLyrics.isNotEmpty()) {
-            val currentLine = currentLyrics.lastOrNull { it.time <= currentTime }
-
-            if (currentLine != null) {
-                return Pair(currentLine.text, currentLine.translation ?: "")
+        if (offset < length) {
+            val fallback = ((currentTime - line.time) /
+                (safeEnd - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
+            for (index in offset until length) {
+                progress[index] = fallback
             }
         }
-        return Pair("暂无歌词", "")
+        return progress
+    }
+
+    private fun blendColor(base: Int, highlight: Int, fraction: Float): Int {
+        val value = fraction.coerceIn(0f, 1f)
+        return android.graphics.Color.rgb(
+            (android.graphics.Color.red(base) +
+                (android.graphics.Color.red(highlight) - android.graphics.Color.red(base)) * value)
+                .roundToInt(),
+            (android.graphics.Color.green(base) +
+                (android.graphics.Color.green(highlight) - android.graphics.Color.green(base)) * value)
+                .roundToInt(),
+            (android.graphics.Color.blue(base) +
+                (android.graphics.Color.blue(highlight) - android.graphics.Color.blue(base)) * value)
+                .roundToInt(),
+        )
     }
 
     private suspend fun loadLyrics(musicId: Int) {
         if (musicId <= 0) {
             currentLyrics = emptyList()
-            if (useJNIRenderer) {
-                DesktopLyricRenderer.parseLyrics("", -1)
-            }
+            lastRenderedLyricLine = null
+            karaokeSpannable = null
             return
         }
         
@@ -577,39 +788,59 @@ class DesktopLyricService : Service() {
                 coverFilePath = playerManager.currentMusicCover.value
             )
             
-            // 获取歌词
-            val result = musicApi.getMusicLyrics(currentMusic)
+            // 优先使用服务端字级歌词，同时保留普通 LRC 回退。
+            val result = musicApi.getMusicLyricsPayload(currentMusic)
             result.fold(
-                onSuccess = { lyricsText ->
-                    // 使用JNI渲染器
-                    if (useJNIRenderer) {
-                        try {
-                            DesktopLyricRenderer.parseLyrics(lyricsText, musicId)
-                            currentLyrics = emptyList() // 清空Kotlin数据
-                        } catch (e: Exception) {
-                            Log.e("DesktopLyricService", "JNI parse error, using Kotlin", e)
-                            useJNIRenderer = false
-                            currentLyrics = parseLrcLyrics(lyricsText)
+                onSuccess = { payload ->
+                    currentLyrics = if (payload.richLines.isNotEmpty()) {
+                        payload.richLines.map { line ->
+                            LrcLine(
+                                time = line.startMs / 1000f,
+                                text = cleanDesktopLyricText(line.text),
+                                translation = cleanDesktopLyricText(line.translation)
+                                    .takeIf { it.isNotEmpty() },
+                                romanization = cleanDesktopLyricText(line.romanization)
+                                    .takeIf { it.isNotEmpty() },
+                                syllables = line.words.map { word ->
+                                    LrcSyllable(
+                                        time = word.startMs / 1000f,
+                                        text = word.text,
+                                    )
+                                },
+                                endTime = line.endMs
+                                    .takeIf { it > line.startMs }
+                                    ?.div(1000f),
+                            )
                         }
                     } else {
-                        currentLyrics = parseLrcLyrics(lyricsText)
+                        parseLrcLyrics(payload.lyrics)
                     }
+                    lastRenderedLyricLine = null
+                    karaokeSpannable = null
+                    Log.d(
+                        "DesktopLyricService",
+                        "桌面歌词加载成功: lines=${currentLyrics.size}, " +
+                            "rich=${payload.richLines.size}",
+                    )
                 },
                 onFailure = { error ->
                     Log.e("DesktopLyricService", "Failed to load lyrics", error)
                     currentLyrics = emptyList()
-                    if (useJNIRenderer) {
-                        DesktopLyricRenderer.parseLyrics("", -1)
-                    }
+                    lastRenderedLyricLine = null
+                    karaokeSpannable = null
                 }
             )
         } catch (e: Exception) {
             Log.e("DesktopLyricService", "Error loading lyrics", e)
             currentLyrics = emptyList()
-            if (useJNIRenderer) {
-                DesktopLyricRenderer.parseLyrics("", -1)
-            }
+            lastRenderedLyricLine = null
+            karaokeSpannable = null
         }
+    }
+
+    private fun cleanDesktopLyricText(value: String?): String {
+        val trimmed = value?.trim().orEmpty()
+        return if (trimmed.equals("null", ignoreCase = true)) "" else trimmed
     }
 
     private fun parseLrcLyrics(lrcText: String): List<LrcLine> {
@@ -632,8 +863,9 @@ class DesktopLyricService : Service() {
                 val milliseconds = millisecondsStr.toFloat()
                 val time = minutes * 60 + seconds + milliseconds / 1000f
                 
-                // 提取歌词文本
-                var text = line.substring(match.range.last + 1).trim()
+                // 提取歌词文本和增强 LRC 的逐字时间戳
+                val rawText = line.substring(match.range.last + 1).trim()
+                val (text, syllables) = parseSyllableTimestamps(rawText, time)
                 
                 // 检查是否有翻译（下一行可能包含翻译）
                 var translation: String? = null
@@ -651,7 +883,14 @@ class DesktopLyricService : Service() {
                     }
                 }
                 
-                result.add(LrcLine(time, text, translation))
+                result.add(
+                    LrcLine(
+                        time = time,
+                        text = text,
+                        translation = translation,
+                        syllables = syllables,
+                    )
+                )
 
                 // 如果有翻译行，跳过它
                 if (hasTranslation) {
@@ -665,6 +904,44 @@ class DesktopLyricService : Service() {
         return result
     }
 
+    private fun parseSyllableTimestamps(
+        rawText: String,
+        fallbackTime: Float,
+    ): Pair<String, List<LrcSyllable>> {
+        val matches = syllableTimestampRegex.findAll(rawText).toList()
+        if (matches.isEmpty()) return rawText to emptyList()
+
+        val syllables = mutableListOf<LrcSyllable>()
+        val leadingText = rawText.substring(0, matches.first().range.first)
+        if (leadingText.isNotBlank()) {
+            syllables += LrcSyllable(fallbackTime, leadingText)
+        }
+
+        matches.forEachIndexed { index, match ->
+            val textStart = match.range.last + 1
+            val textEnd = matches.getOrNull(index + 1)?.range?.first ?: rawText.length
+            val syllableText = rawText.substring(textStart, textEnd)
+            if (syllableText.isEmpty()) return@forEachIndexed
+
+            val minutes = match.groupValues[1].toInt()
+            val seconds = match.groupValues[2].toInt()
+            val fractionText = match.groupValues[3]
+            val fraction = if (fractionText.isEmpty()) {
+                0f
+            } else {
+                fractionText.toFloat() / 10f.pow(fractionText.length)
+            }
+            syllables += LrcSyllable(minutes * 60 + seconds + fraction, syllableText)
+        }
+
+        val displayText = syllables.joinToString(separator = "") { it.text }
+        return if (displayText.isBlank()) {
+            rawText.replace(syllableTimestampRegex, "").trim() to emptyList()
+        } else {
+            displayText to syllables
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         mainHandler.removeCallbacks(longPressLockRunnable)
@@ -672,15 +949,6 @@ class DesktopLyricService : Service() {
         hideLyricView()
         updateJob?.cancel()
         serviceScope.cancel()
-
-        // 清理JNI渲染器
-        if (useJNIRenderer) {
-            try {
-                DesktopLyricRenderer.cleanup()
-            } catch (e: Exception) {
-                Log.e("DesktopLyricService", "Error cleaning up JNI renderer", e)
-            }
-        }
 
         instance = null
     }
