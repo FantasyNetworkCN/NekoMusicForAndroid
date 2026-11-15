@@ -8,6 +8,33 @@
 # 本平台唯一官网 https://music.nekocore.cn
 - ## 请勿通过非官方渠道获取安装包。本站被大量非法黑产生成盗版客户端诈骗，如你通过第三方平台获取安装包导致被骗本站拒绝一切赔偿
 
+<p align="center">
+  <img src="docs/images/readme/android-hero.png" alt="Neko 歌姬计划 Android 首页、播放页与听歌识曲" width="100%">
+</p>
+
+## 项目介绍
+
+Neko 歌姬计划 Android 客户端基于 Kotlin 与 Jetpack Compose 构建，接入 Neko 自托管曲库与
+统一账号体系。应用支持在线播放、每日推荐、收藏与歌单、逐字歌词、一起听、后台听歌识曲，
+并可从网易云音乐、QQ 音乐、酷狗音乐导入外部歌单。
+
+- **同一账号与曲库**：通过 NekoAuth 在应用内登录，播放、收藏和歌单与 Web / PC 同步。
+- **后台实时识曲**：通过 WebSocket 持续发送 16 kHz PCM，在自有曲库中实时匹配。
+- **完整播放体验**：逐字歌词、播放模式、倍速、定时关闭、桌面歌词与通知控制。
+- **多人一起听**：创建或加入房间，由服务端统一同步播放状态。
+- **歌单迁移**：支持外部平台歌单链接 / ID 导入并匹配站内曲库。
+- **安装包安全**：只从官方站点或本仓库发布页获取 APK。
+
+### 界面预览
+
+| 首页与每日推荐 | 播放页与逐字歌词 |
+| --- | --- |
+| ![Android 首页](docs/images/readme/android-home.png) | ![Android 播放页](docs/images/readme/android-player.png) |
+
+| 播放菜单与定时关闭 | 后台听歌识曲 |
+| --- | --- |
+| ![Android 播放菜单](docs/images/readme/android-player-menu.png) | ![Android 听歌识曲](docs/images/readme/android-recognition.png) |
+
 ### 获取外部歌单api
 获取qq歌单列表`https://music.nekocore.cn/loser1/getSongListDetail?disstid=歌单id`
 获取网易云歌单列表`https://music.nekocore.cn/loser/playlist/track/all?id=歌单id`
