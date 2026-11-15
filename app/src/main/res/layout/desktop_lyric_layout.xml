@@ -90,19 +90,33 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/desktop_lyric_text"
+            <HorizontalScrollView
+                android:id="@+id/desktop_lyric_text_scroll"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:shadowColor="@android:color/black"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="3"
-                android:text="@string/no_lyrics"
-                android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:clipToPadding="false"
+                android:enabled="false"
+                android:focusable="false"
+                android:focusableInTouchMode="false"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <TextView
+                    android:id="@+id/desktop_lyric_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="none"
+                    android:shadowColor="@android:color/black"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="3"
+                    android:singleLine="true"
+                    android:text="@string/no_lyrics"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </HorizontalScrollView>
 
             <TextView
                 android:id="@+id/desktop_lyric_romanization"
