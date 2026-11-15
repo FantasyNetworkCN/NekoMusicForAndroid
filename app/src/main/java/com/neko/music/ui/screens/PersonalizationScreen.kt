@@ -8,9 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,14 +56,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -80,15 +76,7 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
-import com.neko.music.ui.theme.LightRose
-import com.neko.music.ui.theme.MintGreen
-import com.neko.music.ui.theme.Peach
 import com.neko.music.ui.theme.RoseRed
-import com.neko.music.ui.theme.SakuraPink
-import com.neko.music.ui.theme.SkyBlue
-import com.neko.music.ui.theme.StarYellow
-import com.neko.music.ui.theme.defaultLyricHighlightColor
-import com.neko.music.ui.theme.lyricColorFromArgb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -156,16 +144,6 @@ fun PersonalizationScreen(
                 AppConfig.PrefConfig.KEY_LIQUID_GLASS_LENS_AMOUNT,
                 AppConfig.PrefConfig.DEFAULT_LIQUID_GLASS_STRENGTH
             ).coerceIn(LiquidGlassUiScale.StrengthMin, LiquidGlassUiScale.StrengthMax)
-        )
-    }
-
-    var lyricHighlightArgb: Int? by remember {
-        mutableStateOf(
-            if (prefs.contains(AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR)) {
-                prefs.getInt(AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR, 0)
-            } else {
-                null
-            }
         )
     }
 
@@ -444,136 +422,6 @@ fun PersonalizationScreen(
                                             Text(stringResource(id = R.string.personalization_background_reset))
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val lyricHighlightPresetColors = remember {
-                        listOf(
-                            RoseRed,
-                            SakuraPink,
-                            LightRose,
-                            SkyBlue,
-                            MintGreen,
-                            StarYellow,
-                            Peach,
-                            Color(0xFFBB86FC),
-                        )
-                    }
-                    val lyricPreviewHighlight = remember(isDarkChrome, lyricHighlightArgb) {
-                        lyricHighlightArgb?.let { lyricColorFromArgb(it) }
-                            ?: defaultLyricHighlightColor(isDarkChrome)
-                    }
-                    val lyricOtherLine = if (isDarkChrome) Color.White.copy(alpha = 0.35f) else Color.Gray
-                    val lyricPreviewBg = if (isDarkChrome) Color(0xFF1A1A2E) else Color(0xFFF0F0F5)
-                    val lyricSwatchScroll = rememberScrollState()
-
-                    SettingSection(
-                        title = stringResource(id = R.string.lyric_highlight_color_section),
-                        useDarkAppearance = isDarkChrome
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(lyricPreviewBg)
-                                    .padding(vertical = 16.dp, horizontal = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.lyric_highlight_preview_prev),
-                                    fontSize = 14.sp,
-                                    color = lyricOtherLine,
-                                    textAlign = TextAlign.Center,
-                                )
-                                Text(
-                                    text = stringResource(id = R.string.lyric_highlight_preview_current),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = lyricPreviewHighlight,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                )
-                                Text(
-                                    text = stringResource(id = R.string.lyric_highlight_preview_next),
-                                    fontSize = 14.sp,
-                                    color = lyricOtherLine,
-                                    textAlign = TextAlign.Center,
-                                )
-                            }
-
-                            val ringSel = if (isDarkChrome) Color.White.copy(alpha = 0.9f) else RoseRed
-                            val ringIdle =
-                                if (isDarkChrome) Color.White.copy(alpha = 0.22f) else Color(0x33000000)
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(lyricSwatchScroll)
-                                    .padding(top = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                val defaultSelected = lyricHighlightArgb == null
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .border(
-                                            width = if (defaultSelected) 3.dp else 1.dp,
-                                            color = if (defaultSelected) ringSel else ringIdle,
-                                            shape = CircleShape
-                                        )
-                                        .background(
-                                            if (isDarkChrome) Color.White.copy(alpha = 0.1f) else Color(0xFFE8E8EC)
-                                        )
-                                        .clickable {
-                                            lyricHighlightArgb = null
-                                            prefs.edit()
-                                                .remove(AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR)
-                                                .apply()
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = stringResource(id = R.string.lyric_highlight_follow_theme),
-                                        tint = if (isDarkChrome) Color(0xFFE8E8F0) else Color(0xFF555555),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                                lyricHighlightPresetColors.forEach { color ->
-                                    val argb = color.toArgb()
-                                    val selected = lyricHighlightArgb == argb
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .border(
-                                                width = if (selected) 3.dp else 1.dp,
-                                                color = if (selected) ringSel else ringIdle,
-                                                shape = CircleShape
-                                            )
-                                            .background(color)
-                                            .clickable {
-                                                lyricHighlightArgb = argb
-                                                prefs.edit()
-                                                    .putInt(
-                                                        AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR,
-                                                        argb
-                                                    )
-                                                    .apply()
-                                            }
-                                    )
                                 }
                             }
                         }
