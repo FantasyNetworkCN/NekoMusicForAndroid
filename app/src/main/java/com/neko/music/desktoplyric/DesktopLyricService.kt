@@ -403,13 +403,20 @@ class DesktopLyricService : Service() {
         val hotspotParams = unlockHotspotParams ?: return
         val mainView = lyricView ?: return
         val mainWidth = mainView.width.coerceAtLeast(1)
+        val mainHeight = mainView.height.coerceAtLeast(1)
         val hotspotSize = hotspotParams.width.coerceAtLeast(1)
         val margin = (4f * resources.displayMetrics.density).toInt()
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
         hotspotParams.x = mainParams.x + mainWidth / 2 - hotspotSize / 2 - margin
-        hotspotParams.y = (mainParams.y + margin)
-            .coerceIn(0, (screenHeight - hotspotSize).coerceAtLeast(0))
+        val aboveLyricY = mainParams.y - hotspotSize - margin
+        val belowLyricY = mainParams.y + mainHeight + margin
+        hotspotParams.y = when {
+            aboveLyricY >= 0 -> aboveLyricY
+            belowLyricY + hotspotSize <= screenHeight -> belowLyricY
+            else -> (mainParams.y + margin)
+                .coerceIn(0, (screenHeight - hotspotSize).coerceAtLeast(0))
+        }
         hotspotParams.x = hotspotParams.x.coerceIn(
             -screenWidth / 2,
             screenWidth / 2 - hotspotSize,
