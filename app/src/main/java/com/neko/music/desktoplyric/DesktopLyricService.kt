@@ -1,18 +1,27 @@
 package com.neko.music.desktoplyric
 
+import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.neko.music.R
+import com.neko.music.config.AppConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.service.MusicPlayerManager
@@ -57,6 +66,21 @@ class DesktopLyricService : Service() {
     private var viewInitialX = 0
     private var viewInitialY = 0
     private var touchSlop = 0f
+    private var isLocked = false
+    private var controlsVisible = false
+    private var controlsHideJob: Job? = null
+    private var lastPlayingState: Boolean? = null
+    private var longPressLockHandled = false
+    private var dragLockHintShown = false
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val longPressLockRunnable = Runnable {
+        if (!isDragging && !longPressLockHandled) {
+            longPressLockHandled = true
+            lyricView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            setLocked(!isLocked)
+        }
+    }
 
     // 位置保存相关的SharedPreferences
     private val positionPrefs by lazy {
@@ -67,6 +91,11 @@ class DesktopLyricService : Service() {
         const val ACTION_SHOW = "com.neko.music.action.SHOW_DESKTOP_LYRIC"
         const val ACTION_HIDE = "com.neko.music.action.HIDE_DESKTOP_LYRIC"
         const val ACTION_UPDATE = "com.neko.music.action.UPDATE_DESKTOP_LYRIC"
+        private const val PREFS_DESKTOP_LYRIC = "desktop_lyric"
+        private const val KEY_X = "lyric_x_position"
+        private const val KEY_Y = "lyric_y_position"
+        private const val KEY_LOCKED = "lyric_locked"
+        private const val CONTROLS_AUTO_HIDE_MS = 4_000L
         private var instance: DesktopLyricService? = null
         
         fun getInstance(): DesktopLyricService? {
@@ -81,6 +110,7 @@ class DesktopLyricService : Service() {
 
         // 在onCreate中初始化touchSlop，此时Context已经准备好
         touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop.toFloat()
+        isLocked = positionPrefs.getBoolean(KEY_LOCKED, false)
 
         // 初始化JNI渲染器
         if (useJNIRenderer) {
@@ -113,47 +143,217 @@ class DesktopLyricService : Service() {
         return null
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun createLyricView() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         
         val layoutInflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         lyricView = layoutInflater.inflate(R.layout.desktop_lyric_layout, null)
-        
-        // 添加拖动功能
-        lyricView?.setOnTouchListener(object : View.OnTouchListener {
-            override fun onTouch(view: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX
-                        startY = event.rawY
-                        isDragging = false
-                        viewInitialX = layoutParams?.x ?: 0
-                        viewInitialY = layoutParams?.y ?: 0
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val dx = event.rawX - startX
-                        val dy = event.rawY - startY
-                        
-                        if (kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop) {
-                            isDragging = true
-                            layoutParams?.x = viewInitialX + dx.toInt()
-                            layoutParams?.y = viewInitialY + dy.toInt()
-                            windowManager?.updateViewLayout(lyricView, layoutParams)
+        bindControlActions()
+        lyricView?.setOnTouchListener { view, event -> handleLyricTouch(view, event) }
+        updateLockUi()
+    }
+
+    private fun handleLyricTouch(view: View, event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                mainHandler.removeCallbacks(longPressLockRunnable)
+                cancelControlsAutoHide()
+                startX = event.rawX
+                startY = event.rawY
+                isDragging = false
+                longPressLockHandled = false
+                dragLockHintShown = false
+                viewInitialX = layoutParams?.x ?: 0
+                viewInitialY = layoutParams?.y ?: 0
+                mainHandler.postDelayed(
+                    longPressLockRunnable,
+                    android.view.ViewConfiguration.getLongPressTimeout().toLong(),
+                )
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.rawX - startX
+                val dy = event.rawY - startY
+                val moved = kotlin.math.abs(dx) > touchSlop || kotlin.math.abs(dy) > touchSlop
+                if (moved && !longPressLockHandled) {
+                    mainHandler.removeCallbacks(longPressLockRunnable)
+                    if (isLocked) {
+                        if (!dragLockHintShown) {
+                            dragLockHintShown = true
+                            Toast.makeText(
+                                this,
+                                R.string.desktop_lyric_drag_locked,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         }
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        // 拖动结束，保存位置
-                        if (isDragging) {
-                            savePosition()
-                        }
-                        return true
+                    } else {
+                        isDragging = true
+                        moveLyricView(dx, dy)
                     }
                 }
-                return false
+                return true
             }
-        })
+
+            MotionEvent.ACTION_UP -> {
+                mainHandler.removeCallbacks(longPressLockRunnable)
+                if (isDragging) {
+                    savePosition()
+                } else if (!longPressLockHandled) {
+                    view.performClick()
+                    toggleControls()
+                }
+                isDragging = false
+                scheduleControlsAutoHide()
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                mainHandler.removeCallbacks(longPressLockRunnable)
+                isDragging = false
+                scheduleControlsAutoHide()
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun bindControlActions() {
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_lock)?.setOnClickListener {
+            setLocked(!isLocked)
+            extendControlsVisibility()
+        }
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_previous)?.setOnClickListener {
+            MusicPlayerManager.getInstance(this).previous()
+            extendControlsVisibility()
+        }
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_play_pause)?.setOnClickListener {
+            val playerManager = MusicPlayerManager.getInstance(this)
+            playerManager.togglePlayPause()
+            mainHandler.postDelayed(
+                { updatePlaybackControls(playerManager) },
+                250L,
+            )
+            extendControlsVisibility()
+        }
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_next)?.setOnClickListener {
+            MusicPlayerManager.getInstance(this).next()
+            extendControlsVisibility()
+        }
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_close)?.setOnClickListener {
+            getSharedPreferences(PREFS_DESKTOP_LYRIC, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(AppConfig.PrefConfig.KEY_DESKTOP_LYRIC, false)
+                .apply()
+            hideLyricView()
+        }
+    }
+
+    private fun moveLyricView(dx: Float, dy: Float) {
+        val params = layoutParams ?: return
+        val view = lyricView ?: return
+        val metrics = resources.displayMetrics
+        val viewWidth = view.width.coerceAtLeast(1)
+        val viewHeight = view.height.coerceAtLeast(1)
+        val maxHorizontalOffset = (metrics.widthPixels / 2 - viewWidth / 2).coerceAtLeast(0)
+        val maxY = (metrics.heightPixels - viewHeight).coerceAtLeast(0)
+
+        params.x = (viewInitialX + dx.toInt()).coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
+        params.y = (viewInitialY + dy.toInt()).coerceIn(0, maxY)
+        windowManager?.updateViewLayout(view, params)
+    }
+
+    private fun clampPositionToScreen() {
+        val params = layoutParams ?: return
+        val view = lyricView ?: return
+        if (!isViewAdded) return
+        val metrics = resources.displayMetrics
+        val viewWidth = view.width.coerceAtLeast(1)
+        val viewHeight = view.height.coerceAtLeast(1)
+        val maxHorizontalOffset = (metrics.widthPixels / 2 - viewWidth / 2).coerceAtLeast(0)
+        val maxY = (metrics.heightPixels - viewHeight).coerceAtLeast(0)
+        params.x = params.x.coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
+        params.y = params.y.coerceIn(0, maxY)
+        windowManager?.updateViewLayout(view, params)
+    }
+
+    private fun setLocked(locked: Boolean) {
+        isLocked = locked
+        positionPrefs.edit().putBoolean(KEY_LOCKED, locked).apply()
+        updateLockUi()
+        showControls()
+        Toast.makeText(
+            this,
+            if (locked) R.string.desktop_lyric_locked else R.string.desktop_lyric_unlocked,
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    private fun updateLockUi() {
+        val lockButton = lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_lock)
+        lockButton?.setImageResource(
+            if (isLocked) R.drawable.ic_desktop_lyric_lock else R.drawable.ic_desktop_lyric_unlock
+        )
+        lockButton?.contentDescription = getString(
+            if (isLocked) R.string.desktop_lyric_unlock else R.string.desktop_lyric_lock
+        )
+        lyricView?.findViewById<ImageView>(R.id.desktop_lyric_lock_badge)?.visibility =
+            if (isLocked) View.VISIBLE else View.GONE
+    }
+
+    private fun updatePlaybackControls(playerManager: MusicPlayerManager) {
+        val playing = playerManager.isPlaying.value
+        if (playing == lastPlayingState) return
+        lastPlayingState = playing
+        lyricView?.findViewById<ImageButton>(R.id.desktop_lyric_play_pause)?.apply {
+            setImageResource(
+                if (playing) R.drawable.ic_desktop_lyric_pause else R.drawable.ic_desktop_lyric_play
+            )
+            contentDescription = getString(
+                if (playing) R.string.desktop_lyric_pause else R.string.desktop_lyric_play
+            )
+        }
+    }
+
+    private fun toggleControls() {
+        if (controlsVisible) hideControls() else showControls()
+    }
+
+    private fun showControls() {
+        if (!isViewAdded) return
+        val controls = lyricView?.findViewById<LinearLayout>(R.id.desktop_lyric_controls) ?: return
+        controlsVisible = true
+        controls.visibility = View.VISIBLE
+        scheduleControlsAutoHide()
+        lyricView?.post { clampPositionToScreen() }
+    }
+
+    private fun hideControls() {
+        cancelControlsAutoHide()
+        val controls = lyricView?.findViewById<LinearLayout>(R.id.desktop_lyric_controls) ?: return
+        controlsVisible = false
+        controls.visibility = View.GONE
+        lyricView?.post { clampPositionToScreen() }
+    }
+
+    private fun extendControlsVisibility() {
+        cancelControlsAutoHide()
+        scheduleControlsAutoHide()
+    }
+
+    private fun scheduleControlsAutoHide() {
+        cancelControlsAutoHide()
+        if (!controlsVisible) return
+        controlsHideJob = serviceScope.launch {
+            delay(CONTROLS_AUTO_HIDE_MS)
+            hideControls()
+        }
+    }
+
+    private fun cancelControlsAutoHide() {
+        controlsHideJob?.cancel()
+        controlsHideJob = null
     }
 
     private fun showLyricView() {
@@ -181,8 +381,8 @@ class DesktopLyricService : Service() {
             layoutParams?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
 
             // 加载保存的位置
-            val savedPosition = loadPosition()
-            layoutParams?.y = savedPosition
+            layoutParams?.x = positionPrefs.getInt(KEY_X, 0)
+            layoutParams?.y = positionPrefs.getInt(KEY_Y, 100)
 
             lyricView?.alpha = 1f
             lyricView?.scaleX = 1f
@@ -190,9 +390,17 @@ class DesktopLyricService : Service() {
 
             windowManager?.addView(lyricView, layoutParams)
             isViewAdded = true
+            controlsVisible = false
+            lyricView?.findViewById<LinearLayout>(R.id.desktop_lyric_controls)?.visibility = View.GONE
+            updateLockUi()
+            updatePlaybackControls(MusicPlayerManager.getInstance(this))
+            lyricView?.post { clampPositionToScreen() }
 
             updateLyricView()
-            Log.d("DesktopLyricService", "Lyric view added successfully at y=$savedPosition")
+            Log.d(
+                "DesktopLyricService",
+                "Lyric view added successfully at x=${layoutParams?.x}, y=${layoutParams?.y}",
+            )
         } catch (e: Exception) {
             Log.e("DesktopLyricService", "Error showing lyric view", e)
         }
@@ -213,6 +421,8 @@ class DesktopLyricService : Service() {
         if (lyricView == null || windowManager == null) return
 
         try {
+            cancelControlsAutoHide()
+            hideControls()
             // 保存当前位置
             savePosition()
             windowManager?.removeView(lyricView)
@@ -223,13 +433,13 @@ class DesktopLyricService : Service() {
     }
 
     private fun savePosition() {
+        val x = layoutParams?.x ?: 0
         val y = layoutParams?.y ?: 100
-        positionPrefs.edit().putInt("lyric_y_position", y).apply()
-        Log.d("DesktopLyricService", "Saved position: y=$y")
-    }
-
-    private fun loadPosition(): Int {
-        return positionPrefs.getInt("lyric_y_position", 100) // 默认距离顶部100像素
+        positionPrefs.edit()
+            .putInt(KEY_X, x)
+            .putInt(KEY_Y, y)
+            .apply()
+        Log.d("DesktopLyricService", "Saved position: x=$x, y=$y")
     }
 
     private fun updateLyricView() {
@@ -249,6 +459,8 @@ class DesktopLyricService : Service() {
         // 获取当前播放进度
         currentProgress = playerManager.currentPosition.value
         val currentTime = currentProgress / 1000f
+
+        updatePlaybackControls(playerManager)
 
         // 使用原有的TextView更新歌词显示
         val tvLyric = lyricView?.findViewById<TextView>(R.id.desktop_lyric_text)
@@ -455,6 +667,8 @@ class DesktopLyricService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        mainHandler.removeCallbacks(longPressLockRunnable)
+        cancelControlsAutoHide()
         hideLyricView()
         updateJob?.cancel()
         serviceScope.cancel()

@@ -17,6 +17,16 @@
     <string name="focus_lock">焦点锁定喵</string>
     <string name="focus_lock_subtitle">开启后人家就不会被其他坏应用打断了，可以一起叫喵</string>
     <string name="desktop_lyric">桌面歌词喵</string>
+    <string name="desktop_lyric_locked">桌面歌词已锁定喵</string>
+    <string name="desktop_lyric_unlocked">桌面歌词已解锁喵</string>
+    <string name="desktop_lyric_drag_locked">歌词锁定中喵，先长按歌词解锁再拖</string>
+    <string name="desktop_lyric_lock">锁定位置喵</string>
+    <string name="desktop_lyric_unlock">解锁位置喵</string>
+    <string name="desktop_lyric_previous">上一首喵</string>
+    <string name="desktop_lyric_play">播放喵</string>
+    <string name="desktop_lyric_pause">暂停喵</string>
+    <string name="desktop_lyric_next">下一首喵</string>
+    <string name="desktop_lyric_close">关闭桌面歌词喵</string>
 
     <string name="language">语言喵</string>
     <string name="language_follow_system">听系统的喵</string>

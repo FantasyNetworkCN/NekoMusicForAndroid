@@ -4,35 +4,130 @@
     android:layout_height="wrap_content"
     android:layout_gravity="center_horizontal"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="12dp"
     android:background="@android:color/transparent">
 
-    <TextView
-        android:id="@+id/desktop_lyric_text"
+    <LinearLayout
+        android:id="@+id/desktop_lyric_controls"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/no_lyrics"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:shadowColor="@android:color/black"
-        android:shadowDx="2"
-        android:shadowDy="2"
-        android:shadowRadius="3"
-        android:layout_gravity="center_horizontal"/>
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone">
 
-    <TextView
-        android:id="@+id/desktop_lyric_translation"
+        <ImageButton
+            android:id="@+id/desktop_lyric_lock"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:background="@drawable/desktop_lyric_control_background"
+            android:contentDescription="@string/desktop_lyric_lock"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_desktop_lyric_unlock" />
+
+        <ImageButton
+            android:id="@+id/desktop_lyric_previous"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:background="@drawable/desktop_lyric_control_background"
+            android:contentDescription="@string/desktop_lyric_previous"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_desktop_lyric_previous" />
+
+        <ImageButton
+            android:id="@+id/desktop_lyric_play_pause"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:background="@drawable/desktop_lyric_control_background"
+            android:contentDescription="@string/desktop_lyric_play"
+            android:padding="9dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_desktop_lyric_play" />
+
+        <ImageButton
+            android:id="@+id/desktop_lyric_next"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:background="@drawable/desktop_lyric_control_background"
+            android:contentDescription="@string/desktop_lyric_next"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_desktop_lyric_next" />
+
+        <ImageButton
+            android:id="@+id/desktop_lyric_close"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:background="@drawable/desktop_lyric_control_background"
+            android:contentDescription="@string/desktop_lyric_close"
+            android:padding="9dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_desktop_lyric_close" />
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="14sp"
-        android:textColor="#CCCCCC"
-        android:layout_marginTop="4dp"
-        android:shadowColor="@android:color/black"
-        android:shadowDx="2"
-        android:shadowDy="2"
-        android:shadowRadius="3"
-        android:layout_gravity="center_horizontal"/>
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/desktop_lyric_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="3"
+                android:text="@string/no_lyrics"
+                android:textColor="@android:color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/desktop_lyric_translation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="3"
+                android:text=""
+                android:textColor="#CCCCCC"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/desktop_lyric_lock_badge"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="6dp"
+            android:alpha="0.8"
+            android:contentDescription="@string/desktop_lyric_locked"
+            android:src="@drawable/ic_desktop_lyric_lock"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </LinearLayout>

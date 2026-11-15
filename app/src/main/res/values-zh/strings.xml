@@ -598,6 +598,16 @@
     <string name="unsupported_lyrics_format">歌词文件仅支持 LRC 格式</string>
     <string name="invalid_lyrics_timestamp">LRC 文件必须包含时间戳（格式：[mm:ss.xx]）</string>
     <string name="desktop_lyric">桌面歌词</string>
+    <string name="desktop_lyric_locked">桌面歌词已锁定</string>
+    <string name="desktop_lyric_unlocked">桌面歌词已解锁</string>
+    <string name="desktop_lyric_drag_locked">歌词已锁定，请先长按歌词解锁再拖动</string>
+    <string name="desktop_lyric_lock">锁定位置</string>
+    <string name="desktop_lyric_unlock">解锁位置</string>
+    <string name="desktop_lyric_previous">上一首</string>
+    <string name="desktop_lyric_play">播放</string>
+    <string name="desktop_lyric_pause">暂停</string>
+    <string name="desktop_lyric_next">下一首</string>
+    <string name="desktop_lyric_close">关闭桌面歌词</string>
 
     <string name="vip_non_member_benefits">开通后解锁更长分享视频、去水印等</string>
     <string name="video_render_button">生成分享视频</string>
