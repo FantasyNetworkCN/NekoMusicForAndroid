@@ -117,6 +117,7 @@ import com.neko.music.ui.screens.FavoriteScreen
 import com.neko.music.ui.screens.AboutScreen
 import com.neko.music.ui.screens.SettingsScreen
 import com.neko.music.ui.screens.PersonalizationScreen
+import com.neko.music.ui.screens.LyricsPersonalizationScreen
 import com.neko.music.ui.screens.CacheManagementScreen
 import com.neko.music.ui.screens.AccountInfoScreen
 import com.neko.music.ui.screens.LiquidCenterModalTransitions
@@ -1369,6 +1370,9 @@ fun MainScreen() {
                     onNavigateToPersonalization = {
                         navController.navigate("personalization")
                     },
+                    onNavigateToLyricsStyle = {
+                        navController.navigate("lyrics_personalization")
+                    },
                     onNavigateToPrivacyPolicy = {
                         navController.navigate("privacy_policy")
                     }
@@ -1381,6 +1385,11 @@ fun MainScreen() {
             }
             composable("personalization") {
                 PersonalizationScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            composable("lyrics_personalization") {
+                LyricsPersonalizationScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }

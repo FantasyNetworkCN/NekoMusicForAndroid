@@ -129,6 +129,19 @@ object AppConfig {
         /** 播放页当前句歌词高亮色（ARGB）。未写入该键时跟随主题默认色。 */
         const val KEY_LYRIC_HIGHLIGHT_COLOR = "lyric_highlight_color_argb"
 
+        /** 播放页歌词样式。字号为 0 时按屏幕宽度使用默认值。 */
+        const val KEY_LYRIC_FONT_SIZE = "lyric_style_font_size_sp"
+        const val KEY_LYRIC_LINE_SPACING = "lyric_style_line_spacing_dp"
+        const val KEY_LYRIC_ACTIVE_ALPHA = "lyric_style_active_alpha"
+        const val KEY_LYRIC_INACTIVE_ALPHA = "lyric_style_inactive_alpha"
+        const val KEY_LYRIC_SCALE_CURRENT = "lyric_style_scale_current"
+        const val KEY_LYRIC_GLOW = "lyric_style_glow"
+        const val KEY_LYRIC_KARAOKE = "lyric_style_karaoke"
+        const val KEY_LYRIC_SMOOTH_SCROLL = "lyric_style_smooth_scroll"
+        const val KEY_LYRIC_CENTER_TEXT = "lyric_style_center_text"
+        const val KEY_LYRIC_SHOW_TRANSLATION = "lyric_style_show_translation"
+        const val KEY_LYRIC_SHOW_ROMANIZATION = "lyric_style_show_romanization"
+
         /** @deprecated 已迁移至 [KEY_CUSTOM_BG_SUB_PAGE] */
         const val KEY_CUSTOM_PAGE_BACKGROUND = "custom_page_background_enabled"
 

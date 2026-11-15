@@ -60,6 +60,7 @@ fun SettingsScreen(
     onBackClick: () -> Unit = {},
     onNavigateToCache: () -> Unit = {},
     onNavigateToPersonalization: () -> Unit = {},
+    onNavigateToLyricsStyle: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -364,6 +365,16 @@ fun SettingsScreen(
                         title = stringResource(id = R.string.personalization),
                         subtitle = themeSubtitle,
                         onClick = onNavigateToPersonalization
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = scheme.outlineVariant.copy(alpha = 0.45f),
+                    )
+                    SettingItem(
+                        icon = Icons.Default.Settings,
+                        title = stringResource(id = R.string.lyrics_style_entry_title),
+                        subtitle = stringResource(id = R.string.lyrics_style_entry_subtitle),
+                        onClick = onNavigateToLyricsStyle,
                     )
                 }
 

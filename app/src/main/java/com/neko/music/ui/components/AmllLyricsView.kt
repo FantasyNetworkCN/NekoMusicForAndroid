@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,12 +71,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.R
-import com.neko.music.config.AppConfig
 import com.neko.music.ui.screens.LrcLine
 import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.ui.theme.lyricHighlightColorFromPrefs
@@ -104,27 +105,30 @@ fun AmllLyricsView(
 ) {
     val isDarkTheme = isAppDarkTheme()
     val isWideLayout = LocalConfiguration.current.screenWidthDp >= 600
-    val lyricFontSize = if (isWideLayout) 24.sp else 28.sp
-    val lyricLineHeight = if (isWideLayout) 30.sp else 36.sp
-    val secondaryFontSize = 17.sp
-    val secondaryLineHeight = 24.sp
     val context = LocalContext.current
     val appPrefs = remember(context) {
         context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
-    var lyricHighlightRev by remember { mutableIntStateOf(0) }
+    var lyricStyleRev by remember { mutableIntStateOf(0) }
     DisposableEffect(appPrefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == AppConfig.PrefConfig.KEY_LYRIC_HIGHLIGHT_COLOR) {
-                lyricHighlightRev++
+            if (key == null || key in LyricStylePreferences.keys) {
+                lyricStyleRev++
             }
         }
         appPrefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { appPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    val highlightColor = remember(isDarkTheme, lyricHighlightRev) {
+    val lyricStyle = remember(isWideLayout, lyricStyleRev) {
+        LyricStylePreferences.load(appPrefs, isWideLayout)
+    }
+    val highlightColor = remember(isDarkTheme, lyricStyleRev) {
         lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
     }
+    val lyricFontSize = lyricStyle.fontSizeSp.sp
+    val lyricLineHeight = (lyricStyle.fontSizeSp * 1.28f).sp
+    val secondaryFontSize = (lyricStyle.fontSizeSp * 0.61f).coerceIn(13f, 20f).sp
+    val secondaryLineHeight = (secondaryFontSize.value * 1.4f).sp
     val lyricTextColor = if (isDarkTheme) Color.White else Color(0xFF111114)
     val displayLyrics = remember(lyrics) {
         if (lyrics.firstOrNull()?.time?.let { it > 0f } == true) {
@@ -186,6 +190,7 @@ fun AmllLyricsView(
                             listState = listState,
                             index = currentIndex,
                             anchorOffsetPx = anchorOffsetPx,
+                            animate = lyricStyle.smoothScrollEnabled,
                         )
                     }
 
@@ -214,8 +219,12 @@ fun AmllLyricsView(
                             bottom = bottomPadding,
                         ),
                         // Apple: 32dp 行距由 2dp/10dp 行内边距与 20dp 行间空隙组成。
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(lyricStyle.lineSpacingDp.dp),
+                        horizontalAlignment = if (lyricStyle.centerText) {
+                            Alignment.CenterHorizontally
+                        } else {
+                            Alignment.Start
+                        },
                     ) {
                         itemsIndexed(
                             items = displayLyrics,
@@ -223,7 +232,11 @@ fun AmllLyricsView(
                         ) { index, line ->
                             val isCurrentLine = index == currentIndex
                             val lineAlpha by animateFloatAsState(
-                                targetValue = if (isCurrentLine) 0.94f else 0.18f,
+                                targetValue = if (isCurrentLine) {
+                                    lyricStyle.activeAlpha
+                                } else {
+                                    lyricStyle.inactiveAlpha
+                                },
                                 animationSpec = tween(
                                     durationMillis = if (isCurrentLine) 250 else 350,
                                     delayMillis = 250,
@@ -232,7 +245,11 @@ fun AmllLyricsView(
                                 label = "apple_line_alpha",
                             )
                             val lineScale by animateFloatAsState(
-                                targetValue = if (isCurrentLine) 1.0f else 0.98f,
+                                targetValue = if (isCurrentLine || !lyricStyle.scaleCurrentLine) {
+                                    1.0f
+                                } else {
+                                    0.98f
+                                },
                                 animationSpec = tween(
                                     durationMillis = if (isCurrentLine) 250 else 350,
                                     delayMillis = 250,
@@ -260,7 +277,11 @@ fun AmllLyricsView(
                                         onClick = { onLineClick(line.time) },
                                     )
                                     .padding(top = 2.dp, bottom = 10.dp),
-                                horizontalAlignment = Alignment.Start,
+                                horizontalAlignment = if (lyricStyle.centerText) {
+                                    Alignment.CenterHorizontally
+                                } else {
+                                    Alignment.Start
+                                },
                             ) {
                                 if (line.text.isBlank()) {
                                     InstrumentalDots(
@@ -280,19 +301,23 @@ fun AmllLyricsView(
                                         highlightColor = highlightColor,
                                         fontSize = lyricFontSize,
                                         lineHeight = lyricLineHeight,
+                                        glowEnabled = lyricStyle.glowEnabled,
+                                        karaokeEnabled = lyricStyle.karaokeEnabled,
+                                        centerText = lyricStyle.centerText,
                                         shadowColor = highlightColor.copy(
                                             alpha = if (isDarkTheme) 0.16f else 0.10f,
                                         ),
                                     )
                                 }
 
-                                if (line.romanization.isNotEmpty()) {
+                                if (lyricStyle.showRomanization && line.romanization.isNotEmpty()) {
                                     Text(
                                         text = line.romanization,
                                         fontSize = secondaryFontSize,
                                         lineHeight = secondaryLineHeight,
                                         fontWeight = FontWeight.Bold,
                                         color = lyricTextColor.copy(alpha = 0.76f),
+                                        textAlign = if (lyricStyle.centerText) TextAlign.Center else TextAlign.Start,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
@@ -301,13 +326,14 @@ fun AmllLyricsView(
                                     )
                                 }
 
-                                if (line.translation.isNotEmpty()) {
+                                if (lyricStyle.showTranslation && line.translation.isNotEmpty()) {
                                     Text(
                                         text = line.translation,
                                         fontSize = secondaryFontSize,
                                         lineHeight = secondaryLineHeight,
                                         fontWeight = FontWeight.Bold,
                                         color = lyricTextColor.copy(alpha = 0.76f),
+                                        textAlign = if (lyricStyle.centerText) TextAlign.Center else TextAlign.Start,
                                         maxLines = 3,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
@@ -377,19 +403,30 @@ private fun KaraokeText(
     highlightColor: Color,
     fontSize: androidx.compose.ui.unit.TextUnit,
     lineHeight: androidx.compose.ui.unit.TextUnit,
+    glowEnabled: Boolean,
+    karaokeEnabled: Boolean,
+    centerText: Boolean,
     shadowColor: Color,
 ) {
     if (line.text.isEmpty()) return
 
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
-    val textStyle = remember(fontSize, lineHeight, isCurrentLine, shadowColor) {
+    val textStyle = remember(
+        fontSize,
+        lineHeight,
+        isCurrentLine,
+        glowEnabled,
+        centerText,
+        shadowColor,
+    ) {
         TextStyle(
             fontSize = fontSize,
             lineHeight = lineHeight,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.35).sp,
-            shadow = if (isCurrentLine) {
+            textAlign = if (centerText) TextAlign.Center else TextAlign.Start,
+            shadow = if (isCurrentLine && glowEnabled) {
                 Shadow(color = shadowColor, blurRadius = 12f)
             } else {
                 null
@@ -408,12 +445,19 @@ private fun KaraokeText(
                 constraints = Constraints(maxWidth = widthPx),
             )
         }
-        val charProgress = remember(line, playheadSeconds, lineEndTime, isCurrentLine) {
+        val charProgress = remember(
+            line,
+            playheadSeconds,
+            lineEndTime,
+            isCurrentLine,
+            karaokeEnabled,
+        ) {
             calculateKaraokeProgress(
                 line = line,
                 playheadSeconds = playheadSeconds,
                 lineEndTime = lineEndTime,
                 isCurrentLine = isCurrentLine,
+                karaokeEnabled = karaokeEnabled,
             )
         }
 
@@ -434,8 +478,6 @@ private fun KaraokeText(
             // 文本排版只计算一次；高亮进度仅裁剪已经排好的同一份文本，
             // 因此逐帧更新不会改变英文字母的 kerning、字距或换行位置。
             val highlightPath = Path()
-            var lastLine = -1
-            var lastLineBottom = 0f
             charProgress.forEachIndexed { charIndex, progress ->
                 if (progress <= 0f) return@forEachIndexed
                 if (charIndex >= line.text.length) return@forEachIndexed
@@ -444,10 +486,6 @@ private fun KaraokeText(
                 val textLine = textLayout.getLineForOffset(charIndex)
                 val lineTop = textLayout.getLineTop(textLine)
                 val lineBottom = textLayout.getLineBottom(textLine)
-                if (textLine != lastLine) {
-                    lastLine = textLine
-                    lastLineBottom = lineBottom
-                }
 
                 val right = box.left + box.width * progress.coerceIn(0f, 1f)
                 if (right > box.left) {
@@ -456,7 +494,7 @@ private fun KaraokeText(
                             left = box.left,
                             top = lineTop,
                             right = right,
-                            bottom = if (lineBottom > lineTop) lineBottom else lastLineBottom,
+                            bottom = lineBottom.coerceAtLeast(lineTop + 1f),
                         ),
                     )
                 }
@@ -480,11 +518,12 @@ private fun calculateKaraokeProgress(
     playheadSeconds: Float,
     lineEndTime: Float,
     isCurrentLine: Boolean,
+    karaokeEnabled: Boolean,
 ): FloatArray {
     if (line.text.isEmpty() || !isCurrentLine) return FloatArray(0)
 
     val progress = FloatArray(line.text.length)
-    if (line.syllables.isEmpty()) {
+    if (!karaokeEnabled || line.syllables.isEmpty()) {
         // 行级 LRC 不模拟逐字扫光，整行直接进入高亮色。
         progress.fill(1f)
         return progress
@@ -522,6 +561,7 @@ private suspend fun anchorLyricLine(
     listState: LazyListState,
     index: Int,
     anchorOffsetPx: Float,
+    animate: Boolean,
 ) {
     var layoutInfo = listState.layoutInfo
     var item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
@@ -537,13 +577,17 @@ private suspend fun anchorLyricLine(
     val targetTop = layoutInfo.viewportStartOffset + anchorOffsetPx
     val delta = item.offset - targetTop
     if (abs(delta) > 0.5f) {
-        listState.animateScrollBy(
-            value = delta,
-            animationSpec = tween(
-                durationMillis = 320,
-                easing = AppleLyricsEasing,
-            ),
-        )
+        if (animate) {
+            listState.animateScrollBy(
+                value = delta,
+                animationSpec = tween(
+                    durationMillis = 320,
+                    easing = AppleLyricsEasing,
+                ),
+            )
+        } else {
+            listState.scrollBy(delta)
+        }
     }
 }
 
