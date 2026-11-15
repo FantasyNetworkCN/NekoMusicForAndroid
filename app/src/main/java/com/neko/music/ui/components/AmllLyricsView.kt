@@ -2,14 +2,13 @@ package com.neko.music.ui.components
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,9 +44,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -55,7 +54,9 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -74,14 +75,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.pow
-import kotlin.math.roundToInt
 
 /**
- * Apple Music / AMLL 风格的歌词视图。
+ * Apple Music 播放页歌词视图。
  *
- * 非当前行由屏幕中心距离连续驱动透明度和模糊，当前行随播放进度逐字扫光；
- * 行切换使用弹簧滚动，用户主动拖动时暂停跟随，松手后自动回到当前歌词。
+ * 复刻 Apple Music 的两个核心视觉规则：
+ * 1. 当前行固定在歌词视口上方的锚点，而不是屏幕中心；
+ * 2. 非当前行统一为 18% 不透明度、0.98 缩放，当前行过渡到 94%、1.0。
+ *
+ * 用户拖动时暂停自动跟随；停止拖动后恢复锚定。逐字高亮仍沿用项目现有能力。
  */
 @Composable
 fun AmllLyricsView(
@@ -93,6 +95,11 @@ fun AmllLyricsView(
     onLineClick: (Float) -> Unit = {},
 ) {
     val isDarkTheme = isAppDarkTheme()
+    val isWideLayout = LocalConfiguration.current.screenWidthDp >= 600
+    val lyricFontSize = if (isWideLayout) 24.sp else 28.sp
+    val lyricLineHeight = if (isWideLayout) 30.sp else 36.sp
+    val secondaryFontSize = 17.sp
+    val secondaryLineHeight = 24.sp
     val context = LocalContext.current
     val appPrefs = remember(context) {
         context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -110,6 +117,7 @@ fun AmllLyricsView(
     val highlightColor = remember(isDarkTheme, lyricHighlightRev) {
         lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
     }
+    val lyricTextColor = if (isDarkTheme) Color.White else Color(0xFF111114)
     val displayLyrics = remember(lyrics) {
         if (lyrics.firstOrNull()?.time?.let { it > 0f } == true) {
             listOf(LrcLine(0f, "")) + lyrics
@@ -132,20 +140,8 @@ fun AmllLyricsView(
     var isUserBrowsing by remember { mutableStateOf(false) }
     var resumeFollowJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
-    LaunchedEffect(currentIndex, displayLyrics.size, isUserBrowsing) {
-        if (currentIndex < 0 || displayLyrics.isEmpty() || isUserBrowsing) {
-            return@LaunchedEffect
-        }
-        delay(32)
-        animateLyricLineToCenter(listState, currentIndex)
-    }
-
-    val baseTextColor = if (isDarkTheme) {
-        Color.White.copy(alpha = 0.94f)
-    } else {
-        Color(0xFF111114).copy(alpha = 0.92f)
-    }
     Box(modifier = modifier.fillMaxSize()) {
         when {
             isLoading -> {
@@ -161,14 +157,30 @@ fun AmllLyricsView(
                     Text(
                         text = stringResource(id = R.string.no_lyrics),
                         fontSize = 16.sp,
-                        color = baseTextColor.copy(alpha = 0.45f),
+                        color = lyricTextColor.copy(alpha = 0.45f),
                     )
                 }
             }
 
             else -> {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val halfViewport = maxHeight / 2
+                    // Apple 将当前行放在歌词列表顶部约 8% 的位置，而不是垂直居中。
+                    val anchorOffset = maxOf(maxHeight * 0.08f, 56.dp)
+                    val anchorOffsetPx = with(density) { anchorOffset.toPx() }
+                    val bottomPadding = maxHeight * 0.2775f + 60.dp
+
+                    LaunchedEffect(currentIndex, displayLyrics.size, isUserBrowsing) {
+                        if (currentIndex < 0 || displayLyrics.isEmpty() || isUserBrowsing) {
+                            return@LaunchedEffect
+                        }
+                        delay(32)
+                        anchorLyricLine(
+                            listState = listState,
+                            index = currentIndex,
+                            anchorOffsetPx = anchorOffsetPx,
+                        )
+                    }
+
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -189,42 +201,37 @@ fun AmllLyricsView(
                             },
                         contentPadding = PaddingValues(
                             start = 32.dp,
-                            top = halfViewport,
+                            top = anchorOffset,
                             end = 32.dp,
-                            bottom = halfViewport,
+                            bottom = bottomPadding,
                         ),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        // Apple: 32dp 行距由 2dp/10dp 行内边距与 20dp 行间空隙组成。
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
                         horizontalAlignment = Alignment.Start,
                     ) {
                         itemsIndexed(
                             items = displayLyrics,
                             key = { index, line -> "${line.time}:$index" },
                         ) { index, line ->
-                            val layoutInfo = listState.layoutInfo
-                            val viewportStart = layoutInfo.viewportStartOffset.toFloat()
-                            val viewportEnd = layoutInfo.viewportEndOffset.toFloat()
-                            val viewportCenter = (viewportStart + viewportEnd) / 2f
-                            val viewportHalf = ((viewportEnd - viewportStart) / 2f).coerceAtLeast(1f)
-                            val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
-                            val distanceRatio = itemInfo?.let {
-                                val itemCenter = it.offset + it.size / 2f
-                                (abs(itemCenter - viewportCenter) / viewportHalf).coerceIn(0f, 1f)
-                            } ?: 1f
                             val isCurrentLine = index == currentIndex
                             val lineAlpha by animateFloatAsState(
-                                targetValue = 1f - 0.8f * distanceRatio.pow(1.15f),
-                                animationSpec = tween(durationMillis = 180, easing = LinearEasing),
-                                label = "amll_line_alpha",
+                                targetValue = if (isCurrentLine) 0.94f else 0.18f,
+                                animationSpec = tween(
+                                    durationMillis = if (isCurrentLine) 250 else 350,
+                                    delayMillis = 250,
+                                    easing = AppleLyricsEasing,
+                                ),
+                                label = "apple_line_alpha",
                             )
                             val lineScale by animateFloatAsState(
-                                targetValue = 1.07f - 0.16f * distanceRatio,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow,
+                                targetValue = if (isCurrentLine) 1.0f else 0.98f,
+                                animationSpec = tween(
+                                    durationMillis = if (isCurrentLine) 250 else 350,
+                                    delayMillis = 250,
+                                    easing = AppleLyricsEasing,
                                 ),
-                                label = "amll_line_scale",
+                                label = "apple_line_scale",
                             )
-                            val lineBlur = (distanceRatio.pow(1.55f) * 7.5f).coerceIn(0f, 7.5f)
 
                             val lineEndTime = line.endTime
                                 ?: displayLyrics.getOrNull(index + 1)?.time
@@ -239,13 +246,12 @@ fun AmllLyricsView(
                                         scaleY = lineScale
                                         transformOrigin = TransformOrigin(0f, 0.5f)
                                     }
-                                    .blur(lineBlur.dp)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                         onClick = { onLineClick(line.time) },
                                     )
-                                    .padding(vertical = if (isCurrentLine) 5.dp else 1.dp),
+                                    .padding(top = 2.dp, bottom = 10.dp),
                                 horizontalAlignment = Alignment.Start,
                             ) {
                                 if (line.text.isBlank()) {
@@ -253,7 +259,7 @@ fun AmllLyricsView(
                                         isCurrentLine = isCurrentLine,
                                         elapsedSeconds = (smoothPlayhead - line.time).coerceAtLeast(0f),
                                         durationSeconds = (lineEndTime - line.time).coerceAtLeast(0.2f),
-                                        baseColor = baseTextColor,
+                                        baseColor = lyricTextColor,
                                         highlightColor = highlightColor,
                                     )
                                 } else {
@@ -263,12 +269,12 @@ fun AmllLyricsView(
                                             playheadSeconds = smoothPlayhead,
                                             lineEndTime = lineEndTime,
                                             isCurrentLine = isCurrentLine,
-                                            baseColor = baseTextColor,
+                                            baseColor = lyricTextColor,
                                             highlightColor = highlightColor,
                                         ),
-                                        fontSize = 24.sp,
-                                        lineHeight = 32.sp,
-                                        fontWeight = if (isCurrentLine) FontWeight.SemiBold else FontWeight.Medium,
+                                        fontSize = lyricFontSize,
+                                        lineHeight = lyricLineHeight,
+                                        fontWeight = FontWeight.Bold,
                                         letterSpacing = (-0.35).sp,
                                         maxLines = 5,
                                         overflow = TextOverflow.Ellipsis,
@@ -291,12 +297,10 @@ fun AmllLyricsView(
                                 if (line.romanization.isNotEmpty()) {
                                     Text(
                                         text = line.romanization,
-                                        fontSize = 14.sp,
-                                        lineHeight = 20.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = baseTextColor.copy(
-                                            alpha = if (isCurrentLine) 0.60f else 0.44f,
-                                        ),
+                                        fontSize = secondaryFontSize,
+                                        lineHeight = secondaryLineHeight,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lyricTextColor.copy(alpha = 0.76f),
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
@@ -308,12 +312,10 @@ fun AmllLyricsView(
                                 if (line.translation.isNotEmpty()) {
                                     Text(
                                         text = line.translation,
-                                        fontSize = 15.sp,
-                                        lineHeight = 21.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = baseTextColor.copy(
-                                            alpha = if (isCurrentLine) 0.70f else 0.52f,
-                                        ),
+                                        fontSize = secondaryFontSize,
+                                        lineHeight = secondaryLineHeight,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lyricTextColor.copy(alpha = 0.76f),
                                         maxLines = 3,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
@@ -437,45 +439,33 @@ private fun buildKaraokeText(
     }
 }
 
-private suspend fun animateLyricLineToCenter(
+private suspend fun anchorLyricLine(
     listState: LazyListState,
     index: Int,
+    anchorOffsetPx: Float,
 ) {
     var layoutInfo = listState.layoutInfo
-    val viewportCenter = (
-        layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset
-        ) / 2f
-    val visibleItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+    var item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
 
-    if (visibleItem == null) {
-        val viewportHeight = (
-            layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
-            ).coerceAtLeast(1)
-        val averageItemHeight = layoutInfo.visibleItemsInfo
-            .map { it.size }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
-            ?.toFloat()
-            ?.takeIf { it.isFinite() && it > 0f }
-            ?: (viewportHeight / 5f)
-        val centeredOffset = -(viewportCenter - averageItemHeight / 2f).roundToInt()
-        listState.scrollToItem(index, centeredOffset)
-        delay(16)
+    if (item == null) {
+        // 大跨度 seek 先定位到目标行，只对最后的锚点修正做动画，避免跨数百行飞滚。
+        listState.scrollToItem(index)
+        withFrameNanos { }
         layoutInfo = listState.layoutInfo
+        item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return
     }
 
-    val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
-        ?: return
-    val itemCenter = item.offset + item.size / 2f
-    val delta = itemCenter - viewportCenter
+    val targetTop = layoutInfo.viewportStartOffset + anchorOffsetPx
+    val delta = item.offset - targetTop
     if (abs(delta) > 0.5f) {
         listState.animateScrollBy(
             value = delta,
-            animationSpec = spring(
-                dampingRatio = 0.86f,
-                stiffness = 330f,
-                visibilityThreshold = 0.5f,
+            animationSpec = tween(
+                durationMillis = 320,
+                easing = AppleLyricsEasing,
             ),
         )
     }
 }
+
+private val AppleLyricsEasing = CubicBezierEasing(0.39f, 0.575f, 0.565f, 1f)
