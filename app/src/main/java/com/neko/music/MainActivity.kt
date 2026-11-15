@@ -276,6 +276,21 @@ class MainActivity : ComponentActivity() {
                         handleSsoHandoff(uri.getQueryParameter("handoff"))
                     }
                 }
+                "search" -> {
+                    com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
+                        com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Search
+                    )
+                }
+                "qr" -> {
+                    com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
+                        com.neko.music.util.DeepLinkHandler.DeepLinkRoute.QrScan
+                    )
+                }
+                "recognition" -> {
+                    com.neko.music.util.DeepLinkHandler.deepLinkEvent.trySend(
+                        com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Recognition
+                    )
+                }
                 "player" -> {
                     val id = uri.pathSegments.getOrNull(0)?.toIntOrNull()
                     if (id != null) {
@@ -822,6 +837,30 @@ fun MainScreen() {
                 }
                 com.neko.music.util.DeepLinkHandler.DeepLinkRoute.PrivacyPolicy -> {
                     navController.navigate("privacy_policy") {
+                        launchSingleTop = true
+                    }
+                }
+                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Search -> {
+                    context.getSharedPreferences("search_state", Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("last_search_query")
+                        .remove("last_search_type")
+                        .apply()
+                    navController.navigate("search") {
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.QrScan -> {
+                    navController.navigate("qr_login_scan") {
+                        launchSingleTop = true
+                    }
+                }
+                com.neko.music.util.DeepLinkHandler.DeepLinkRoute.Recognition -> {
+                    navController.navigate("music_recognition") {
                         launchSingleTop = true
                     }
                 }

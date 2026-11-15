@@ -150,6 +150,40 @@
             android:name=".desktoplyric.DesktopLyricService"
             android:exported="false" />
 
+        <!-- 控制中心快捷入口 -->
+        <service
+            android:name=".quicksettings.SearchTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_quick_search"
+            android:label="@string/search"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".quicksettings.QrScanTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_qr_scan"
+            android:label="@string/qr_scan"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".quicksettings.RecognitionTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_music_recognition"
+            android:label="@string/music_recognition"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

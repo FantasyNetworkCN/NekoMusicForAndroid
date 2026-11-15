@@ -32,6 +32,15 @@ object DeepLinkHandler {
         /** 打开隐私政策页 */
         data object PrivacyPolicy : DeepLinkRoute()
 
+        /** 控制中心：打开搜索页。 */
+        data object Search : DeepLinkRoute()
+
+        /** 控制中心：打开扫一扫。 */
+        data object QrScan : DeepLinkRoute()
+
+        /** 控制中心：打开听歌识曲。 */
+        data object Recognition : DeepLinkRoute()
+
         /** 加入一起听房间；token 来自随机分享 URL。 */
         data class Together(val token: String) : DeepLinkRoute()
     }
