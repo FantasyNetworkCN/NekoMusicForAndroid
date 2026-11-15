@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_qr_scan"
+        android:shortcutId="qr_scan"
+        android:shortcutLongLabel="@string/qr_scan"
+        android:shortcutShortLabel="@string/qr_scan">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="nekomusic://qr"
+            android:targetClass="com.neko.music.MainActivity"
+            android:targetPackage="com.neko.music" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_music_recognition"
+        android:shortcutId="music_recognition"
+        android:shortcutLongLabel="@string/music_recognition"
+        android:shortcutShortLabel="@string/music_recognition">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="nekomusic://recognition"
+            android:targetClass="com.neko.music.MainActivity"
+            android:targetPackage="com.neko.music" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_quick_search"
+        android:shortcutId="search"
+        android:shortcutLongLabel="@string/search"
+        android:shortcutShortLabel="@string/search">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="nekomusic://search"
+            android:targetClass="com.neko.music.MainActivity"
+            android:targetPackage="com.neko.music" />
+    </shortcut>
+</shortcuts>
