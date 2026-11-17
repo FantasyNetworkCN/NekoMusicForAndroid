@@ -1,5 +1,6 @@
 package com.neko.music.ui.components
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,6 +27,7 @@ import com.neko.music.ui.screens.PlayerScreen
 fun PlayerPresentationHost(
     music: Music,
     modifier: Modifier = Modifier,
+    startTopPx: Float,
     progress: () -> Float,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
@@ -34,9 +36,13 @@ fun PlayerPresentationHost(
     onBackClick: () -> Unit,
     onPlaylistClick: () -> Unit,
 ) {
+    // 该返回处理位于 NavHost 之后，确保系统返回优先收起播放呈现层，而不是先弹路由。
+    BackHandler(onBack = onBackClick)
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val heightPx = constraints.maxHeight.toFloat()
+        val anchoredTopPx = startTopPx.coerceIn(0f, heightPx)
         val cornerPx = with(density) { 30.dp.toPx() }
         val shadowPx = with(density) { 24.dp.toPx() }
 
@@ -63,10 +69,12 @@ fun PlayerPresentationHost(
                         bottomStart = CornerSize(0f),
                     )
                     clip = true
-                    translationY = heightPx * (1f - fraction)
+                    // 从迷你播放器上沿开始展开，向上拖动距离与页面位移保持 1:1。
+                    translationY = anchoredTopPx * (1f - fraction)
                     val scale = 0.965f + 0.035f * fraction
                     scaleX = scale
                     scaleY = scale
+                    alpha = (fraction / 0.08f).coerceIn(0f, 1f)
                     transformOrigin = TransformOrigin(0.5f, 0f)
                     shadowElevation = shadowPx * fraction
                 },

@@ -43,6 +43,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,6 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -146,6 +149,7 @@ import com.neko.music.ui.components.readLiquidGlassUiScale
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.receiveAsFlow
 import java.net.URLEncoder
@@ -606,9 +610,12 @@ fun MainScreen() {
     var playerPresentationDeepLinkStyle by remember { mutableStateOf(false) }
     var playerTransitionGeneration by remember { mutableIntStateOf(0) }
     var playerDragOriginMini by remember { mutableStateOf(false) }
-    val playerTravelPx = with(LocalDensity.current) {
+    var miniPlayerTopPx by remember { mutableFloatStateOf(0f) }
+    val fallbackPlayerTravelPx = with(LocalDensity.current) {
         (LocalConfiguration.current.screenHeightDp * 0.72f).dp.toPx()
     }.coerceAtLeast(1f)
+    val playerTravelPx =
+        if (miniPlayerTopPx > 0f) miniPlayerTopPx else fallbackPlayerTravelPx
 
     fun buildPlayerRoute(music: Music): String {
         val encodedTitle = URLEncoder.encode(music.title, "UTF-8")
@@ -732,7 +739,7 @@ fun MainScreen() {
     }
 
     fun dragPlayerBy(deltaY: Float) {
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             playerPresentationProgress.snapTo(
                 (playerPresentationProgress.value - deltaY / playerTravelPx)
                     .coerceIn(0f, 1f),
@@ -1081,20 +1088,14 @@ fun MainScreen() {
                           currentRoute == BottomNavItem.Mine.route ||
                           currentRoute == BottomNavItem.MyPlaylists.route
 
-    // 播放页需要先播放收起动画再移除交互层；其他页面沿用原有返回逻辑。
-    androidx.activity.compose.BackHandler(
-        enabled = android.os.Build.VERSION.SDK_INT <= 16 || playerPresentationMusic != null,
-    ) {
-        when {
-            playerPresentationMusic != null -> settlePlayerPresentation(open = false)
-            isBottomNavItem -> {
-                // 在主页、我的、我的歌单页面按返回键，退出到桌面（挂起到后台）
-                (context as MainActivity).moveTaskToBack(false)
-            }
-            else -> {
-                // 其他页面正常返回上一级
-                navController.popBackStack()
-            }
+    // 播放页由 PlayerPresentationHost 在其所在层级处理返回，避免被 NavHost 抢先弹栈。
+    androidx.activity.compose.BackHandler(enabled = android.os.Build.VERSION.SDK_INT <= 16) {
+        if (isBottomNavItem) {
+            // 在主页、我的、我的歌单页面按返回键，退出到桌面（挂起到后台）
+            (context as MainActivity).moveTaskToBack(false)
+        } else {
+            // 其他页面正常返回上一级
+            navController.popBackStack()
         }
     }
 
@@ -1787,6 +1788,7 @@ fun MainScreen() {
         playerPresentationMusic?.let { playerMusic ->
             PlayerPresentationHost(
                 music = playerMusic,
+                startTopPx = playerTravelPx,
                 progress = { playerPresentationProgress.value },
                 onDragStart = { beginPlayerCloseDrag() },
                 onDrag = { deltaY -> dragPlayerBy(deltaY) },
@@ -1936,7 +1938,11 @@ fun MainScreen() {
                             verticalAlignment = Alignment.Bottom,
                         ) {
                             MiniPlayer(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onGloballyPositioned {
+                                        miniPlayerTopPx = it.boundsInRoot().top
+                                    },
                                 isPlaying = isPlaying,
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
@@ -1978,6 +1984,9 @@ fun MainScreen() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             MiniPlayer(
+                                modifier = Modifier.onGloballyPositioned {
+                                    miniPlayerTopPx = it.boundsInRoot().top
+                                },
                                 isPlaying = isPlaying,
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
