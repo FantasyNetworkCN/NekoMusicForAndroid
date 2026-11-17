@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +76,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -612,6 +615,10 @@ fun MiniPlayer(
     onPlayPauseClick: () -> Unit = {},
     onPlayerClick: () -> Unit = {},
     onPlaylistClick: () -> Unit = {},
+    onPlayerDragStart: () -> Unit = {},
+    onPlayerDrag: (Float) -> Unit = {},
+    onPlayerDragEnd: (Float) -> Unit = {},
+    onPlayerDragCancel: () -> Unit = {},
     sampleBackdrop: Backdrop? = null,
 ) {
     val playerInteractionSource = remember {
@@ -691,6 +698,43 @@ fun MiniPlayer(
     } else {
         colorScheme.surfaceContainerHighest
     }
+    val latestDragStart by rememberUpdatedState(onPlayerDragStart)
+    val latestDrag by rememberUpdatedState(onPlayerDrag)
+    val latestDragEnd by rememberUpdatedState(onPlayerDragEnd)
+    val latestDragCancel by rememberUpdatedState(onPlayerDragCancel)
+    val swipeUpModifier = Modifier.pointerInput(Unit) {
+        var started = false
+        val velocityTracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onDragStart = {
+                started = false
+                velocityTracker.resetTracking()
+            },
+            onVerticalDrag = { change, dragAmount ->
+                if (!started && dragAmount < 0f) {
+                    started = true
+                    latestDragStart()
+                }
+                if (started) {
+                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                    latestDrag(dragAmount)
+                    change.consume()
+                }
+            },
+            onDragEnd = {
+                if (started) {
+                    latestDragEnd(velocityTracker.calculateVelocity().y)
+                }
+                started = false
+            },
+            onDragCancel = {
+                if (started) {
+                    latestDragCancel()
+                }
+                started = false
+            },
+        )
+    }
 
     val miniTint = LiquidGlassDefaults.miniPlayerBar
     val miniLiq = LiquidGlassDefaults.liquidSoft
@@ -712,7 +756,8 @@ fun MiniPlayer(
     GlassSurface(
         modifier = modifier
             .fillMaxWidth()
-            .height(68.dp),
+            .height(68.dp)
+            .then(swipeUpModifier),
         // 液态路径保持胶囊；Material 3 回退使用 M3 large 圆角与高一级的 tonal 容器。
         shape = miniShape,
         material3Shape = RoundedCornerShape(20.dp),

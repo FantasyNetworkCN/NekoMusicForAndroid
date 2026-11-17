@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.fadeIn
@@ -67,6 +68,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -91,6 +93,7 @@ import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.MiniPlayer
+import com.neko.music.ui.components.PlayerPresentationHost
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
@@ -106,7 +109,6 @@ import com.neko.music.ui.screens.AuthWebViewScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
 import com.neko.music.ui.screens.NotificationInboxScreen
-import com.neko.music.ui.screens.PlayerScreen
 import com.neko.music.ui.screens.PlaylistScreen
 import com.neko.music.ui.screens.PrivacyPolicyScreen
 import com.neko.music.ui.screens.RecentPlayScreen
@@ -596,6 +598,178 @@ fun MainScreen() {
     }
     val miniPlayerProgress = remember(progress) { { progress.floatValue } }
 
+    // 播放页使用独立的交互式呈现层，导航路由只负责返回栈语义。
+    // 上滑/下滑期间直接驱动 progress，松开后再提交路由或收起页面。
+    val playerPresentationProgress = remember { Animatable(0f) }
+    var playerPresentationMusic by remember { mutableStateOf<Music?>(null) }
+    var playerPresentationRouteCommitted by remember { mutableStateOf(false) }
+    var playerPresentationDeepLinkStyle by remember { mutableStateOf(false) }
+    var playerTransitionGeneration by remember { mutableIntStateOf(0) }
+    var playerDragOriginMini by remember { mutableStateOf(false) }
+    val playerTravelPx = with(LocalDensity.current) {
+        (LocalConfiguration.current.screenHeightDp * 0.72f).dp.toPx()
+    }.coerceAtLeast(1f)
+
+    fun buildPlayerRoute(music: Music): String {
+        val encodedTitle = URLEncoder.encode(music.title, "UTF-8")
+        val encodedArtist = URLEncoder.encode(music.artist, "UTF-8")
+        return "player/${music.id}/$encodedTitle/$encodedArtist"
+    }
+
+    fun currentMusicForPresentation(): Music = Music(
+        id = currentMusicId ?: 0,
+        title = currentMusicTitle ?: "未知歌曲",
+        artist = currentMusicArtist ?: "未知歌手",
+        album = "",
+        duration = duration.toInt(),
+        coverFilePath = currentMusicCover ?: "",
+    )
+
+    fun isCurrentPlayerRoute(): Boolean =
+        navController.currentDestination?.route?.startsWith("player") == true
+
+    fun commitPlayerRoute() {
+        val music = playerPresentationMusic ?: return
+        val route = buildPlayerRoute(music)
+        val onPlayerRoute = isCurrentPlayerRoute()
+        val routeMusicId = navController.currentBackStackEntry?.arguments?.getInt("id")
+        if (onPlayerRoute && routeMusicId == music.id) {
+            playerPresentationRouteCommitted = true
+            return
+        }
+
+        if (playerPresentationDeepLinkStyle) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.startDestinationId) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        } else {
+            navController.navigate(route) {
+                launchSingleTop = true
+            }
+        }
+        playerPresentationRouteCommitted = true
+    }
+
+    fun clearPlayerPresentation() {
+        playerPresentationMusic = null
+        playerPresentationRouteCommitted = false
+        playerPresentationDeepLinkStyle = false
+    }
+
+    fun settlePlayerPresentation(open: Boolean, velocityY: Float = 0f) {
+        if (open && playerPresentationMusic == null) return
+        val generation = ++playerTransitionGeneration
+        if (!open && playerPresentationRouteCommitted) {
+            playerPresentationRouteCommitted = false
+            if (isCurrentPlayerRoute()) {
+                navController.popBackStack()
+            }
+        }
+
+        val target = if (open) 1f else 0f
+        val initialVelocity = (-velocityY / playerTravelPx).coerceIn(-4f, 4f)
+        scope.launch {
+            playerPresentationProgress.animateTo(
+                targetValue = target,
+                animationSpec = spring(
+                    dampingRatio = if (open) 0.86f else 0.92f,
+                    stiffness = if (open) 380f else 430f,
+                ),
+                initialVelocity = initialVelocity,
+            )
+            if (generation != playerTransitionGeneration) return@launch
+            if (open) {
+                commitPlayerRoute()
+            } else {
+                playerPresentationProgress.snapTo(0f)
+                clearPlayerPresentation()
+            }
+        }
+    }
+
+    fun openPlayer(music: Music, deepLinkStyle: Boolean = false) {
+        playerPresentationMusic = music
+        playerPresentationDeepLinkStyle = deepLinkStyle
+        playerDragOriginMini = false
+        val generation = ++playerTransitionGeneration
+        if (playerPresentationProgress.value >= 1f && playerPresentationRouteCommitted) {
+            commitPlayerRoute()
+            return
+        }
+        scope.launch {
+            playerPresentationProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.86f, stiffness = 380f),
+            )
+            if (generation == playerTransitionGeneration) {
+                commitPlayerRoute()
+            }
+        }
+    }
+
+    fun beginPlayerOpenDrag() {
+        ++playerTransitionGeneration
+        playerDragOriginMini = true
+        if (playerPresentationMusic == null) {
+            playerPresentationMusic = currentMusicForPresentation()
+            playerPresentationDeepLinkStyle = false
+        }
+    }
+
+    fun beginPlayerCloseDrag() {
+        ++playerTransitionGeneration
+        playerDragOriginMini = false
+        if (playerPresentationRouteCommitted) {
+            playerPresentationRouteCommitted = false
+            if (isCurrentPlayerRoute()) {
+                navController.popBackStack()
+            }
+        }
+    }
+
+    fun dragPlayerBy(deltaY: Float) {
+        scope.launch {
+            playerPresentationProgress.snapTo(
+                (playerPresentationProgress.value - deltaY / playerTravelPx)
+                    .coerceIn(0f, 1f),
+            )
+        }
+    }
+
+    fun finishPlayerDrag(velocityY: Float = 0f) {
+        val progressNow = playerPresentationProgress.value
+        val velocityProgress = -velocityY / playerTravelPx
+        val shouldOpen = when {
+            velocityProgress > 0.55f -> true
+            velocityProgress < -0.55f -> false
+            playerDragOriginMini -> progressNow >= 0.3f
+            else -> progressNow >= 0.62f
+        }
+        settlePlayerPresentation(open = shouldOpen, velocityY = velocityY)
+    }
+
+    androidx.compose.runtime.LaunchedEffect(isPlayerScreen, navBackStackEntry?.id) {
+        if (!isPlayerScreen || playerPresentationMusic != null) return@LaunchedEffect
+        val entry = navBackStackEntry ?: return@LaunchedEffect
+        val id = entry.arguments?.getInt("id") ?: 0
+        val title = java.net.URLDecoder.decode(
+            entry.arguments?.getString("title") ?: "",
+            "UTF-8",
+        )
+        val artist = java.net.URLDecoder.decode(
+            entry.arguments?.getString("artist") ?: "",
+            "UTF-8",
+        )
+        playerPresentationMusic = Music(id, title, artist, "", 0, "", "", 0, "")
+        playerPresentationDeepLinkStyle = false
+        playerPresentationRouteCommitted = true
+        playerPresentationProgress.snapTo(1f)
+    }
+
     // 播放列表显示状态
     var showPlaylist by androidx.compose.runtime.remember { mutableStateOf(false) }
 
@@ -755,27 +929,14 @@ fun MainScreen() {
                             val result = musicApi.getMusicInfo(route.id)
                             result.fold(
                                 onSuccess = { music ->
-                                    val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                                    val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                                    navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist") {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                    openPlayer(music, deepLinkStyle = true)
                                 },
                                 onFailure = {
                                     // 获取失败时降级为占位符导航
-                                    val encodedTitle = java.net.URLEncoder.encode("未知歌曲", "UTF-8")
-                                    val encodedArtist = java.net.URLEncoder.encode("未知歌手", "UTF-8")
-                                    navController.navigate("player/${route.id}/$encodedTitle/$encodedArtist") {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                    openPlayer(
+                                        Music(route.id, "未知歌曲", "未知歌手", "", 0, "", "", 0, ""),
+                                        deepLinkStyle = true,
+                                    )
                                     android.widget.Toast.makeText(
                                         context,
                                         "无法获取音乐信息",
@@ -920,14 +1081,20 @@ fun MainScreen() {
                           currentRoute == BottomNavItem.Mine.route ||
                           currentRoute == BottomNavItem.MyPlaylists.route
 
-    // 处理返回事件：Android 16 及以下版本自定义处理，Android 16 以上使用原生返回
-    androidx.activity.compose.BackHandler(enabled = android.os.Build.VERSION.SDK_INT <= 16) {
-        if (isBottomNavItem) {
-            // 在主页、我的、我的歌单页面按返回键，退出到桌面（挂起到后台）
-            (context as MainActivity).moveTaskToBack(false)
-        } else {
-            // 其他页面正常返回上一级
-            navController.popBackStack()
+    // 播放页需要先播放收起动画再移除交互层；其他页面沿用原有返回逻辑。
+    androidx.activity.compose.BackHandler(
+        enabled = android.os.Build.VERSION.SDK_INT <= 16 || playerPresentationMusic != null,
+    ) {
+        when {
+            playerPresentationMusic != null -> settlePlayerPresentation(open = false)
+            isBottomNavItem -> {
+                // 在主页、我的、我的歌单页面按返回键，退出到桌面（挂起到后台）
+                (context as MainActivity).moveTaskToBack(false)
+            }
+            else -> {
+                // 其他页面正常返回上一级
+                navController.popBackStack()
+            }
         }
     }
 
@@ -1167,9 +1334,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onNavigateToPlayer = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     }
                 )
             }
@@ -1187,9 +1352,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onNavigateToPlayer = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     }
                 )
             }
@@ -1200,9 +1363,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onNavigateToPlayer = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     }
                 )
             }
@@ -1212,9 +1373,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onNavigateToPlayer = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     }
                 )
             }
@@ -1225,9 +1384,18 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onMusicClick = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(
+                            Music(
+                                id = music.id,
+                                title = music.title,
+                                artist = music.artist,
+                                album = music.album,
+                                duration = music.duration,
+                                filePath = music.filePath,
+                                coverFilePath = music.coverPath,
+                                createdAt = music.createdAt,
+                            )
+                        )
                     },
                     onShowBottomControls = { show ->
                         showBottomControls = show
@@ -1521,10 +1689,7 @@ fun MainScreen() {
                     },
                     onMusicClick = { music ->
                         Log.d("MainActivity", "点击音乐: ${music.title}")
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist =
-                            java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     },
                     onPlayNext = { music ->
                         Log.d("MainActivity", "搜索结果下一首播放: ${music.title}")
@@ -1560,9 +1725,7 @@ fun MainScreen() {
                 MusicRecognitionScreen(
                     onBackClick = { navController.popBackStack() },
                     onMusicClick = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist = java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     },
                 )
             }
@@ -1598,10 +1761,7 @@ fun MainScreen() {
                         navController.popBackStack()
                     },
                     onMusicClick = { music ->
-                        val encodedTitle = java.net.URLEncoder.encode(music.title, "UTF-8")
-                        val encodedArtist =
-                            java.net.URLEncoder.encode(music.artist, "UTF-8")
-                        navController.navigate("player/${music.id}/$encodedTitle/$encodedArtist")
+                        openPlayer(music)
                     }
                 )
             }
@@ -1612,33 +1772,33 @@ fun MainScreen() {
                     navArgument("title") { type = NavType.StringType },
                     navArgument("artist") { type = NavType.StringType }
                 )
-            ) { backStackEntry ->
-                val id = backStackEntry.arguments?.getInt("id") ?: 0
-                val title = java.net.URLDecoder.decode(
-                    backStackEntry.arguments?.getString("title") ?: "", "UTF-8"
-                )
-                val artist = java.net.URLDecoder.decode(
-                    backStackEntry.arguments?.getString("artist") ?: "", "UTF-8"
-                )
-                val music = Music(id, title, artist, "", 0, "", "", 0, "")
-
-                // 只在首次加载时记录日志
-                androidx.compose.runtime.LaunchedEffect(title) {
-                    Log.d("MainActivity", "播放页面加载: $title")
-                }
-
-                PlayerScreen(
-                    music = music,
-                    onBackClick = {
-                        Log.d("MainActivity", "从播放页面返回")
-                        navController.popBackStack()
-                    },
-                    onPlaylistClick = {
-                        showPlaylist = true
-                    }
+            ) {
+                // 真正的播放页由 NavHost 之外的 PlayerPresentationHost 绘制，
+                // 这样上滑进入和下滑退出都能直接跟随手势，并保留路由返回语义。
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
                 )
             }
         }
+        }
+
+        playerPresentationMusic?.let { playerMusic ->
+            PlayerPresentationHost(
+                music = playerMusic,
+                progress = { playerPresentationProgress.value },
+                onDragStart = { beginPlayerCloseDrag() },
+                onDrag = { deltaY -> dragPlayerBy(deltaY) },
+                onDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                onDragCancel = { finishPlayerDrag() },
+                onBackClick = {
+                    Log.d("MainActivity", "从播放页面返回")
+                    settlePlayerPresentation(open = false)
+                },
+                onPlaylistClick = { showPlaylist = true },
+                modifier = Modifier.zIndex(12f),
+            )
         }
 
         // 首页搜索/推荐：与迷你播放器/底栏一致，在 NavHost 之外采样主 [liquidBackdrop]。
@@ -1787,12 +1947,13 @@ fun MainScreen() {
                                     else playerManager.togglePlayPause()
                                 },
                                 onPlayerClick = {
-                                    val id = currentMusicId ?: 0
-                                    val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
-                                    val encodedArtist = URLEncoder.encode(currentMusicArtist ?: "未知歌手", "UTF-8")
-                                    navController.navigate("player/$id/$encodedTitle/$encodedArtist")
+                                    openPlayer(currentMusicForPresentation())
                                 },
                                 onPlaylistClick = { showPlaylist = true },
+                                onPlayerDragStart = { beginPlayerOpenDrag() },
+                                onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
+                                onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                                onPlayerDragCancel = { finishPlayerDrag() },
                                 sampleBackdrop = bottomChromeBackdrop,
                             )
                             BottomNavigationBar(
@@ -1827,12 +1988,13 @@ fun MainScreen() {
                                     else playerManager.togglePlayPause()
                                 },
                                 onPlayerClick = {
-                                    val id = currentMusicId ?: 0
-                                    val encodedTitle = URLEncoder.encode(currentMusicTitle ?: "未知歌曲", "UTF-8")
-                                    val encodedArtist = URLEncoder.encode(currentMusicArtist ?: "未知歌手", "UTF-8")
-                                    navController.navigate("player/$id/$encodedTitle/$encodedArtist")
+                                    openPlayer(currentMusicForPresentation())
                                 },
                                 onPlaylistClick = { showPlaylist = true },
+                                onPlayerDragStart = { beginPlayerOpenDrag() },
+                                onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
+                                onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                                onPlayerDragCancel = { finishPlayerDrag() },
                                 sampleBackdrop = bottomChromeBackdrop,
                             )
                             BottomNavigationBar(

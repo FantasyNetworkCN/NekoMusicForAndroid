@@ -31,6 +31,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.pager.HorizontalPager
@@ -94,6 +95,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -113,6 +115,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -346,7 +349,11 @@ private fun parseSyllableTimestamps(
 fun PlayerScreen(
     music: Music,
     onBackClick: () -> Unit,
-    onPlaylistClick: () -> Unit = {}
+    onPlaylistClick: () -> Unit = {},
+    onDismissDragStart: () -> Unit = {},
+    onDismissDrag: (Float) -> Unit = {},
+    onDismissDragEnd: (Float) -> Unit = {},
+    onDismissDragCancel: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
@@ -819,9 +826,49 @@ fun PlayerScreen(
         }
     }
 
+    val latestDismissDragStart by rememberUpdatedState(onDismissDragStart)
+    val latestDismissDrag by rememberUpdatedState(onDismissDrag)
+    val latestDismissDragEnd by rememberUpdatedState(onDismissDragEnd)
+    val latestDismissDragCancel by rememberUpdatedState(onDismissDragCancel)
+    val dismissDragModifier = Modifier.pointerInput(Unit) {
+        var started = false
+        val velocityTracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onDragStart = {
+                started = false
+                velocityTracker.resetTracking()
+            },
+            onVerticalDrag = { change, dragAmount ->
+                // 只接管向下拖动；向上手势仍交给封面/分页内容处理。
+                if (!started && dragAmount > 0f) {
+                    started = true
+                    latestDismissDragStart()
+                }
+                if (started) {
+                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                    latestDismissDrag(dragAmount)
+                    change.consume()
+                }
+            },
+            onDragEnd = {
+                if (started) {
+                    latestDismissDragEnd(velocityTracker.calculateVelocity().y)
+                }
+                started = false
+            },
+            onDragCancel = {
+                if (started) {
+                    latestDismissDragCancel()
+                }
+                started = false
+            },
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .then(if (pagerState.currentPage == 1) dismissDragModifier else Modifier)
             .pointerInput(showLyrics) {
                 if (!showLyrics) return@pointerInput
                 awaitEachGesture {
@@ -1002,6 +1049,7 @@ fun PlayerScreen(
                     .zIndex(2f)
                     .statusBarsPadding()
                     .padding(horizontal = if (isLandscape) 28.dp else 16.dp, vertical = 6.dp)
+                    .then(if (pagerState.currentPage != 1) dismissDragModifier else Modifier)
             ) {
                 TopBar(
                     isDarkTheme = isDarkTheme,
