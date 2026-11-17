@@ -1201,7 +1201,21 @@ fun MainScreen() {
                         )
                     )
                 }
-            }
+            },
+            predictivePopEnterTransition = {
+                if (playerPresentationMusic != null) {
+                    EnterTransition.None
+                } else {
+                    fadeIn(animationSpec = tween(durationMillis = 180))
+                }
+            },
+            predictivePopExitTransition = {
+                if (playerPresentationMusic != null) {
+                    ExitTransition.None
+                } else {
+                    fadeOut(animationSpec = tween(durationMillis = 180))
+                }
+            },
         ) {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(

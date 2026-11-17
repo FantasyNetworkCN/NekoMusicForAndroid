@@ -1,11 +1,13 @@
 package com.neko.music.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,6 +64,12 @@ fun PlayerPresentationHost(
                     shadowElevation = shadowPx * fraction
                 },
         ) {
+            // 纯色底必须放在页面自己的裁剪层内，只遮住页面已经覆盖的区域。
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            )
             PlayerScreen(
                 music = music,
                 onBackClick = onBackClick,
