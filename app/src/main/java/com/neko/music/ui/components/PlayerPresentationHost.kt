@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -45,14 +45,14 @@ fun PlayerPresentationHost(
         val cornerPx = with(density) { 30.dp.toPx() }
         val shadowPx = with(density) { 24.dp.toPx() }
 
-        // 播放页升起时轻微压暗底层页面，形成 Apple Music 式的前后层级。
+        // 交互期间使用独立纯色背景，只改变透明度，不跟随页面缩放或位移。
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    alpha = progress().coerceIn(0f, 1f) * 0.22f
+                    alpha = (progress().coerceIn(0f, 1f) * 5f).coerceIn(0f, 1f)
                 }
-                .background(Color.Black),
+                .background(MaterialTheme.colorScheme.background),
         )
 
         Box(
