@@ -33,6 +33,8 @@ class LyricsPayloadParseTest {
         assertEquals(2.2f, parsed[0].endTime!!)
         assertEquals(2, parsed[0].syllables.size)
         assertEquals(1.5f, parsed[0].syllables[1].time)
+        assertEquals(1.5f, parsed[0].syllables[0].endTime)
+        assertEquals(2.2f, parsed[0].syllables[1].endTime)
         assertEquals("word by word", parsed[0].translation)
         assertEquals("chiku ji", parsed[0].romanization)
 

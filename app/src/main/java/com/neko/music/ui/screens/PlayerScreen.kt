@@ -192,6 +192,7 @@ fun resolveTrackDurationSeconds(musicDurationMeta: Int, playerDurationMs: Long):
 data class LrcSyllable(
     val time: Float,
     val text: String,
+    val endTime: Float? = null,
 )
 
 // LRC歌词行数据类
@@ -292,6 +293,7 @@ fun parseLyricsPayload(payload: LyricsPayload): List<LrcLine> {
                     LrcSyllable(
                         time = word.startMs / 1000f,
                         text = word.text,
+                        endTime = word.endMs.takeIf { it > word.startMs }?.div(1000f),
                     )
                 },
                 endTime = line.endMs.takeIf { it > line.startMs }?.div(1000f),

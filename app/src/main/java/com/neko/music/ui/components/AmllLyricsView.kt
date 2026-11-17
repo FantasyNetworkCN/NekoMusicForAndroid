@@ -7,13 +7,16 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -36,7 +39,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -49,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -60,6 +64,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -69,8 +74,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -82,6 +89,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -90,6 +98,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import com.neko.music.R
 import com.neko.music.ui.screens.LrcLine
 import com.neko.music.ui.theme.isAppDarkTheme
@@ -98,6 +107,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * Apple Music 播放页歌词视图。
@@ -172,19 +184,36 @@ fun AmllLyricsView(
             }
         }
     }
-    val currentIndex by remember(displayLyrics, currentProgressSeconds) {
-        androidx.compose.runtime.derivedStateOf {
+    val currentIndex by remember(displayLyrics) {
+        derivedStateOf {
             displayLyrics.indexOfLast { it.time <= smoothPlayhead }
         }
     }
 
     var isUserBrowsing by remember { mutableStateOf(false) }
     var resumeFollowJob by remember { mutableStateOf<Job?>(null) }
+    var cascadeRevision by remember { mutableIntStateOf(0) }
+    var previousCascadeIndex by remember { mutableIntStateOf(-1) }
     var selectedLineIndices by remember(displayLyrics) { mutableStateOf(emptySet<Int>()) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val hapticFeedback = LocalHapticFeedback.current
     val selectedLineCount = selectedLineIndices.size
+
+    LaunchedEffect(currentIndex) {
+        val previous = previousCascadeIndex
+        previousCascadeIndex = currentIndex
+        if (
+            previous < 0 ||
+            currentIndex < 0 ||
+            isUserBrowsing ||
+            !lyricStyle.smoothScrollEnabled ||
+            abs(currentIndex - previous) !in 1..4
+        ) {
+            return@LaunchedEffect
+        }
+        cascadeRevision++
+    }
 
     fun clearSelection() {
         selectedLineIndices = emptySet()
@@ -252,7 +281,7 @@ fun AmllLyricsView(
                         ) {
                             return@LaunchedEffect
                         }
-                        delay(32)
+                        delay(16)
                         anchorLyricLine(
                             listState = listState,
                             index = currentIndex,
@@ -300,20 +329,24 @@ fun AmllLyricsView(
                         ) { index, line ->
                             val isCurrentLine = index == currentIndex
                             val isSelected = index in selectedLineIndices
-                            val lineAlpha by animateFloatAsState(
+                            val lineDistance = if (currentIndex >= 0) {
+                                abs(index - currentIndex)
+                            } else {
+                                0
+                            }
+                            val focusProgress by animateFloatAsState(
                                 targetValue = if (isSelected) {
                                     1f
                                 } else if (isCurrentLine) {
-                                    lyricStyle.activeAlpha
+                                    1f
                                 } else {
-                                    lyricStyle.inactiveAlpha
+                                    0f
                                 },
                                 animationSpec = tween(
-                                    durationMillis = if (isCurrentLine) 250 else 350,
-                                    delayMillis = 250,
+                                    durationMillis = if (isCurrentLine) 140 else 300,
                                     easing = AppleLyricsEasing,
                                 ),
-                                label = "apple_line_alpha",
+                                label = "apple_line_focus",
                             )
                             val lineScale by animateFloatAsState(
                                 targetValue = if (
@@ -323,15 +356,55 @@ fun AmllLyricsView(
                                 ) {
                                     1.0f
                                 } else {
-                                    0.98f
+                                    0.985f
                                 },
-                                animationSpec = tween(
-                                    durationMillis = if (isCurrentLine) 250 else 350,
-                                    delayMillis = 250,
-                                    easing = AppleLyricsEasing,
+                                animationSpec = spring(
+                                    dampingRatio = if (isCurrentLine) {
+                                        Spring.DampingRatioLowBouncy
+                                    } else {
+                                        Spring.DampingRatioNoBouncy
+                                    },
+                                    stiffness = Spring.StiffnessMediumLow,
                                 ),
                                 label = "apple_line_scale",
                             )
+                            val lineAlpha = if (isSelected) {
+                                1f
+                            } else {
+                                lerp(
+                                    lyricStyle.inactiveAlpha,
+                                    lyricStyle.activeAlpha,
+                                    focusProgress,
+                                )
+                            }
+                            val targetBlur = if (isSelected || isCurrentLine || lineDistance <= 1) {
+                                0f
+                            } else {
+                                (0.16f * (lineDistance - 1)).coerceIn(0.14f, 0.72f)
+                            }
+                            val lineBlur by animateFloatAsState(
+                                targetValue = targetBlur,
+                                animationSpec = tween(180, easing = AppleLyricsEasing),
+                                label = "apple_line_blur",
+                            )
+                            val cascadeWave = remember { Animatable(1f) }
+                            val cascadeAmplitudePx = with(density) {
+                                (2.5f + min(max(lineDistance - 1, 0), 4) * 0.35f).dp.toPx()
+                            }
+                            LaunchedEffect(cascadeRevision) {
+                                if (cascadeRevision <= 0 || lineDistance > 6) {
+                                    return@LaunchedEffect
+                                }
+                                delay(lineDistance * 14L)
+                                cascadeWave.snapTo(0f)
+                                cascadeWave.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(
+                                        durationMillis = 420,
+                                        easing = LinearEasing,
+                                    ),
+                                )
+                            }
 
                             val lineEndTime = line.endTime
                                 ?: displayLyrics.getOrNull(index + 1)?.time
@@ -340,10 +413,19 @@ fun AmllLyricsView(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .then(
+                                        if (lineBlur > 0.04f) {
+                                            Modifier.blur(lineBlur.dp)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .graphicsLayer {
                                         alpha = lineAlpha
                                         scaleX = lineScale
                                         scaleY = lineScale
+                                        translationY =
+                                            -sin(cascadeWave.value * Math.PI.toFloat()) * cascadeAmplitudePx
                                         transformOrigin = TransformOrigin(0f, 0.5f)
                                     }
                                     .drawBehind {
@@ -395,7 +477,8 @@ fun AmllLyricsView(
                                 if (line.text.isBlank()) {
                                     InstrumentalDots(
                                         isCurrentLine = isCurrentLine,
-                                        elapsedSeconds = (smoothPlayhead - line.time).coerceAtLeast(0f),
+                                        playheadSeconds = { smoothPlayhead },
+                                        lineStartSeconds = line.time,
                                         durationSeconds = (lineEndTime - line.time).coerceAtLeast(0.2f),
                                         baseColor = lyricTextColor,
                                         highlightColor = highlightColor,
@@ -403,7 +486,7 @@ fun AmllLyricsView(
                                 } else {
                                     KaraokeText(
                                         line = line,
-                                        playheadSeconds = smoothPlayhead,
+                                        playheadSeconds = { smoothPlayhead },
                                         lineEndTime = lineEndTime,
                                         isCurrentLine = isCurrentLine,
                                         baseColor = lyricTextColor,
@@ -588,13 +671,14 @@ private fun LyricSelectionAction(
 @Composable
 private fun InstrumentalDots(
     isCurrentLine: Boolean,
-    elapsedSeconds: Float,
+    playheadSeconds: () -> Float,
+    lineStartSeconds: Float,
     durationSeconds: Float,
     baseColor: Color,
     highlightColor: Color,
 ) {
     val pulse = rememberInfiniteTransition(label = "amll_instrumental_dots")
-    val pulseAlpha by pulse.animateFloat(
+    val pulseAlpha = pulse.animateFloat(
         initialValue = 0.62f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -603,25 +687,34 @@ private fun InstrumentalDots(
         ),
         label = "amll_instrumental_dots_alpha",
     )
-    Row(
-        modifier = Modifier.padding(vertical = if (isCurrentLine) 7.dp else 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Canvas(
+        Modifier
+            .width(49.dp)
+            .height(20.dp)
+            .padding(vertical = if (isCurrentLine) 2.dp else 0.dp),
     ) {
+        val elapsedSeconds = (playheadSeconds() - lineStartSeconds).coerceAtLeast(0f)
+        val animatedPulse = if (isCurrentLine) pulseAlpha.value else 1f
+        val activeRadius = 3.5.dp.toPx()
+        val idleRadius = 3.dp.toPx()
+        val spacing = 7.dp.toPx()
+        val centerY = size.height / 2f
         repeat(3) { pointIndex ->
             val phase = (
                 elapsedSeconds / durationSeconds.coerceAtLeast(0.2f) * 3f - pointIndex
-                ).coerceIn(0f, 1f)
+            ).coerceIn(0f, 1f)
             val pointAlpha = if (isCurrentLine) {
-                (0.28f + (1f - phase) * 0.62f) * pulseAlpha
+                (0.24f + (1f - phase) * 0.68f) * animatedPulse
             } else {
                 0.24f
             }
-            Box(
-                modifier = Modifier
-                    .size(if (isCurrentLine) 7.dp else 6.dp)
-                    .clip(CircleShape)
-                    .background((if (isCurrentLine) highlightColor else baseColor).copy(alpha = pointAlpha)),
+            drawCircle(
+                color = (if (isCurrentLine) highlightColor else baseColor).copy(alpha = pointAlpha),
+                radius = if (isCurrentLine) activeRadius else idleRadius,
+                center = Offset(
+                    x = activeRadius + spacing * pointIndex,
+                    y = centerY,
+                ),
             )
         }
     }
@@ -630,7 +723,7 @@ private fun InstrumentalDots(
 @Composable
 private fun KaraokeText(
     line: LrcLine,
-    playheadSeconds: Float,
+    playheadSeconds: () -> Float,
     lineEndTime: Float,
     isCurrentLine: Boolean,
     baseColor: Color,
@@ -649,10 +742,7 @@ private fun KaraokeText(
     val textStyle = remember(
         fontSize,
         lineHeight,
-        isCurrentLine,
-        glowEnabled,
         centerText,
-        shadowColor,
     ) {
         TextStyle(
             fontSize = fontSize,
@@ -660,11 +750,6 @@ private fun KaraokeText(
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.35).sp,
             textAlign = if (centerText) TextAlign.Center else TextAlign.Start,
-            shadow = if (isCurrentLine && glowEnabled) {
-                Shadow(color = shadowColor, blurRadius = 12f)
-            } else {
-                null
-            },
         )
     }
 
@@ -679,20 +764,22 @@ private fun KaraokeText(
                 constraints = Constraints(maxWidth = widthPx),
             )
         }
-        val charProgress = remember(
-            line,
-            playheadSeconds,
-            lineEndTime,
-            isCurrentLine,
-            karaokeEnabled,
-        ) {
-            calculateKaraokeProgress(
-                line = line,
-                playheadSeconds = playheadSeconds,
-                lineEndTime = lineEndTime,
-                isCurrentLine = isCurrentLine,
-                karaokeEnabled = karaokeEnabled,
-            )
+        val syllableTimings = remember(line, lineEndTime) {
+            buildKaraokeSyllableTimings(line, lineEndTime)
+        }
+        val syllableGeometries = remember(textLayout, syllableTimings) {
+            syllableTimings.mapNotNull { buildKaraokeSyllableGeometry(textLayout, it) }
+        }
+        val uncoveredGlyphBounds = remember(textLayout, syllableGeometries, line.text) {
+            val covered = syllableGeometries
+                .flatMap { geometry -> geometry.glyphBounds.map(KaraokeGlyphBound::charIndex) }
+                .toSet()
+            buildList {
+                for (charIndex in line.text.indices) {
+                    if (charIndex in covered) continue
+                    buildKaraokeGlyphBound(textLayout, charIndex)?.let { add(it.bounds) }
+                }
+            }
         }
 
         Canvas(
@@ -701,94 +788,329 @@ private fun KaraokeText(
                 .height(with(density) { textLayout.size.height.toDp() })
                 .semantics { text = AnnotatedString(line.text) },
         ) {
-            drawText(
-                textLayoutResult = textLayout,
-                color = baseColor,
-                topLeft = Offset.Zero,
-            )
+            if (!isCurrentLine) {
+                drawText(
+                    textLayoutResult = textLayout,
+                    color = baseColor,
+                    topLeft = Offset.Zero,
+                )
+                return@Canvas
+            }
+            val now = playheadSeconds()
+            if (!karaokeEnabled || syllableGeometries.isEmpty()) {
+                drawText(
+                    textLayoutResult = textLayout,
+                    color = baseColor,
+                    topLeft = Offset.Zero,
+                )
+                drawText(
+                    textLayoutResult = textLayout,
+                    color = highlightColor,
+                    topLeft = Offset.Zero,
+                    shadow = if (glowEnabled) {
+                        Shadow(
+                            color = shadowColor.copy(alpha = 0.32f),
+                            blurRadius = min(fontSize.toPx() * 0.16f, 8.dp.toPx()),
+                        )
+                    } else {
+                        null
+                    },
+                )
+                return@Canvas
+            }
 
-            if (!isCurrentLine || charProgress.isEmpty()) return@Canvas
-
-            // 文本排版只计算一次；高亮进度仅裁剪已经排好的同一份文本，
-            // 因此逐帧更新不会改变英文字母的 kerning、字距或换行位置。
-            val highlightPath = Path()
-            charProgress.forEachIndexed { charIndex, progress ->
-                if (progress <= 0f) return@forEachIndexed
-                if (charIndex >= line.text.length) return@forEachIndexed
-
-                val box = textLayout.getBoundingBox(charIndex)
-                val textLine = textLayout.getLineForOffset(charIndex)
-                val lineTop = textLayout.getLineTop(textLine)
-                val lineBottom = textLayout.getLineBottom(textLine)
-
-                val right = box.left + box.width * progress.coerceIn(0f, 1f)
-                if (right > box.left) {
-                    highlightPath.addRect(
-                        Rect(
-                            left = box.left,
-                            top = lineTop,
-                            right = right,
-                            bottom = lineBottom.coerceAtLeast(lineTop + 1f),
-                        ),
+            val unplayedPath = Path()
+            val completedPath = Path()
+            val completedLiftPx = (
+                textLayout.layoutInput.style.fontSize.toPx() * 0.08f
+                ).coerceIn(1.5f, 5.dp.toPx())
+            syllableGeometries.forEach { geometry ->
+                val stableEnd = geometry.timing.endSeconds + 0.18f
+                when {
+                    now < geometry.timing.startSeconds -> {
+                        geometry.glyphBounds.forEach { unplayedPath.addRect(it.bounds) }
+                    }
+                    now >= stableEnd -> {
+                        geometry.glyphBounds.forEach { completedPath.addRect(it.bounds) }
+                    }
+                    else -> {
+                        drawAnimatedKaraokeSyllable(
+                            textLayout = textLayout,
+                            geometry = geometry,
+                            nowSeconds = now,
+                            baseColor = baseColor,
+                            highlightColor = highlightColor,
+                            shadowColor = shadowColor,
+                            glowEnabled = glowEnabled,
+                        )
+                    }
+                }
+            }
+            uncoveredGlyphBounds.forEach(unplayedPath::addRect)
+            if (!unplayedPath.isEmpty) {
+                clipPath(unplayedPath) {
+                    drawText(
+                        textLayoutResult = textLayout,
+                        color = baseColor,
+                        topLeft = Offset.Zero,
                     )
                 }
             }
-
-            if (!highlightPath.isEmpty) {
-                clipPath(highlightPath) {
-                    drawText(
-                        textLayoutResult = textLayout,
-                        color = highlightColor,
-                        topLeft = Offset.Zero,
-                    )
+            if (!completedPath.isEmpty) {
+                withTransform({
+                    translate(left = 0f, top = -completedLiftPx)
+                }) {
+                    clipPath(completedPath) {
+                        drawText(
+                            textLayoutResult = textLayout,
+                            color = baseColor,
+                            topLeft = Offset.Zero,
+                        )
+                        drawText(
+                            textLayoutResult = textLayout,
+                            color = highlightColor,
+                            topLeft = Offset.Zero,
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-private fun calculateKaraokeProgress(
+internal data class KaraokeSyllableTiming(
+    val startChar: Int,
+    val endChar: Int,
+    val startSeconds: Float,
+    val endSeconds: Float,
+)
+
+private data class KaraokeSyllableGeometry(
+    val timing: KaraokeSyllableTiming,
+    val glyphBounds: List<KaraokeGlyphBound>,
+    val bounds: Rect,
+)
+
+private data class KaraokeGlyphBound(
+    val charIndex: Int,
+    val bounds: Rect,
+)
+
+/**
+ * 把字级时间映射到已经排版后的字符区间。
+ *
+ * 高亮绘制不再每帧构造一个 `FloatArray`，而是在歌词或行结束时间变化时
+ * 只计算一次区间；播放进度只参与 Canvas 绘制。
+ */
+internal fun buildKaraokeSyllableTimings(
     line: LrcLine,
-    playheadSeconds: Float,
     lineEndTime: Float,
-    isCurrentLine: Boolean,
-    karaokeEnabled: Boolean,
-): FloatArray {
-    if (line.text.isEmpty() || !isCurrentLine) return FloatArray(0)
+): List<KaraokeSyllableTiming> {
+    if (line.text.isEmpty() || line.syllables.isEmpty()) return emptyList()
 
-    val progress = FloatArray(line.text.length)
-    if (!karaokeEnabled || line.syllables.isEmpty()) {
-        // 行级 LRC 不模拟逐字扫光，整行直接进入高亮色。
-        progress.fill(1f)
-        return progress
+    val timing = mutableListOf<KaraokeSyllableTiming>()
+    var searchFrom = 0
+    line.syllables.forEachIndexed { index, syllable ->
+        if (syllable.text.isEmpty()) return@forEachIndexed
+        val startChar = line.text.indexOf(syllable.text, startIndex = searchFrom)
+        if (startChar < 0) return@forEachIndexed
+        val endChar = startChar + syllable.text.length
+        val nextStart = line.syllables.getOrNull(index + 1)?.time
+        val startSeconds = syllable.time.coerceAtLeast(line.time)
+        val endSeconds = max(
+            startSeconds + 0.08f,
+            syllable.endTime ?: nextStart ?: lineEndTime,
+        )
+        timing += KaraokeSyllableTiming(
+            startChar = startChar,
+            endChar = endChar,
+            startSeconds = startSeconds,
+            endSeconds = endSeconds,
+        )
+        searchFrom = endChar
     }
+    if (timing.isEmpty()) {
+        return listOf(
+            KaraokeSyllableTiming(
+                startChar = 0,
+                endChar = line.text.length,
+                startSeconds = line.time,
+                endSeconds = max(line.time + 0.2f, lineEndTime),
+            )
+        )
+    }
+    return timing
+}
 
-    fun markSweep(start: Int, end: Int, fraction: Float) {
-        if (start >= end) return
-        val boundary = start + (end - start) * fraction.coerceIn(0f, 1f)
-        for (charIndex in start until end) {
-            progress[charIndex] = (boundary - charIndex).coerceIn(0f, 1f)
+internal fun karaokeRevealProgress(
+    timing: KaraokeSyllableTiming,
+    playheadSeconds: Float,
+): Float {
+    if (playheadSeconds <= timing.startSeconds) return 0f
+    if (playheadSeconds >= timing.endSeconds) return 1f
+    val progress = (
+        (playheadSeconds - timing.startSeconds) /
+            (timing.endSeconds - timing.startSeconds).coerceAtLeast(0.001f)
+        ).coerceIn(0f, 1f)
+    return lyricSmootherStep(progress)
+}
+
+private fun buildKaraokeSyllableGeometry(
+    textLayout: TextLayoutResult,
+    timing: KaraokeSyllableTiming,
+): KaraokeSyllableGeometry? {
+    val glyphBounds = buildList {
+        for (charIndex in timing.startChar until timing.endChar) {
+            buildKaraokeGlyphBound(textLayout, charIndex)?.let(::add)
         }
     }
+    if (glyphBounds.isEmpty()) return null
+    val bounds = Rect(
+        left = glyphBounds.minOf { it.bounds.left },
+        top = glyphBounds.minOf { it.bounds.top },
+        right = glyphBounds.maxOf { it.bounds.right },
+        bottom = glyphBounds.maxOf { it.bounds.bottom },
+    )
+    return KaraokeSyllableGeometry(timing, glyphBounds, bounds)
+}
 
-    var offset = 0
-    line.syllables.forEachIndexed { syllableIndex, syllable ->
-        val start = offset.coerceAtMost(line.text.length)
-        val end = (offset + syllable.text.length).coerceAtMost(line.text.length)
-        val syllableEnd = line.syllables.getOrNull(syllableIndex + 1)?.time ?: lineEndTime
-        val syllableProgress = (
-            (playheadSeconds - syllable.time) /
-                (syllableEnd - syllable.time).coerceAtLeast(0.12f)
-            ).coerceIn(0f, 1f)
-        markSweep(start, end, syllableProgress)
-        offset += syllable.text.length
+private fun buildKaraokeGlyphBound(
+    textLayout: TextLayoutResult,
+    charIndex: Int,
+): KaraokeGlyphBound? {
+    val box = runCatching { textLayout.getBoundingBox(charIndex) }.getOrNull()
+        ?.takeIf { it.width.isFinite() && it.height.isFinite() && it.width > 0f }
+        ?: return null
+    val textLine = textLayout.getLineForOffset(charIndex)
+    val top = textLayout.getLineTop(textLine)
+    val bottom = textLayout.getLineBottom(textLine).coerceAtLeast(top + 1f)
+    return KaraokeGlyphBound(
+        charIndex = charIndex,
+        bounds = Rect(box.left, top, box.right, bottom),
+    )
+}
+
+private fun DrawScope.drawAnimatedKaraokeSyllable(
+    textLayout: TextLayoutResult,
+    geometry: KaraokeSyllableGeometry,
+    nowSeconds: Float,
+    baseColor: Color,
+    highlightColor: Color,
+    shadowColor: Color,
+    glowEnabled: Boolean,
+) {
+    val timing = geometry.timing
+    val reveal = karaokeRevealProgress(timing, nowSeconds)
+    if (reveal <= 0f) return
+
+    val duration = (timing.endSeconds - timing.startSeconds).coerceAtLeast(0.001f)
+    val rawProgress = (
+        (nowSeconds - timing.startSeconds) / duration
+        ).coerceIn(0f, 1f)
+    val elapsed = (nowSeconds - timing.startSeconds).coerceAtLeast(0f)
+    val fontSizePx = textLayout.layoutInput.style.fontSize.toPx()
+    val lift = lyricSmootherStep((elapsed / 0.18f).coerceIn(0f, 1f))
+    val maxLiftPx = (fontSizePx * 0.08f).coerceIn(1.5f, 5.dp.toPx())
+    val isLongTone = duration >= 0.95f
+    val longToneEnvelope = if (isLongTone) {
+        sin(Math.PI.toFloat() * rawProgress)
+    } else {
+        0f
     }
-    if (offset < line.text.length) {
-        val fallbackProgress = ((playheadSeconds - line.time) /
-            (lineEndTime - line.time).coerceAtLeast(0.2f)).coerceIn(0f, 1f)
-        markSweep(offset, line.text.length, fallbackProgress)
+    val bounce = if (!isLongTone) {
+        sin(Math.PI.toFloat() * rawProgress) * 0.025f
+    } else {
+        0f
     }
-    return progress
+    val scale = 1f + bounce + longToneEnvelope * 0.035f
+    val ageAfterEnd = (nowSeconds - timing.endSeconds).coerceAtLeast(0f)
+    val glowTail = (1f - ageAfterEnd / 0.55f).coerceIn(0f, 1f)
+    val glowStrength = if (glowEnabled) {
+        if (isLongTone) {
+            (0.08f + longToneEnvelope * 0.22f) * glowTail
+        } else {
+            sin(Math.PI.toFloat() * rawProgress) * 0.12f * glowTail
+        }
+    } else {
+        0f
+    }
+    val glowRadius = min(fontSizePx * 0.16f, 8.dp.toPx())
+    val shadow = glowStrength.takeIf { it > 0.01f }?.let {
+        Shadow(
+            color = shadowColor.copy(alpha = it.coerceIn(0f, 1f)),
+            blurRadius = glowRadius,
+        )
+    }
+    val revealPath = Path()
+    val glowPath = Path()
+    val revealBoundary = timing.startChar +
+        (timing.endChar - timing.startChar) * reveal
+    geometry.glyphBounds.forEach { glyph ->
+        val box = glyph.bounds
+        val charReveal = (revealBoundary - glyph.charIndex).coerceIn(0f, 1f)
+        if (charReveal > 0f) {
+            revealPath.addRect(
+                Rect(
+                    left = box.left,
+                    top = box.top,
+                    right = box.left + box.width * charReveal,
+                    bottom = box.bottom,
+                )
+            )
+        }
+        if (shadow != null && charReveal > 0f) {
+            glowPath.addRect(
+                Rect(
+                    left = box.left - glowRadius,
+                    top = box.top - glowRadius,
+                    right = box.right + glowRadius,
+                    bottom = box.bottom + glowRadius,
+                )
+            )
+        }
+    }
+    if (revealPath.isEmpty) return
+
+    withTransform({
+        translate(left = 0f, top = -maxLiftPx * lift)
+        scale(
+            scaleX = scale,
+            scaleY = scale,
+            pivot = geometry.bounds.center,
+        )
+    }) {
+        if (shadow != null && !glowPath.isEmpty) {
+            clipPath(glowPath) {
+                drawText(
+                    textLayoutResult = textLayout,
+                    color = highlightColor,
+                    topLeft = Offset.Zero,
+                    shadow = shadow,
+                )
+            }
+        }
+        clipPath(geometry.bounds.asPath()) {
+            drawText(
+                textLayoutResult = textLayout,
+                color = baseColor,
+                topLeft = Offset.Zero,
+            )
+        }
+        clipPath(revealPath) {
+            drawText(
+                textLayoutResult = textLayout,
+                color = highlightColor,
+                topLeft = Offset.Zero,
+            )
+        }
+    }
+}
+
+private fun Rect.asPath(): Path = Path().apply { addRect(this@asPath) }
+
+private fun lyricSmootherStep(value: Float): Float {
+    val progress = value.coerceIn(0f, 1f)
+    return progress * progress * progress * (progress * (progress * 6f - 15f) + 10f)
 }
 
 private suspend fun anchorLyricLine(
@@ -815,7 +1137,7 @@ private suspend fun anchorLyricLine(
             listState.animateScrollBy(
                 value = delta,
                 animationSpec = tween(
-                    durationMillis = 320,
+                    durationMillis = 420,
                     easing = AppleLyricsEasing,
                 ),
             )
