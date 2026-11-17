@@ -49,7 +49,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -613,6 +616,7 @@ fun MainScreen() {
     var playerTransitionGeneration by remember { mutableIntStateOf(0) }
     var playerDragOriginMini by remember { mutableStateOf(false) }
     var miniPlayerTopPx by remember { mutableFloatStateOf(0f) }
+    var miniPlayerBounds by remember { mutableStateOf<Rect?>(null) }
     val fallbackPlayerTravelPx = with(LocalDensity.current) {
         (LocalConfiguration.current.screenHeightDp * 0.72f).dp.toPx()
     }.coerceAtLeast(1f)
@@ -1123,6 +1127,16 @@ fun MainScreen() {
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer {
+                    val raw = playerPresentationProgress.value.coerceIn(0f, 1f)
+                    val recede = raw * raw * (3f - 2f * raw)
+                    val scale = 1f - 0.032f * recede
+                    scaleX = scale
+                    scaleY = scale
+                    translationY = 12.dp.toPx() * recede
+                    alpha = 1f - 0.16f * recede
+                    transformOrigin = TransformOrigin(0.5f, 0.42f)
+                }
                 .then(
                     if (!isPlayerScreen || showPlaylist) {
                         Modifier.layerBackdrop(liquidBackdrop)
@@ -1822,6 +1836,7 @@ fun MainScreen() {
             PlayerPresentationHost(
                 music = playerMusic,
                 startTopPx = playerTravelPx,
+                startBounds = miniPlayerBounds,
                 progress = { playerPresentationProgress.value },
                 onDragStart = { beginPlayerCloseDrag() },
                 onDrag = { deltaY -> dragPlayerBy(deltaY) },
@@ -1948,7 +1963,16 @@ fun MainScreen() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .zIndex(8f),
+                .zIndex(8f)
+                .graphicsLayer {
+                    val raw = playerPresentationProgress.value.coerceIn(0f, 1f)
+                    val progressSmooth = raw * raw * (3f - 2f * raw)
+                    alpha = (1f - progressSmooth).coerceIn(0f, 1f)
+                    translationY = 16.dp.toPx() * progressSmooth
+                    scaleX = 1f - 0.025f * progressSmooth
+                    scaleY = 1f - 0.025f * progressSmooth
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                },
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 val useLiquidBottomChrome = isLiquidGlassEffectActive(bottomChromeBackdrop)
@@ -1975,6 +1999,7 @@ fun MainScreen() {
                                     .weight(1f)
                                     .onGloballyPositioned {
                                         miniPlayerTopPx = it.boundsInRoot().top
+                                        miniPlayerBounds = it.boundsInRoot()
                                     },
                                 isPlaying = isPlaying,
                                 songTitle = currentMusicTitle ?: "暂无播放",
@@ -2019,6 +2044,7 @@ fun MainScreen() {
                             MiniPlayer(
                                 modifier = Modifier.onGloballyPositioned {
                                     miniPlayerTopPx = it.boundsInRoot().top
+                                    miniPlayerBounds = it.boundsInRoot()
                                 },
                                 isPlaying = isPlaying,
                                 songTitle = currentMusicTitle ?: "暂无播放",

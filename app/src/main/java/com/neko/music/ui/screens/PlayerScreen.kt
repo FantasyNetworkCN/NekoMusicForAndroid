@@ -356,6 +356,8 @@ fun PlayerScreen(
     onDismissDrag: (Float) -> Unit = {},
     onDismissDragEnd: (Float) -> Unit = {},
     onDismissDragCancel: () -> Unit = {},
+    commentsPageReady: Boolean = true,
+    lyricsPageReady: Boolean = true,
 ) {
     val context = LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
@@ -995,16 +997,20 @@ fun PlayerScreen(
                 ) { page ->
                     when (page) {
                         0 -> {
-                            CommentPage(
-                                musicId = currentMusic.id,
-                                isDarkTheme = isDarkTheme,
-                                onRequestLogin = {
-                                    Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
-                                },
-                                modifier = Modifier.fillMaxSize(),
-                                bottomReserve = bottomGlassReserve,
-                                onCountChanged = { commentCount = it },
-                            )
+                            if (commentsPageReady) {
+                                CommentPage(
+                                    musicId = currentMusic.id,
+                                    isDarkTheme = isDarkTheme,
+                                    onRequestLogin = {
+                                        Toast.makeText(context, pleaseLoginFirst, Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                    bottomReserve = bottomGlassReserve,
+                                    onCountChanged = { commentCount = it },
+                                )
+                            } else {
+                                Box(Modifier.fillMaxSize())
+                            }
                         }
 
                         1 -> {
@@ -1016,26 +1022,30 @@ fun PlayerScreen(
                         }
 
                         2 -> {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                androidx.compose.runtime.LaunchedEffect(Unit) {
-                                    com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                            if (lyricsPageReady) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                                        com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                                    }
+                                    AmllLyricsView(
+                                        lyrics = lyrics,
+                                        currentProgressSeconds = currentProgressSeconds,
+                                        isLoading = isLoading,
+                                        isPlaying = isPlaying && !isBuffering,
+                                        playbackSpeed = playbackSpeed,
+                                        modifier = Modifier.fillMaxSize(),
+                                        listState = lyricsListState,
+                                        onLineClick = { lineTime ->
+                                            if (togetherActive) {
+                                                TogetherSessionManager.seekTo((lineTime * 1000f).toLong())
+                                            } else {
+                                                playerManager.seekTo((lineTime * 1000f).toLong())
+                                            }
+                                        },
+                                    )
                                 }
-                                AmllLyricsView(
-                                    lyrics = lyrics,
-                                    currentProgressSeconds = currentProgressSeconds,
-                                    isLoading = isLoading,
-                                    isPlaying = isPlaying && !isBuffering,
-                                    playbackSpeed = playbackSpeed,
-                                    modifier = Modifier.fillMaxSize(),
-                                    listState = lyricsListState,
-                                    onLineClick = { lineTime ->
-                                        if (togetherActive) {
-                                            TogetherSessionManager.seekTo((lineTime * 1000f).toLong())
-                                        } else {
-                                            playerManager.seekTo((lineTime * 1000f).toLong())
-                                        }
-                                    },
-                                )
+                            } else {
+                                Box(Modifier.fillMaxSize())
                             }
                         }
                     }
