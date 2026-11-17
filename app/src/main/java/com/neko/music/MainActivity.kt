@@ -61,6 +61,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
@@ -1128,60 +1130,88 @@ fun MainScreen() {
                     }
                 ),
             enterTransition = {
-                androidx.compose.animation.scaleIn(
-                    initialScale = 0.95f,
-                    animationSpec = tween(
-                        durationMillis = 280,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                if (
+                    initialState.destination.route?.startsWith("player") == true ||
+                    targetState.destination.route?.startsWith("player") == true
+                ) {
+                    EnterTransition.None
+                } else {
+                    androidx.compose.animation.scaleIn(
+                        initialScale = 0.95f,
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
                     )
-                ) + fadeIn(
-                    animationSpec = tween(
-                        durationMillis = 280,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                    )
-                )
+                }
             },
             exitTransition = {
-                androidx.compose.animation.scaleOut(
-                    targetScale = 1.05f,
-                    animationSpec = tween(
-                        durationMillis = 240,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                if (
+                    initialState.destination.route?.startsWith("player") == true ||
+                    targetState.destination.route?.startsWith("player") == true
+                ) {
+                    ExitTransition.None
+                } else {
+                    androidx.compose.animation.scaleOut(
+                        targetScale = 1.05f,
+                        animationSpec = tween(
+                            durationMillis = 240,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
+                    ) + fadeOut(
+                        animationSpec = tween(
+                            durationMillis = 240,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
                     )
-                ) + fadeOut(
-                    animationSpec = tween(
-                        durationMillis = 240,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                    )
-                )
+                }
             },
             popEnterTransition = {
-                androidx.compose.animation.scaleIn(
-                    initialScale = 1.05f,
-                    animationSpec = tween(
-                        durationMillis = 240,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                if (
+                    initialState.destination.route?.startsWith("player") == true ||
+                    targetState.destination.route?.startsWith("player") == true
+                ) {
+                    EnterTransition.None
+                } else {
+                    androidx.compose.animation.scaleIn(
+                        initialScale = 1.05f,
+                        animationSpec = tween(
+                            durationMillis = 240,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            durationMillis = 240,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
                     )
-                ) + fadeIn(
-                    animationSpec = tween(
-                        durationMillis = 240,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                    )
-                )
+                }
             },
             popExitTransition = {
-                androidx.compose.animation.scaleOut(
-                    targetScale = 0.95f,
-                    animationSpec = tween(
-                        durationMillis = 280,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                if (
+                    initialState.destination.route?.startsWith("player") == true ||
+                    targetState.destination.route?.startsWith("player") == true
+                ) {
+                    ExitTransition.None
+                } else {
+                    androidx.compose.animation.scaleOut(
+                        targetScale = 0.95f,
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
+                    ) + fadeOut(
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                        )
                     )
-                ) + fadeOut(
-                    animationSpec = tween(
-                        durationMillis = 280,
-                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                    )
-                )
+                }
             }
         ) {
             composable(BottomNavItem.Home.route) {

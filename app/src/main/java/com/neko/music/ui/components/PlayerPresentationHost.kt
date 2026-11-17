@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -71,11 +70,7 @@ fun PlayerPresentationHost(
                     clip = true
                     // 从迷你播放器上沿开始展开，向上拖动距离与页面位移保持 1:1。
                     translationY = anchoredTopPx * (1f - fraction)
-                    val scale = 0.965f + 0.035f * fraction
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = (fraction / 0.08f).coerceIn(0f, 1f)
-                    transformOrigin = TransformOrigin(0.5f, 0f)
+                    alpha = if (fraction > 0f) 1f else 0f
                     shadowElevation = shadowPx * fraction
                 },
         ) {
