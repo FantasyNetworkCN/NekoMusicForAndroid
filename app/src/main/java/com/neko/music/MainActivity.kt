@@ -684,10 +684,11 @@ fun MainScreen() {
         scope.launch {
             playerPresentationProgress.animateTo(
                 targetValue = target,
-                animationSpec = spring(
-                    dampingRatio = if (open) 0.86f else 0.92f,
-                    stiffness = if (open) 380f else 430f,
-                ),
+                animationSpec = if (open) {
+                    spring(dampingRatio = 0.86f, stiffness = 380f)
+                } else {
+                    tween(durationMillis = 420, easing = FastOutSlowInEasing)
+                },
                 initialVelocity = initialVelocity,
             )
             if (generation != playerTransitionGeneration) return@launch
@@ -1130,10 +1131,7 @@ fun MainScreen() {
                     }
                 ),
             enterTransition = {
-                if (
-                    initialState.destination.route?.startsWith("player") == true ||
-                    targetState.destination.route?.startsWith("player") == true
-                ) {
+                if (playerPresentationMusic != null) {
                     EnterTransition.None
                 } else {
                     androidx.compose.animation.scaleIn(
@@ -1151,10 +1149,7 @@ fun MainScreen() {
                 }
             },
             exitTransition = {
-                if (
-                    initialState.destination.route?.startsWith("player") == true ||
-                    targetState.destination.route?.startsWith("player") == true
-                ) {
+                if (playerPresentationMusic != null) {
                     ExitTransition.None
                 } else {
                     androidx.compose.animation.scaleOut(
@@ -1172,10 +1167,7 @@ fun MainScreen() {
                 }
             },
             popEnterTransition = {
-                if (
-                    initialState.destination.route?.startsWith("player") == true ||
-                    targetState.destination.route?.startsWith("player") == true
-                ) {
+                if (playerPresentationMusic != null) {
                     EnterTransition.None
                 } else {
                     androidx.compose.animation.scaleIn(
@@ -1193,10 +1185,7 @@ fun MainScreen() {
                 }
             },
             popExitTransition = {
-                if (
-                    initialState.destination.route?.startsWith("player") == true ||
-                    targetState.destination.route?.startsWith("player") == true
-                ) {
+                if (playerPresentationMusic != null) {
                     ExitTransition.None
                 } else {
                     androidx.compose.animation.scaleOut(
