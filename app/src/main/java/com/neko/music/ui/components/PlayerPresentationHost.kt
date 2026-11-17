@@ -1,13 +1,11 @@
 package com.neko.music.ui.components
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -44,16 +42,6 @@ fun PlayerPresentationHost(
         val anchoredTopPx = startTopPx.coerceIn(0f, heightPx)
         val cornerPx = with(density) { 30.dp.toPx() }
         val shadowPx = with(density) { 24.dp.toPx() }
-
-        // 交互期间使用独立纯色背景，只改变透明度，不跟随页面缩放或位移。
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    alpha = (progress().coerceIn(0f, 1f) * 5f).coerceIn(0f, 1f)
-                }
-                .background(MaterialTheme.colorScheme.background),
-        )
 
         Box(
             modifier = Modifier
