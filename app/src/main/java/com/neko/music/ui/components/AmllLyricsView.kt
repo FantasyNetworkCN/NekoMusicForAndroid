@@ -116,7 +116,7 @@ import kotlin.math.sin
 private object AppleLyricMotion {
     const val FocusPosition = 0.25f
     const val CurrentLineScale = 1.05f
-    const val BlurIntensity = 0.8f
+    const val BlurIntensity = 0.32f
     const val BlurSkipAlpha = 0.05f
     const val FocusColorDurationMs = 120
     const val BlurSmoothDurationMs = 160
@@ -1236,16 +1236,16 @@ private fun appleDistanceOpacity(
 ): Float {
     val lineDistance = distancePx / lyricStridePx.coerceAtLeast(0.001f)
     val base = when {
-        lineDistance <= 1f -> 1f - lineDistance * 0.44f
-        lineDistance <= 2f -> 0.56f - (lineDistance - 1f) * 0.22f
-        else -> max(0.12f, 0.34f - (lineDistance - 2f) * 0.07f)
+        lineDistance <= 1f -> 1f - lineDistance * 0.30f
+        lineDistance <= 2f -> 0.70f - (lineDistance - 1f) * 0.16f
+        else -> max(0.34f, 0.54f - (lineDistance - 2f) * 0.05f)
     }
     val distanceOpacity = 1f - (1f - base) * dimAmount
     return distanceOpacity + (1f - distanceOpacity) * focusProgress.coerceIn(0f, 1f)
 }
 
 private fun appleEmphasis(focusProgress: Float, dimAmount: Float): Float {
-    val unfocused = 1f - (1f - 0.52f) * dimAmount
+    val unfocused = 1f - (1f - 0.72f) * dimAmount
     return unfocused + (1f - unfocused) * focusProgress.coerceIn(0f, 1f)
 }
 
@@ -1257,7 +1257,7 @@ private fun appleDistanceBlurRadius(
 ): Float {
     val lineDistance = distancePx / lyricStridePx.coerceAtLeast(0.001f)
     val blurProgress = max(lineDistance - 1.35f, 0f)
-    val baseRadius = min(blurProgress * 3.1f, 10f)
+    val baseRadius = min(blurProgress * 1.65f, 5f)
     return baseRadius * intensity * (1f - focusProgress.coerceIn(0f, 1f))
 }
 
@@ -1266,8 +1266,8 @@ private fun appleFocusBlurRadius(
     preceding: Boolean,
     following: Boolean,
 ): Float = (
-    (if (preceding) 2.4f else 0f) +
-        (if (following) 0.7f else 0f)
+    (if (preceding) 1.1f else 0f) +
+        (if (following) 0.4f else 0f)
     ) * intensity
 
 private fun appleHighlightRevealProgress(
