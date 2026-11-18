@@ -1813,37 +1813,6 @@ private fun PlayerSceneGrabber(
 }
 
 @Composable
-private fun PlayerGlassIconButton(
-    onClick: () -> Unit,
-    isDarkTheme: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val glass = LiquidGlassDefaults.playerTopBar
-    val scheme = MaterialTheme.colorScheme
-    GlassSurface(
-        modifier = modifier.size(44.dp),
-        shape = CircleShape,
-        backgroundAlpha = glass.tint.background(isDarkTheme),
-        borderAlpha = glass.tint.border(isDarkTheme),
-        highlightAlpha = glass.tint.highlight(isDarkTheme),
-        borderColor = if (isDarkTheme) Color.White else Color(0xFF1C1C1E),
-        liquidBlur = glass.liquid.blur,
-        liquidLensHeight = glass.liquid.lensHeight,
-        liquidLensAmount = glass.liquid.lensAmount,
-        material3Shape = CircleShape,
-        material3Container = scheme.surfaceContainerHigh,
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
 private fun CountBadge(
     count: Int?,
     tint: Color,
@@ -1919,9 +1888,9 @@ private fun PlayerPersistentVisualLayer(
         val compactTop = statusTop + 40.dp
         val compactCoverX = 16.dp
         val compactTextX = compactCoverX + compactCoverSize + 12.dp
-        val compactMoreX = maxWidth - 16.dp - 44.dp
-        val compactLeaveX = compactMoreX - if (togetherActive) 50.dp else 0.dp
-        val compactTextWidth = (compactLeaveX - 12.dp - compactTextX).coerceAtLeast(1.dp)
+        val compactMoreX = maxWidth - 16.dp - trailingWidth
+        val compactLeaveX = compactMoreX + 50.dp
+        val compactTextWidth = (compactMoreX - 12.dp - compactTextX).coerceAtLeast(1.dp)
 
         val largeCoverX: Dp
         val largeCoverY: Dp
@@ -1957,8 +1926,10 @@ private fun PlayerPersistentVisualLayer(
         val textY = lerp(largeTextY, compactTop + 3.dp, pageProgress)
         val textWidth = lerp(largeTextWidth, compactTextWidth, pageProgress)
         val largeMoreX = largeTextX + largeBlockWidth - trailingWidth
+        val largeLeaveX = largeMoreX + 50.dp
         val largeMoreY = largeTextY + 5.dp
         val moreX = lerp(largeMoreX, compactMoreX, pageProgress)
+        val leaveX = lerp(largeLeaveX, compactLeaveX, pageProgress)
         val moreY = lerp(largeMoreY, compactTop + 2.dp, pageProgress)
 
         Box(
@@ -1990,25 +1961,23 @@ private fun PlayerPersistentVisualLayer(
             artistLineHeight = lerp(20.sp, 17.sp, pageProgress),
         )
 
-        if (togetherActive) {
-            Box(
-                modifier = Modifier
-                    .offset(x = moreX - 50.dp, y = moreY)
-                    .size(44.dp)
-                    .graphicsLayer { alpha = layerAlpha },
-            ) {
-                PlayerGlassIconButton(
-                    onClick = onLeaveTogetherClick,
-                    isDarkTheme = dark,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.logout),
-                        contentDescription = stringResource(R.string.together_leave),
-                        tint = if (dark) Color.White else Color(0xFF17171A),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
+        AnimatedVisibility(
+            visible = togetherActive,
+            enter = fadeIn(tween(180)) +
+                scaleIn(initialScale = 0.82f, animationSpec = tween(220)),
+            exit = fadeOut(tween(140)) +
+                scaleOut(targetScale = 0.82f, animationSpec = tween(180)),
+            modifier = Modifier
+                .offset(x = leaveX, y = moreY)
+                .size(44.dp)
+                .graphicsLayer { alpha = layerAlpha },
+        ) {
+            PlayerTrackCircleActionButton(
+                isDarkTheme = dark,
+                onClick = onLeaveTogetherClick,
+                iconRes = R.drawable.logout,
+                contentDescription = stringResource(R.string.together_leave),
+            )
         }
 
         Box(
@@ -2095,6 +2064,21 @@ private fun PlayerTrackMoreButton(
     isDarkTheme: Boolean,
     onClick: () -> Unit,
 ) {
+    PlayerTrackCircleActionButton(
+        isDarkTheme = isDarkTheme,
+        onClick = onClick,
+        iconRes = R.drawable.ic_more_horizontal,
+        contentDescription = stringResource(id = R.string.more),
+    )
+}
+
+@Composable
+private fun PlayerTrackCircleActionButton(
+    isDarkTheme: Boolean,
+    onClick: () -> Unit,
+    iconRes: Int,
+    contentDescription: String,
+) {
     val tint = if (isDarkTheme) Color.White else Color(0xFF17171A)
     val background = if (isDarkTheme) {
         Color.White.copy(alpha = 0.10f)
@@ -2114,8 +2098,8 @@ private fun PlayerTrackMoreButton(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_more_horizontal),
-                contentDescription = stringResource(id = R.string.more),
+                painter = painterResource(iconRes),
+                contentDescription = contentDescription,
                 tint = tint.copy(alpha = 0.88f),
                 modifier = Modifier.size(18.dp),
             )
