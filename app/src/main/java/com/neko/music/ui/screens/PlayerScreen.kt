@@ -358,6 +358,8 @@ fun PlayerScreen(
     onDismissDragCancel: () -> Unit = {},
     commentsPageReady: Boolean = true,
     lyricsPageReady: Boolean = true,
+    artworkSharedModifier: Modifier = Modifier,
+    artworkExpansionProgress: () -> Float = { 1f },
 ) {
     val context = LocalContext.current
     val playerManager = MusicPlayerManager.getInstance(context)
@@ -1018,6 +1020,8 @@ fun PlayerScreen(
                                 music = currentMusic,
                                 isLandscape = isLandscape,
                                 togetherActive = togetherActive,
+                                artworkSharedModifier = artworkSharedModifier,
+                                artworkExpansionProgress = artworkExpansionProgress,
                             )
                         }
 
@@ -1935,6 +1939,8 @@ private fun NowPlayingCoverPage(
     music: Music,
     isLandscape: Boolean,
     togetherActive: Boolean,
+    artworkSharedModifier: Modifier,
+    artworkExpansionProgress: () -> Float,
 ) {
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
@@ -1955,7 +1961,10 @@ private fun NowPlayingCoverPage(
             ) {
                 CoverImage(
                     music = music,
-                    modifier = Modifier.size(artworkSize),
+                    modifier = Modifier
+                        .size(artworkSize)
+                        .then(artworkSharedModifier),
+                    artworkExpansionProgress = artworkExpansionProgress,
                 )
                 NowPlayingIdentity(
                     music = music,
@@ -1978,7 +1987,10 @@ private fun NowPlayingCoverPage(
             ) {
                 CoverImage(
                     music = music,
-                    modifier = Modifier.size(artworkSize),
+                    modifier = Modifier
+                        .size(artworkSize)
+                        .then(artworkSharedModifier),
+                    artworkExpansionProgress = artworkExpansionProgress,
                 )
                 Spacer(modifier = Modifier.height(30.dp))
                 NowPlayingIdentity(
@@ -2048,6 +2060,7 @@ private fun NowPlayingIdentity(
 fun CoverImage(
     music: Music,
     modifier: Modifier = Modifier,
+    artworkExpansionProgress: (() -> Float)? = null,
 ) {
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
@@ -2055,7 +2068,18 @@ fun CoverImage(
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val isDarkTheme = isAppDarkTheme()
-    val artworkShape = RoundedCornerShape(if (useLiquidStyle) 18.dp else 24.dp)
+    val artworkCornerDp = if (useLiquidStyle) 18f else 24f
+    val artworkShape = RoundedCornerShape(artworkCornerDp.dp)
+    val artworkClipModifier = if (artworkExpansionProgress == null) {
+        Modifier.clip(artworkShape)
+    } else {
+        Modifier.graphicsLayer {
+            val cornerDp = 6f + (artworkCornerDp - 6f) *
+                artworkExpansionProgress().coerceIn(0f, 1f)
+            shape = RoundedCornerShape(cornerDp.dp)
+            clip = true
+        }
+    }
     val artworkModifier = if (useLiquidStyle) {
         Modifier
             .shadow(
@@ -2064,7 +2088,7 @@ fun CoverImage(
                 spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.50f else 0.24f),
                 ambientColor = Color.Black.copy(alpha = 0.16f),
             )
-            .clip(artworkShape)
+            .then(artworkClipModifier)
             .background(if (isDarkTheme) Color(0xFF1B1B1E) else Color(0xFFE9E9ED))
             .border(
                 width = 0.6.dp,
@@ -2079,7 +2103,7 @@ fun CoverImage(
                 spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.32f else 0.14f),
                 ambientColor = Color.Black.copy(alpha = 0.06f),
             )
-            .clip(artworkShape)
+            .then(artworkClipModifier)
             .background(scheme.surfaceContainerHighest)
     }
 

@@ -1,12 +1,16 @@
 package com.neko.music.ui.components
 
 import android.os.SystemClock
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -14,7 +18,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,11 +42,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,7 +71,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kyant.backdrop.Backdrop
 import com.neko.music.R
@@ -100,6 +105,7 @@ private val MiniMorphRapidRecover = spring<Float>(
  * 保留对方的 48dp 胶囊高度、40dp 封面、13.5/12dp 两行文字、30dp 控件热区、
  * 18dp 字形，以及播放/暂停收缩换字、下一首推进和按钮按压时的整栏回弹。
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MeloXMiniPlayer(
     modifier: Modifier = Modifier,
@@ -115,6 +121,10 @@ fun MeloXMiniPlayer(
     onPlayerDragEnd: (Float) -> Unit = {},
     onPlayerDragCancel: () -> Unit = {},
     sampleBackdrop: Backdrop? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedArtworkMediaId: Int? = null,
+    closingIntent: Boolean = false,
 ) {
     val density = LocalDensity.current
     val isDarkTheme = isAppDarkTheme()
@@ -130,6 +140,67 @@ fun MeloXMiniPlayer(
     val morph = rememberMeloXMiniPlayPauseMorph(isPlaying)
     val nextPulse = rememberMeloXMiniNextPulse()
     var controlPressed by remember { mutableStateOf(false) }
+    val expansionProgressState: State<Float> = if (animatedVisibilityScope != null) {
+        animatedVisibilityScope.transition.animateFloat(
+            transitionSpec = { nekoPlayerExpansionSpec() },
+            label = "mini_player_expansion_progress",
+        ) { visibility ->
+            if (visibility == EnterExitState.Visible) 0f else 1f
+        }
+    } else {
+        remember { mutableFloatStateOf(0f) }
+    }
+    val surfaceAlphaProvider: () -> Float = remember(expansionProgressState) {
+        {
+            1f - miniSmoothStep(expansionProgressState.value, 0.02f, 0.48f)
+        }
+    }
+    val closingIntentState = rememberUpdatedState(closingIntent)
+    val sinkPeakPx = with(density) { NekoPlayerSinkPeakDp.dp.toPx() }
+    val sharedShellBoundsTransform = remember(sinkPeakPx) {
+        nekoPlayerSharedBoundsTransform(
+            sinkPeakPx = sinkPeakPx,
+            sinkEnabled = { closingIntentState.value },
+        )
+    }
+    val sharedArtworkBoundsTransform = remember(sinkPeakPx) {
+        nekoPlayerSharedBoundsTransform(
+            sinkPeakPx = sinkPeakPx,
+            sinkEnabled = { closingIntentState.value },
+        )
+    }
+    val sharedShellModifier =
+        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.sharedBounds(
+                    sharedContentState = rememberSharedContentState(key = NekoPlayerShellKey),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    enter = EnterTransition.None,
+                    exit = ExitTransition.None,
+                    boundsTransform = sharedShellBoundsTransform,
+                    resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                    zIndexInOverlay = 1f,
+                )
+            }
+        } else {
+            Modifier
+        }
+    val sharedArtworkModifier =
+        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.sharedElement(
+                    sharedContentState = rememberSharedContentState(
+                        key = NekoPlayerArtworkKey(sharedArtworkMediaId),
+                    ),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    boundsTransform = sharedArtworkBoundsTransform,
+                    renderInOverlayDuringTransition = true,
+                    zIndexInOverlay = 99f,
+                )
+            }
+        } else {
+            Modifier
+        }
     val barScale by animateFloatAsState(
         targetValue = if (controlPressed) 1.032f else 1f,
         animationSpec = spring(
@@ -169,142 +240,157 @@ fun MeloXMiniPlayer(
         )
     }
 
-    GlassSurface(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(NekoMiniHeight)
-            .graphicsLayer {
-                scaleX = barScale
-                scaleY = barScale
-            }
-            .then(swipeUpModifier)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onPlayerClick,
-            ),
-        shape = RoundedCornerShape(24.dp),
-        material3Shape = RoundedCornerShape(24.dp),
-        sampleBackdrop = sampleBackdrop,
-        material3Container = MaterialTheme.colorScheme.surfaceContainerHigh,
-        material3Elevation = 2.dp,
-        backgroundAlpha = glass.backgroundAlpha,
-        borderAlpha = glass.borderAlpha,
-        highlightAlpha = glass.highlightAlpha,
-        liquidBlur = liquid.blur,
-        liquidLensHeight = liquid.lensHeight,
-        liquidLensAmount = liquid.lensAmount,
+            .then(sharedShellModifier),
     ) {
-        Row(
+        GlassSurface(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .fillMaxWidth()
+                .height(NekoMiniHeight)
+                .graphicsLayer {
+                    alpha = surfaceAlphaProvider()
+                    scaleX = barScale
+                    scaleY = barScale
+                }
+                .then(swipeUpModifier)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onPlayerClick,
+                ),
+            shape = RoundedCornerShape(24.dp),
+            material3Shape = RoundedCornerShape(24.dp),
+            sampleBackdrop = sampleBackdrop,
+            material3Container = MaterialTheme.colorScheme.surfaceContainerHigh,
+            material3Elevation = 2.dp,
+            backgroundAlpha = glass.backgroundAlpha,
+            borderAlpha = glass.borderAlpha,
+            highlightAlpha = glass.highlightAlpha,
+            liquidBlur = liquid.blur,
+            liquidLensHeight = liquid.lensHeight,
+            liquidLensAmount = liquid.lensAmount,
         ) {
-            AsyncImage(
-                model = coverUrl,
-                contentDescription = stringResource(R.string.content_description_cover),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(NekoMiniArtworkSize)
-                    .clip(RoundedCornerShape(6.dp)),
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .wrapContentHeight(Alignment.CenterVertically),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = songTitle.ifBlank { stringResource(R.string.player_no_music) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = titleSize,
-                    lineHeight = lineHeight,
-                    softWrap = false,
-                    fontWeight = FontWeight.SemiBold,
-                    color = onSurface,
-                    style = noFontPadding,
-                )
-                Text(
-                    text = artist,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = artistSize,
-                    lineHeight = lineHeight,
-                    softWrap = false,
-                    color = onSurface.copy(alpha = 0.64f),
-                    modifier = Modifier.height(15.dp),
-                    style = noFontPadding,
-                )
-            }
-
-            MiniDancingBars(
-                isPlaying = isPlaying,
-                color = onSurface.copy(alpha = 0.72f),
-            )
-
             Row(
-                modifier = Modifier.height(NekoMiniControlSize),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                MiniTransportButton(
-                    onClick = {
-                        morph.startToggle()
-                        onPlayPauseClick()
-                    },
-                    onPressChanged = { controlPressed = it },
-                    modifier = Modifier.graphicsLayer { translationX = (-4).dp.toPx() },
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = stringResource(R.string.content_description_cover),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(NekoMiniArtworkSize)
+                        .then(sharedArtworkModifier)
+                        .clip(RoundedCornerShape(6.dp)),
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .wrapContentHeight(Alignment.CenterVertically),
+                    verticalArrangement = Arrangement.Center,
                 ) {
-                    Box(
-                        modifier = Modifier.drawWithContent {
-                            val s = morph.scale.value
-                            if (s == 1f) drawContent() else scale(s) { this@drawWithContent.drawContent() }
+                    Text(
+                        text = songTitle.ifBlank { stringResource(R.string.player_no_music) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = titleSize,
+                        lineHeight = lineHeight,
+                        softWrap = false,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onSurface,
+                        style = noFontPadding,
+                    )
+                    Text(
+                        text = artist,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = artistSize,
+                        lineHeight = lineHeight,
+                        softWrap = false,
+                        color = onSurface.copy(alpha = 0.64f),
+                        modifier = Modifier.height(15.dp),
+                        style = noFontPadding,
+                    )
+                }
+
+                MiniDancingBars(
+                    isPlaying = isPlaying,
+                    color = onSurface.copy(alpha = 0.72f),
+                )
+
+                Row(
+                    modifier = Modifier.height(NekoMiniControlSize),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    MiniTransportButton(
+                        onClick = {
+                            morph.startToggle()
+                            onPlayPauseClick()
                         },
-                        contentAlignment = Alignment.Center,
+                        onPressChanged = { controlPressed = it },
+                        modifier = Modifier.graphicsLayer { translationX = (-4).dp.toPx() },
+                    ) {
+                        Box(
+                            modifier = Modifier.drawWithContent {
+                                val s = morph.scale.value
+                                if (s == 1f) drawContent() else scale(s) { this@drawWithContent.drawContent() }
+                            },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    if (morph.displayIsPlaying) R.drawable.pause else R.drawable.play,
+                                ),
+                                contentDescription = stringResource(
+                                    if (isPlaying) R.string.content_description_pause
+                                    else R.string.content_description_play,
+                                ),
+                                tint = onSurface.copy(alpha = 0.94f),
+                                modifier = Modifier.size(NekoMiniControlIconSize),
+                            )
+                        }
+                    }
+                    MiniTransportButton(
+                        onClick = {
+                            nextPulse.trigger()
+                            onNextClick()
+                        },
+                        onPressChanged = { controlPressed = it },
                     ) {
                         Icon(
-                            painter = painterResource(
-                                if (morph.displayIsPlaying) R.drawable.pause else R.drawable.play,
-                            ),
-                            contentDescription = stringResource(
-                                if (isPlaying) R.string.content_description_pause
-                                else R.string.content_description_play,
-                            ),
+                            painter = painterResource(R.drawable.next_song),
+                            contentDescription = stringResource(R.string.desktop_lyric_next),
                             tint = onSurface.copy(alpha = 0.94f),
-                            modifier = Modifier.size(NekoMiniControlIconSize),
+                            modifier = Modifier
+                                .size(NekoMiniControlIconSize)
+                                .graphicsLayer {
+                                    val pulse = nextPulse.scroll.value
+                                    translationX = 3.dp.toPx() * (1f - pulse)
+                                    val s = 1f + 0.08f * pulse
+                                    scaleX = s
+                                    scaleY = s
+                                },
                         )
                     }
-                }
-                MiniTransportButton(
-                    onClick = {
-                        nextPulse.trigger()
-                        onNextClick()
-                    },
-                    onPressChanged = { controlPressed = it },
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.next_song),
-                        contentDescription = stringResource(R.string.desktop_lyric_next),
-                        tint = onSurface.copy(alpha = 0.94f),
-                        modifier = Modifier
-                            .size(NekoMiniControlIconSize)
-                            .graphicsLayer {
-                                val pulse = nextPulse.scroll.value
-                                translationX = 3.dp.toPx() * (1f - pulse)
-                                val s = 1f + 0.08f * pulse
-                                scaleX = s
-                                scaleY = s
-                            },
-                    )
                 }
             }
         }
     }
+}
+
+private fun miniSmoothStep(value: Float, start: Float, end: Float): Float {
+    if (end <= start) return if (value >= end) 1f else 0f
+    val fraction = ((value - start) / (end - start)).coerceIn(0f, 1f)
+    return fraction * fraction * (3f - 2f * fraction)
 }
 
 @Composable

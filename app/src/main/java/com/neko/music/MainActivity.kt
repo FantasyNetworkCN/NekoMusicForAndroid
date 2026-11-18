@@ -48,12 +48,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -61,8 +61,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,10 +70,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -110,6 +111,9 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.MeloXMiniPlayer
 import com.neko.music.ui.components.PlayerPresentationHost
+import com.neko.music.ui.components.nekoPlayerSettlementSpec
+import com.neko.music.ui.components.reboundPlayerToClosed
+import com.neko.music.ui.components.reboundPlayerToOpen
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.list.LatestLiquidBarState
@@ -163,6 +167,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.receiveAsFlow
 import java.net.URLEncoder
@@ -571,6 +576,7 @@ private fun PrivacyConsentScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -597,21 +603,30 @@ fun MainScreen() {
     val currentMusicId by playerManager.currentMusicId.collectAsState()
     val duration by playerManager.duration.collectAsState()
 
-    // 播放页使用独立的交互式呈现层，导航路由只负责返回栈语义。
-    // 上滑/下滑期间直接驱动 progress，松开后再提交路由或收起页面。
-    val playerPresentationProgress = remember { Animatable(0f) }
+    // 点击、拖动、回弹和反向打断全部驱动同一个 SeekableTransitionState，
+    // 迷你栏与全屏页因此始终处在同一条连续时间线上。
+    val playerTransitionState = rememberSaveable(
+        saver = Saver<SeekableTransitionState<Boolean>, Boolean>(
+            save = { it.targetState },
+            restore = { SeekableTransitionState(it) },
+        ),
+    ) { SeekableTransitionState(false) }
+    val playerTransition = rememberTransition(
+        transitionState = playerTransitionState,
+        label = "player_presentation_transition",
+    )
     var playerPresentationMusic by remember { mutableStateOf<Music?>(null) }
     var playerPresentationRouteCommitted by remember { mutableStateOf(false) }
     var playerPresentationDeepLinkStyle by remember { mutableStateOf(false) }
     var playerTransitionGeneration by remember { mutableIntStateOf(0) }
     var playerDragOriginMini by remember { mutableStateOf(false) }
-    var miniPlayerTopPx by remember { mutableFloatStateOf(0f) }
-    var miniPlayerBounds by remember { mutableStateOf<Rect?>(null) }
-    val fallbackPlayerTravelPx = with(LocalDensity.current) {
-        (LocalConfiguration.current.screenHeightDp * 0.72f).dp.toPx()
+    var playerGestureProgress by remember { mutableFloatStateOf(0f) }
+    var playerTransitionTargetOpen by remember { mutableStateOf(true) }
+    var playerClosingIntent by remember { mutableStateOf(false) }
+    var playerTransitionJob by remember { mutableStateOf<Job?>(null) }
+    val playerTravelPx = with(LocalDensity.current) {
+        (LocalConfiguration.current.screenHeightDp * 0.86f).dp.toPx()
     }.coerceAtLeast(1f)
-    val playerTravelPx =
-        if (miniPlayerTopPx > 0f) miniPlayerTopPx else fallbackPlayerTravelPx
 
     fun buildPlayerRoute(music: Music): String {
         val encodedTitle = URLEncoder.encode(music.title, "UTF-8")
@@ -676,35 +691,64 @@ fun MainScreen() {
         playerPresentationDeepLinkStyle = false
     }
 
-    fun settlePlayerPresentation(open: Boolean, velocityY: Float = 0f) {
+    fun currentPlayerExpansion(): Float = when {
+        playerTransitionState.currentState == playerTransitionState.targetState ->
+            if (playerTransitionState.currentState) 1f else 0f
+        !playerTransitionState.currentState ->
+            playerTransitionState.fraction.coerceIn(0f, 1f)
+        else ->
+            (1f - playerTransitionState.fraction).coerceIn(0f, 1f)
+    }
+
+    fun cancelPlayerTransitionJob() {
+        playerTransitionJob?.cancel()
+        playerTransitionJob = null
+    }
+
+    fun popPlayerRouteIfNeeded() {
+        if (!playerPresentationRouteCommitted) return
+        playerPresentationRouteCommitted = false
+        if (isCurrentPlayerRoute()) {
+            navController.popBackStack()
+        }
+    }
+
+    fun settlePlayerPresentation(open: Boolean) {
         if (open && playerPresentationMusic == null) return
         val generation = ++playerTransitionGeneration
-        if (!open && playerPresentationRouteCommitted) {
-            playerPresentationRouteCommitted = false
-            if (isCurrentPlayerRoute()) {
-                navController.popBackStack()
+        playerTransitionTargetOpen = open
+        playerClosingIntent = !open
+        if (!open) popPlayerRouteIfNeeded()
+        cancelPlayerTransitionJob()
+        val originMini = playerDragOriginMini
+        playerTransitionJob = scope.launch {
+            if (open) {
+                if (originMini) {
+                    playerTransitionState.animateTo(
+                        targetState = true,
+                        animationSpec = nekoPlayerSettlementSpec(),
+                    )
+                } else {
+                    reboundPlayerToOpen(playerTransitionState)
+                }
+            } else {
+                if (originMini) {
+                    reboundPlayerToClosed(playerTransitionState)
+                } else {
+                    playerTransitionState.animateTo(
+                        targetState = false,
+                        animationSpec = nekoPlayerSettlementSpec(),
+                    )
+                }
             }
-        }
-
-        val target = if (open) 1f else 0f
-        val initialVelocity = (-velocityY / playerTravelPx).coerceIn(-4f, 4f)
-        scope.launch {
-            playerPresentationProgress.animateTo(
-                targetValue = target,
-                animationSpec = spring(
-                    dampingRatio = 1f,
-                    stiffness = 300f,
-                    visibilityThreshold = 0.001f,
-                ),
-                initialVelocity = initialVelocity,
-            )
             if (generation != playerTransitionGeneration) return@launch
             if (open) {
                 commitPlayerRoute()
             } else {
-                playerPresentationProgress.snapTo(0f)
+                playerTransitionState.snapTo(false)
                 clearPlayerPresentation()
             }
+            playerTransitionJob = null
         }
     }
 
@@ -712,65 +756,115 @@ fun MainScreen() {
         playerPresentationMusic = music
         playerPresentationDeepLinkStyle = deepLinkStyle
         playerDragOriginMini = false
+        playerClosingIntent = false
+        playerTransitionTargetOpen = true
         val generation = ++playerTransitionGeneration
-        if (playerPresentationProgress.value >= 1f && playerPresentationRouteCommitted) {
+        if (currentPlayerExpansion() >= 0.999f && playerPresentationRouteCommitted) {
             commitPlayerRoute()
             return
         }
-        scope.launch {
-            playerPresentationProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = 1f,
-                    stiffness = 300f,
-                    visibilityThreshold = 0.001f,
-                ),
+        cancelPlayerTransitionJob()
+        playerTransitionJob = scope.launch {
+            playerTransitionState.animateTo(
+                targetState = true,
+                animationSpec = nekoPlayerSettlementSpec(),
             )
             if (generation == playerTransitionGeneration) {
                 commitPlayerRoute()
             }
+            playerTransitionJob = null
+        }
+    }
+
+    fun closePlayerPresentation() {
+        playerDragOriginMini = false
+        playerClosingIntent = true
+        playerTransitionTargetOpen = false
+        val generation = ++playerTransitionGeneration
+        popPlayerRouteIfNeeded()
+        cancelPlayerTransitionJob()
+        playerTransitionJob = scope.launch {
+            if (
+                playerTransitionState.currentState == false &&
+                playerTransitionState.targetState == true
+            ) {
+                reboundPlayerToClosed(playerTransitionState)
+            } else {
+                playerTransitionState.animateTo(
+                    targetState = false,
+                    animationSpec = nekoPlayerSettlementSpec(),
+                )
+            }
+            if (generation == playerTransitionGeneration) {
+                playerTransitionState.snapTo(false)
+                clearPlayerPresentation()
+            }
+            playerTransitionJob = null
         }
     }
 
     fun beginPlayerOpenDrag() {
-        ++playerTransitionGeneration
+        val generation = ++playerTransitionGeneration
+        cancelPlayerTransitionJob()
         playerDragOriginMini = true
+        playerClosingIntent = false
+        playerTransitionTargetOpen = true
         if (playerPresentationMusic == null) {
             playerPresentationMusic = currentMusicForPresentation()
             playerPresentationDeepLinkStyle = false
+        }
+        playerGestureProgress = currentPlayerExpansion().coerceIn(0f, 0.999f)
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            if (generation == playerTransitionGeneration) {
+                playerTransitionState.seekTo(
+                    fraction = playerGestureProgress,
+                    targetState = true,
+                )
+            }
         }
     }
 
     fun beginPlayerCloseDrag() {
         ++playerTransitionGeneration
+        cancelPlayerTransitionJob()
         playerDragOriginMini = false
-        if (playerPresentationRouteCommitted) {
-            playerPresentationRouteCommitted = false
-            if (isCurrentPlayerRoute()) {
-                navController.popBackStack()
-            }
+        playerClosingIntent = false
+        playerTransitionTargetOpen = false
+        popPlayerRouteIfNeeded()
+        playerGestureProgress = (1f - currentPlayerExpansion()).coerceIn(0f, 0.999f)
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            playerTransitionState.seekTo(
+                fraction = playerGestureProgress,
+                targetState = false,
+            )
         }
     }
 
     fun dragPlayerBy(deltaY: Float) {
+        playerGestureProgress =
+            (playerGestureProgress - deltaY / playerTravelPx).coerceIn(0f, 0.999f)
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            playerPresentationProgress.snapTo(
-                (playerPresentationProgress.value - deltaY / playerTravelPx)
-                    .coerceIn(0f, 1f),
+            playerTransitionState.seekTo(
+                fraction = playerGestureProgress,
+                targetState = playerDragOriginMini,
             )
         }
     }
 
     fun finishPlayerDrag(velocityY: Float = 0f) {
-        val progressNow = playerPresentationProgress.value
+        val progressNow = if (playerDragOriginMini) {
+            playerGestureProgress
+        } else {
+            1f - playerGestureProgress
+        }
         val velocityProgress = -velocityY / playerTravelPx
         val shouldOpen = when {
             velocityProgress > 0.55f -> true
             velocityProgress < -0.55f -> false
             playerDragOriginMini -> progressNow >= 0.3f
-            else -> progressNow >= 0.62f
+            else -> progressNow >= 0.58f
         }
-        settlePlayerPresentation(open = shouldOpen, velocityY = velocityY)
+        settlePlayerPresentation(open = shouldOpen)
     }
 
     androidx.compose.runtime.LaunchedEffect(isPlayerScreen, navBackStackEntry?.id) {
@@ -788,7 +882,9 @@ fun MainScreen() {
         playerPresentationMusic = Music(id, title, artist, "", 0, "", "", 0, "")
         playerPresentationDeepLinkStyle = false
         playerPresentationRouteCommitted = true
-        playerPresentationProgress.snapTo(1f)
+        playerClosingIntent = false
+        playerTransitionTargetOpen = true
+        playerTransitionState.snapTo(true)
     }
 
     // 播放列表显示状态
@@ -1164,7 +1260,9 @@ fun MainScreen() {
     val rankingLiquidBarState = remember { RankingLiquidBarState() }
     val latestLiquidBarState = remember { LatestLiquidBarState() }
     val searchLiquidBarState = remember { SearchLiquidBarState() }
-    Box(modifier = Modifier.fillMaxSize()) {
+    SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+        val sharedScope = this
+        Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalNavHostRecordingBackdrop provides liquidBackdrop) {
             NavHost(
             navController = navController,
@@ -1867,23 +1965,33 @@ fun MainScreen() {
         }
         }
 
-        playerPresentationMusic?.let { playerMusic ->
-            PlayerPresentationHost(
-                music = playerMusic,
-                startTopPx = playerTravelPx,
-                startBounds = miniPlayerBounds,
-                progress = { playerPresentationProgress.value },
-                onDragStart = { beginPlayerCloseDrag() },
-                onDrag = { deltaY -> dragPlayerBy(deltaY) },
-                onDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
-                onDragCancel = { finishPlayerDrag() },
-                onBackClick = {
-                    Log.d("MainActivity", "从播放页面返回")
-                    settlePlayerPresentation(open = false)
-                },
-                onPlaylistClick = { showPlaylist = true },
-                modifier = Modifier.zIndex(12f),
-            )
+        playerTransition.AnimatedVisibility(
+            visible = { value -> value },
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(12f),
+        ) {
+            val playerAnimatedVisibilityScope = this
+            playerPresentationMusic?.let { playerMusic ->
+                PlayerPresentationHost(
+                    music = playerMusic,
+                    sharedTransitionScope = sharedScope,
+                    animatedVisibilityScope = playerAnimatedVisibilityScope,
+                    transitionTargetOpen = playerTransitionTargetOpen,
+                    closingIntent = playerClosingIntent,
+                    onDragStart = { beginPlayerCloseDrag() },
+                    onDrag = { deltaY -> dragPlayerBy(deltaY) },
+                    onDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                    onDragCancel = { finishPlayerDrag() },
+                    onBackClick = {
+                        Log.d("MainActivity", "从播放页面返回")
+                        closePlayerPresentation()
+                    },
+                    onPlaylistClick = { showPlaylist = true },
+                )
+            }
         }
 
         // 首页搜索/推荐：与迷你播放器/底栏一致，在 NavHost 之外采样主 [liquidBackdrop]。
@@ -1968,7 +2076,6 @@ fun MainScreen() {
         // 迷你播放器 + 底栏：底部对齐后整体做 AnimatedVisibility，避免自定义 Layout 把内容画在测量区域外导致动画被裁切
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val bottomChromeVisible = showBottomControls &&
-            !isPlayerScreen &&
             !isAuthScreen &&
             !isRecognitionScreen &&
             !playlistBatchHidingChrome
@@ -1988,16 +2095,7 @@ fun MainScreen() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .zIndex(8f)
-                .graphicsLayer {
-                    val raw = playerPresentationProgress.value.coerceIn(0f, 1f)
-                    val progressSmooth = raw * raw * (3f - 2f * raw)
-                    alpha = (1f - progressSmooth).coerceIn(0f, 1f)
-                    translationY = 16.dp.toPx() * progressSmooth
-                    scaleX = 1f - 0.025f * progressSmooth
-                    scaleY = 1f - 0.025f * progressSmooth
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                },
+                .zIndex(8f),
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
                 val useLiquidBottomChrome = isLiquidGlassEffectActive(bottomChromeBackdrop)
@@ -2020,34 +2118,40 @@ fun MainScreen() {
                             horizontalArrangement = Arrangement.spacedBy(7.dp),
                             verticalAlignment = Alignment.Bottom,
                         ) {
-                            MeloXMiniPlayer(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .onGloballyPositioned {
-                                        miniPlayerTopPx = it.boundsInRoot().top
-                                        miniPlayerBounds = it.boundsInRoot()
+                            playerTransition.AnimatedVisibility(
+                                visible = { value -> !value },
+                                enter = EnterTransition.None,
+                                exit = ExitTransition.None,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                val miniAnimatedVisibilityScope = this
+                                MeloXMiniPlayer(
+                                    isPlaying = isPlaying,
+                                    songTitle = currentMusicTitle ?: "暂无播放",
+                                    artist = currentMusicArtist ?: "",
+                                    coverUrl = currentMusicCover,
+                                    onPlayPauseClick = {
+                                        if (togetherActive) TogetherSessionManager.toggle()
+                                        else playerManager.togglePlayPause()
                                     },
-                                isPlaying = isPlaying,
-                                songTitle = currentMusicTitle ?: "暂无播放",
-                                artist = currentMusicArtist ?: "",
-                                coverUrl = currentMusicCover,
-                                onPlayPauseClick = {
-                                    if (togetherActive) TogetherSessionManager.toggle()
-                                    else playerManager.togglePlayPause()
-                                },
-                                onNextClick = {
-                                    if (togetherActive) TogetherSessionManager.next()
-                                    else playerManager.next()
-                                },
-                                onPlayerClick = {
-                                    openPlayer(currentMusicForPresentation())
-                                },
-                                onPlayerDragStart = { beginPlayerOpenDrag() },
-                                onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
-                                onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
-                                onPlayerDragCancel = { finishPlayerDrag() },
-                                sampleBackdrop = bottomChromeBackdrop,
-                            )
+                                    onNextClick = {
+                                        if (togetherActive) TogetherSessionManager.next()
+                                        else playerManager.next()
+                                    },
+                                    onPlayerClick = {
+                                        openPlayer(currentMusicForPresentation())
+                                    },
+                                    onPlayerDragStart = { beginPlayerOpenDrag() },
+                                    onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
+                                    onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                                    onPlayerDragCancel = { finishPlayerDrag() },
+                                    sampleBackdrop = bottomChromeBackdrop,
+                                    sharedTransitionScope = sharedScope,
+                                    animatedVisibilityScope = miniAnimatedVisibilityScope,
+                                    sharedArtworkMediaId = currentMusicId,
+                                    closingIntent = playerClosingIntent,
+                                )
+                            }
                             BottomNavigationBar(
                                 navController = navController,
                                 modifier = Modifier.width(lerp(220.dp, 48.dp, compactProgress)),
@@ -2094,35 +2198,42 @@ fun MainScreen() {
                                     .fillMaxWidth()
                                     .height(chromeHeight),
                             ) {
-                                MeloXMiniPlayer(
+                                playerTransition.AnimatedVisibility(
+                                    visible = { value -> !value },
+                                    enter = EnterTransition.None,
+                                    exit = ExitTransition.None,
                                     modifier = Modifier
                                         .offset(x = miniX)
-                                        .width(miniWidth)
-                                        .onGloballyPositioned {
-                                            miniPlayerTopPx = it.boundsInRoot().top
-                                            miniPlayerBounds = it.boundsInRoot()
+                                        .width(miniWidth),
+                                ) {
+                                    val miniAnimatedVisibilityScope = this
+                                    MeloXMiniPlayer(
+                                        isPlaying = isPlaying,
+                                        songTitle = currentMusicTitle ?: "暂无播放",
+                                        artist = currentMusicArtist ?: "",
+                                        coverUrl = currentMusicCover,
+                                        onPlayPauseClick = {
+                                            if (togetherActive) TogetherSessionManager.toggle()
+                                            else playerManager.togglePlayPause()
                                         },
-                                    isPlaying = isPlaying,
-                                    songTitle = currentMusicTitle ?: "暂无播放",
-                                    artist = currentMusicArtist ?: "",
-                                    coverUrl = currentMusicCover,
-                                    onPlayPauseClick = {
-                                        if (togetherActive) TogetherSessionManager.toggle()
-                                        else playerManager.togglePlayPause()
-                                    },
-                                    onNextClick = {
-                                        if (togetherActive) TogetherSessionManager.next()
-                                        else playerManager.next()
-                                    },
-                                    onPlayerClick = {
-                                        openPlayer(currentMusicForPresentation())
-                                    },
-                                    onPlayerDragStart = { beginPlayerOpenDrag() },
-                                    onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
-                                    onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
-                                    onPlayerDragCancel = { finishPlayerDrag() },
-                                    sampleBackdrop = bottomChromeBackdrop,
-                                )
+                                        onNextClick = {
+                                            if (togetherActive) TogetherSessionManager.next()
+                                            else playerManager.next()
+                                        },
+                                        onPlayerClick = {
+                                            openPlayer(currentMusicForPresentation())
+                                        },
+                                        onPlayerDragStart = { beginPlayerOpenDrag() },
+                                        onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
+                                        onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                                        onPlayerDragCancel = { finishPlayerDrag() },
+                                        sampleBackdrop = bottomChromeBackdrop,
+                                        sharedTransitionScope = sharedScope,
+                                        animatedVisibilityScope = miniAnimatedVisibilityScope,
+                                        sharedArtworkMediaId = currentMusicId,
+                                        closingIntent = playerClosingIntent,
+                                    )
+                                }
                                 BottomNavigationBar(
                                     navController = navController,
                                     modifier = Modifier
@@ -2221,6 +2332,7 @@ fun MainScreen() {
                     },
                 )
             }
+        }
     }
 }
 
