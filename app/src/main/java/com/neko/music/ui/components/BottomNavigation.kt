@@ -202,6 +202,7 @@ fun BottomNavigationBar(
                 tabsCount = items.size,
                 isDark = isDarkBar,
                 accentColor = MaterialTheme.colorScheme.primary,
+                compactProgress = compact,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items.forEachIndexed { index, item ->
@@ -226,12 +227,18 @@ fun BottomNavigationBar(
         }
         if (compactAlpha > 0.001f) {
             val selectedItem = items[selectedIndex]
+            val compactInteractionSource = remember { MutableInteractionSource() }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(2f)
                     .graphicsLayer { alpha = compactAlpha }
-                    .clickable(role = Role.Button, onClick = onExpand),
+                    .clickable(
+                        interactionSource = compactInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onExpand,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -322,6 +329,7 @@ internal fun LiquidTabStrip(
     isDark: Boolean,
     accentColor: Color,
     barHeight: Dp = BottomNavigationBarHeight,
+    compactProgress: Float = 0f,
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -549,32 +557,35 @@ internal fun LiquidTabStrip(
             content = content,
         )
 
-        CompositionLocalProvider(
-            LocalLiquidTabScale provides {
-                lerp(1f, 1.2f, dragAnimation.pressProgress)
-            },
-        ) {
-            Row(
-                Modifier
-                    .clearAndSetSemantics { }
-                    .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
-                    .graphicsLayer { translationX = panelOffset }
-                    .then(pressedBarModifier)
-                    .then(interactiveHighlight.modifier)
-                    .height(barHeight - 8.dp)
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp)
-                    .graphicsLayer { colorFilter = ColorFilter.tint(accentColor) },
-                verticalAlignment = Alignment.CenterVertically,
-                content = content,
-            )
+        if (compactProgress < 0.45f) {
+            CompositionLocalProvider(
+                LocalLiquidTabScale provides {
+                    lerp(1f, 1.2f, dragAnimation.pressProgress)
+                },
+            ) {
+                Row(
+                    Modifier
+                        .clearAndSetSemantics { }
+                        .alpha(0f)
+                        .layerBackdrop(tabsBackdrop)
+                        .graphicsLayer { translationX = panelOffset }
+                        .then(pressedBarModifier)
+                        .then(interactiveHighlight.modifier)
+                        .height(barHeight - 8.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                        .graphicsLayer { colorFilter = ColorFilter.tint(accentColor) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    content = content,
+                )
+            }
         }
 
         Box(
             Modifier
                 .padding(horizontal = 4.dp)
                 .graphicsLayer {
+                    alpha = 1f - navSmoothStep(compactProgress, 0.35f, 0.85f)
                     translationX = if (isLtr) {
                         dragAnimation.value * tabWidth + panelOffset
                     } else {
