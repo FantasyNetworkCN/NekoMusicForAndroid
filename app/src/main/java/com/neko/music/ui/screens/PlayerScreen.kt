@@ -2096,16 +2096,30 @@ private fun PlayerTrackMoreButton(
     onClick: () -> Unit,
 ) {
     val tint = if (isDarkTheme) Color.White else Color(0xFF17171A)
-    PlayerGlassIconButton(
-        onClick = onClick,
-        isDarkTheme = isDarkTheme,
+    val background = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.10f)
+    } else {
+        Color.Black.copy(alpha = 0.06f)
+    }
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_more_horizontal),
-            contentDescription = stringResource(id = R.string.more),
-            tint = tint.copy(alpha = 0.9f),
-            modifier = Modifier.size(21.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .background(background, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_more_horizontal),
+                contentDescription = stringResource(id = R.string.more),
+                tint = tint.copy(alpha = 0.88f),
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
