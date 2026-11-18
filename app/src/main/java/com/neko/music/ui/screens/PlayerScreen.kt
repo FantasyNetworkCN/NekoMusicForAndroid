@@ -781,12 +781,15 @@ fun PlayerScreen(
     val pageBackdrop = rememberLiquidPageBackdrop(colorScheme.background)
     val useLiquidStyle = isLiquidGlassEffectActive(pageBackdrop)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isCommentsPage = pagerState.currentPage == 0
     // 评论页只保留悬浮迷你播放器，给评论列表和输入框让出完整空间。
     val fullBottomReserve = if (isLandscape) 132.dp else 232.dp
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val miniPlayerReserve = 84.dp + navigationBarBottom
     val lyricsControlsHidden = showLyrics && !lyricsControlsVisible
     val bottomGlassReserve by animateDpAsState(
         targetValue = when {
+            isCommentsPage -> miniPlayerReserve
             lyricsControlsHidden -> navigationBarBottom
             else -> fullBottomReserve
         },
@@ -982,8 +985,7 @@ fun PlayerScreen(
             ) {
                 PlayerTopReserve(
                     isLandscape = isLandscape,
-                    lyricsHeaderVisible =
-                        pagerState.currentPage == 0 || pagerState.currentPage == 2,
+                    lyricsHeaderVisible = pagerState.currentPage == 2,
                 )
 
                 if (togetherActive) {
@@ -1124,7 +1126,11 @@ fun PlayerScreen(
                 PlayerBottomBar(
                     modifier = Modifier.fillMaxWidth(),
                     isLandscape = isLandscape,
+                    compactForComments = isCommentsPage,
                     isDarkTheme = isDarkTheme,
+                    coverUrl = coverUrl,
+                    musicTitle = currentMusic.title,
+                    musicArtist = currentMusic.artist,
                     positionMillis = currentPosition,
                     durationMillis = duration,
                     isLoading = isLoading,
@@ -1172,6 +1178,9 @@ fun PlayerScreen(
                         else playerManager.togglePlayMode()
                     },
                     onQualitySelected = { playerManager.setAudioQuality(it) },
+                    onOpenPlayer = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
+                    },
                 )
             }
             if (showShareDialog) {
@@ -1865,12 +1874,14 @@ private fun PlayerPersistentVisualLayer(
             (-pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
         else -> 0f
     }
-    val compactProgress = maxOf(pageProgress, commentsProgress)
 
     val dark = isAppDarkTheme()
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val statusTop = with(density) { WindowInsets.statusBars.getTop(density).toDp() }
+        val navigationBottom = with(density) {
+            WindowInsets.navigationBars.getBottom(density).toDp()
+        }
         val contentTop = statusTop +
             (if (isLandscape) 52.dp else 64.dp) +
             (if (togetherActive) 52.dp else 0.dp)
@@ -1900,6 +1911,12 @@ private fun PlayerPersistentVisualLayer(
         val compactMoreX = maxWidth - 16.dp - trailingWidth
         val compactLeaveX = compactMoreX + 50.dp
         val compactTextWidth = (compactMoreX - 12.dp - compactTextX).coerceAtLeast(1.dp)
+        val commentsCoverSize = 46.dp
+        val commentsCoverX = 24.dp
+        val commentsCoverY = (maxHeight - navigationBottom - 67.dp).coerceAtLeast(0.dp)
+        val commentsTextX = commentsCoverX + commentsCoverSize + 11.dp
+        val commentsTextY = commentsCoverY + 7.dp
+        val commentsTextWidth = (maxWidth - commentsTextX - 100.dp).coerceAtLeast(1.dp)
 
         val largeCoverX: Dp
         val largeCoverY: Dp
@@ -1928,32 +1945,66 @@ private fun PlayerPersistentVisualLayer(
         val largeTextWidth = (largeBlockWidth - trailingWidth - 12.dp)
             .coerceAtLeast(1.dp)
 
-        val coverSize = lerp(largeCoverSize, compactCoverSize, compactProgress)
-        val coverX = lerp(largeCoverX, compactCoverX, compactProgress)
-        val coverY = lerp(largeCoverY, compactTop, compactProgress)
-        val textX = lerp(largeTextX, compactTextX, compactProgress)
-        val textY = lerp(largeTextY, compactTop + 3.dp, compactProgress)
-        val textWidth = lerp(largeTextWidth, compactTextWidth, compactProgress)
+        val movingToComments = commentsProgress > 0.001f
+        val coverSize = if (movingToComments) {
+            lerp(largeCoverSize, commentsCoverSize, commentsProgress)
+        } else {
+            lerp(largeCoverSize, compactCoverSize, pageProgress)
+        }
+        val coverX = if (movingToComments) {
+            lerp(largeCoverX, commentsCoverX, commentsProgress)
+        } else {
+            lerp(largeCoverX, compactCoverX, pageProgress)
+        }
+        val coverY = if (movingToComments) {
+            lerp(largeCoverY, commentsCoverY, commentsProgress)
+        } else {
+            lerp(largeCoverY, compactTop, pageProgress)
+        }
+        val textX = if (movingToComments) {
+            lerp(largeTextX, commentsTextX, commentsProgress)
+        } else {
+            lerp(largeTextX, compactTextX, pageProgress)
+        }
+        val textY = if (movingToComments) {
+            lerp(largeTextY, commentsTextY, commentsProgress)
+        } else {
+            lerp(largeTextY, compactTop + 3.dp, pageProgress)
+        }
+        val textWidth = if (movingToComments) {
+            lerp(largeTextWidth, commentsTextWidth, commentsProgress)
+        } else {
+            lerp(largeTextWidth, compactTextWidth, pageProgress)
+        }
         val largeMoreX = largeTextX + largeBlockWidth - trailingWidth
         val largeLeaveX = largeMoreX + 50.dp
         val largeMoreY = largeTextY + 5.dp
-        val moreX = lerp(largeMoreX, compactMoreX, compactProgress)
-        val leaveX = lerp(largeLeaveX, compactLeaveX, compactProgress)
-        val moreY = lerp(largeMoreY, compactTop + 2.dp, compactProgress)
+        val moreX = lerp(largeMoreX, compactMoreX, pageProgress)
+        val leaveX = lerp(largeLeaveX, compactLeaveX, pageProgress)
+        val moreY = lerp(largeMoreY, compactTop + 2.dp, pageProgress)
+        val actionsAlpha = (1f - commentsProgress).coerceIn(0f, 1f)
 
         Box(
             modifier = Modifier
                 .offset(x = coverX, y = coverY)
                 .size(coverSize)
-                .then(artworkSharedModifier)
+                .then(artworkSharedModifier),
         ) {
             CoverImage(
                 music = music,
                 modifier = Modifier.fillMaxSize(),
                 coverUrlOverride = coverUrl,
                 artworkExpansionProgress = artworkExpansionProgress,
-                artworkCornerRadius = lerp(18.dp, 10.dp, compactProgress),
-                artworkElevation = lerp(24.dp, 4.dp, compactProgress),
+                artworkCornerRadius = if (movingToComments) {
+                    lerp(18.dp, 20.dp, commentsProgress)
+                } else {
+                    lerp(18.dp, 10.dp, pageProgress)
+                },
+                artworkElevation = if (movingToComments) {
+                    lerp(24.dp, 0.dp, commentsProgress)
+                } else {
+                    lerp(24.dp, 4.dp, pageProgress)
+                },
             )
         }
 
@@ -1963,14 +2014,30 @@ private fun PlayerPersistentVisualLayer(
                 .offset(x = textX, y = textY)
                 .width(textWidth),
             alignStart = true,
-            titleSize = lerp(22.sp, 16.sp, compactProgress),
-            titleLineHeight = lerp(27.sp, 20.sp, compactProgress),
-            artistSize = lerp(15.sp, 12.sp, compactProgress),
-            artistLineHeight = lerp(19.sp, 16.sp, compactProgress),
+            titleSize = if (movingToComments) {
+                lerp(22.sp, 14.sp, commentsProgress)
+            } else {
+                lerp(22.sp, 16.sp, pageProgress)
+            },
+            titleLineHeight = if (movingToComments) {
+                lerp(27.sp, 18.sp, commentsProgress)
+            } else {
+                lerp(27.sp, 20.sp, pageProgress)
+            },
+            artistSize = if (movingToComments) {
+                lerp(15.sp, 11.5.sp, commentsProgress)
+            } else {
+                lerp(15.sp, 12.sp, pageProgress)
+            },
+            artistLineHeight = if (movingToComments) {
+                lerp(19.sp, 15.sp, commentsProgress)
+            } else {
+                lerp(19.sp, 16.sp, pageProgress)
+            },
         )
 
         AnimatedVisibility(
-            visible = togetherActive,
+            visible = togetherActive && actionsAlpha > 0.01f,
             enter = fadeIn(tween(180)) +
                 scaleIn(initialScale = 0.82f, animationSpec = tween(220)),
             exit = fadeOut(tween(140)) +
@@ -1978,6 +2045,7 @@ private fun PlayerPersistentVisualLayer(
             modifier = Modifier
                 .offset(x = leaveX, y = moreY)
                 .size(44.dp)
+                .graphicsLayer { alpha = actionsAlpha },
         ) {
             PlayerTrackCircleActionButton(
                 isDarkTheme = dark,
@@ -1987,15 +2055,18 @@ private fun PlayerPersistentVisualLayer(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .offset(x = moreX, y = moreY)
-                .size(44.dp),
-        ) {
-            PlayerTrackMoreButton(
-                isDarkTheme = dark,
-                onClick = onMenuClick,
-            )
+        if (actionsAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .offset(x = moreX, y = moreY)
+                    .size(44.dp)
+                    .graphicsLayer { alpha = actionsAlpha },
+            ) {
+                PlayerTrackMoreButton(
+                    isDarkTheme = dark,
+                    onClick = onMenuClick,
+                )
+            }
         }
     }
 }
@@ -2659,10 +2730,148 @@ fun LyricsSongInfo(
         }
 
 @Composable
+private fun PlayerMiniPlayerBar(
+    modifier: Modifier = Modifier,
+    isDarkTheme: Boolean,
+    positionMillis: State<Long>,
+    durationMillis: Long,
+    isPlaying: Boolean,
+    isLoading: Boolean,
+    musicFileUrl: String?,
+    onPlayPauseClick: () -> Unit,
+    onNextClick: () -> Unit,
+    onOpenPlayer: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
+    val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+    val dockShape = RoundedCornerShape(28.dp)
+    val dockColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color(0xFF121216).copy(alpha = 0.90f) else Color.White.copy(alpha = 0.84f)
+    } else {
+        scheme.surfaceContainerHigh
+    }
+    val borderColor = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.92f)
+    } else {
+        scheme.outlineVariant
+    }
+    val primary = if (useLiquidStyle) {
+        if (isDarkTheme) Color.White else Color(0xFF17171A)
+    } else {
+        scheme.onSurface
+    }
+    val progressTarget = if (durationMillis > 0) {
+        (positionMillis.value.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val progress by animateFloatAsState(
+        targetValue = progressTarget,
+        animationSpec = tween(durationMillis = 160),
+        label = "mini_player_progress",
+    )
+
+    Box(
+        modifier = modifier
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.Transparent,
+                        baseColor.copy(alpha = 0.48f),
+                        baseColor.copy(alpha = 0.86f),
+                    ),
+                ),
+            )
+            .windowInsetsPadding(WindowInsets.navigationBars),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 5.dp)
+                .clip(dockShape)
+                .background(dockColor)
+                .border(0.6.dp, borderColor, dockShape),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenPlayer)
+                    .padding(start = 8.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 封面与歌曲文字来自持久播放视觉层，这里仅预留对应布局空间。
+                Spacer(modifier = Modifier.width(57.dp))
+                Spacer(modifier = Modifier.weight(1f))
+                PlayerTransportButton(
+                    onClick = onPlayPauseClick,
+                    size = 40.dp,
+                    background = if (useLiquidStyle) {
+                        if (isDarkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.045f)
+                    } else {
+                        scheme.surfaceContainer
+                    },
+                ) {
+                    when {
+                        isLoading -> MusicLoadingIndicator(
+                            color = primary,
+                            modifier = Modifier.size(width = 22.dp, height = 18.dp),
+                        )
+                        musicFileUrl == null -> Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = stringResource(id = R.string.loading),
+                            tint = primary.copy(alpha = 0.5f),
+                            modifier = Modifier.size(22.dp),
+                        )
+                        else -> Icon(
+                            painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
+                            contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
+                            tint = primary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                PlayerTransportButton(
+                    onClick = onNextClick,
+                    size = 38.dp,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.next_song),
+                        contentDescription = stringResource(id = R.string.next),
+                        tint = primary.copy(alpha = 0.86f),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .height(2.dp)
+                    .clip(CircleShape)
+                    .background(primary.copy(alpha = 0.12f)),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .height(2.dp)
+                        .background(primary.copy(alpha = 0.66f)),
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+    }
+}
+
+@Composable
 private fun PlayerBottomBar(
     modifier: Modifier = Modifier,
     isLandscape: Boolean,
+    compactForComments: Boolean,
     isDarkTheme: Boolean,
+    coverUrl: String?,
+    musicTitle: String,
+    musicArtist: String,
     positionMillis: State<Long>,
     durationMillis: Long,
     isLoading: Boolean,
@@ -2681,10 +2890,27 @@ private fun PlayerBottomBar(
     onPlaylistClick: () -> Unit,
     onPlayModeClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
+    onOpenPlayer: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val baseColor = if (isDarkTheme) Color(0xFF09090B) else Color(0xFFF5F5F7)
+
+    if (compactForComments) {
+        PlayerMiniPlayerBar(
+            modifier = modifier,
+            isDarkTheme = isDarkTheme,
+            positionMillis = positionMillis,
+            durationMillis = durationMillis,
+            isPlaying = isPlaying,
+            isLoading = isLoading || isBuffering,
+            musicFileUrl = musicFileUrl,
+            onPlayPauseClick = onPlayPauseClick,
+            onNextClick = onNextClick,
+            onOpenPlayer = onOpenPlayer,
+        )
+        return
+    }
 
     val backgroundBrush = if (useLiquidStyle) {
         Brush.verticalGradient(
