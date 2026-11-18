@@ -1895,9 +1895,10 @@ fun MainScreen() {
                 SearchResultScreen(
                     liquidBarState = searchLiquidBarState,
                     initialQuery = query,
-                    onBackClick = {
-                        Log.d("MainActivity", "从搜索页面返回")
-                        navController.popBackStack()
+                    onRecognitionClick = {
+                        navController.navigate("music_recognition") {
+                            launchSingleTop = true
+                        }
                     },
                     onMusicClick = { music ->
                         Log.d("MainActivity", "点击音乐: ${music.title}")

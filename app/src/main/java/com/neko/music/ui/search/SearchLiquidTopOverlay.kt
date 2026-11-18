@@ -35,7 +35,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -55,6 +54,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
@@ -78,7 +78,7 @@ import com.neko.music.ui.theme.isAppDarkTheme
 @Composable
 fun SearchLiquidTopOverlay(
     state: SearchLiquidBarState,
-    onBackClick: () -> Unit,
+    onRecognitionClick: () -> Unit,
     onBarHeightChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
     /** 与页内 [androidx.compose.ui.Modifier.layerBackdrop] 同一实例；与首页顶栏一致，避免仅依赖 Local 时取错。 */
@@ -102,7 +102,7 @@ fun SearchLiquidTopOverlay(
     val useLiquidTypeRow =
         backdropForGlass != null && isLiquidGlassEffectActive(backdropForGlass)
     val searchFieldHeight = if (useLiquidTypeRow) 50.dp else 56.dp
-    val backButtonSize = if (useLiquidTypeRow) 44.dp else 48.dp
+    val actionButtonSize = if (useLiquidTypeRow) 44.dp else 48.dp
     val typeOptions = listOf(
         "music" to singleText,
         "playlist" to playlistText,
@@ -138,33 +138,6 @@ fun SearchLiquidTopOverlay(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GlassSurface(
-                modifier = Modifier
-                    .size(backButtonSize),
-                shape = CircleShape,
-                material3Container = scheme.surfaceContainerHigh,
-                sampleBackdrop = backdropForGlass,
-                backgroundAlpha = iconButtonGlass.tint.background(isDark),
-                borderAlpha = iconButtonGlass.tint.border(isDark),
-                highlightAlpha = iconButtonGlass.tint.highlight(isDark),
-                borderColor = if (isDark) Color.White.copy(alpha = 0.16f) else scheme.outline,
-                liquidBlur = iconButtonGlass.liquid.blur,
-                liquidLensHeight = iconButtonGlass.liquid.lensHeight,
-                liquidLensAmount = iconButtonGlass.liquid.lensAmount,
-            ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(id = R.string.back),
-                        tint = if (isDark) Color.White.copy(alpha = 0.92f) else scheme.onSurface,
-                        modifier = Modifier.size(21.dp),
-                    )
-                }
-            }
-
             GlassSurface(
                 modifier = Modifier
                     .weight(1f)
@@ -245,6 +218,32 @@ fun SearchLiquidTopOverlay(
                             )
                         }
                     }
+                }
+            }
+
+            GlassSurface(
+                modifier = Modifier.size(actionButtonSize),
+                shape = CircleShape,
+                material3Container = scheme.surfaceContainerHigh,
+                sampleBackdrop = backdropForGlass,
+                backgroundAlpha = iconButtonGlass.tint.background(isDark),
+                borderAlpha = iconButtonGlass.tint.border(isDark),
+                highlightAlpha = iconButtonGlass.tint.highlight(isDark),
+                borderColor = if (isDark) Color.White.copy(alpha = 0.16f) else scheme.outline,
+                liquidBlur = iconButtonGlass.liquid.blur,
+                liquidLensHeight = iconButtonGlass.liquid.lensHeight,
+                liquidLensAmount = iconButtonGlass.liquid.lensAmount,
+            ) {
+                IconButton(
+                    onClick = onRecognitionClick,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_music_recognition),
+                        contentDescription = stringResource(id = R.string.music_recognition),
+                        tint = if (isDark) Color.White.copy(alpha = 0.92f) else scheme.onSurface,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             }
         }

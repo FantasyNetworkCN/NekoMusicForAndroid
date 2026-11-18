@@ -106,7 +106,7 @@ import kotlinx.coroutines.isActive
 fun SearchResultScreen(
     liquidBarState: SearchLiquidBarState,
     initialQuery: String = "",
-    onBackClick: () -> Unit,
+    onRecognitionClick: () -> Unit,
     onMusicClick: (Music) -> Unit,
     onPlaylistClick: (Int, String, String?, String?, String?, Int?) -> Unit = { _, _, _, _, _, _ -> },
     onArtistClick: (String, Int, String?) -> Unit = { _, _, _ -> },
@@ -318,7 +318,7 @@ fun SearchResultScreen(
         }
         SearchLiquidTopOverlay(
             state = liquidBarState,
-            onBackClick = onBackClick,
+            onRecognitionClick = onRecognitionClick,
             onBarHeightChanged = { barInsetPx = it },
             modifier = Modifier
                 .fillMaxWidth()
