@@ -1862,20 +1862,21 @@ private fun PlayerPersistentVisualLayer(
             pagerState.currentPageOffsetFraction.coerceIn(0f, 1f)
         else -> 0f
     }
-    val layerAlpha = when {
+    val commentsProgress = when {
         pagerState.currentPage == 0 ->
-            pagerState.currentPageOffsetFraction.coerceIn(0f, 1f)
+            (1f - pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
         pagerState.currentPage == 1 && pagerState.currentPageOffsetFraction < 0f ->
-            (1f + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
-        pagerState.currentPage == 0 -> 0f
-        else -> 1f
+            (-pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
+        else -> 0f
     }
-    if (layerAlpha <= 0.001f) return
 
     val dark = isAppDarkTheme()
     val density = LocalDensity.current
     BoxWithConstraints(modifier = modifier) {
         val statusTop = with(density) { WindowInsets.statusBars.getTop(density).toDp() }
+        val navigationBottom = with(density) {
+            WindowInsets.navigationBars.getBottom(density).toDp()
+        }
         val contentTop = statusTop +
             (if (isLandscape) 52.dp else 64.dp) +
             (if (togetherActive) 52.dp else 0.dp)
@@ -1905,6 +1906,12 @@ private fun PlayerPersistentVisualLayer(
         val compactMoreX = maxWidth - 16.dp - trailingWidth
         val compactLeaveX = compactMoreX + 50.dp
         val compactTextWidth = (compactMoreX - 12.dp - compactTextX).coerceAtLeast(1.dp)
+        val commentsCoverSize = 46.dp
+        val commentsCoverX = 24.dp
+        val commentsCoverY = (maxHeight - navigationBottom - 67.dp).coerceAtLeast(0.dp)
+        val commentsTextX = commentsCoverX + commentsCoverSize + 11.dp
+        val commentsTextY = commentsCoverY + 7.dp
+        val commentsTextWidth = (maxWidth - commentsTextX - 100.dp).coerceAtLeast(1.dp)
 
         val largeCoverX: Dp
         val largeCoverY: Dp
@@ -1933,32 +1940,65 @@ private fun PlayerPersistentVisualLayer(
         val largeTextWidth = (largeBlockWidth - trailingWidth - 12.dp)
             .coerceAtLeast(1.dp)
 
-        val coverSize = lerp(largeCoverSize, compactCoverSize, pageProgress)
-        val coverX = lerp(largeCoverX, compactCoverX, pageProgress)
-        val coverY = lerp(largeCoverY, compactTop, pageProgress)
-        val textX = lerp(largeTextX, compactTextX, pageProgress)
-        val textY = lerp(largeTextY, compactTop + 3.dp, pageProgress)
-        val textWidth = lerp(largeTextWidth, compactTextWidth, pageProgress)
+        val movingToComments = commentsProgress > 0.001f
+        val coverSize = if (movingToComments) {
+            lerp(largeCoverSize, commentsCoverSize, commentsProgress)
+        } else {
+            lerp(largeCoverSize, compactCoverSize, pageProgress)
+        }
+        val coverX = if (movingToComments) {
+            lerp(largeCoverX, commentsCoverX, commentsProgress)
+        } else {
+            lerp(largeCoverX, compactCoverX, pageProgress)
+        }
+        val coverY = if (movingToComments) {
+            lerp(largeCoverY, commentsCoverY, commentsProgress)
+        } else {
+            lerp(largeCoverY, compactTop, pageProgress)
+        }
+        val textX = if (movingToComments) {
+            lerp(largeTextX, commentsTextX, commentsProgress)
+        } else {
+            lerp(largeTextX, compactTextX, pageProgress)
+        }
+        val textY = if (movingToComments) {
+            lerp(largeTextY, commentsTextY, commentsProgress)
+        } else {
+            lerp(largeTextY, compactTop + 3.dp, pageProgress)
+        }
+        val textWidth = if (movingToComments) {
+            lerp(largeTextWidth, commentsTextWidth, commentsProgress)
+        } else {
+            lerp(largeTextWidth, compactTextWidth, pageProgress)
+        }
         val largeMoreX = largeTextX + largeBlockWidth - trailingWidth
         val largeLeaveX = largeMoreX + 50.dp
         val largeMoreY = largeTextY + 5.dp
         val moreX = lerp(largeMoreX, compactMoreX, pageProgress)
         val leaveX = lerp(largeLeaveX, compactLeaveX, pageProgress)
         val moreY = lerp(largeMoreY, compactTop + 2.dp, pageProgress)
+        val actionsAlpha = (1f - commentsProgress).coerceIn(0f, 1f)
 
         Box(
             modifier = Modifier
                 .offset(x = coverX, y = coverY)
                 .size(coverSize)
                 .then(artworkSharedModifier)
-                .graphicsLayer { alpha = layerAlpha },
         ) {
             CoverImage(
                 music = music,
                 modifier = Modifier.fillMaxSize(),
                 artworkExpansionProgress = artworkExpansionProgress,
-                artworkCornerRadius = lerp(18.dp, 10.dp, pageProgress),
-                artworkElevation = lerp(24.dp, 4.dp, pageProgress),
+                artworkCornerRadius = if (movingToComments) {
+                    lerp(18.dp, 20.dp, commentsProgress)
+                } else {
+                    lerp(18.dp, 10.dp, pageProgress)
+                },
+                artworkElevation = if (movingToComments) {
+                    lerp(24.dp, 0.dp, commentsProgress)
+                } else {
+                    lerp(24.dp, 4.dp, pageProgress)
+                },
             )
         }
 
@@ -1966,17 +2006,32 @@ private fun PlayerPersistentVisualLayer(
             music = music,
             modifier = Modifier
                 .offset(x = textX, y = textY)
-                .width(textWidth)
-                .graphicsLayer { alpha = layerAlpha },
+                .width(textWidth),
             alignStart = true,
-            titleSize = lerp(22.sp, 16.sp, pageProgress),
-            titleLineHeight = lerp(27.sp, 20.sp, pageProgress),
-            artistSize = lerp(15.sp, 12.sp, pageProgress),
-            artistLineHeight = lerp(19.sp, 16.sp, pageProgress),
+            titleSize = if (movingToComments) {
+                lerp(22.sp, 14.sp, commentsProgress)
+            } else {
+                lerp(22.sp, 16.sp, pageProgress)
+            },
+            titleLineHeight = if (movingToComments) {
+                lerp(27.sp, 18.sp, commentsProgress)
+            } else {
+                lerp(27.sp, 20.sp, pageProgress)
+            },
+            artistSize = if (movingToComments) {
+                lerp(15.sp, 11.5.sp, commentsProgress)
+            } else {
+                lerp(15.sp, 12.sp, pageProgress)
+            },
+            artistLineHeight = if (movingToComments) {
+                lerp(19.sp, 15.sp, commentsProgress)
+            } else {
+                lerp(19.sp, 16.sp, pageProgress)
+            },
         )
 
         AnimatedVisibility(
-            visible = togetherActive,
+            visible = togetherActive && actionsAlpha > 0.01f,
             enter = fadeIn(tween(180)) +
                 scaleIn(initialScale = 0.82f, animationSpec = tween(220)),
             exit = fadeOut(tween(140)) +
@@ -1984,7 +2039,7 @@ private fun PlayerPersistentVisualLayer(
             modifier = Modifier
                 .offset(x = leaveX, y = moreY)
                 .size(44.dp)
-                .graphicsLayer { alpha = layerAlpha },
+                .graphicsLayer { alpha = actionsAlpha },
         ) {
             PlayerTrackCircleActionButton(
                 isDarkTheme = dark,
@@ -1994,16 +2049,18 @@ private fun PlayerPersistentVisualLayer(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .offset(x = moreX, y = moreY)
-                .size(44.dp)
-                .graphicsLayer { alpha = layerAlpha },
-        ) {
-            PlayerTrackMoreButton(
-                isDarkTheme = dark,
-                onClick = onMenuClick,
-            )
+        if (actionsAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .offset(x = moreX, y = moreY)
+                    .size(44.dp)
+                    .graphicsLayer { alpha = actionsAlpha },
+            ) {
+                PlayerTrackMoreButton(
+                    isDarkTheme = dark,
+                    onClick = onMenuClick,
+                )
+            }
         }
     }
 }
@@ -2641,9 +2698,6 @@ fun LyricsSongInfo(
 private fun PlayerMiniPlayerBar(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean,
-    coverUrl: String?,
-    musicTitle: String,
-    musicArtist: String,
     positionMillis: State<Long>,
     durationMillis: Long,
     isPlaying: Boolean,
@@ -2671,11 +2725,6 @@ private fun PlayerMiniPlayerBar(
         if (isDarkTheme) Color.White else Color(0xFF17171A)
     } else {
         scheme.onSurface
-    }
-    val secondary = if (useLiquidStyle) {
-        if (isDarkTheme) Color.White.copy(alpha = 0.56f) else Color(0xFF6E6E73)
-    } else {
-        scheme.onSurfaceVariant
     }
     val progressTarget = if (durationMillis > 0) {
         (positionMillis.value.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
@@ -2716,52 +2765,9 @@ private fun PlayerMiniPlayerBar(
                     .padding(start = 8.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                val coverShape = RoundedCornerShape(20.dp)
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(coverShape)
-                        .background(if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
-                        .border(0.5.dp, borderColor.copy(alpha = 0.72f), coverShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (!coverUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = coverUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(R.drawable.music),
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(11.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = musicTitle,
-                        color = primary,
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = (-0.15).sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = musicArtist,
-                        color = secondary,
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                // 封面与歌曲文字来自持久播放视觉层，这里仅预留对应布局空间。
+                Spacer(modifier = Modifier.width(57.dp))
+                Spacer(modifier = Modifier.weight(1f))
                 PlayerTransportButton(
                     onClick = onPlayPauseClick,
                     size = 40.dp,
@@ -2859,9 +2865,6 @@ private fun PlayerBottomBar(
         PlayerMiniPlayerBar(
             modifier = modifier,
             isDarkTheme = isDarkTheme,
-            coverUrl = coverUrl,
-            musicTitle = musicTitle,
-            musicArtist = musicArtist,
             positionMillis = positionMillis,
             durationMillis = durationMillis,
             isPlaying = isPlaying,
