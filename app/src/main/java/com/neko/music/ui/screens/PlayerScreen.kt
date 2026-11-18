@@ -980,15 +980,10 @@ fun PlayerScreen(
                     .statusBarsPadding()
                     .padding(bottom = bottomGlassReserve),
             ) {
-                // 顶栏只保留抓取条；一起听时额外为退出按钮留出空间。
-                val hasTopHeader = pagerState.currentPage == 2
-                val topOverlayReserve = when {
-                    isLandscape && hasTopHeader -> 96.dp
-                    isLandscape -> 52.dp
-                    hasTopHeader -> 100.dp
-                    else -> 64.dp
-                }
-                Spacer(modifier = Modifier.height(topOverlayReserve))
+                PlayerTopReserve(
+                    isLandscape = isLandscape,
+                    lyricsHeaderVisible = pagerState.currentPage == 2,
+                )
 
                 if (togetherActive) {
                     Box(
@@ -1760,6 +1755,25 @@ fun PlayerScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PlayerTopReserve(
+    isLandscape: Boolean,
+    lyricsHeaderVisible: Boolean,
+) {
+    val collapsedHeight = if (isLandscape) 52.dp else 64.dp
+    val expandedHeight = if (isLandscape) 96.dp else 100.dp
+    val reserveHeight by animateDpAsState(
+        targetValue = if (lyricsHeaderVisible) expandedHeight else collapsedHeight,
+        animationSpec = spring(
+            dampingRatio = 0.9f,
+            stiffness = 360f,
+            visibilityThreshold = 0.5.dp,
+        ),
+        label = "player_top_reserve",
+    )
+    Spacer(modifier = Modifier.height(reserveHeight))
 }
 
 @Composable
