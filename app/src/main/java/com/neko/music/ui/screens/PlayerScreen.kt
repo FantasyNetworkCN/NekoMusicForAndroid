@@ -2814,16 +2814,16 @@ private fun PlayerBottomBar(
                         durationMillis = durationMillis,
                         isLoading = isLoading,
                         compact = true,
+                        audioQuality = audioQuality,
+                        maxQuality = maxQuality,
+                        onQualitySelected = onQualitySelected,
                         onProgressChange = onProgressChange,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     PlayerUtilityRow(
                         isDarkTheme = isDarkTheme,
-                        audioQuality = audioQuality,
-                        maxQuality = maxQuality,
                         compact = true,
                         onPlaylistClick = onPlaylistClick,
-                        onQualitySelected = onQualitySelected,
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -2852,6 +2852,9 @@ private fun PlayerBottomBar(
                     positionMillis = positionMillis,
                     durationMillis = durationMillis,
                     isLoading = isLoading,
+                    audioQuality = audioQuality,
+                    maxQuality = maxQuality,
+                    onQualitySelected = onQualitySelected,
                     onProgressChange = onProgressChange,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -2870,10 +2873,7 @@ private fun PlayerBottomBar(
                 Spacer(modifier = Modifier.height(18.dp))
                 PlayerUtilityRow(
                     isDarkTheme = isDarkTheme,
-                    audioQuality = audioQuality,
-                    maxQuality = maxQuality,
                     onPlaylistClick = onPlaylistClick,
-                    onQualitySelected = onQualitySelected,
                 )
             }
         }
@@ -2883,11 +2883,8 @@ private fun PlayerBottomBar(
 @Composable
 private fun PlayerUtilityRow(
     isDarkTheme: Boolean,
-    audioQuality: AudioQuality,
-    maxQuality: String,
     compact: Boolean = false,
     onPlaylistClick: () -> Unit,
-    onQualitySelected: (AudioQuality) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -2906,7 +2903,7 @@ private fun PlayerUtilityRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(if (useLiquidStyle) (if (compact) 26.dp else 32.dp) else 40.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -2923,13 +2920,6 @@ private fun PlayerUtilityRow(
             )
         }
 
-        AudioQualitySelector(
-            selected = audioQuality,
-            maxQuality = maxQuality,
-            onSelected = onQualitySelected,
-            compact = useLiquidStyle,
-        )
-
     }
 }
 
@@ -2940,6 +2930,9 @@ fun ProgressSlider(
     durationMillis: Long,
     isLoading: Boolean,
     compact: Boolean = false,
+    audioQuality: AudioQuality? = null,
+    maxQuality: String = "",
+    onQualitySelected: (AudioQuality) -> Unit = {},
     onProgressChange: (Float) -> Unit,
 ) {
     val position = positionMillis.value
@@ -3021,12 +3014,11 @@ fun ProgressSlider(
                 )
             }
         }
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(30.dp)
                 .padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = currentTime,
@@ -3034,13 +3026,24 @@ fun ProgressSlider(
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.2.sp,
                 color = timeColor,
+                modifier = Modifier.align(Alignment.CenterStart),
             )
+            if (audioQuality != null) {
+                AudioQualitySelector(
+                    selected = audioQuality,
+                    maxQuality = maxQuality,
+                    onSelected = onQualitySelected,
+                    compact = true,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
             Text(
                 text = totalTime,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.2.sp,
                 color = timeColor,
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
         }
     }
@@ -3399,25 +3402,35 @@ private fun AudioQualitySelector(
     maxQuality: String,
     onSelected: (AudioQuality) -> Unit,
     compact: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "audio_quality_press",
+    )
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val isDarkTheme = isAppDarkTheme()
     val foreground = if (!useLiquidStyle) {
-        scheme.onSurfaceVariant
+        scheme.onSurface.copy(alpha = 0.72f)
     } else if (isDarkTheme) {
-        Color.White.copy(alpha = if (compact) 0.48f else 0.62f)
+        Color.White.copy(alpha = 0.82f)
     } else {
-        Color(0xFF6E6E73).copy(alpha = if (compact) 0.66f else 1f)
+        Color(0xFF3A3A3C).copy(alpha = 0.82f)
     }
     val pillBackground = if (!useLiquidStyle) {
         scheme.surfaceContainerHigh
-    } else if (compact) {
-        if (isDarkTheme) Color.White.copy(alpha = 0.055f) else Color.Black.copy(alpha = 0.035f)
     } else {
-        if (isDarkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.045f)
+        if (isDarkTheme) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.05f)
     }
+    val pillShape = RoundedCornerShape(if (compact) 7.dp else 8.dp)
     val maxRank = when (maxQuality.lowercase()) {
         "standard" -> 0
         "sq" -> 2
@@ -3430,31 +3443,43 @@ private fun AudioQualitySelector(
         AudioQuality.SQ -> "SQ"
         AudioQuality.HIRES -> "Hi-Res"
     }
-    Box {
+    Box(modifier = modifier) {
         Row(
             modifier = Modifier
-                .clickable { expanded = true }
-                .clip(CircleShape)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
+                .height(if (compact) 28.dp else 32.dp)
+                .clip(pillShape)
                 .background(pillBackground)
+                .border(
+                    width = 0.5.dp,
+                    color = foreground.copy(alpha = 0.10f),
+                    shape = pillShape,
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                ) { expanded = true }
                 .padding(
-                    horizontal = if (compact) 7.dp else 9.dp,
-                    vertical = if (compact) 2.dp else 4.dp,
+                    horizontal = if (compact) 9.dp else 10.dp,
                 ),
-            horizontalArrangement = Arrangement.spacedBy(1.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = selectedLabel,
-                fontSize = if (compact) 9.5.sp else 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.1.sp,
+                fontSize = if (compact) 10.5.sp else 11.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.sp,
                 color = foreground,
             )
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = null,
-                tint = foreground.copy(alpha = 0.78f),
-                modifier = Modifier.size(if (compact) 14.dp else 18.dp),
+                tint = foreground.copy(alpha = 0.64f),
+                modifier = Modifier.size(if (compact) 14.dp else 16.dp),
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
