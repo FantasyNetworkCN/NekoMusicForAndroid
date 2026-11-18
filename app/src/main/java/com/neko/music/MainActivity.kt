@@ -101,7 +101,7 @@ import com.neko.music.ui.components.BottomSearchButton
 import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
-import com.neko.music.ui.components.MiniPlayer
+import com.neko.music.ui.components.MeloXMiniPlayer
 import com.neko.music.ui.components.PlayerPresentationHost
 import com.neko.music.ui.home.HomeLiquidHeroOverlay
 import com.neko.music.ui.home.HomeLiquidHeroState
@@ -589,24 +589,6 @@ fun MainScreen() {
     val currentMusicCover by playerManager.currentMusicCover.collectAsState()
     val currentMusicId by playerManager.currentMusicId.collectAsState()
     val duration by playerManager.duration.collectAsState()
-
-    // 计算播放进度
-    val progress =
-        androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-
-    // 进度是 10Hz 高频状态。直接在组合作用域读取 currentPosition 会让整个 MainActivity
-    // （包括所有液态玻璃层）每 100ms 重组一次，因此只在协程中合并两个 Flow。
-    androidx.compose.runtime.LaunchedEffect(playerManager) {
-        kotlinx.coroutines.flow.combine(
-            playerManager.currentPosition,
-            playerManager.duration,
-        ) { position, trackDuration ->
-            if (trackDuration > 0) position.toFloat() / trackDuration else 0f
-        }.collect { value ->
-            progress.floatValue = value
-        }
-    }
-    val miniPlayerProgress = remember(progress) { { progress.floatValue } }
 
     // 播放页使用独立的交互式呈现层，导航路由只负责返回栈语义。
     // 上滑/下滑期间直接驱动 progress，松开后再提交路由或收起页面。
@@ -1986,7 +1968,7 @@ fun MainScreen() {
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.Bottom,
                         ) {
-                            MiniPlayer(
+                            MeloXMiniPlayer(
                                 modifier = Modifier
                                     .weight(1f)
                                     .onGloballyPositioned {
@@ -1997,15 +1979,17 @@ fun MainScreen() {
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
-                                progress = miniPlayerProgress,
                                 onPlayPauseClick = {
                                     if (togetherActive) TogetherSessionManager.toggle()
                                     else playerManager.togglePlayPause()
                                 },
+                                onNextClick = {
+                                    if (togetherActive) TogetherSessionManager.next()
+                                    else playerManager.next()
+                                },
                                 onPlayerClick = {
                                     openPlayer(currentMusicForPresentation())
                                 },
-                                onPlaylistClick = { showPlaylist = true },
                                 onPlayerDragStart = { beginPlayerOpenDrag() },
                                 onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
                                 onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
@@ -2037,7 +2021,7 @@ fun MainScreen() {
                             ),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            MiniPlayer(
+                            MeloXMiniPlayer(
                                 modifier = Modifier.onGloballyPositioned {
                                     miniPlayerTopPx = it.boundsInRoot().top
                                     miniPlayerBounds = it.boundsInRoot()
@@ -2046,15 +2030,17 @@ fun MainScreen() {
                                 songTitle = currentMusicTitle ?: "暂无播放",
                                 artist = currentMusicArtist ?: "",
                                 coverUrl = currentMusicCover,
-                                progress = miniPlayerProgress,
                                 onPlayPauseClick = {
                                     if (togetherActive) TogetherSessionManager.toggle()
                                     else playerManager.togglePlayPause()
                                 },
+                                onNextClick = {
+                                    if (togetherActive) TogetherSessionManager.next()
+                                    else playerManager.next()
+                                },
                                 onPlayerClick = {
                                     openPlayer(currentMusicForPresentation())
                                 },
-                                onPlaylistClick = { showPlaylist = true },
                                 onPlayerDragStart = { beginPlayerOpenDrag() },
                                 onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
                                 onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
