@@ -34,6 +34,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
@@ -120,6 +122,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -907,7 +911,7 @@ fun PlayerScreen(
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    RoseRed.copy(alpha = if (isDarkTheme) 0.12f else 0.07f),
+                                    Color.White.copy(alpha = if (isDarkTheme) 0.08f else 0.24f),
                                     Color.Transparent,
                                 ),
                             ),
@@ -970,7 +974,9 @@ fun PlayerScreen(
                     .statusBarsPadding()
                     .padding(bottom = bottomGlassReserve),
             ) {
-                Spacer(modifier = Modifier.height(if (isLandscape) 48.dp else 76.dp))
+                // 给顶部抓取条 + Apple 风格导航行留出稳定空间，避免评论页和封面页内容
+                // 被悬浮头层压住。
+                Spacer(modifier = Modifier.height(if (isLandscape) 88.dp else 100.dp))
 
                 if (togetherActive) {
                     Box(
@@ -1058,15 +1064,24 @@ fun PlayerScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            Box(
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .zIndex(2f)
                     .statusBarsPadding()
-                    .padding(horizontal = if (isLandscape) 28.dp else 16.dp, vertical = 6.dp)
+                    .padding(horizontal = if (isLandscape) 28.dp else 16.dp)
                     .then(if (pagerState.currentPage != 1) dismissDragModifier else Modifier)
             ) {
+                PlayerSceneGrabber(
+                    isDarkTheme = isDarkTheme,
+                    onDismiss = onBackClick,
+                    dragModifier = if (pagerState.currentPage == 1) {
+                        dismissDragModifier
+                    } else {
+                        Modifier
+                    },
+                )
                 TopBar(
                     isDarkTheme = isDarkTheme,
                     onBackClick = onBackClick,
@@ -1737,6 +1752,56 @@ fun PlayerScreen(
 }
 
 @Composable
+private fun PlayerSceneGrabber(
+    isDarkTheme: Boolean,
+    onDismiss: () -> Unit,
+    dragModifier: Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val handleScale by animateFloatAsState(
+        targetValue = if (pressed) 0.88f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "player_scene_grabber_scale",
+    )
+    val handleColor = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.56f)
+    } else {
+        Color.Black.copy(alpha = 0.22f)
+    }
+    val dismissDescription = stringResource(R.string.player_dismiss)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .then(dragModifier)
+            .semantics { contentDescription = dismissDescription }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 7.dp)
+                .size(width = 68.dp, height = 5.dp)
+                .graphicsLayer {
+                    scaleX = handleScale
+                    scaleY = handleScale
+                }
+                .clip(CircleShape)
+                .background(handleColor),
+        )
+    }
+}
+
+@Composable
 fun TopBar(
     isDarkTheme: Boolean,
     onBackClick: () -> Unit,
@@ -1745,6 +1810,7 @@ fun TopBar(
     onMenuClick: () -> Unit,
     togetherActive: Boolean = false,
     onLeaveTogetherClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val foreground = if (useLiquidStyle) {
@@ -1752,58 +1818,64 @@ fun TopBar(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-    Row(
-        modifier = Modifier
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .height(60.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .height(56.dp),
     ) {
         PlayerGlassIconButton(
             onClick = onBackClick,
             isDarkTheme = isDarkTheme,
+            modifier = Modifier.align(Alignment.CenterStart),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_chevron_left),
                 contentDescription = stringResource(id = R.string.back),
                 tint = foreground,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier
+                    .size(21.dp)
+                    .rotate(-90f),
             )
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
 
         Text(
             text = stringResource(id = R.string.now_playing),
             color = foreground.copy(alpha = 0.94f),
-            fontSize = 15.sp,
-            lineHeight = 20.sp,
+            fontSize = 16.sp,
+            lineHeight = 21.sp,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.1).sp,
+            letterSpacing = (-0.2).sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp),
+                .align(Alignment.Center)
+                .padding(horizontal = 72.dp),
+            textAlign = TextAlign.Center,
         )
 
-        PlayerTopActionsPill(
-            isDarkTheme = isDarkTheme,
-            onCommentsClick = onCommentsClick,
-            onLyricsClick = onLyricsClick,
-            onMenuClick = onMenuClick,
-        )
-        if (togetherActive) {
-            Spacer(modifier = Modifier.width(6.dp))
-            PlayerGlassIconButton(
-                onClick = onLeaveTogetherClick,
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlayerTopActionsPill(
                 isDarkTheme = isDarkTheme,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.logout),
-                    contentDescription = stringResource(R.string.together_leave),
-                    tint = foreground,
-                    modifier = Modifier.size(20.dp),
-                )
+                onCommentsClick = onCommentsClick,
+                onLyricsClick = onLyricsClick,
+                onMenuClick = onMenuClick,
+            )
+            if (togetherActive) {
+                Spacer(modifier = Modifier.width(6.dp))
+                PlayerGlassIconButton(
+                    onClick = onLeaveTogetherClick,
+                    isDarkTheme = isDarkTheme,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.logout),
+                        contentDescription = stringResource(R.string.together_leave),
+                        tint = foreground,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
     }
@@ -1892,12 +1964,13 @@ private fun PlayerTopActionsPill(
 private fun PlayerGlassIconButton(
     onClick: () -> Unit,
     isDarkTheme: Boolean,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val glass = LiquidGlassDefaults.playerTopBar
     val scheme = MaterialTheme.colorScheme
     GlassSurface(
-        modifier = Modifier.size(44.dp),
+        modifier = modifier.size(44.dp),
         shape = CircleShape,
         backgroundAlpha = glass.tint.background(isDarkTheme),
         borderAlpha = glass.tint.border(isDarkTheme),

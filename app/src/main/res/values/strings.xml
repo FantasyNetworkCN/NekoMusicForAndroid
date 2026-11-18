@@ -333,6 +333,7 @@
     <string name="desktop_lyric_permission_message">为了在桌面上跳舞，\n猫娘需要悬浮窗权限喵！</string>
 
     <string name="now_playing">正在哼唱喵</string>
+    <string name="player_dismiss">收起播放页喵</string>
     <string name="cover">封面喵</string>
     <string name="player_tab_lyrics">歌词</string>
     <string name="player_play_mode">播放模式</string>
