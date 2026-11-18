@@ -108,7 +108,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -974,9 +973,14 @@ fun PlayerScreen(
                     .statusBarsPadding()
                     .padding(bottom = bottomGlassReserve),
             ) {
-                // 给顶部抓取条 + Apple 风格导航行留出稳定空间，避免评论页和封面页内容
-                // 被悬浮头层压住。
-                Spacer(modifier = Modifier.height(if (isLandscape) 88.dp else 100.dp))
+                // 顶栏只保留抓取条；一起听时额外为退出按钮留出空间。
+                val topOverlayReserve = when {
+                    isLandscape && togetherActive -> 88.dp
+                    isLandscape -> 52.dp
+                    togetherActive -> 96.dp
+                    else -> 64.dp
+                }
+                Spacer(modifier = Modifier.height(topOverlayReserve))
 
                 if (togetherActive) {
                     Box(
@@ -1028,6 +1032,7 @@ fun PlayerScreen(
                                 togetherActive = togetherActive,
                                 artworkSharedModifier = artworkSharedModifier,
                                 artworkExpansionProgress = artworkExpansionProgress,
+                                onMenuClick = { showShareDialog = true },
                             )
                         }
 
@@ -1082,24 +1087,19 @@ fun PlayerScreen(
                         Modifier
                     },
                 )
-                TopBar(
-                    isDarkTheme = isDarkTheme,
-                    onBackClick = onBackClick,
-                    onCommentsClick = onCommentClick,
-                    onLyricsClick = {
-                        scope.launch { pagerState.animateScrollToPage(2) }
-                    },
-                    onMenuClick = { showShareDialog = true },
-                    togetherActive = togetherActive,
-                    onLeaveTogetherClick = {
-                        TogetherSessionManager.leave()
-                        Toast.makeText(
-                            context,
-                            R.string.together_left,
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                )
+                if (togetherActive) {
+                    TopBar(
+                        isDarkTheme = isDarkTheme,
+                        onLeaveTogetherClick = {
+                            TogetherSessionManager.leave()
+                            Toast.makeText(
+                                context,
+                                R.string.together_left,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -1137,7 +1137,6 @@ fun PlayerScreen(
                         playMode
                     },
                     isFavorite = isFavorite,
-                    isDesktopLyricEnabled = isDesktopLyricEnabled,
                     audioQuality = audioQuality,
                     maxQuality = maxQuality,
                     onProgressChange = { value ->
@@ -1169,7 +1168,6 @@ fun PlayerScreen(
                         else playerManager.togglePlayMode()
                     },
                     onQualitySelected = { playerManager.setAudioQuality(it) },
-                    onDesktopLyricClick = toggleDesktopLyric,
                     onOpenPlayer = {
                         scope.launch { pagerState.animateScrollToPage(1) }
                     },
@@ -1178,6 +1176,8 @@ fun PlayerScreen(
             if (showShareDialog) {
                 ShareDialog(
                     music = currentMusic,
+                    isDesktopLyricEnabled = isDesktopLyricEnabled,
+                    onDesktopLyricClick = toggleDesktopLyric,
                     onDismiss = { showShareDialog = false },
                     onCopyLink = {
                         scope.launch {
@@ -1804,11 +1804,6 @@ private fun PlayerSceneGrabber(
 @Composable
 fun TopBar(
     isDarkTheme: Boolean,
-    onBackClick: () -> Unit,
-    onCommentsClick: () -> Unit,
-    onLyricsClick: () -> Unit,
-    onMenuClick: () -> Unit,
-    togetherActive: Boolean = false,
     onLeaveTogetherClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -1818,144 +1813,23 @@ fun TopBar(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp),
+            .height(44.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         PlayerGlassIconButton(
-            onClick = onBackClick,
+            onClick = onLeaveTogetherClick,
             isDarkTheme = isDarkTheme,
-            modifier = Modifier.align(Alignment.CenterStart),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_chevron_left),
-                contentDescription = stringResource(id = R.string.back),
+                painter = painterResource(R.drawable.logout),
+                contentDescription = stringResource(R.string.together_leave),
                 tint = foreground,
-                modifier = Modifier
-                    .size(21.dp)
-                    .rotate(-90f),
+                modifier = Modifier.size(20.dp),
             )
-        }
-
-        Text(
-            text = stringResource(id = R.string.now_playing),
-            color = foreground.copy(alpha = 0.94f),
-            fontSize = 16.sp,
-            lineHeight = 21.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = (-0.2).sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 72.dp),
-            textAlign = TextAlign.Center,
-        )
-
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PlayerTopActionsPill(
-                isDarkTheme = isDarkTheme,
-                onCommentsClick = onCommentsClick,
-                onLyricsClick = onLyricsClick,
-                onMenuClick = onMenuClick,
-            )
-            if (togetherActive) {
-                Spacer(modifier = Modifier.width(6.dp))
-                PlayerGlassIconButton(
-                    onClick = onLeaveTogetherClick,
-                    isDarkTheme = isDarkTheme,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.logout),
-                        contentDescription = stringResource(R.string.together_leave),
-                        tint = foreground,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerTopActionsPill(
-    isDarkTheme: Boolean,
-    onCommentsClick: () -> Unit,
-    onLyricsClick: () -> Unit,
-    onMenuClick: () -> Unit,
-) {
-    val glass = LiquidGlassDefaults.playerTopBar
-    val scheme = MaterialTheme.colorScheme
-    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
-    val foreground = if (useLiquidStyle) {
-        if (isDarkTheme) Color.White else Color(0xFF17171A)
-    } else {
-        scheme.onSurface
-    }
-    GlassSurface(
-        modifier = Modifier
-            .width(136.dp)
-            .height(44.dp),
-        shape = RoundedCornerShape(22.dp),
-        backgroundAlpha = glass.tint.background(isDarkTheme),
-        borderAlpha = glass.tint.border(isDarkTheme),
-        highlightAlpha = glass.tint.highlight(isDarkTheme),
-        borderColor = if (isDarkTheme) Color.White else Color(0xFF1C1C1E),
-        liquidBlur = glass.liquid.blur,
-        liquidLensHeight = glass.liquid.lensHeight,
-        liquidLensAmount = glass.liquid.lensAmount,
-        material3Shape = RoundedCornerShape(22.dp),
-        material3Container = scheme.surfaceContainerHigh,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable(onClick = onCommentsClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_comments_glass),
-                    contentDescription = stringResource(id = R.string.comment_title),
-                    tint = foreground.copy(alpha = 0.88f),
-                    modifier = Modifier.size(19.dp),
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .width(48.dp)
-                    .height(44.dp)
-                    .clickable(onClick = onLyricsClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(id = R.string.player_tab_lyrics),
-                    color = foreground.copy(alpha = 0.88f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable(onClick = onMenuClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_more_horizontal),
-                    contentDescription = stringResource(id = R.string.more),
-                    tint = foreground.copy(alpha = 0.88f),
-                    modifier = Modifier.size(21.dp),
-                )
-            }
         }
     }
 }
@@ -2014,6 +1888,7 @@ private fun NowPlayingCoverPage(
     togetherActive: Boolean,
     artworkSharedModifier: Modifier,
     artworkExpansionProgress: () -> Float,
+    onMenuClick: () -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
@@ -2043,6 +1918,7 @@ private fun NowPlayingCoverPage(
                     music = music,
                     modifier = Modifier.weight(1f),
                     alignStart = true,
+                    onMenuClick = onMenuClick,
                 )
             }
         } else {
@@ -2070,6 +1946,7 @@ private fun NowPlayingCoverPage(
                     music = music,
                     modifier = Modifier.width(artworkSize),
                     alignStart = true,
+                    onMenuClick = onMenuClick,
                 )
             }
         }
@@ -2081,6 +1958,7 @@ private fun NowPlayingIdentity(
     music: Music,
     modifier: Modifier = Modifier,
     alignStart: Boolean = false,
+    onMenuClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -2098,34 +1976,51 @@ private fun NowPlayingIdentity(
     val contentAlignment = if (alignStart) Alignment.Start else Alignment.CenterHorizontally
     val textAlignment = if (alignStart) TextAlign.Start else TextAlign.Center
 
-    Column(
+    Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = contentAlignment,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = music.title,
-            color = title,
-            fontSize = 24.sp,
-            lineHeight = 29.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.45).sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = textAlignment,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = music.artist,
-            color = secondary,
-            fontSize = 16.sp,
-            lineHeight = 20.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = textAlignment,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = contentAlignment,
+        ) {
+            Text(
+                text = music.title,
+                color = title,
+                fontSize = 24.sp,
+                lineHeight = 29.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.45).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = textAlignment,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = music.artist,
+                color = secondary,
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = textAlignment,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        PlayerGlassIconButton(
+            onClick = onMenuClick,
+            isDarkTheme = dark,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_more_horizontal),
+                contentDescription = stringResource(id = R.string.more),
+                tint = title.copy(alpha = 0.9f),
+                modifier = Modifier.size(21.dp),
+            )
+        }
     }
 }
 
@@ -2845,7 +2740,6 @@ private fun PlayerBottomBar(
     musicFileUrl: String?,
     playMode: PlayMode,
     isFavorite: Boolean,
-    isDesktopLyricEnabled: Boolean,
     audioQuality: AudioQuality,
     maxQuality: String,
     onProgressChange: (Float) -> Unit,
@@ -2856,7 +2750,6 @@ private fun PlayerBottomBar(
     onPlaylistClick: () -> Unit,
     onPlayModeClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
-    onDesktopLyricClick: () -> Unit,
     onOpenPlayer: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -2926,13 +2819,11 @@ private fun PlayerBottomBar(
                     Spacer(modifier = Modifier.height(2.dp))
                     PlayerUtilityRow(
                         isDarkTheme = isDarkTheme,
-                        isDesktopLyricEnabled = isDesktopLyricEnabled,
                         audioQuality = audioQuality,
                         maxQuality = maxQuality,
                         compact = true,
                         onPlaylistClick = onPlaylistClick,
                         onQualitySelected = onQualitySelected,
-                        onDesktopLyricClick = onDesktopLyricClick,
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -2979,12 +2870,10 @@ private fun PlayerBottomBar(
                 Spacer(modifier = Modifier.height(18.dp))
                 PlayerUtilityRow(
                     isDarkTheme = isDarkTheme,
-                    isDesktopLyricEnabled = isDesktopLyricEnabled,
                     audioQuality = audioQuality,
                     maxQuality = maxQuality,
                     onPlaylistClick = onPlaylistClick,
                     onQualitySelected = onQualitySelected,
-                    onDesktopLyricClick = onDesktopLyricClick,
                 )
             }
         }
@@ -2994,13 +2883,11 @@ private fun PlayerBottomBar(
 @Composable
 private fun PlayerUtilityRow(
     isDarkTheme: Boolean,
-    isDesktopLyricEnabled: Boolean,
     audioQuality: AudioQuality,
     maxQuality: String,
     compact: Boolean = false,
     onPlaylistClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
-    onDesktopLyricClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -3009,7 +2896,6 @@ private fun PlayerUtilityRow(
     } else {
         scheme.onSurfaceVariant
     }
-    val activeAccent = if (useLiquidStyle) RoseRed else scheme.primary
     val actionSize = if (useLiquidStyle) 32.dp else 40.dp
     val actionIconSize = if (useLiquidStyle) {
         if (compact) 17.dp else 18.dp
@@ -3044,19 +2930,6 @@ private fun PlayerUtilityRow(
             compact = useLiquidStyle,
         )
 
-        Box(
-            modifier = Modifier
-                .size(actionSize)
-                .clickable(onClick = onDesktopLyricClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lyric_toggle),
-                contentDescription = stringResource(id = R.string.desktop_lyric),
-                tint = if (isDesktopLyricEnabled) activeAccent else muted,
-                modifier = Modifier.size(actionIconSize),
-            )
-        }
     }
 }
 
@@ -3629,6 +3502,8 @@ fun ShareDialog(
     canDownloadVideo: Boolean = false,
     onDownloadVideo: () -> Unit = {},
     onTogetherClick: () -> Unit = {},
+    isDesktopLyricEnabled: Boolean = false,
+    onDesktopLyricClick: () -> Unit = {},
 ) {
     var showCustomSleepTimerDialog by remember { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
@@ -3761,6 +3636,8 @@ fun ShareDialog(
                     onDownloadVideo = onDownloadVideo,
                     onShowCustomSleepTimer = { showCustomSleepTimerDialog = true },
                     onTogetherClick = onTogetherClick,
+                    isDesktopLyricEnabled = isDesktopLyricEnabled,
+                    onDesktopLyricClick = onDesktopLyricClick,
                 )
             }
         }
@@ -3810,6 +3687,8 @@ fun ShareDialogContent(
     onDownloadVideo: () -> Unit,
     onShowCustomSleepTimer: () -> Unit,
     onTogetherClick: () -> Unit,
+    isDesktopLyricEnabled: Boolean,
+    onDesktopLyricClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -3839,6 +3718,15 @@ fun ShareDialogContent(
                         color = RoseRed,
                         labelColor = shareLabelTint,
                         onClick = onTogetherClick
+                    )
+                }
+                item {
+                    ShareGridItem(
+                        iconRes = R.drawable.ic_lyric_toggle,
+                        label = stringResource(id = R.string.desktop_lyric),
+                        color = if (isDesktopLyricEnabled) RoseRed else Color(0xFF6B7280),
+                        labelColor = shareLabelTint,
+                        onClick = onDesktopLyricClick,
                     )
                 }
                 item {
