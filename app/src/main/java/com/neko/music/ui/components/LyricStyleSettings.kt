@@ -16,11 +16,8 @@ data class LyricStyleSettings(
     val showTranslation: Boolean,
     val showRomanization: Boolean,
 ) {
-    fun resolvedFontSizeSp(isWideLayout: Boolean): Float = when {
-        fontSizeSp > 0f -> fontSizeSp
-        isWideLayout -> 24f
-        else -> 28f
-    }
+    fun resolvedFontSizeSp(isWideLayout: Boolean): Float =
+        if (fontSizeSp > 0f) fontSizeSp else 30f
 }
 
 object LyricStylePreferences {
@@ -34,7 +31,7 @@ object LyricStylePreferences {
     const val INACTIVE_ALPHA_MAX = 0.50f
 
     const val DEFAULT_FONT_SIZE = 0f
-    const val DEFAULT_LINE_SPACING = 20f
+    const val DEFAULT_LINE_SPACING = 24f
     const val DEFAULT_ACTIVE_ALPHA = 0.94f
     const val DEFAULT_INACTIVE_ALPHA = 0.18f
     const val DEFAULT_SCALE_CURRENT = true
@@ -66,7 +63,7 @@ object LyricStylePreferences {
             DEFAULT_FONT_SIZE,
         )
         val fontSize = when {
-            storedFontSize <= 0f -> if (isWideLayout) 24f else 28f
+            storedFontSize <= 0f -> 30f
             else -> storedFontSize.coerceIn(FONT_SIZE_MIN, FONT_SIZE_MAX)
         }
         return LyricStyleSettings(

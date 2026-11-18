@@ -8,7 +8,7 @@ import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -91,6 +91,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -98,7 +100,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
 import com.neko.music.R
 import com.neko.music.ui.screens.LrcLine
 import com.neko.music.ui.theme.isAppDarkTheme
@@ -109,7 +110,31 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
+
+private object AppleLyricMotion {
+    const val FocusPosition = 0.25f
+    const val CurrentLineScale = 1.05f
+    const val BlurIntensity = 0.8f
+    const val BlurSkipAlpha = 0.05f
+    const val FocusColorDurationMs = 120
+    const val BlurSmoothDurationMs = 160
+    const val CascadeDelayMs = 14f
+    const val CascadeDelayIncreaseMs = 2.5f
+    const val CascadeFollowingDelayMs = 22f
+    const val CascadeBounceGradient = 0.60f
+    const val CascadeBounce = 0.14f
+    const val LongToneThresholdMs = 950f
+    const val LongToneMaxScale = 1.0625f
+    const val LongToneGlowPeak = 0.7f
+    const val OrdinaryGlowPeak = 0.55f
+    const val GlowTailMs = 550f
+}
+private val AppleLyricFontFamily = FontFamily(
+    Font(R.font.sf_pro_vf, weight = FontWeight.Black),
+    Font(R.font.sf_pro_vf, weight = FontWeight.Bold),
+)
 
 /**
  * Apple Music 播放页歌词视图。
@@ -154,9 +179,9 @@ fun AmllLyricsView(
         lyricHighlightColorFromPrefs(appPrefs, isDarkTheme)
     }
     val lyricFontSize = lyricStyle.fontSizeSp.sp
-    val lyricLineHeight = (lyricStyle.fontSizeSp * 1.28f).sp
-    val secondaryFontSize = (lyricStyle.fontSizeSp * 0.61f).coerceIn(13f, 20f).sp
-    val secondaryLineHeight = (secondaryFontSize.value * 1.4f).sp
+    val lyricLineHeight = (lyricStyle.fontSizeSp * 1.2f).sp
+    val secondaryFontSize = (lyricStyle.fontSizeSp * 0.65f).sp
+    val secondaryLineHeight = (secondaryFontSize.value * 1.2f).sp
     val lyricTextColor = if (isDarkTheme) Color.White else Color(0xFF111114)
     val displayLyrics = remember(lyrics) {
         if (lyrics.firstOrNull()?.time?.let { it > 0f } == true) {
@@ -262,10 +287,22 @@ fun AmllLyricsView(
 
             else -> {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                    // Apple 将当前行放在歌词列表顶部约 8% 的位置，而不是垂直居中。
-                    val anchorOffset = maxOf(maxHeight * 0.08f, 56.dp)
+                    // 与参考歌词面板一致：焦点位于视口顶部 25%。
+                    val anchorOffset = maxHeight * AppleLyricMotion.FocusPosition
                     val anchorOffsetPx = with(density) { anchorOffset.toPx() }
-                    val bottomPadding = maxHeight * 0.2775f + 60.dp
+                    val bottomPadding =
+                        maxHeight * (1f - AppleLyricMotion.FocusPosition)
+                    val lyricsReveal = remember(displayLyrics) { Animatable(0f) }
+                    LaunchedEffect(displayLyrics) {
+                        lyricsReveal.animateTo(
+                            targetValue = 1f,
+                            animationSpec = spring(
+                                dampingRatio = 1f,
+                                stiffness = 320f,
+                                visibilityThreshold = 0.001f,
+                            ),
+                        )
+                    }
 
                     LaunchedEffect(
                         currentIndex,
@@ -294,6 +331,7 @@ fun AmllLyricsView(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .graphicsLayer { alpha = lyricsReveal.value }
                             .softEdgeFade(topFade = 52.dp, bottomFade = 84.dp)
                             .pointerInput(Unit) {
                                 awaitEachGesture {
@@ -343,65 +381,105 @@ fun AmllLyricsView(
                                     0f
                                 },
                                 animationSpec = tween(
-                                    durationMillis = if (isCurrentLine) 140 else 300,
-                                    easing = AppleLyricsEasing,
+                                    durationMillis = AppleLyricMotion.FocusColorDurationMs,
+                                    easing = AppleLyricsSmoothStepEasing,
                                 ),
                                 label = "apple_line_focus",
                             )
                             val lineScale by animateFloatAsState(
                                 targetValue = if (
-                                    isSelected ||
-                                    isCurrentLine ||
-                                    !lyricStyle.scaleCurrentLine
+                                    lyricStyle.scaleCurrentLine &&
+                                    (isSelected || isCurrentLine)
                                 ) {
-                                    1.0f
+                                    AppleLyricMotion.CurrentLineScale
                                 } else {
-                                    0.985f
+                                    1f
                                 },
                                 animationSpec = spring(
-                                    dampingRatio = if (isCurrentLine) {
-                                        Spring.DampingRatioLowBouncy
-                                    } else {
-                                        Spring.DampingRatioNoBouncy
-                                    },
-                                    stiffness = Spring.StiffnessMediumLow,
+                                    dampingRatio = 0.56f,
+                                    stiffness = 360f,
+                                    visibilityThreshold = 0.001f,
                                 ),
                                 label = "apple_line_scale",
+                            )
+                            val appleDistanceOpacity = appleDistanceOpacity(
+                                distancePx = lineDistance.toFloat(),
+                                lyricStridePx = 1f,
+                                dimAmount = 1f,
+                                focusProgress = focusProgress,
+                            )
+                            val appleEmphasis = appleEmphasis(
+                                focusProgress = focusProgress,
+                                dimAmount = 1f,
                             )
                             val lineAlpha = if (isSelected) {
                                 1f
                             } else {
-                                lerp(
-                                    lyricStyle.inactiveAlpha,
-                                    lyricStyle.activeAlpha,
-                                    focusProgress,
-                                )
+                                (appleDistanceOpacity * appleEmphasis).coerceIn(0f, 1f)
                             }
-                            val targetBlur = if (isSelected || isCurrentLine || lineDistance <= 1) {
+                            val distanceBlur = appleDistanceBlurRadius(
+                                distancePx = lineDistance.toFloat(),
+                                lyricStridePx = 1f,
+                                intensity = AppleLyricMotion.BlurIntensity,
+                                focusProgress = focusProgress,
+                            )
+                            val focusBlur = appleFocusBlurRadius(
+                                intensity = AppleLyricMotion.BlurIntensity,
+                                preceding = currentIndex >= 0 && index == currentIndex - 1,
+                                following = currentIndex >= 0 && index == currentIndex + 1,
+                            ) * (1f - focusProgress.coerceIn(0f, 1f))
+                            val targetBlur = if (lineAlpha < AppleLyricMotion.BlurSkipAlpha) {
                                 0f
                             } else {
-                                (0.16f * (lineDistance - 1)).coerceIn(0.14f, 0.72f)
+                                max(distanceBlur, focusBlur)
                             }
                             val lineBlur by animateFloatAsState(
                                 targetValue = targetBlur,
-                                animationSpec = tween(180, easing = AppleLyricsEasing),
+                                animationSpec = tween(
+                                    AppleLyricMotion.BlurSmoothDurationMs,
+                                    easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                                ),
                                 label = "apple_line_blur",
                             )
                             val cascadeWave = remember { Animatable(1f) }
+                            val maximumCascadeOrder = 6
+                            val cascadePosition =
+                                lineDistance.coerceIn(0, maximumCascadeOrder) + 1
+                            val cascadeNormalized =
+                                cascadePosition.toFloat() / (maximumCascadeOrder + 1f)
+                            val cascadeBounceValue = AppleLyricMotion.CascadeBounce *
+                                (
+                                    1f -
+                                        (1f - cascadeNormalized) *
+                                        AppleLyricMotion.CascadeBounceGradient
+                                    )
                             val cascadeAmplitudePx = with(density) {
-                                (2.5f + min(max(lineDistance - 1, 0), 4) * 0.35f).dp.toPx()
+                                val lineHeightDp = lyricStyle.fontSizeSp * 1.2f
+                                (lineHeightDp * (0.10f + cascadeBounceValue * 0.6f)).dp.toPx()
                             }
                             LaunchedEffect(cascadeRevision) {
                                 if (cascadeRevision <= 0 || lineDistance > 6) {
                                     return@LaunchedEffect
                                 }
-                                delay(lineDistance * 14L)
+                                val order = lineDistance
+                                val accumulatedIncrease =
+                                    order.toFloat() * (order - 1).coerceAtLeast(0).toFloat() / 2f
+                                val delayMs = if (order == 0) {
+                                    0f
+                                } else {
+                                    AppleLyricMotion.CascadeFollowingDelayMs +
+                                        order * AppleLyricMotion.CascadeDelayMs +
+                                        accumulatedIncrease *
+                                        AppleLyricMotion.CascadeDelayIncreaseMs
+                                }
+                                delay(delayMs.toLong())
                                 cascadeWave.snapTo(0f)
                                 cascadeWave.animateTo(
                                     targetValue = 1f,
-                                    animationSpec = tween(
-                                        durationMillis = 420,
-                                        easing = LinearEasing,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.56f,
+                                        stiffness = 320f,
+                                        visibilityThreshold = 0.001f,
                                     ),
                                 )
                             }
@@ -507,7 +585,8 @@ fun AmllLyricsView(
                                         text = line.romanization,
                                         fontSize = secondaryFontSize,
                                         lineHeight = secondaryLineHeight,
-                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = AppleLyricFontFamily,
+                                        fontWeight = FontWeight.Black,
                                         color = lyricTextColor.copy(alpha = 0.76f),
                                         textAlign = if (lyricStyle.centerText) TextAlign.Center else TextAlign.Start,
                                         maxLines = 2,
@@ -523,7 +602,8 @@ fun AmllLyricsView(
                                         text = line.translation,
                                         fontSize = secondaryFontSize,
                                         lineHeight = secondaryLineHeight,
-                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = AppleLyricFontFamily,
+                                        fontWeight = FontWeight.Black,
                                         color = lyricTextColor.copy(alpha = 0.76f),
                                         textAlign = if (lyricStyle.centerText) TextAlign.Center else TextAlign.Start,
                                         maxLines = 3,
@@ -747,8 +827,9 @@ private fun KaraokeText(
         TextStyle(
             fontSize = fontSize,
             lineHeight = lineHeight,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.35).sp,
+            fontFamily = AppleLyricFontFamily,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.sp,
             textAlign = if (centerText) TextAlign.Center else TextAlign.Start,
         )
     }
@@ -1000,41 +1081,80 @@ private fun DrawScope.drawAnimatedKaraokeSyllable(
     glowEnabled: Boolean,
 ) {
     val timing = geometry.timing
-    val reveal = karaokeRevealProgress(timing, nowSeconds)
-    if (reveal <= 0f) return
-
     val duration = (timing.endSeconds - timing.startSeconds).coerceAtLeast(0.001f)
     val rawProgress = (
         (nowSeconds - timing.startSeconds) / duration
         ).coerceIn(0f, 1f)
+    val isLongTone = duration * 1_000f >= AppleLyricMotion.LongToneThresholdMs
+    val reveal = appleHighlightRevealProgress(
+        playbackTimeMs = nowSeconds * 1_000f,
+        startMs = timing.startSeconds * 1_000f,
+        endMs = timing.endSeconds * 1_000f,
+        rawProgress = rawProgress,
+        isLongTone = isLongTone,
+    )
+    if (reveal <= 0f) return
+
     val elapsed = (nowSeconds - timing.startSeconds).coerceAtLeast(0f)
     val fontSizePx = textLayout.layoutInput.style.fontSize.toPx()
-    val lift = lyricSmootherStep((elapsed / 0.18f).coerceIn(0f, 1f))
-    val maxLiftPx = (fontSizePx * 0.08f).coerceIn(1.5f, 5.dp.toPx())
-    val isLongTone = duration >= 0.95f
+    val lift = lyricSmootherStep((elapsed / 0.32f).coerceIn(0f, 1f))
+    val maxLiftPx = (fontSizePx * 0.10f).coerceIn(1.5f, 6.dp.toPx())
+    val emphasisProgress = lyricSmootherStep(
+        (
+            (duration * 1_000f - AppleLyricMotion.LongToneThresholdMs) /
+                (2_800f - AppleLyricMotion.LongToneThresholdMs)
+            ).coerceIn(0f, 1f),
+    )
+    val expansionAmount = if (isLongTone) 0.7f + 0.3f * emphasisProgress else 0f
+    val glowAmount = if (isLongTone) 0.32f + 0.38f * emphasisProgress else 0f
     val longToneEnvelope = if (isLongTone) {
-        sin(Math.PI.toFloat() * rawProgress)
+        appleLongToneEnvelope(
+            playbackTimeMs = nowSeconds * 1_000f,
+            groupStartMs = timing.startSeconds * 1_000f,
+            durationMs = duration * 1_000f,
+            characterIndex = timing.startChar,
+            characterCount = (timing.endChar - timing.startChar).coerceAtLeast(1),
+        )
     } else {
         0f
     }
-    val bounce = if (!isLongTone) {
-        sin(Math.PI.toFloat() * rawProgress) * 0.025f
+    val longToneScale = 1f +
+        (AppleLyricMotion.LongToneMaxScale - 1f) * longToneEnvelope * expansionAmount
+    val bounceScale = if (isLongTone) {
+        1f
+    } else if (rawProgress > 0f && rawProgress < 0.5f) {
+        1f + 0.2f * (rawProgress / 0.5f)
+    } else if (rawProgress >= 0.5f && rawProgress < 1f) {
+        1.2f - 0.2f * ((rawProgress - 0.5f) / 0.5f)
     } else {
-        0f
+        1f
     }
-    val scale = 1f + bounce + longToneEnvelope * 0.035f
+    val scale = longToneScale * bounceScale
     val ageAfterEnd = (nowSeconds - timing.endSeconds).coerceAtLeast(0f)
     val glowTail = (1f - ageAfterEnd / 0.55f).coerceIn(0f, 1f)
     val glowStrength = if (glowEnabled) {
         if (isLongTone) {
-            (0.08f + longToneEnvelope * 0.22f) * glowTail
+            longToneEnvelope * glowAmount / AppleLyricMotion.LongToneGlowPeak * glowTail
         } else {
-            sin(Math.PI.toFloat() * rawProgress) * 0.12f * glowTail
+            appleOrdinaryGlowStrength(
+                playbackTimeMs = nowSeconds * 1_000f,
+                endMs = timing.endSeconds * 1_000f,
+                rawProgress = rawProgress,
+            ) / AppleLyricMotion.OrdinaryGlowPeak * glowTail
         }
     } else {
         0f
     }
-    val glowRadius = min(fontSizePx * 0.16f, 8.dp.toPx())
+    val shakeAmplitude = if (isLongTone) {
+        min(0.58.dp.toPx(), fontSizePx * 0.013f) *
+            longToneEnvelope * expansionAmount
+    } else {
+        0f
+    }
+    val shakePhaseMs = nowSeconds * 1_000f - timing.startSeconds * 1_000f
+    val shakeX = sin(shakePhaseMs * 0.016f + timing.startChar * 1.73f) * shakeAmplitude
+    val shakeY = sin(shakePhaseMs * 0.021f + timing.startChar * 0.91f) * shakeAmplitude * 0.42f
+    val glowRadius = min(fontSizePx * 0.12f, 8.dp.toPx())
     val shadow = glowStrength.takeIf { it > 0.01f }?.let {
         Shadow(
             color = shadowColor.copy(alpha = it.coerceIn(0f, 1f)),
@@ -1072,7 +1192,7 @@ private fun DrawScope.drawAnimatedKaraokeSyllable(
     if (revealPath.isEmpty) return
 
     withTransform({
-        translate(left = 0f, top = -maxLiftPx * lift)
+        translate(left = shakeX, top = -maxLiftPx * lift + shakeY)
         scale(
             scaleX = scale,
             scaleY = scale,
@@ -1108,6 +1228,107 @@ private fun DrawScope.drawAnimatedKaraokeSyllable(
 
 private fun Rect.asPath(): Path = Path().apply { addRect(this@asPath) }
 
+private fun appleDistanceOpacity(
+    distancePx: Float,
+    lyricStridePx: Float,
+    dimAmount: Float,
+    focusProgress: Float,
+): Float {
+    val lineDistance = distancePx / lyricStridePx.coerceAtLeast(0.001f)
+    val base = when {
+        lineDistance <= 1f -> 1f - lineDistance * 0.44f
+        lineDistance <= 2f -> 0.56f - (lineDistance - 1f) * 0.22f
+        else -> max(0.12f, 0.34f - (lineDistance - 2f) * 0.07f)
+    }
+    val distanceOpacity = 1f - (1f - base) * dimAmount
+    return distanceOpacity + (1f - distanceOpacity) * focusProgress.coerceIn(0f, 1f)
+}
+
+private fun appleEmphasis(focusProgress: Float, dimAmount: Float): Float {
+    val unfocused = 1f - (1f - 0.52f) * dimAmount
+    return unfocused + (1f - unfocused) * focusProgress.coerceIn(0f, 1f)
+}
+
+private fun appleDistanceBlurRadius(
+    distancePx: Float,
+    lyricStridePx: Float,
+    intensity: Float,
+    focusProgress: Float,
+): Float {
+    val lineDistance = distancePx / lyricStridePx.coerceAtLeast(0.001f)
+    val blurProgress = max(lineDistance - 1.35f, 0f)
+    val baseRadius = min(blurProgress * 3.1f, 10f)
+    return baseRadius * intensity * (1f - focusProgress.coerceIn(0f, 1f))
+}
+
+private fun appleFocusBlurRadius(
+    intensity: Float,
+    preceding: Boolean,
+    following: Boolean,
+): Float = (
+    (if (preceding) 2.4f else 0f) +
+        (if (following) 0.7f else 0f)
+    ) * intensity
+
+private fun appleHighlightRevealProgress(
+    playbackTimeMs: Float,
+    startMs: Float,
+    endMs: Float,
+    rawProgress: Float,
+    isLongTone: Boolean,
+): Float {
+    val regular = lyricSmootherStep(rawProgress)
+    val duration = endMs - startMs
+    if (!isLongTone || duration <= 460f) return regular
+    val elapsed = max(playbackTimeMs - startMs, 0f)
+    val attack = lyricSmootherStep(elapsed / 300f)
+    val releaseStart = endMs - 160f
+    val release = lyricSmootherStep((playbackTimeMs - releaseStart) / 160f)
+    return (0.82f * attack + 0.08f * rawProgress + 0.10f * release).coerceIn(0f, 1f)
+}
+
+private fun appleLongToneEnvelope(
+    playbackTimeMs: Float,
+    groupStartMs: Float,
+    durationMs: Float,
+    characterIndex: Int,
+    characterCount: Int,
+): Float {
+    val stagger = if (characterCount > 1) {
+        durationMs * 0.55f * characterIndex.toFloat() /
+            (characterCount - 1).toFloat()
+    } else {
+        0f
+    }
+    val animationDuration = max(durationMs, 1_000f)
+    val progress = (
+        (playbackTimeMs - groupStartMs - stagger) / animationDuration
+        ).coerceIn(0f, 1f)
+    return if (progress <= 0.5f) {
+        lyricSmootherStep(progress / 0.5f)
+    } else {
+        1f - lyricSmootherStep((progress - 0.5f) / 0.5f)
+    }
+}
+
+private fun appleOrdinaryGlowStrength(
+    playbackTimeMs: Float,
+    endMs: Float,
+    rawProgress: Float,
+): Float {
+    if (playbackTimeMs <= endMs) {
+        val attack = lyricSmootherStep(rawProgress / 0.24f)
+        val breath = 0.82f + 0.18f * sin(Math.PI.toFloat() * rawProgress)
+        return attack * breath * AppleLyricMotion.OrdinaryGlowPeak
+    }
+    val tail = ((playbackTimeMs - endMs) / AppleLyricMotion.GlowTailMs).coerceIn(0f, 1f)
+    return (1f - lyricSmootherStep(tail)) * 0.82f * AppleLyricMotion.OrdinaryGlowPeak
+}
+
+private object AppleLyricsSmoothStepEasing : Easing {
+    override fun transform(fraction: Float): Float = lyricSmootherStep(fraction)
+}
+
 private fun lyricSmootherStep(value: Float): Float {
     val progress = value.coerceIn(0f, 1f)
     return progress * progress * progress * (progress * (progress * 6f - 15f) + 10f)
@@ -1136,9 +1357,10 @@ private suspend fun anchorLyricLine(
         if (animate) {
             listState.animateScrollBy(
                 value = delta,
-                animationSpec = tween(
-                    durationMillis = 420,
-                    easing = AppleLyricsEasing,
+                animationSpec = spring(
+                    dampingRatio = 0.72f,
+                    stiffness = 280f,
+                    visibilityThreshold = 0.5f,
                 ),
             )
         } else {
@@ -1146,5 +1368,3 @@ private suspend fun anchorLyricLine(
         }
     }
 }
-
-private val AppleLyricsEasing = CubicBezierEasing(0.39f, 0.575f, 0.565f, 1f)
