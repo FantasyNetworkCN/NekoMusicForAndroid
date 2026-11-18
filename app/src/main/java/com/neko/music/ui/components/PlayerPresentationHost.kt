@@ -150,7 +150,8 @@ private fun Modifier.playerShellMorph(
     val fraction = progress().coerceIn(0f, 1f)
     if (fraction <= 0f) return@drawWithContent
 
-    val shellReveal = smoothStep(fraction, 0f, 1f)
+    // 几何直接跟随同一条主弹簧；不要再叠第二层 easing，否则外壳与内容会错拍。
+    val shellReveal = fraction
     val layerAlpha = smoothStep(fraction, 0.015f, 0.18f)
     if (layerAlpha <= 0f) return@drawWithContent
 

@@ -119,7 +119,7 @@ import kotlin.math.sign
 import kotlinx.coroutines.launch
 
 /** 底栏高度；迷你播放器等底部 chrome 以此为基准留白。 */
-internal val BottomNavigationBarHeight: Dp = 64.dp
+internal val BottomNavigationBarHeight: Dp = 57.dp
 
 sealed class BottomNavItem(
     val route: String,
@@ -148,6 +148,7 @@ fun BottomNavigationBar(
     navController: NavController,
     modifier: Modifier = Modifier,
     sampleBackdrop: Backdrop? = null,
+    height: Dp = BottomNavigationBarHeight,
 ) {
     val items = listOf(
         BottomNavItem.Home,
@@ -191,7 +192,7 @@ fun BottomNavigationBar(
             accentColor = MaterialTheme.colorScheme.primary,
             modifier = modifier
                 .fillMaxWidth()
-                .height(BottomNavigationBarHeight),
+                .height(height),
         ) {
             items.forEachIndexed { index, item ->
                 BottomNavigationTab(
@@ -209,6 +210,7 @@ fun BottomNavigationBar(
             onTabSelected = ::navigateToItem,
             modifier = modifier
                 .fillMaxWidth(),
+            height = height,
         )
     }
 }
@@ -224,6 +226,7 @@ fun BottomSearchButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     sampleBackdrop: Backdrop? = null,
+    size: Dp = BottomNavigationBarHeight,
 ) {
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val isDarkTheme = isAppDarkTheme()
@@ -246,7 +249,7 @@ fun BottomSearchButton(
 
     GlassSurface(
         modifier = modifier
-            .size(56.dp)
+            .size(size)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -274,7 +277,7 @@ fun BottomSearchButton(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(id = R.string.search),
                 tint = iconColor,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(if (size >= 56.dp) 28.dp else 26.dp),
             )
         }
     }
@@ -619,12 +622,13 @@ private fun BottomNavigationFallback(
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = BottomNavigationBarHeight,
 ) {
     val scheme = MaterialTheme.colorScheme
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(72.dp),
+            .height(height),
         shape = RoundedCornerShape(24.dp),
         color = scheme.surfaceContainerHigh,
         contentColor = scheme.onSurface,

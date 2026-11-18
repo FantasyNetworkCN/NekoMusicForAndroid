@@ -684,11 +684,11 @@ fun MainScreen() {
         scope.launch {
             playerPresentationProgress.animateTo(
                 targetValue = target,
-                animationSpec = if (open) {
-                    spring(dampingRatio = 0.86f, stiffness = 380f)
-                } else {
-                    tween(durationMillis = 420, easing = FastOutSlowInEasing)
-                },
+                animationSpec = spring(
+                    dampingRatio = 1f,
+                    stiffness = 300f,
+                    visibilityThreshold = 0.001f,
+                ),
                 initialVelocity = initialVelocity,
             )
             if (generation != playerTransitionGeneration) return@launch
@@ -713,7 +713,11 @@ fun MainScreen() {
         scope.launch {
             playerPresentationProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(dampingRatio = 0.86f, stiffness = 380f),
+                animationSpec = spring(
+                    dampingRatio = 1f,
+                    stiffness = 300f,
+                    visibilityThreshold = 0.001f,
+                ),
             )
             if (generation == playerTransitionGeneration) {
                 commitPlayerRoute()
@@ -1964,8 +1968,8 @@ fun MainScreen() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
                             verticalAlignment = Alignment.Bottom,
                         ) {
                             MeloXMiniPlayer(
@@ -2000,10 +2004,12 @@ fun MainScreen() {
                                 navController = navController,
                                 modifier = Modifier.width(220.dp),
                                 sampleBackdrop = bottomChromeBackdrop,
+                                height = 48.dp,
                             )
                             BottomSearchButton(
                                 onClick = ::openSearch,
                                 sampleBackdrop = bottomChromeBackdrop,
+                                size = 48.dp,
                             )
                         }
                     } else {
@@ -2012,13 +2018,11 @@ fun MainScreen() {
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
                                 .padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    bottom = if (useLiquidBottomChrome) 16.dp else 14.dp,
+                                    start = 12.dp,
+                                    end = 12.dp,
+                                    bottom = 8.dp,
                                 ),
-                            verticalArrangement = Arrangement.spacedBy(
-                                if (useLiquidBottomChrome) 4.dp else 6.dp,
-                            ),
+                            verticalArrangement = Arrangement.spacedBy(9.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             MeloXMiniPlayer(
@@ -2049,7 +2053,7 @@ fun MainScreen() {
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 BottomNavigationBar(
