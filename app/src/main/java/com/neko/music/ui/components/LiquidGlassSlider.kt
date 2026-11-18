@@ -78,6 +78,7 @@ fun LiquidGlassSlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     accentColor: Color = RoseRed,
+    onValueChangeFinished: () -> Unit = {},
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val trackColor = if (isDark) {
@@ -91,6 +92,7 @@ fun LiquidGlassSlider(
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
     val externalValue = value.coerceIn(valueRange)
     val latestOnValueChange by rememberUpdatedState(onValueChange)
+    val latestOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
     var displayedValue by remember { mutableFloatStateOf(externalValue) }
     var isDragging by remember { mutableStateOf(false) }
     val animationScope = rememberCoroutineScope()
@@ -186,6 +188,7 @@ fun LiquidGlassSlider(
                                 if (isDragging) {
                                     isDragging = false
                                     dragAnimation.release()
+                                    latestOnValueChangeFinished()
                                 }
                             }
                         }

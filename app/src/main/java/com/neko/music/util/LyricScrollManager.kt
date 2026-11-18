@@ -74,6 +74,13 @@ object LyricScrollManager {
     fun setPlayerPageScrollState(state: LazyListState) {
         _playerPageScrollState.value = state
     }
+
+    /** 页面离开后释放列表引用，避免后台持有已经销毁的歌词视图。 */
+    fun clearPlayerPageScrollState(state: LazyListState) {
+        if (_playerPageScrollState.value === state) {
+            _playerPageScrollState.value = null
+        }
+    }
     
     /**
      * 获取当前歌词索引

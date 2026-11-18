@@ -409,6 +409,7 @@ fun PlayerScreen(
         mutableStateOf(currentMusicId == music.id)
     }
     var lyrics by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
+    var lyricScrubPosition by remember(currentMusicId) { mutableStateOf<Float?>(null) }
     val lyricsListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val isFavorite by playerManager.isFavorite.collectAsState()
     var favoriteCount by remember { mutableStateOf<Int?>(null) }
@@ -1039,8 +1040,11 @@ fun PlayerScreen(
                         2 -> {
                             if (lyricsPageReady) {
                                 Box(modifier = Modifier.fillMaxSize()) {
-                                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                                    DisposableEffect(lyricsListState) {
                                         com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
+                                        onDispose {
+                                            com.neko.music.util.LyricScrollManager.clearPlayerPageScrollState(lyricsListState)
+                                        }
                                     }
                                     AmllLyricsView(
                                         lyrics = lyrics,
@@ -1048,6 +1052,8 @@ fun PlayerScreen(
                                         isLoading = isLoading,
                                         isPlaying = isPlaying && !isBuffering,
                                         playbackSpeed = playbackSpeed,
+                                        active = showLyrics,
+                                        scrubPositionSeconds = lyricScrubPosition,
                                         modifier = Modifier.fillMaxSize(),
                                         listState = lyricsListState,
                                         onLineClick = { lineTime ->
@@ -1149,6 +1155,7 @@ fun PlayerScreen(
                     isFavorite = isFavorite,
                     audioQuality = audioQuality,
                     maxQuality = maxQuality,
+                    onScrubPositionChange = { lyricScrubPosition = it },
                     onProgressChange = { value ->
                         if (duration > 0) {
                             val position = (value * duration).toLong()
@@ -2891,6 +2898,7 @@ private fun PlayerBottomBar(
     onPlayModeClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
     onOpenPlayer: () -> Unit,
+    onScrubPositionChange: (Float?) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -2955,6 +2963,7 @@ private fun PlayerBottomBar(
                         maxQuality = maxQuality,
                         onQualitySelected = onQualitySelected,
                         onProgressChange = onProgressChange,
+                        onScrubPositionChange = onScrubPositionChange,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     PlayerUtilityRow(
@@ -2993,6 +3002,7 @@ private fun PlayerBottomBar(
                     maxQuality = maxQuality,
                     onQualitySelected = onQualitySelected,
                     onProgressChange = onProgressChange,
+                    onScrubPositionChange = onScrubPositionChange,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 PlaybackControls(
@@ -3071,14 +3081,17 @@ fun ProgressSlider(
     maxQuality: String = "",
     onQualitySelected: (AudioQuality) -> Unit = {},
     onProgressChange: (Float) -> Unit,
+    onScrubPositionChange: (Float?) -> Unit = {},
 ) {
     val position = positionMillis.value
-    val progress = if (durationMillis > 0) {
+    var scrubProgress by remember(durationMillis) { mutableStateOf<Float?>(null) }
+    val reportedProgress = if (durationMillis > 0) {
         (position.toFloat() / durationMillis.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
-    val currentTime = formatTime(position)
+    val progress = scrubProgress ?: reportedProgress
+    val currentTime = formatTime(scrubProgress?.let { (it * durationMillis).toLong() } ?: position)
     val totalTime = formatTime(durationMillis)
     val scheme = MaterialTheme.colorScheme
     val liquidBackdrop = LocalLiquidLayerBackdrop.current
@@ -3099,12 +3112,26 @@ fun ProgressSlider(
     } else {
         scheme.surfaceVariant
     }
+    val latestScrubCallback by rememberUpdatedState(onScrubPositionChange)
+    DisposableEffect(durationMillis) {
+        onDispose { latestScrubCallback(null) }
+    }
+    fun previewProgress(value: Float) {
+        scrubProgress = value
+        latestScrubCallback(value * durationMillis / 1000f)
+    }
+    fun finishScrubbing() {
+        scrubProgress?.let(onProgressChange)
+        scrubProgress = null
+        latestScrubCallback(null)
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (useLiquidStyle && liquidBackdrop != null) {
             LiquidGlassSlider(
                 value = progress,
-                onValueChange = onProgressChange,
+                onValueChange = ::previewProgress,
+                onValueChangeFinished = ::finishScrubbing,
                 backdrop = liquidBackdrop,
                 enabled = !isLoading,
                 modifier = Modifier
@@ -3135,7 +3162,8 @@ fun ProgressSlider(
 
                 Slider(
                     value = progress.coerceIn(0f, 1f),
-                    onValueChange = onProgressChange,
+                    onValueChange = ::previewProgress,
+                    onValueChangeFinished = ::finishScrubbing,
                     enabled = !isLoading,
                     colors = SliderDefaults.colors(
                         activeTrackColor = Color.Transparent,
