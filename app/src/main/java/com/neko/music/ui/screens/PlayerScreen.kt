@@ -1969,10 +1969,10 @@ private fun PlayerPersistentVisualLayer(
                 .width(textWidth)
                 .graphicsLayer { alpha = layerAlpha },
             alignStart = true,
-            titleSize = lerp(24.sp, 17.sp, pageProgress),
-            titleLineHeight = lerp(29.sp, 21.sp, pageProgress),
-            artistSize = lerp(16.sp, 13.sp, pageProgress),
-            artistLineHeight = lerp(20.sp, 17.sp, pageProgress),
+            titleSize = lerp(22.sp, 16.sp, pageProgress),
+            titleLineHeight = lerp(27.sp, 20.sp, pageProgress),
+            artistSize = lerp(15.sp, 12.sp, pageProgress),
+            artistLineHeight = lerp(19.sp, 16.sp, pageProgress),
         )
 
         AnimatedVisibility(
@@ -2945,7 +2945,7 @@ private fun PlayerBottomBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, top = 10.dp, bottom = 20.dp),
+                    .padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 20.dp),
             ) {
                 ProgressSlider(
                     positionMillis = positionMillis,
