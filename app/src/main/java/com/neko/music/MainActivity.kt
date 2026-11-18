@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,10 +50,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -62,6 +67,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -69,6 +75,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -789,6 +796,41 @@ fun MainScreen() {
 
     // 底部控件可见性（账号页等可置 false）；播放页用 [isPlayerScreen] 驱动进出场动画，不再延迟 500ms
     var showBottomControls by androidx.compose.runtime.remember { mutableStateOf(true) }
+    var bottomChromeCollapsed by remember { mutableStateOf(false) }
+    var bottomChromeScrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val bottomChromeCompactProgress by animateFloatAsState(
+        targetValue = if (bottomChromeCollapsed) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.82f,
+            stiffness = 320f,
+            visibilityThreshold = 0.001f,
+        ),
+        label = "bottom_chrome_compact",
+    )
+    val bottomChromeCollapseThresholdPx = with(LocalDensity.current) { 18.dp.toPx() }
+    val bottomChromeScrollConnection = remember(bottomChromeCollapseThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (available.y < 0f) {
+                    if (bottomChromeScrollAccumulator > 0f) bottomChromeScrollAccumulator = 0f
+                    bottomChromeScrollAccumulator += available.y
+                    if (bottomChromeScrollAccumulator <= -bottomChromeCollapseThresholdPx) {
+                        bottomChromeCollapsed = true
+                        bottomChromeScrollAccumulator = 0f
+                    }
+                } else if (available.y > 0f) {
+                    if (bottomChromeScrollAccumulator < 0f) bottomChromeScrollAccumulator = 0f
+                    bottomChromeScrollAccumulator += available.y
+                    if (bottomChromeScrollAccumulator >= bottomChromeCollapseThresholdPx) {
+                        bottomChromeCollapsed = false
+                        bottomChromeScrollAccumulator = 0f
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
     /** 歌单详情「批量」编辑时，暂时隐藏迷你播放器与底栏（由 [PlaylistDetailScreen] 驱动） */
     var playlistBatchHidingChrome by androidx.compose.runtime.remember { mutableStateOf(false) }
 
@@ -796,6 +838,8 @@ fun MainScreen() {
         if (currentRoute?.startsWith("playlist_detail") != true) {
             playlistBatchHidingChrome = false
         }
+        bottomChromeCollapsed = false
+        bottomChromeScrollAccumulator = 0f
     }
 
     var showLogoutDialog by androidx.compose.runtime.remember { mutableStateOf(false) }
@@ -1127,6 +1171,7 @@ fun MainScreen() {
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier
                 .fillMaxSize()
+                .nestedScroll(bottomChromeScrollConnection)
                 .then(
                     if (!isPlayerScreen || showPlaylist) {
                         Modifier.layerBackdrop(liquidBackdrop)
@@ -1876,7 +1921,9 @@ fun MainScreen() {
                             navController.navigate("latest")
                         },
                         onHeroHeightChanged = { homeHeroInsetPx = it },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .nestedScroll(bottomChromeScrollConnection)
                     )
                 }
             }
@@ -1964,6 +2011,7 @@ fun MainScreen() {
                     label = "bottomChrome",
                 ) {
                     if (isLandscape) {
+                        val compactProgress = bottomChromeCompactProgress
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2002,18 +2050,23 @@ fun MainScreen() {
                             )
                             BottomNavigationBar(
                                 navController = navController,
-                                modifier = Modifier.width(220.dp),
+                                modifier = Modifier.width(lerp(220.dp, 48.dp, compactProgress)),
                                 sampleBackdrop = bottomChromeBackdrop,
                                 height = 48.dp,
+                                compactProgress = compactProgress,
+                                onExpand = {
+                                    bottomChromeCollapsed = false
+                                    bottomChromeScrollAccumulator = 0f
+                                },
                             )
                             BottomSearchButton(
                                 onClick = ::openSearch,
                                 sampleBackdrop = bottomChromeBackdrop,
-                                size = 48.dp,
+                                size = lerp(48.dp, 46.dp, compactProgress),
                             )
                         }
                     } else {
-                        Column(
+                        BoxWithConstraints(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
@@ -2022,48 +2075,79 @@ fun MainScreen() {
                                     end = 12.dp,
                                     bottom = 8.dp,
                                 ),
-                            verticalArrangement = Arrangement.spacedBy(9.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            MeloXMiniPlayer(
-                                modifier = Modifier.onGloballyPositioned {
-                                    miniPlayerTopPx = it.boundsInRoot().top
-                                    miniPlayerBounds = it.boundsInRoot()
-                                },
-                                isPlaying = isPlaying,
-                                songTitle = currentMusicTitle ?: "暂无播放",
-                                artist = currentMusicArtist ?: "",
-                                coverUrl = currentMusicCover,
-                                onPlayPauseClick = {
-                                    if (togetherActive) TogetherSessionManager.toggle()
-                                    else playerManager.togglePlayPause()
-                                },
-                                onNextClick = {
-                                    if (togetherActive) TogetherSessionManager.next()
-                                    else playerManager.next()
-                                },
-                                onPlayerClick = {
-                                    openPlayer(currentMusicForPresentation())
-                                },
-                                onPlayerDragStart = { beginPlayerOpenDrag() },
-                                onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
-                                onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
-                                onPlayerDragCancel = { finishPlayerDrag() },
-                                sampleBackdrop = bottomChromeBackdrop,
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            val compactProgress = bottomChromeCompactProgress
+                            val availableWidth = maxWidth
+                            val expandedNavWidth =
+                                (availableWidth - 57.dp - 7.dp).coerceAtLeast(80.dp)
+                            val navWidth = lerp(expandedNavWidth, 46.dp, compactProgress)
+                            val navHeight = lerp(57.dp, 46.dp, compactProgress)
+                            val searchSize = lerp(57.dp, 46.dp, compactProgress)
+                            val chromeRowTop = lerp(57.dp, 1.dp, compactProgress)
+                            val collapsedMiniWidth =
+                                (availableWidth - 46.dp - 46.dp - 16.dp).coerceAtLeast(80.dp)
+                            val miniWidth = lerp(availableWidth, collapsedMiniWidth, compactProgress)
+                            val miniX = lerp(0.dp, 54.dp, compactProgress)
+                            val chromeHeight = lerp(114.dp, 48.dp, compactProgress)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(chromeHeight),
                             ) {
+                                MeloXMiniPlayer(
+                                    modifier = Modifier
+                                        .offset(x = miniX)
+                                        .width(miniWidth)
+                                        .onGloballyPositioned {
+                                            miniPlayerTopPx = it.boundsInRoot().top
+                                            miniPlayerBounds = it.boundsInRoot()
+                                        },
+                                    isPlaying = isPlaying,
+                                    songTitle = currentMusicTitle ?: "暂无播放",
+                                    artist = currentMusicArtist ?: "",
+                                    coverUrl = currentMusicCover,
+                                    onPlayPauseClick = {
+                                        if (togetherActive) TogetherSessionManager.toggle()
+                                        else playerManager.togglePlayPause()
+                                    },
+                                    onNextClick = {
+                                        if (togetherActive) TogetherSessionManager.next()
+                                        else playerManager.next()
+                                    },
+                                    onPlayerClick = {
+                                        openPlayer(currentMusicForPresentation())
+                                    },
+                                    onPlayerDragStart = { beginPlayerOpenDrag() },
+                                    onPlayerDrag = { deltaY -> dragPlayerBy(deltaY) },
+                                    onPlayerDragEnd = { velocityY -> finishPlayerDrag(velocityY) },
+                                    onPlayerDragCancel = { finishPlayerDrag() },
+                                    sampleBackdrop = bottomChromeBackdrop,
+                                )
                                 BottomNavigationBar(
                                     navController = navController,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .offset(y = chromeRowTop)
+                                        .width(navWidth)
+                                        .height(navHeight)
+                                        .zIndex(2f),
                                     sampleBackdrop = bottomChromeBackdrop,
+                                    height = navHeight,
+                                    compactProgress = compactProgress,
+                                    onExpand = {
+                                        bottomChromeCollapsed = false
+                                        bottomChromeScrollAccumulator = 0f
+                                    },
                                 )
                                 BottomSearchButton(
                                     onClick = ::openSearch,
+                                    modifier = Modifier
+                                        .offset(
+                                            x = availableWidth - searchSize,
+                                            y = chromeRowTop,
+                                        )
+                                        .zIndex(2f),
                                     sampleBackdrop = bottomChromeBackdrop,
+                                    size = searchSize,
                                 )
                             }
                         }

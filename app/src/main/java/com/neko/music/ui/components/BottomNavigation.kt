@@ -97,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
@@ -149,6 +150,8 @@ fun BottomNavigationBar(
     modifier: Modifier = Modifier,
     sampleBackdrop: Backdrop? = null,
     height: Dp = BottomNavigationBarHeight,
+    compactProgress: Float = 0f,
+    onExpand: () -> Unit = {},
 ) {
     val items = listOf(
         BottomNavItem.Home,
@@ -162,6 +165,9 @@ fun BottomNavigationBar(
     val isDarkBar = isAppDarkTheme()
     val useLiquidGlass = pageBackdrop != null && isLiquidGlassEffectActive(pageBackdrop)
     val view = LocalView.current
+    val compact = compactProgress.coerceIn(0f, 1f)
+    val tabContentAlpha = 1f - navSmoothStep(compact, 0f, 0.45f)
+    val compactAlpha = navSmoothStep(compact, 0.45f, 0.88f)
 
     fun navigateToItem(index: Int) {
         val item = items[index.coerceIn(0, items.lastIndex)]
@@ -182,36 +188,60 @@ fun BottomNavigationBar(
         }
     }
 
-    if (useLiquidGlass) {
-        LiquidTabStrip(
-            selectedTabIndex = selectedIndex,
-            onTabSelected = ::navigateToItem,
-            backdrop = pageBackdrop,
-            tabsCount = items.size,
-            isDark = isDarkBar,
-            accentColor = MaterialTheme.colorScheme.primary,
-            modifier = modifier
-                .fillMaxWidth()
-                .height(height),
-        ) {
-            items.forEachIndexed { index, item ->
-                BottomNavigationTab(
-                    item = item,
-                    selected = index == selectedIndex,
-                    isDark = isDarkBar,
-                    onClick = { navigateToItem(index) },
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (useLiquidGlass) {
+            LiquidTabStrip(
+                selectedTabIndex = selectedIndex,
+                onTabSelected = ::navigateToItem,
+                backdrop = pageBackdrop,
+                tabsCount = items.size,
+                isDark = isDarkBar,
+                accentColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items.forEachIndexed { index, item ->
+                    BottomNavigationTab(
+                        item = item,
+                        selected = index == selectedIndex,
+                        isDark = isDarkBar,
+                        contentAlpha = tabContentAlpha,
+                        onClick = { navigateToItem(index) },
+                    )
+                }
+            }
+        } else {
+            BottomNavigationFallback(
+                items = items,
+                selectedIndex = selectedIndex,
+                onTabSelected = ::navigateToItem,
+                modifier = Modifier.fillMaxSize(),
+                height = height,
+                contentAlpha = tabContentAlpha,
+            )
+        }
+        if (compactAlpha > 0.001f) {
+            val selectedItem = items[selectedIndex]
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(2f)
+                    .graphicsLayer { alpha = compactAlpha }
+                    .clickable(role = Role.Button, onClick = onExpand),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = selectedItem.icon,
+                    contentDescription = stringResource(selectedItem.titleResId),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
-    } else {
-        BottomNavigationFallback(
-            items = items,
-            selectedIndex = selectedIndex,
-            onTabSelected = ::navigateToItem,
-            modifier = modifier
-                .fillMaxWidth(),
-            height = height,
-        )
     }
 }
 
@@ -565,10 +595,14 @@ private fun RowScope.BottomNavigationTab(
     item: BottomNavItem,
     selected: Boolean,
     isDark: Boolean,
+    contentAlpha: Float = 1f,
     onClick: () -> Unit,
 ) {
     val contentColor = if (isDark) Color.White else Color.Black
-    LiquidBottomTab(onClick = onClick) {
+    LiquidBottomTab(
+        onClick = onClick,
+        modifier = Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) },
+    ) {
         Icon(
             imageVector = item.icon,
             contentDescription = null,
@@ -623,6 +657,7 @@ private fun BottomNavigationFallback(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = BottomNavigationBarHeight,
+    contentAlpha: Float = 1f,
 ) {
     val scheme = MaterialTheme.colorScheme
     Surface(
@@ -649,20 +684,24 @@ private fun BottomNavigationFallback(
                     selected = index == selectedIndex,
                     onClick = { onTabSelected(index) },
                     icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                        )
+                        Box(Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) }) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
                     },
                     label = {
-                        Text(
-                            text = stringResource(id = item.titleResId),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Box(Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) }) {
+                            Text(
+                                text = stringResource(id = item.titleResId),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = scheme.onSecondaryContainer,
@@ -675,6 +714,12 @@ private fun BottomNavigationFallback(
             }
         }
     }
+}
+
+private fun navSmoothStep(value: Float, start: Float, end: Float): Float {
+    if (end <= start) return if (value >= end) 1f else 0f
+    val t = ((value - start) / (end - start)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
 }
 
 @Composable
