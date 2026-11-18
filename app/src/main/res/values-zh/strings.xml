@@ -393,6 +393,7 @@
     <string name="playlist_batch_download_partial">已开始 %1$d 首，%2$d 首失败</string>
 
     <string name="playback_list">播放列表</string>
+    <string name="playlist_drag_handle">播放列表拖动把手</string>
     <string name="playlist_empty">播放列表为空</string>
     <string name="playback_queue_remove_from_list">移除</string>
     <string name="content_description_drag_reorder">长按条目并拖动即可调整顺序</string>

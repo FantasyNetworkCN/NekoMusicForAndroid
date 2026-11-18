@@ -429,6 +429,7 @@
     <string name="playlist_batch_download_partial">Started %1$d, failed %2$d</string>
 
     <string name="playback_list">Playlist</string>
+    <string name="playlist_drag_handle">Playlist drag handle</string>
     <string name="playlist_empty">Playlist is empty</string>
     <string name="playback_queue_remove_from_list">Remove</string>
     <string name="content_description_drag_reorder">Long press a row and drag to reorder</string>

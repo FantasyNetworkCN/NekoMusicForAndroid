@@ -1,30 +1,39 @@
 package com.neko.music.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -56,13 +65,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,7 +101,9 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.isAppDarkTheme
 import com.neko.music.util.UrlConfig
 import java.util.Collections
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Composable
@@ -116,7 +131,7 @@ fun PlaylistScreen(
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it })
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.5f))
@@ -126,11 +141,93 @@ fun PlaylistScreen(
                 onBackClick()
             }
 
+            val density = LocalDensity.current
+            val fullHeightPx = constraints.maxHeight.toFloat().coerceAtLeast(1f)
+            val baseHeightPx = min(
+                with(density) { 600.dp.toPx() },
+                fullHeightPx * 0.72f,
+            ).coerceAtLeast(1f)
+            val panelHeight = remember(fullHeightPx) { Animatable(baseHeightPx) }
+            val dragScope = rememberCoroutineScope()
+            var dragging by remember { mutableStateOf(false) }
+            val statusBarTopPx = WindowInsets.statusBars.getTop(density).toFloat()
+            val fullscreenProgress = if (fullHeightPx > baseHeightPx) {
+                ((panelHeight.value - baseHeightPx) / (fullHeightPx - baseHeightPx))
+                    .coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+            val dynamicTopInset = with(density) {
+                (statusBarTopPx * fullscreenProgress).toDp()
+            }
+
+            fun settleHeight(velocityY: Float) {
+                val current = panelHeight.value
+                val shouldClose = current <= baseHeightPx * 0.56f || velocityY >= 1_250f
+                val target = when {
+                    shouldClose -> 0f
+                    velocityY <= -900f || current >= (baseHeightPx + fullHeightPx) / 2f ->
+                        fullHeightPx
+                    else -> baseHeightPx
+                }
+                dragScope.launch {
+                    panelHeight.animateTo(
+                        targetValue = target,
+                        animationSpec = spring(
+                            dampingRatio = 0.9f,
+                            stiffness = Spring.StiffnessMediumLow,
+                            visibilityThreshold = 0.5f,
+                        ),
+                    )
+                    if (target == 0f && isVisible) onBackClick()
+                }
+            }
+
+            val dragModifier = Modifier.pointerInput(baseHeightPx, fullHeightPx) {
+                val velocityTracker = VelocityTracker()
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        velocityTracker.resetTracking()
+                        dragging = true
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        change.consume()
+                        dragScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                            panelHeight.snapTo(
+                                (panelHeight.value - dragAmount).coerceIn(0f, fullHeightPx),
+                            )
+                        }
+                    },
+                    onDragEnd = {
+                        dragging = false
+                        settleHeight(velocityTracker.calculateVelocity().y)
+                    },
+                    onDragCancel = {
+                        dragging = false
+                        dragScope.launch {
+                            panelHeight.animateTo(
+                                targetValue = if (panelHeight.value >= (baseHeightPx + fullHeightPx) / 2f) {
+                                    fullHeightPx
+                                } else {
+                                    baseHeightPx
+                                },
+                                animationSpec = spring(
+                                    dampingRatio = 0.9f,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                    visibilityThreshold = 0.5f,
+                                ),
+                            )
+                        }
+                    },
+                )
+            }
+
             val panelShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             val panelModifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(600.dp)
+                .height(with(density) { panelHeight.value.toDp() })
                 .clip(panelShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -150,29 +247,89 @@ fun PlaylistScreen(
                 liquidLensHeight = modalGlass.liquid.lensHeight,
                 liquidLensAmount = modalGlass.liquid.lensAmount
             ) {
-                if (togetherState != null) {
-                    TogetherRoomPlaylistContent(
-                        state = togetherState,
-                        onBackClick = onBackClick,
-                        onSelect = onTogetherSelect,
-                        onRemove = onTogetherRemove,
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = dynamicTopInset),
+                ) {
+                    PlaylistDragHandle(
+                        isDarkTheme = isDark,
+                        dragging = dragging,
+                        modifier = dragModifier,
                     )
-                } else {
-                    PlaylistContent(
-                        playlist = playlist,
-                        currentMusicId = currentMusicId,
-                        lanDevices = lanDevices,
-                        selectedDeviceId = selectedDeviceId,
-                        remoteQueue = remoteQueue,
-                        onSelectDevice = { lanManager.selectDevice(it) },
-                        onBackClick = onBackClick,
-                        onMusicClick = onMusicClick,
-                        playlistManager = playlistManager,
-                        scope = scope
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (togetherState != null) {
+                            TogetherRoomPlaylistContent(
+                                state = togetherState,
+                                onBackClick = onBackClick,
+                                onSelect = onTogetherSelect,
+                                onRemove = onTogetherRemove,
+                            )
+                        } else {
+                            PlaylistContent(
+                                playlist = playlist,
+                                currentMusicId = currentMusicId,
+                                lanDevices = lanDevices,
+                                selectedDeviceId = selectedDeviceId,
+                                remoteQueue = remoteQueue,
+                                onSelectDevice = { lanManager.selectDevice(it) },
+                                onBackClick = onBackClick,
+                                onMusicClick = onMusicClick,
+                                playlistManager = playlistManager,
+                                scope = scope
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlaylistDragHandle(
+    isDarkTheme: Boolean,
+    dragging: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val handleAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (dragging) 1f else 0.72f,
+        animationSpec = tween(140),
+        label = "playlist_drag_handle_alpha",
+    )
+    val handleScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (dragging) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "playlist_drag_handle_scale",
+    )
+    val handleDescription = stringResource(R.string.playlist_drag_handle)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(32.dp)
+            .semantics { contentDescription = handleDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 44.dp, height = 5.dp)
+                .graphicsLayer {
+                    alpha = handleAlpha
+                    scaleX = handleScale
+                    scaleY = handleScale
+                }
+                .clip(CircleShape)
+                .background(
+                    if (isDarkTheme) {
+                        Color.White.copy(alpha = 0.46f)
+                    } else {
+                        Color.Black.copy(alpha = 0.18f)
+                    },
+                ),
+        )
     }
 }
 
