@@ -26,6 +26,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +38,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +57,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -119,6 +122,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -126,7 +130,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -974,10 +981,11 @@ fun PlayerScreen(
                     .padding(bottom = bottomGlassReserve),
             ) {
                 // 顶栏只保留抓取条；一起听时额外为退出按钮留出空间。
+                val hasTopHeader = pagerState.currentPage == 2
                 val topOverlayReserve = when {
-                    isLandscape && togetherActive -> 88.dp
+                    isLandscape && hasTopHeader -> 96.dp
                     isLandscape -> 52.dp
-                    togetherActive -> 96.dp
+                    hasTopHeader -> 100.dp
                     else -> 64.dp
                 }
                 Spacer(modifier = Modifier.height(topOverlayReserve))
@@ -1026,14 +1034,8 @@ fun PlayerScreen(
                         }
 
                         1 -> {
-                            NowPlayingCoverPage(
-                                music = currentMusic,
-                                isLandscape = isLandscape,
-                                togetherActive = togetherActive,
-                                artworkSharedModifier = artworkSharedModifier,
-                                artworkExpansionProgress = artworkExpansionProgress,
-                                onMenuClick = { showShareDialog = true },
-                            )
+                            // 封面与歌曲信息由持久播放视觉层绘制，分页页只保留手势区域。
+                            Box(Modifier.fillMaxSize())
                         }
 
                         2 -> {
@@ -1068,6 +1070,28 @@ fun PlayerScreen(
             }
         }
 
+        PlayerPersistentVisualLayer(
+            music = currentMusic,
+            pagerState = pagerState,
+            isLandscape = isLandscape,
+            togetherActive = togetherActive,
+            bottomReserve = bottomGlassReserve,
+            artworkSharedModifier = artworkSharedModifier,
+            artworkExpansionProgress = artworkExpansionProgress,
+            onMenuClick = { showShareDialog = true },
+            onLeaveTogetherClick = {
+                TogetherSessionManager.leave()
+                Toast.makeText(
+                    context,
+                    R.string.together_left,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(1.5f),
+        )
+
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Column(
                 modifier = Modifier
@@ -1087,19 +1111,6 @@ fun PlayerScreen(
                         Modifier
                     },
                 )
-                if (togetherActive) {
-                    TopBar(
-                        isDarkTheme = isDarkTheme,
-                        onLeaveTogetherClick = {
-                            TogetherSessionManager.leave()
-                            Toast.makeText(
-                                context,
-                                R.string.together_left,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        },
-                    )
-                }
             }
 
             AnimatedVisibility(
@@ -1802,39 +1813,6 @@ private fun PlayerSceneGrabber(
 }
 
 @Composable
-fun TopBar(
-    isDarkTheme: Boolean,
-    onLeaveTogetherClick: () -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
-    val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
-    val foreground = if (useLiquidStyle) {
-        if (isDarkTheme) Color.White else Color(0xFF17171A)
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PlayerGlassIconButton(
-            onClick = onLeaveTogetherClick,
-            isDarkTheme = isDarkTheme,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.logout),
-                contentDescription = stringResource(R.string.together_leave),
-                tint = foreground,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-}
-
-@Composable
 private fun PlayerGlassIconButton(
     onClick: () -> Unit,
     isDarkTheme: Boolean,
@@ -1882,83 +1860,180 @@ private fun CountBadge(
 }
 
 @Composable
-private fun NowPlayingCoverPage(
+private fun PlayerPersistentVisualLayer(
     music: Music,
+    pagerState: PagerState,
     isLandscape: Boolean,
     togetherActive: Boolean,
+    bottomReserve: Dp,
     artworkSharedModifier: Modifier,
     artworkExpansionProgress: () -> Float,
     onMenuClick: () -> Unit,
+    onLeaveTogetherClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (isLandscape) {
-            val artworkSize = minOf(
+    val pageProgress = when {
+        pagerState.currentPage == 2 ->
+            (1f + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
+        pagerState.currentPage == 1 ->
+            pagerState.currentPageOffsetFraction.coerceIn(0f, 1f)
+        else -> 0f
+    }
+    val layerAlpha = when {
+        pagerState.currentPage == 0 ->
+            pagerState.currentPageOffsetFraction.coerceIn(0f, 1f)
+        pagerState.currentPage == 1 && pagerState.currentPageOffsetFraction < 0f ->
+            (1f + pagerState.currentPageOffsetFraction).coerceIn(0f, 1f)
+        pagerState.currentPage == 0 -> 0f
+        else -> 1f
+    }
+    if (layerAlpha <= 0.001f) return
+
+    val dark = isAppDarkTheme()
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier = modifier) {
+        val statusTop = with(density) { WindowInsets.statusBars.getTop(density).toDp() }
+        val contentTop = statusTop +
+            (if (isLandscape) 52.dp else 64.dp) +
+            (if (togetherActive) 52.dp else 0.dp)
+        val availableHeight = (
+            maxHeight - bottomReserve - contentTop
+        ).coerceAtLeast(1.dp)
+
+        val largeCoverSize = if (isLandscape) {
+            minOf(
                 maxWidth * (if (togetherActive) 0.24f else 0.30f),
-                maxHeight * 0.72f,
+                availableHeight * 0.72f,
                 if (togetherActive) 190.dp else 240.dp,
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(30.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CoverImage(
-                    music = music,
-                    modifier = Modifier
-                        .size(artworkSize)
-                        .then(artworkSharedModifier),
-                    artworkExpansionProgress = artworkExpansionProgress,
-                )
-                NowPlayingIdentity(
-                    music = music,
-                    modifier = Modifier.weight(1f),
-                    alignStart = true,
-                    onMenuClick = onMenuClick,
-                )
-            }
         } else {
-            val artworkSize = minOf(
+            minOf(
                 maxWidth * (if (togetherActive) 0.72f else 0.84f),
-                maxHeight * 0.60f,
+                availableHeight * 0.60f,
                 if (togetherActive) 280.dp else 380.dp,
             )
-            Column(
+        }
+
+        val trailingWidth = 44.dp + if (togetherActive) 50.dp else 0.dp
+        val compactCoverSize = 48.dp
+        val compactTop = statusTop + 40.dp
+        val compactCoverX = 16.dp
+        val compactTextX = compactCoverX + compactCoverSize + 12.dp
+        val compactMoreX = maxWidth - 16.dp - 44.dp
+        val compactLeaveX = compactMoreX - if (togetherActive) 50.dp else 0.dp
+        val compactTextWidth = (compactLeaveX - 12.dp - compactTextX).coerceAtLeast(1.dp)
+
+        val largeCoverX: Dp
+        val largeCoverY: Dp
+        val largeTextX: Dp
+        val largeTextY: Dp
+        val largeBlockWidth: Dp
+        if (isLandscape) {
+            val blockWidth = (maxWidth - 64.dp).coerceAtLeast(1.dp)
+            largeCoverX = 32.dp
+            largeCoverY = contentTop + ((availableHeight - largeCoverSize) / 2f)
+                .coerceAtLeast(0.dp)
+            largeTextX = largeCoverX + largeCoverSize + 30.dp
+            largeTextY = largeCoverY + ((largeCoverSize - 54.dp) / 2f).coerceAtLeast(0.dp)
+            largeBlockWidth = (blockWidth - largeCoverSize - 30.dp)
+                .coerceAtLeast(1.dp)
+        } else {
+            val identityHeight = 54.dp
+            val totalHeight = largeCoverSize + 30.dp + identityHeight
+            largeCoverX = (maxWidth - largeCoverSize) / 2f
+            largeCoverY = contentTop + ((availableHeight - totalHeight) / 2f)
+                .coerceAtLeast(0.dp)
+            largeTextX = largeCoverX
+            largeTextY = largeCoverY + largeCoverSize + 30.dp
+            largeBlockWidth = largeCoverSize
+        }
+        val largeTextWidth = (largeBlockWidth - trailingWidth - 12.dp)
+            .coerceAtLeast(1.dp)
+
+        val coverSize = lerp(largeCoverSize, compactCoverSize, pageProgress)
+        val coverX = lerp(largeCoverX, compactCoverX, pageProgress)
+        val coverY = lerp(largeCoverY, compactTop, pageProgress)
+        val textX = lerp(largeTextX, compactTextX, pageProgress)
+        val textY = lerp(largeTextY, compactTop + 3.dp, pageProgress)
+        val textWidth = lerp(largeTextWidth, compactTextWidth, pageProgress)
+        val largeMoreX = largeTextX + largeBlockWidth - trailingWidth
+        val largeMoreY = largeTextY + 5.dp
+        val moreX = lerp(largeMoreX, compactMoreX, pageProgress)
+        val moreY = lerp(largeMoreY, compactTop + 2.dp, pageProgress)
+
+        Box(
+            modifier = Modifier
+                .offset(x = coverX, y = coverY)
+                .size(coverSize)
+                .then(artworkSharedModifier)
+                .graphicsLayer { alpha = layerAlpha },
+        ) {
+            CoverImage(
+                music = music,
+                modifier = Modifier.fillMaxSize(),
+                artworkExpansionProgress = artworkExpansionProgress,
+                artworkCornerRadius = lerp(18.dp, 10.dp, pageProgress),
+                artworkElevation = lerp(24.dp, 4.dp, pageProgress),
+            )
+        }
+
+        PlayerTrackText(
+            music = music,
+            modifier = Modifier
+                .offset(x = textX, y = textY)
+                .width(textWidth)
+                .graphicsLayer { alpha = layerAlpha },
+            alignStart = true,
+            titleSize = lerp(24.sp, 17.sp, pageProgress),
+            titleLineHeight = lerp(29.sp, 21.sp, pageProgress),
+            artistSize = lerp(16.sp, 13.sp, pageProgress),
+            artistLineHeight = lerp(20.sp, 17.sp, pageProgress),
+        )
+
+        if (togetherActive) {
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                    .offset(x = moreX - 50.dp, y = moreY)
+                    .size(44.dp)
+                    .graphicsLayer { alpha = layerAlpha },
             ) {
-                CoverImage(
-                    music = music,
-                    modifier = Modifier
-                        .size(artworkSize)
-                        .then(artworkSharedModifier),
-                    artworkExpansionProgress = artworkExpansionProgress,
-                )
-                Spacer(modifier = Modifier.height(30.dp))
-                NowPlayingIdentity(
-                    music = music,
-                    modifier = Modifier.width(artworkSize),
-                    alignStart = true,
-                    onMenuClick = onMenuClick,
-                )
+                PlayerGlassIconButton(
+                    onClick = onLeaveTogetherClick,
+                    isDarkTheme = dark,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.logout),
+                        contentDescription = stringResource(R.string.together_leave),
+                        tint = if (dark) Color.White else Color(0xFF17171A),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
+        }
+
+        Box(
+            modifier = Modifier
+                .offset(x = moreX, y = moreY)
+                .size(44.dp)
+                .graphicsLayer { alpha = layerAlpha },
+        ) {
+            PlayerTrackMoreButton(
+                isDarkTheme = dark,
+                onClick = onMenuClick,
+            )
         }
     }
 }
 
 @Composable
-private fun NowPlayingIdentity(
+private fun PlayerTrackText(
     music: Music,
-    modifier: Modifier = Modifier,
-    alignStart: Boolean = false,
-    onMenuClick: () -> Unit,
+    modifier: Modifier,
+    alignStart: Boolean,
+    titleSize: TextUnit,
+    titleLineHeight: TextUnit,
+    artistSize: TextUnit,
+    artistLineHeight: TextUnit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -1976,51 +2051,61 @@ private fun NowPlayingIdentity(
     val contentAlignment = if (alignStart) Alignment.Start else Alignment.CenterHorizontally
     val textAlignment = if (alignStart) TextAlign.Start else TextAlign.Center
 
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        modifier = modifier,
+        horizontalAlignment = contentAlignment,
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            horizontalAlignment = contentAlignment,
-        ) {
-            Text(
-                text = music.title,
-                color = title,
-                fontSize = 24.sp,
-                lineHeight = 29.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.45).sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = textAlignment,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = music.artist,
-                color = secondary,
-                fontSize = 16.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = textAlignment,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        PlayerGlassIconButton(
-            onClick = onMenuClick,
-            isDarkTheme = dark,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_more_horizontal),
-                contentDescription = stringResource(id = R.string.more),
-                tint = title.copy(alpha = 0.9f),
-                modifier = Modifier.size(21.dp),
-            )
-        }
+        Text(
+            text = music.title,
+            color = title,
+            fontSize = titleSize,
+            lineHeight = titleLineHeight,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.45).sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            textAlign = textAlignment,
+            modifier = Modifier
+                .fillMaxWidth()
+                .basicMarquee(),
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = music.artist,
+            color = secondary,
+            fontSize = artistSize,
+            lineHeight = artistLineHeight,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            textAlign = textAlignment,
+            modifier = Modifier
+                .fillMaxWidth()
+                .basicMarquee(
+                    initialDelayMillis = 1_000,
+                ),
+        )
+    }
+}
+
+@Composable
+private fun PlayerTrackMoreButton(
+    isDarkTheme: Boolean,
+    onClick: () -> Unit,
+) {
+    val tint = if (isDarkTheme) Color.White else Color(0xFF17171A)
+    PlayerGlassIconButton(
+        onClick = onClick,
+        isDarkTheme = isDarkTheme,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_more_horizontal),
+            contentDescription = stringResource(id = R.string.more),
+            tint = tint.copy(alpha = 0.9f),
+            modifier = Modifier.size(21.dp),
+        )
     }
 }
 
@@ -2029,6 +2114,8 @@ fun CoverImage(
     music: Music,
     modifier: Modifier = Modifier,
     artworkExpansionProgress: (() -> Float)? = null,
+    artworkCornerRadius: Dp? = null,
+    artworkElevation: Dp? = null,
 ) {
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
@@ -2036,7 +2123,7 @@ fun CoverImage(
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val isDarkTheme = isAppDarkTheme()
-    val artworkCornerDp = if (useLiquidStyle) 18f else 24f
+    val artworkCornerDp = artworkCornerRadius?.value ?: if (useLiquidStyle) 18f else 24f
     val artworkShape = RoundedCornerShape(artworkCornerDp.dp)
     val artworkClipModifier = if (artworkExpansionProgress == null) {
         Modifier.clip(artworkShape)
@@ -2051,7 +2138,7 @@ fun CoverImage(
     val artworkModifier = if (useLiquidStyle) {
         Modifier
             .shadow(
-                elevation = 24.dp,
+                elevation = artworkElevation ?: 24.dp,
                 shape = artworkShape,
                 spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.50f else 0.24f),
                 ambientColor = Color.Black.copy(alpha = 0.16f),
@@ -2066,7 +2153,7 @@ fun CoverImage(
     } else {
         Modifier
             .shadow(
-                elevation = 10.dp,
+                elevation = artworkElevation ?: 10.dp,
                 shape = artworkShape,
                 spotColor = Color.Black.copy(alpha = if (isDarkTheme) 0.32f else 0.14f),
                 ambientColor = Color.Black.copy(alpha = 0.06f),
