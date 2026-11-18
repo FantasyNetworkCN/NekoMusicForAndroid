@@ -172,6 +172,15 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.receiveAsFlow
 import java.net.URLEncoder
 
+internal fun playerGestureDeltaFraction(
+    deltaY: Float,
+    dragOriginMini: Boolean,
+    travelPx: Float,
+): Float {
+    val distance = travelPx.coerceAtLeast(1f)
+    return (if (dragOriginMini) -deltaY else deltaY) / distance
+}
+
 class MainActivity : ComponentActivity() {
     private val PREFS_NAME = "app_prefs"
     private val KEY_FIRST_LAUNCH = "first_launch"
@@ -841,8 +850,14 @@ fun MainScreen() {
     }
 
     fun dragPlayerBy(deltaY: Float) {
+        // 迷你栏上滑使用“展开进度”，播放页下滑使用“收起进度”，两者方向相反。
+        val deltaFraction = playerGestureDeltaFraction(
+            deltaY = deltaY,
+            dragOriginMini = playerDragOriginMini,
+            travelPx = playerTravelPx,
+        )
         playerGestureProgress =
-            (playerGestureProgress - deltaY / playerTravelPx).coerceIn(0f, 0.999f)
+            (playerGestureProgress + deltaFraction).coerceIn(0f, 0.999f)
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             playerTransitionState.seekTo(
                 fraction = playerGestureProgress,
