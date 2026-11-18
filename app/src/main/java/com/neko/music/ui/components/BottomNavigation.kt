@@ -21,6 +21,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -208,6 +210,73 @@ fun BottomNavigationBar(
             modifier = modifier
                 .fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * 右下角独立搜索入口。
+ *
+ * 与左侧导航胶囊共用同一份 Backdrop 和液态玻璃参数；点击区域固定为 56dp，
+ * 避免圆形按钮在不同 DPI 下缩到不可点击。
+ */
+@Composable
+fun BottomSearchButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    sampleBackdrop: Backdrop? = null,
+) {
+    val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
+    val isDarkTheme = isAppDarkTheme()
+    val glass = LiquidGlassDefaults.bottomNavigation
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "bottom_search_press",
+    )
+    val iconColor = if (isDarkTheme) {
+        Color.White.copy(alpha = 0.92f)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
+    }
+
+    GlassSurface(
+        modifier = modifier
+            .size(56.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            ),
+        shape = CircleShape,
+        sampleBackdrop = backdrop,
+        material3Shape = CircleShape,
+        material3Container = MaterialTheme.colorScheme.surfaceContainerHigh,
+        material3Elevation = 2.dp,
+        backgroundAlpha = glass.tint.background(isDarkTheme),
+        borderAlpha = glass.tint.border(isDarkTheme),
+        highlightAlpha = glass.tint.highlight(isDarkTheme),
+        liquidBlur = glass.mainLiquid.blur,
+        liquidLensHeight = glass.mainLiquid.lensHeight,
+        liquidLensAmount = glass.mainLiquid.lensAmount,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = stringResource(id = R.string.search),
+                tint = iconColor,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 

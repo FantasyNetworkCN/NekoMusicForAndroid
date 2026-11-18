@@ -97,6 +97,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.neko.music.data.model.Music
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.BottomNavigationBar
+import com.neko.music.ui.components.BottomSearchButton
 import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
@@ -629,6 +630,19 @@ fun MainScreen() {
         return "player/${music.id}/$encodedTitle/$encodedArtist"
     }
 
+    fun openSearch() {
+        if (navController.currentDestination?.route?.startsWith("search") == true) return
+        Log.d("MainActivity", "导航到搜索页面")
+        context.getSharedPreferences("search_state", Context.MODE_PRIVATE)
+            .edit()
+            .remove("last_search_query")
+            .remove("last_search_type")
+            .apply()
+        navController.navigate("search") {
+            launchSingleTop = true
+        }
+    }
+
     fun currentMusicForPresentation(): Music = Music(
         id = currentMusicId ?: 0,
         title = currentMusicTitle ?: "未知歌曲",
@@ -1127,16 +1141,6 @@ fun MainScreen() {
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    val raw = playerPresentationProgress.value.coerceIn(0f, 1f)
-                    val recede = raw * raw * (3f - 2f * raw)
-                    val scale = 1f - 0.032f * recede
-                    scaleX = scale
-                    scaleY = scale
-                    translationY = 12.dp.toPx() * recede
-                    alpha = 1f - 0.16f * recede
-                    transformOrigin = TransformOrigin(0.5f, 0.42f)
-                }
                 .then(
                     if (!isPlayerScreen || showPlaylist) {
                         Modifier.layerBackdrop(liquidBackdrop)
@@ -1865,18 +1869,6 @@ fun MainScreen() {
                     HomeLiquidHeroOverlay(
                         state = homeLiquidHeroState,
                         liquidBackdrop = liquidBackdrop,
-                        onSearchClick = {
-                            Log.d("MainActivity", "导航到搜索页面")
-                            val searchStatePrefs = context.getSharedPreferences(
-                                "search_state",
-                                android.content.Context.MODE_PRIVATE
-                            )
-                            searchStatePrefs.edit()
-                                .remove("last_search_query")
-                                .remove("last_search_type")
-                                .apply()
-                            navController.navigate("search")
-                        },
                         onRecognitionClick = {
                             navController.navigate("music_recognition")
                         },
@@ -2025,6 +2017,10 @@ fun MainScreen() {
                                 modifier = Modifier.width(220.dp),
                                 sampleBackdrop = bottomChromeBackdrop,
                             )
+                            BottomSearchButton(
+                                onClick = ::openSearch,
+                                sampleBackdrop = bottomChromeBackdrop,
+                            )
                         }
                     } else {
                         Column(
@@ -2065,10 +2061,21 @@ fun MainScreen() {
                                 onPlayerDragCancel = { finishPlayerDrag() },
                                 sampleBackdrop = bottomChromeBackdrop,
                             )
-                            BottomNavigationBar(
-                                navController = navController,
-                                sampleBackdrop = bottomChromeBackdrop,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                BottomNavigationBar(
+                                    navController = navController,
+                                    modifier = Modifier.weight(1f),
+                                    sampleBackdrop = bottomChromeBackdrop,
+                                )
+                                BottomSearchButton(
+                                    onClick = ::openSearch,
+                                    sampleBackdrop = bottomChromeBackdrop,
+                                )
+                            }
                         }
                     }
                 }

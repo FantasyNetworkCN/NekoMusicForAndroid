@@ -26,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -85,7 +84,6 @@ import com.neko.music.util.UrlConfig
 fun HomeLiquidHeroOverlay(
     state: HomeLiquidHeroState,
     liquidBackdrop: LayerBackdrop,
-    onSearchClick: () -> Unit,
     onRecognitionClick: () -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToDailyRecommendations: () -> Unit,
@@ -124,7 +122,6 @@ fun HomeLiquidHeroOverlay(
                     secondaryColor = secondaryColor,
                     titleShadow = titleShadow,
                     sampleBackdrop = liquidBackdrop,
-                    onSearchClick = onSearchClick,
                     onRecognitionClick = onRecognitionClick,
                 )
             }
@@ -165,13 +162,12 @@ private fun HomeHeader(
     secondaryColor: Color,
     titleShadow: Shadow,
     sampleBackdrop: LayerBackdrop,
-    onSearchClick: () -> Unit,
     onRecognitionClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val glass = LiquidGlassDefaults.homeHeroSearchBar
     val useLiquidStyle = isLiquidGlassEffectActive(sampleBackdrop)
-    val searchHeight = if (useLiquidStyle) 50.dp else 56.dp
+    val recognitionSize = if (useLiquidStyle) 50.dp else 56.dp
     val borderColor = if (isDarkHome) {
         SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
     } else {
@@ -183,86 +179,35 @@ private fun HomeHeader(
             .fillMaxWidth()
             .padding(start = 20.dp, top = 8.dp, end = 20.dp),
     ) {
-        Text(
-            text = stringResource(id = R.string.welcome_back),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = secondaryColor,
-            letterSpacing = 0.2.sp,
-            style = androidx.compose.ui.text.TextStyle(shadow = titleShadow),
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = stringResource(id = R.string.home_listen_now),
-            fontSize = 32.sp,
-            lineHeight = 38.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = titleColor,
-            letterSpacing = (-0.6).sp,
-            style = androidx.compose.ui.text.TextStyle(shadow = titleShadow),
-        )
-        Spacer(modifier = Modifier.height(14.dp))
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GlassSurface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(searchHeight),
-                sampleBackdrop = sampleBackdrop,
-                shape = RoundedCornerShape(18.dp),
-                material3Shape = RoundedCornerShape(28.dp),
-                material3Container = colorScheme.surfaceContainerHigh,
-                backgroundAlpha = glass.tint.background(isDarkHome),
-                borderAlpha = glass.tint.border(isDarkHome),
-                highlightAlpha = glass.tint.highlight(isDarkHome),
-                borderColor = borderColor,
-                liquidBlur = glass.liquid.blur,
-                liquidLensHeight = glass.liquid.lensHeight,
-                liquidLensAmount = glass.liquid.lensAmount,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(searchHeight)
-                        .padding(horizontal = 16.dp)
-                        .then(
-                            if (useLiquidStyle) {
-                                Modifier.clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onSearchClick,
-                                )
-                            } else {
-                                Modifier.clickable(onClick = onSearchClick)
-                            }
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = stringResource(id = R.string.search),
-                        tint = secondaryColor,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(id = R.string.search_music_artist_album),
-                        fontSize = 15.sp,
-                        color = secondaryColor,
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(id = R.string.welcome_back),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = secondaryColor,
+                    letterSpacing = 0.2.sp,
+                    style = androidx.compose.ui.text.TextStyle(shadow = titleShadow),
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(id = R.string.home_listen_now),
+                    fontSize = 32.sp,
+                    lineHeight = 38.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = titleColor,
+                    letterSpacing = (-0.6).sp,
+                    style = androidx.compose.ui.text.TextStyle(shadow = titleShadow),
+                )
             }
 
             GlassSurface(
                 modifier = Modifier
-                    .size(searchHeight)
+                    .size(recognitionSize)
                     .clickable(onClick = onRecognitionClick),
                 sampleBackdrop = sampleBackdrop,
                 shape = CircleShape,
