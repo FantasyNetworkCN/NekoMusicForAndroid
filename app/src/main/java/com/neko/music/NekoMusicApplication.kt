@@ -110,8 +110,7 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
             .components {
                 add(KtorNetworkFetcherFactory(httpClient = { httpClient }))
             }
-            // 关闭内存与磁盘缓存（每次按需拉取/解码）。
-            .memoryCache(null)
+            // 保留内存缓存，避免播放页等高频复用的封面在重新挂载时重新下载解码。
             .diskCache(null)
             .build()
     }

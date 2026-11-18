@@ -99,6 +99,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.size.Precision
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -158,6 +161,8 @@ import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.PrivacyConsentManager
 import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.PlayerCoverPrefetchSizePx
+import com.neko.music.util.playerCoverMemoryKey
 import com.neko.music.ui.theme.Neko歌姬计划
 import com.neko.music.ui.components.LocalLiquidGlassHardwareEffectsEnabled
 import com.neko.music.ui.components.LocalLiquidGlassUiScale
@@ -611,6 +616,17 @@ fun MainScreen() {
     val currentMusicCover by playerManager.currentMusicCover.collectAsState()
     val currentMusicId by playerManager.currentMusicId.collectAsState()
     val duration by playerManager.duration.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(currentMusicCover) {
+        val url = currentMusicCover?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .size(PlayerCoverPrefetchSizePx)
+            .precision(Precision.INEXACT)
+            .memoryCacheKey(playerCoverMemoryKey(url))
+            .build()
+        SingletonImageLoader.get(context).enqueue(request)
+    }
 
     // 点击、拖动、回弹和反向打断全部驱动同一个 SeekableTransitionState，
     // 迷你栏与全屏页因此始终处在同一条连续时间线上。
