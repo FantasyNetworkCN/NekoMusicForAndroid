@@ -11,7 +11,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -27,6 +26,7 @@ import com.neko.music.config.AppConfig
 import com.neko.music.data.api.MusicApi
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.util.AppHaptics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -98,7 +98,7 @@ class DesktopLyricService : Service() {
     private val longPressLockRunnable = Runnable {
         if (!isDragging && !longPressLockHandled) {
             longPressLockHandled = true
-            lyricView?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            AppHaptics.pulse(this, longPress = true)
             setLocked(!isLocked)
         }
     }
@@ -362,6 +362,7 @@ class DesktopLyricService : Service() {
             alpha = 0.86f
             setPadding(margin * 2, margin * 2, margin * 2, margin * 2)
             isLongClickable = true
+            isHapticFeedbackEnabled = false
             setOnClickListener {
                 Toast.makeText(
                     this@DesktopLyricService,
@@ -370,7 +371,7 @@ class DesktopLyricService : Service() {
                 ).show()
             }
             setOnLongClickListener {
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                AppHaptics.pulse(context, longPress = true)
                 setLocked(false)
                 true
             }

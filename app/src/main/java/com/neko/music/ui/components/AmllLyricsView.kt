@@ -64,7 +64,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -75,7 +74,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -178,7 +176,6 @@ fun AmllLyricsView(
     var followRevision by remember(displayLyrics) { mutableIntStateOf(0) }
     var selectedLineIndices by remember(displayLyrics) { mutableStateOf(emptySet<Int>()) }
     val density = LocalDensity.current
-    val haptics = LocalHapticFeedback.current
     val motion = remember(displayLyrics, lyricStyle, density) { AppleLyricScrollState(displayLyrics) }
     val browsingConnection = remember(motion) {
         object : NestedScrollConnection {
@@ -344,7 +341,6 @@ fun AmllLyricsView(
                                             onLongClick = {
                                                 if (line.text.isNotBlank()) {
                                                     selectedLineIndices = if (selected) selectedLineIndices - index else selectedLineIndices + index
-                                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 }
                                             },
                                         )

@@ -55,12 +55,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -161,6 +164,7 @@ import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.PrivacyConsentManager
 import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.util.UrlConfig
+import com.neko.music.util.AppHaptics
 import com.neko.music.util.PlayerCoverPrefetchSizePx
 import com.neko.music.util.playerCoverMemoryKey
 import com.neko.music.ui.theme.Neko歌姬计划
@@ -2674,6 +2678,13 @@ fun LoadingDots(alpha: Float) {
 @Composable
 private fun AppThemeWrapper(content: @Composable () -> Unit) {
     val context = LocalContext.current
+    val hapticFeedback = remember(context) {
+        object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                AppHaptics.pulse(context, longPress = hapticFeedbackType == HapticFeedbackType.LongPress)
+            }
+        }
+    }
     val prefs = remember {
         context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
     }
@@ -2720,6 +2731,7 @@ private fun AppThemeWrapper(content: @Composable () -> Unit) {
             }
         }
         CompositionLocalProvider(
+            LocalHapticFeedback provides hapticFeedback,
             LocalLiquidGlassUiScale provides liquidScale.value,
             LocalLiquidGlassHardwareEffectsEnabled provides liquidHardware.value,
         ) {

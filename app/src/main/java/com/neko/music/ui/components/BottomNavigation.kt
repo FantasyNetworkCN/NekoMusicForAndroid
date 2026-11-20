@@ -1,7 +1,5 @@
 package com.neko.music.ui.components
 
-import android.os.Build
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -82,7 +80,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -164,7 +163,7 @@ fun BottomNavigationBar(
     val pageBackdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val isDarkBar = isAppDarkTheme()
     val useLiquidGlass = pageBackdrop != null && isLiquidGlassEffectActive(pageBackdrop)
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
     val compact = compactProgress.coerceIn(0f, 1f)
     val tabContentAlpha = 1f - navSmoothStep(compact, 0f, 0.45f)
     val compactAlpha = navSmoothStep(compact, 0.45f, 0.88f)
@@ -176,13 +175,7 @@ fun BottomNavigationBar(
                 popUpTo(item.route) { inclusive = true }
                 launchSingleTop = true
             }
-            @Suppress("DEPRECATION")
-            val haptic = if (Build.VERSION.SDK_INT >= 30) {
-                HapticFeedbackConstants.SEGMENT_TICK
-            } else {
-                HapticFeedbackConstants.CONTEXT_CLICK
-            }
-            view.performHapticFeedback(haptic)
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         } else {
             navController.popBackStack(item.route, inclusive = false)
         }
@@ -265,6 +258,7 @@ fun BottomSearchButton(
     sampleBackdrop: Backdrop? = null,
     size: Dp = BottomNavigationBarHeight,
 ) {
+    val haptics = LocalHapticFeedback.current
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
     val isDarkTheme = isAppDarkTheme()
     val glass = LiquidGlassDefaults.bottomNavigation
@@ -295,7 +289,10 @@ fun BottomSearchButton(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    onClick()
+                },
             ),
         shape = CircleShape,
         sampleBackdrop = backdrop,

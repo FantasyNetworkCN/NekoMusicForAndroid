@@ -34,6 +34,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,8 +53,10 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.util.AppHaptics
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -426,6 +430,10 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                HapticSettingsSection()
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 SettingSection(title = "合规与隐私") {
                     SettingItem(
                         icon = Icons.Default.Info,
@@ -493,6 +501,67 @@ fun SettingsScreen(
             }
         }
     }
+    }
+}
+
+@Composable
+private fun HapticSettingsSection() {
+    val context = LocalContext.current
+    val hasVibrator = remember(context) { AppHaptics.hasVibrator(context) }
+    val supportsStrength = remember(context) { AppHaptics.supportsStrength(context) }
+    var enabled by remember(context) { mutableStateOf(AppHaptics.isEnabled(context)) }
+    val strengthState = remember(context) {
+        SliderState(
+            value = AppHaptics.strength(context).toFloat(),
+            trackRange = AppHaptics.MIN_STRENGTH.toFloat()..AppHaptics.MAX_STRENGTH.toFloat(),
+        )
+    }
+
+    SettingSection(title = stringResource(R.string.haptics_section)) {
+        if (!hasVibrator) {
+            Text(
+                text = stringResource(R.string.haptics_unavailable),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
+        } else {
+            SettingSwitchItem(
+                icon = Icons.Default.Settings,
+                title = stringResource(R.string.haptics_enabled),
+                checked = enabled,
+                onCheckedChange = { checked ->
+                    enabled = checked
+                    AppHaptics.setEnabled(context, checked)
+                    if (checked) AppHaptics.pulse(context)
+                },
+            )
+            if (supportsStrength) {
+                val strengthLabel = stringResource(R.string.haptics_strength)
+                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(text = strengthLabel, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        Text(
+                            text = stringResource(R.string.haptics_strength_percent, strengthState.value.roundToInt()),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Slider(
+                        state = strengthState,
+                        onValueChange = { strengthState.value = it },
+                        onValueChangeFinished = {
+                            AppHaptics.setStrength(context, strengthState.value.roundToInt())
+                            AppHaptics.pulse(context)
+                        },
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = strengthLabel },
+                    )
+                }
+            }
+        }
     }
 }
 

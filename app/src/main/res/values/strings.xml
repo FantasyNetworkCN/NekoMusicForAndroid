@@ -10,6 +10,11 @@
 
     <string name="settings">设置喵</string>
     <string name="general">通用喵</string>
+    <string name="haptics_section">振动触感</string>
+    <string name="haptics_enabled">触感反馈</string>
+    <string name="haptics_strength">振动强度</string>
+    <string name="haptics_strength_percent">%1$d%%</string>
+    <string name="haptics_unavailable">此设备不支持振动</string>
     <string name="cache_enabled">要缓存吗喵？</string>
     <string name="cache_enabled_subtitle">开启后可以把音乐藏进肉垫，离线也能听喵</string>
     <string name="cache_management">缓存仓库喵</string>

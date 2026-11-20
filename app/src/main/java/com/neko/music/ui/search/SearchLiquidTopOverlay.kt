@@ -1,7 +1,5 @@
 package com.neko.music.ui.search
 
-import android.os.Build
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -53,7 +51,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -98,7 +97,7 @@ fun SearchLiquidTopOverlay(
     val searchMusicText = stringResource(id = R.string.search_music)
     val clearQueryText = stringResource(id = R.string.search_clear_query)
     val focusManager = LocalFocusManager.current
-    val view = LocalView.current
+    val haptics = LocalHapticFeedback.current
     val useLiquidTypeRow =
         backdropForGlass != null && isLiquidGlassEffectActive(backdropForGlass)
     val searchFieldHeight = if (useLiquidTypeRow) 50.dp else 56.dp
@@ -112,13 +111,7 @@ fun SearchLiquidTopOverlay(
     val onTypeSelected: (String) -> Unit = { type ->
         if (state.searchType != type) {
             state.searchType = type
-            @Suppress("DEPRECATION")
-            val haptic = if (Build.VERSION.SDK_INT >= 30) {
-                HapticFeedbackConstants.SEGMENT_TICK
-            } else {
-                HapticFeedbackConstants.CONTEXT_CLICK
-            }
-            view.performHapticFeedback(haptic)
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         }
     }
 

@@ -64,6 +64,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
@@ -139,6 +141,7 @@ fun MeloXMiniPlayer(
     val lineHeight = with(density) { NekoMiniLineHeightDp.dp.toSp() }
     val morph = rememberMeloXMiniPlayPauseMorph(isPlaying)
     val nextPulse = rememberMeloXMiniNextPulse()
+    val haptics = LocalHapticFeedback.current
     var controlPressed by remember { mutableStateOf(false) }
     val expansionProgressState: State<Float> = if (animatedVisibilityScope != null) {
         animatedVisibilityScope.transition.animateFloat(
@@ -333,6 +336,7 @@ fun MeloXMiniPlayer(
                 ) {
                     MiniTransportButton(
                         onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                             morph.startToggle()
                             onPlayPauseClick()
                         },
@@ -361,6 +365,7 @@ fun MeloXMiniPlayer(
                     }
                     MiniTransportButton(
                         onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                             nextPulse.trigger()
                             onNextClick()
                         },

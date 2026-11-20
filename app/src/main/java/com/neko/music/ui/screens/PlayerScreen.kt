@@ -119,11 +119,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -376,6 +378,7 @@ fun PlayerScreen(
     artworkExpansionProgress: () -> Float = { 1f },
 ) {
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
     val togetherState by TogetherSessionManager.state.collectAsState()
@@ -1168,14 +1171,17 @@ fun PlayerScreen(
                         }
                     },
                     onPlayPauseClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                         if (togetherActive) TogetherSessionManager.toggle()
                         else playerManager.togglePlayPause()
                     },
                     onPreviousClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                         if (togetherActive) TogetherSessionManager.previous()
                         else playerManager.previous()
                     },
                     onNextClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
                         if (togetherActive) TogetherSessionManager.next()
                         else playerManager.next()
                     },
@@ -3114,6 +3120,7 @@ fun ProgressSlider(
         scheme.surfaceVariant
     }
     val latestScrubCallback by rememberUpdatedState(onScrubPositionChange)
+    val haptics = LocalHapticFeedback.current
     DisposableEffect(durationMillis) {
         onDispose { latestScrubCallback(null) }
     }
@@ -3122,7 +3129,10 @@ fun ProgressSlider(
         latestScrubCallback(value * durationMillis / 1000f)
     }
     fun finishScrubbing() {
-        scrubProgress?.let(onProgressChange)
+        scrubProgress?.let {
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            onProgressChange(it)
+        }
         scrubProgress = null
         latestScrubCallback(null)
     }
