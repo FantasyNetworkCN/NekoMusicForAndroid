@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -30,7 +32,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -187,7 +188,7 @@ fun RecentPlayScreen(
                         onClick = onBackClick,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = scheme.onSurfaceVariant
@@ -311,7 +312,7 @@ fun RecentPlayScreen(
                                 shape = RoundedCornerShape(21.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp)
                             ) {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
@@ -521,7 +522,7 @@ fun RecentPlayItem(
                     onClick = { actionsExpanded = true },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = moreActionsText,
                         tint = scheme.onSurfaceVariant
@@ -534,7 +535,7 @@ fun RecentPlayItem(
                     DropdownMenuItem(
                         text = { Text(playNextText, fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
@@ -548,7 +549,7 @@ fun RecentPlayItem(
                     DropdownMenuItem(
                         text = { Text(removeRecentText, fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)

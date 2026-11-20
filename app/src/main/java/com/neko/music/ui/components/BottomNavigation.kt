@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -43,7 +45,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -234,7 +235,7 @@ fun BottomNavigationBar(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = selectedItem.icon,
                     contentDescription = stringResource(selectedItem.titleResId),
                     tint = MaterialTheme.colorScheme.primary,
@@ -307,7 +308,7 @@ fun BottomSearchButton(
         liquidLensAmount = glass.mainLiquid.lensAmount,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Search,
                 contentDescription = stringResource(id = R.string.search),
                 tint = iconColor,
@@ -611,7 +612,7 @@ private fun RowScope.BottomNavigationTab(
         onClick = onClick,
         modifier = Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) },
     ) {
-        Icon(
+        NekoIcon(
             imageVector = item.icon,
             contentDescription = null,
             tint = contentColor.copy(alpha = if (selected) 0.96f else 0.62f),
@@ -693,7 +694,7 @@ private fun BottomNavigationFallback(
                     onClick = { onTabSelected(index) },
                     icon = {
                         Box(Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) }) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = item.icon,
                                 contentDescription = null,
                                 modifier = Modifier.size(22.dp),
@@ -1071,10 +1072,8 @@ fun MiniPlayer(
                                 .clickable(onClick = onPlayPauseClick),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (isPlaying) R.drawable.pause else R.drawable.play
-                                ),
+                            NekoIcon(
+                                drawableRes = if (isPlaying) R.drawable.pause else R.drawable.play,
                                 contentDescription = if (isPlaying) stringResource(id = R.string.content_description_pause) else stringResource(id = R.string.content_description_play),
                                 tint = playButtonIconTint,
                                 modifier = Modifier.size(playIconSize)
@@ -1096,8 +1095,8 @@ fun MiniPlayer(
                             .clickable(onClick = onPlaylistClick),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.playlist),
+                        NekoIcon(
+                            drawableRes = R.drawable.playlist,
                             contentDescription = stringResource(id = R.string.content_description_playlist),
                             tint = playlistIconTint,
                             modifier = Modifier.size(20.dp)

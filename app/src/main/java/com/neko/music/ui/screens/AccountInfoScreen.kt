@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -142,7 +144,7 @@ fun AccountInfoScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(id = R.string.back),
                                 tint = primaryTextColor,
@@ -326,7 +328,7 @@ fun AccountInfoScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Check,
                         contentDescription = stringResource(id = R.string.success),
                         tint = Color(0xFF4CAF50),
@@ -426,7 +428,7 @@ fun InfoCard(
             }
 
             if (showArrow) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = stringResource(id = R.string.more),
                     tint = secondaryTextColor,

@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -26,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
@@ -424,7 +425,7 @@ fun VideoRenderPlayerEntry(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = RoseRed,
@@ -451,7 +452,7 @@ fun VideoRenderPlayerEntry(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = RoseRed,

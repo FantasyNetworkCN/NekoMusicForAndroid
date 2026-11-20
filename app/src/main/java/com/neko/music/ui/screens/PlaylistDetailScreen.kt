@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -76,7 +78,6 @@ import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.isLiquidGlassEffectActive
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -460,7 +461,7 @@ fun PlaylistDetailScreen(
                             onClick = onBackClick,
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
                                 tint = if (isDarkTheme) {
@@ -528,10 +529,8 @@ fun PlaylistDetailScreen(
                                     onClick = toggleFavorite,
                                     modifier = Modifier.size(48.dp)
                                 ) {
-                                    Icon(
-                                        painter = painterResource(
-                                            id = if (isFavorited) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border
-                                        ),
+                                    NekoIcon(
+                                        drawableRes = if (isFavorited) R.drawable.ic_favorite_filled else R.drawable.ic_favorite_border,
                                         contentDescription = if (isFavorited) "取消收藏" else "收藏",
                                         tint = RoseRed
                                     )
@@ -542,7 +541,7 @@ fun PlaylistDetailScreen(
                                 onClick = { showShareDialog = true },
                                 modifier = Modifier.size(48.dp)
                             ) {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = stringResource(id = R.string.share_playlist),
                                     tint = if (isDarkTheme) {
@@ -761,7 +760,7 @@ fun PlaylistDetailScreen(
                                     shape = RoundedCornerShape(21.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp)
                                 ) {
-                                    Icon(
+                                    NekoIcon(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
@@ -1612,7 +1611,7 @@ internal fun PlaylistSearchBar(
                 .padding(start = 14.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
                 tint = secondaryColor,
@@ -1649,7 +1648,7 @@ internal fun PlaylistSearchBar(
                     onClick = { onQueryChange("") },
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Clear,
                         contentDescription = stringResource(id = R.string.clear),
                         tint = secondaryColor,
@@ -1717,7 +1716,7 @@ internal fun PlaylistAddToQueueButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
                 tint = contentColor,
@@ -1821,7 +1820,7 @@ fun PlaylistMusicItem(
                     contentAlignment = Alignment.Center
                 ) {
                     if (selected) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
                             tint = RoseRed,
@@ -1893,7 +1892,7 @@ fun PlaylistMusicItem(
                         onClick = { actionsExpanded = true },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = moreActionsText,
                             tint = scheme.onSurfaceVariant
@@ -1906,7 +1905,7 @@ fun PlaylistMusicItem(
                         DropdownMenuItem(
                             text = { Text(playNextText, fontSize = 14.sp) },
                             leadingIcon = {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
@@ -1926,7 +1925,7 @@ fun PlaylistMusicItem(
                                     )
                                 },
                                 leadingIcon = {
-                                    Icon(
+                                    NekoIcon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)

@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,7 +41,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -387,7 +388,7 @@ private fun DailyTopBar(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(id = R.string.back),
                     tint = titleColor.copy(alpha = 0.84f),
@@ -627,7 +628,7 @@ private fun DailyPlayAllButton(
                     .background(accent.copy(alpha = 0.14f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = accent,
@@ -1097,7 +1098,7 @@ private fun DailyStateCard(
                         .background(accent.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accent,
@@ -1161,7 +1162,7 @@ private fun DailyStateCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
                             tint = accent,

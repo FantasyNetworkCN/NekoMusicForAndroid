@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
@@ -22,7 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -120,7 +121,7 @@ fun PlaylistBottomSheet(
                             onClick = onDismiss,
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "关闭",
                                 tint = Color.Gray,
@@ -232,8 +233,8 @@ fun PlaylistItem(
 
         // 播放图标
         if (isPlaying) {
-            Icon(
-                painter = androidx.compose.ui.res.painterResource(R.drawable.pause),
+            NekoIcon(
+                drawableRes = R.drawable.pause,
                 contentDescription = "正在播放",
                 tint = RoseRed,
                 modifier = Modifier.size(20.dp)

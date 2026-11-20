@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -103,7 +105,7 @@ fun CacheManagementScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
+                        NekoIcon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
@@ -523,7 +525,7 @@ fun CacheItem(
                 )
             }
             
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = stringResource(id = R.string.delete),
                 tint = RoseRed,

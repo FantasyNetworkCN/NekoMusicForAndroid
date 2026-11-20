@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -625,7 +627,7 @@ fun MyPlaylistsScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
                                                 tint = rowScheme.primary
@@ -679,7 +681,7 @@ fun MyPlaylistsScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.Add,
                                                 contentDescription = null,
                                                 tint = rowScheme.primary
@@ -1367,7 +1369,7 @@ fun PlaylistItem(
                             containerColor = Color.Transparent
                         )
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = moreText,
                             tint = itemScheme.onSurfaceVariant
@@ -1380,7 +1382,7 @@ fun PlaylistItem(
                         DropdownMenuItem(
                             text = { Text(editText, fontSize = 14.sp) },
                             leadingIcon = {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Create,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
@@ -1394,7 +1396,7 @@ fun PlaylistItem(
                         DropdownMenuItem(
                             text = { Text(shareText, fontSize = 14.sp) },
                             leadingIcon = {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
@@ -1414,7 +1416,7 @@ fun PlaylistItem(
                                 )
                             },
                             leadingIcon = {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
@@ -1974,7 +1976,7 @@ private fun ImportDestinationRow(
                 modifier = Modifier.weight(1f),
             )
             if (selected) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
                     tint = RoseRed,

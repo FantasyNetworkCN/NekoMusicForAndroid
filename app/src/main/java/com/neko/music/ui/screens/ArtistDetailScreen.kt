@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -248,7 +249,7 @@ fun ArtistDetailScreen(
                         onClick = onBackClick,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
@@ -386,7 +387,7 @@ fun ArtistDetailScreen(
                                             horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.PlayArrow,
                                                 contentDescription = stringResource(id = R.string.play_all),
                                                 tint = RoseRed,

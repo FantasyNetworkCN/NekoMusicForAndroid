@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.Manifest
 import android.os.Build
 import androidx.compose.foundation.background
@@ -30,7 +32,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -209,7 +210,7 @@ fun LocalMusicScreen(
                             onClick = { playMusicList(0) },
                             enabled = filteredMusic.isNotEmpty() && !isLoading,
                         ) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 tint = if (filteredMusic.isNotEmpty()) RoseRed else scheme.onSurfaceVariant.copy(alpha = 0.45f),
@@ -327,7 +328,7 @@ private fun LocalMusicTopBar(
             onClick = onBackClick,
             modifier = Modifier.size(48.dp),
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface,
@@ -353,7 +354,7 @@ private fun LocalMusicTopBar(
             enabled = canRefresh,
             modifier = Modifier.size(48.dp),
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = androidx.compose.ui.res.stringResource(R.string.refresh),
                 tint = if (canRefresh) {
@@ -390,7 +391,7 @@ private fun LocalMusicSearchBar(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Search,
                 contentDescription = androidx.compose.ui.res.stringResource(R.string.search),
                 tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.7f) else scheme.onSurfaceVariant,
@@ -478,8 +479,8 @@ private fun LocalMusicItem(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    Icon(
-                        painter = painterResource(id = R.drawable.music),
+                    NekoIcon(
+                        drawableRes = R.drawable.music,
                         contentDescription = null,
                         tint = if (isCurrent) RoseRed else SkyBlue,
                         modifier = Modifier.size(28.dp),
@@ -529,7 +530,7 @@ private fun LocalMusicItem(
 //                }
             }
 
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = androidx.compose.ui.res.stringResource(R.string.play),
                 tint = if (isCurrent) RoseRed else SakuraPink,
@@ -551,8 +552,8 @@ private fun LocalMusicPermissionState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            painter = painterResource(id = R.drawable.music),
+        NekoIcon(
+            drawableRes = R.drawable.music,
             contentDescription = null,
             tint = RoseRed,
             modifier = Modifier.size(48.dp),

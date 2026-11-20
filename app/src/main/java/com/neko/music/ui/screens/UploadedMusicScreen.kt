@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -49,7 +51,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -223,7 +224,7 @@ fun UploadedMusicScreen(
                         },
                         navigationIcon = {
                             IconButton(onClick = onBackClick) {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = stringResource(id = R.string.back),
                                     tint = if (isDarkTheme) Color.White else scheme.onSurface
@@ -235,7 +236,7 @@ fun UploadedMusicScreen(
                                 IconButton(
                                     onClick = { showUploadDialog = true }
                                 ) {
-                                    Icon(
+                                    NekoIcon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = stringResource(id = R.string.upload_music),
                                         tint = RoseRed
@@ -392,7 +393,7 @@ fun ErrorView(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(32.dp)
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = stringResource(id = R.string.error),
                 tint = if (isDarkTheme) Color(0xFFFFB4AB) else scheme.error,
@@ -430,7 +431,7 @@ fun EmptyView(isDarkTheme: Boolean = isSystemInDarkTheme()) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(32.dp)
         ) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.Add,
                 contentDescription = stringResource(id = R.string.empty),
                 tint = if (isDarkTheme) Color.White.copy(alpha = 0.35f) else scheme.onSurfaceVariant.copy(alpha = 0.3f),
@@ -829,8 +830,8 @@ fun UploadMusicDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isUploading
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.music),
+                    NekoIcon(
+                        drawableRes = R.drawable.music,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -870,8 +871,8 @@ fun UploadMusicDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isUploading && languageCode != "instrumental"
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.music),
+                    NekoIcon(
+                        drawableRes = R.drawable.music,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -942,8 +943,8 @@ fun UploadMusicDialog(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isUploading
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.music),
+                    NekoIcon(
+                        drawableRes = R.drawable.music,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
@@ -1761,10 +1762,8 @@ private fun PreviewPlayDialog(
                         },
                         modifier = Modifier.size(64.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(
-                                if (isPlaying) R.drawable.pause else R.drawable.play,
-                            ),
+                        NekoIcon(
+                            drawableRes = if (isPlaying) R.drawable.pause else R.drawable.play,
                             contentDescription = if (isPlaying) "暂停" else "播放",
                             modifier = Modifier.fillMaxSize(),
                             tint = RoseRed

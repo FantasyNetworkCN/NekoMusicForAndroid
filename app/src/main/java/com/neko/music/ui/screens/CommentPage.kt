@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -33,7 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -314,8 +315,8 @@ fun CommentPage(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_comment_bubble),
+                    NekoIcon(
+                        drawableRes = R.drawable.ic_comment_bubble,
                         contentDescription = null,
                         tint = RoseRed.copy(alpha = 0.92f),
                         modifier = Modifier.size(13.dp),
@@ -567,8 +568,8 @@ private fun CommentEmptyState(
                     .background(palette.accentSoft),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_comments_glass),
+                NekoIcon(
+                    drawableRes = R.drawable.ic_comments_glass,
                     contentDescription = null,
                     tint = RoseRed.copy(alpha = 0.62f),
                     modifier = Modifier.size(28.dp),
@@ -836,7 +837,7 @@ private fun CommentRow(
                             .clickable { onDelete() },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = stringResource(id = R.string.delete),
                             tint = palette.tertiary,

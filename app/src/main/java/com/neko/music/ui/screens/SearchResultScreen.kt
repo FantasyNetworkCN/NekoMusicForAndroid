@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -36,7 +38,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -409,7 +410,7 @@ fun PlaylistItem(
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Info,
                         contentDescription = playlistText,
                         tint = if (isDarkTheme) LightRose else RoseRed,
@@ -583,7 +584,7 @@ fun MusicItem(
                         .clickable { actionsExpanded = true },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = moreActionsText,
                         tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.85f) else scheme.onSurfaceVariant,
@@ -597,7 +598,7 @@ fun MusicItem(
                     DropdownMenuItem(
                         text = { Text(playNextText, fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
@@ -710,7 +711,7 @@ private fun SearchHistoryRow(
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        NekoIcon(
             imageVector = Icons.Default.Search,
             contentDescription = null,
             tint = mutedColor.copy(alpha = 0.72f),
@@ -798,7 +799,7 @@ private fun SearchStatePanel(
                         .background(accent.copy(alpha = if (isDarkTheme) 0.16f else 0.10f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accent,
@@ -1176,7 +1177,7 @@ fun ArtistItem(
                         .background((if (isDarkTheme) LightRose else RoseRed).copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
                         tint = if (isDarkTheme) LightRose else RoseRed,

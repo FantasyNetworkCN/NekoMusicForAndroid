@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.app.Activity
 import android.content.Context
 import android.os.Build
@@ -33,7 +35,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -226,7 +227,7 @@ fun PersonalizationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
+                        NekoIcon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
@@ -394,7 +395,7 @@ fun PersonalizationScreen(
                                             enabled = savingBackgroundKind == null,
                                             modifier = Modifier.weight(1f),
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.Settings,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
@@ -414,7 +415,7 @@ fun PersonalizationScreen(
                                             enabled = savingBackgroundKind == null && hasCustom,
                                             modifier = Modifier.weight(1f),
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.Refresh,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
@@ -664,7 +665,7 @@ private fun ThemeModeOptionRow(
                     .background(RoseRed.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = RoseRed,
@@ -680,7 +681,7 @@ private fun ThemeModeOptionRow(
                 color = if (isDarkChrome) Color(0xFFF0F0F5).copy(alpha = 0.95f) else Color.Black
             )
             if (selected) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
                     tint = RoseRed,

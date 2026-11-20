@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -32,7 +34,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -292,7 +293,7 @@ fun EditorialPlayAllButton(
                     .background(accent.copy(alpha = 0.14f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = accent,
@@ -607,7 +608,7 @@ fun EditorialCollectionStateCard(
                         .background(accent.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accent,
@@ -671,7 +672,7 @@ fun EditorialCollectionStateCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
                             tint = accent,

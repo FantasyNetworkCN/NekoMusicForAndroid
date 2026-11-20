@@ -1,5 +1,7 @@
 package com.neko.music.ui.list
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -141,7 +142,7 @@ private fun ListScreenLiquidTopBarOverlay(
                     onClick = onBackClick,
                     modifier = Modifier.size(44.dp),
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(id = R.string.back),
                         tint = titleColor.copy(alpha = 0.88f),

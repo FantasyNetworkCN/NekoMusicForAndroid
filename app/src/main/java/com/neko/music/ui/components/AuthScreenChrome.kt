@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +31,6 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -207,7 +208,7 @@ fun AuthGlassIconButton(
         kyantHighlight = Highlight.Default.copy(alpha = if (isDark) 0.46f else 0.60f),
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = stringResource(id = R.string.back),
                 tint = if (isDark) Color(0xFFE9E9F4) else scheme.onSurface,
@@ -307,7 +308,7 @@ fun AuthGlassTextField(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingIcon != null) {
-            Icon(
+            NekoIcon(
                 imageVector = leadingIcon,
                 contentDescription = null,
                 tint = accent,
@@ -359,7 +360,7 @@ fun AuthErrorText(message: String, modifier: Modifier = Modifier) {
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        NekoIcon(
             imageVector = Icons.Default.Warning,
             contentDescription = null,
             tint = error,

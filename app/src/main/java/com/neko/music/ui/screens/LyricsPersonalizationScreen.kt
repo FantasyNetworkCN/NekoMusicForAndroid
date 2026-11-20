@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -145,7 +146,7 @@ fun LyricsPersonalizationScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
                                 tint = if (isDarkChrome) Color(0xFFB8B8D1) else scheme.onSurfaceVariant,
@@ -365,7 +366,7 @@ fun LyricsPersonalizationScreen(
                                     },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = stringResource(R.string.lyric_highlight_follow_theme),
                                     tint = if (isDarkChrome) Color(0xFFE8E8F0) else Color(0xFF555555),
@@ -406,7 +407,7 @@ fun LyricsPersonalizationScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),

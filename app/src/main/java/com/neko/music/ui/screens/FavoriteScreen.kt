@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -240,7 +242,7 @@ fun FavoriteScreen(
                         onClick = onBackClick,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
+                        NekoIcon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = scheme.onSurfaceVariant
@@ -428,7 +430,7 @@ fun FavoriteScreen(
                                             shape = RoundedCornerShape(21.dp),
                                             contentPadding = PaddingValues(horizontal = 12.dp)
                                         ) {
-                                            Icon(
+                                            NekoIcon(
                                                 imageVector = Icons.Default.PlayArrow,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp)
@@ -648,7 +650,7 @@ fun FavoriteItem(
                     onClick = { actionsExpanded = true },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = moreActionsText,
                         tint = scheme.onSurfaceVariant
@@ -661,7 +663,7 @@ fun FavoriteItem(
                     DropdownMenuItem(
                         text = { Text(playNextText, fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
@@ -675,7 +677,7 @@ fun FavoriteItem(
                     DropdownMenuItem(
                         text = { Text(removeFavoriteText, fontSize = 14.sp) },
                         leadingIcon = {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)

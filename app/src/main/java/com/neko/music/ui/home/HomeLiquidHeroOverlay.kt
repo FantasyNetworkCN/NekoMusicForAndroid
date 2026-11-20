@@ -1,5 +1,7 @@
 package com.neko.music.ui.home
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -27,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -408,7 +409,7 @@ private fun HomeRecommendedPanel(
                     onClick = { state.playlistRefreshToken++ },
                     enabled = !state.playlistsLoading,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.refresh),
                         tint = secondaryColor,

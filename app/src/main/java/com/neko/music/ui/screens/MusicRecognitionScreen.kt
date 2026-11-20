@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -61,7 +63,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -639,7 +640,7 @@ private fun RecognitionTopBar(
             liquidLensAmount = glass.liquid.lensAmount,
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(R.string.back),
                     tint = mutedColor,
@@ -1175,13 +1176,13 @@ private fun RecognitionOrb(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     when (stage) {
-                        RecognitionStage.Matched -> Icon(
+                        RecognitionStage.Matched -> NekoIcon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = stringResource(R.string.recognition_success),
                             tint = accent,
                             modifier = Modifier.size(52.dp),
                         )
-                        RecognitionStage.Error, RecognitionStage.NoMatch -> Icon(
+                        RecognitionStage.Error, RecognitionStage.NoMatch -> NekoIcon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = stringResource(R.string.retry),
                             tint = accent,
@@ -1329,20 +1330,20 @@ private fun RecognitionActionButton(
                 contentAlignment = Alignment.Center,
             ) {
                 when (stage) {
-                    RecognitionStage.Recording -> Icon(
-                        painter = painterResource(R.drawable.ic_stop_recording),
+                    RecognitionStage.Recording -> NekoIcon(
+                        drawableRes = R.drawable.ic_stop_recording,
                         contentDescription = null,
                         tint = contentColor,
                         modifier = Modifier.size(18.dp),
                     )
-                    RecognitionStage.Matched, RecognitionStage.NoMatch, RecognitionStage.Error -> Icon(
+                    RecognitionStage.Matched, RecognitionStage.NoMatch, RecognitionStage.Error -> NekoIcon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
                         tint = contentColor,
                         modifier = Modifier.size(19.dp),
                     )
-                    RecognitionStage.Ready -> Icon(
-                        painter = painterResource(R.drawable.ic_music_recognition),
+                    RecognitionStage.Ready -> NekoIcon(
+                        drawableRes = R.drawable.ic_music_recognition,
                         contentDescription = null,
                         tint = contentColor,
                         modifier = Modifier.size(18.dp),
@@ -1501,7 +1502,7 @@ private fun RecognitionMatchCard(
                     .background(accent),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = stringResource(R.string.recognition_open_result),
                     tint = if (isDark) Color(0xFF102018) else Color.White,
@@ -1557,7 +1558,7 @@ private fun RecognitionPrivacyHint(mutedColor: Color) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        NekoIcon(
             imageVector = Icons.Default.Lock,
             contentDescription = null,
             tint = mutedColor.copy(alpha = 0.72f),

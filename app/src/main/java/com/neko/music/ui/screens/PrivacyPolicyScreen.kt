@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -19,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -89,7 +90,7 @@ fun PrivacyPolicyScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(
+                            NekoIcon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
                                 tint = mutedColor,
@@ -107,7 +108,7 @@ fun PrivacyPolicyScreen(
 //                                )
 //                            }
 //                        ) {
-//                            Icon(
+//                            NekoIcon(
 //                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
 //                                contentDescription = null,
 //                                tint = RoseRed,

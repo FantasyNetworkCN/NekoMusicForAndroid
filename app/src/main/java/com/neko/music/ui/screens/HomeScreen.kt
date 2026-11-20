@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.res.Configuration
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -37,7 +39,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Surface
@@ -493,7 +494,7 @@ fun HeaderSection(
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.Search,
                     contentDescription = searchText,
                     tint = Color.White.copy(alpha = 0.9f),

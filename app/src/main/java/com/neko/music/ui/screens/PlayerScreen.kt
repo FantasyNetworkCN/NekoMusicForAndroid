@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -79,7 +81,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -2188,8 +2189,8 @@ private fun PlayerTrackCircleActionButton(
                 .background(background, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painter = painterResource(iconRes),
+            NekoIcon(
+                drawableRes = iconRes,
                 contentDescription = contentDescription,
                 tint = tint.copy(alpha = 0.88f),
                 modifier = Modifier.size(18.dp),
@@ -2388,7 +2389,7 @@ fun CoverImage(
                         .align(Alignment.CenterEnd)
                         .size(40.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
@@ -2439,7 +2440,7 @@ fun MusicInfo(
                     onClick = onFavoriteClick,
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
@@ -2553,7 +2554,7 @@ fun PlayerMetadataRow(
                     onClick = onFavoriteClick,
                     background = actionBackground,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
                         tint = if (isFavorite) RoseRed else secondaryColor,
@@ -2572,8 +2573,8 @@ fun PlayerMetadataRow(
                     onClick = onCommentClick,
                     background = actionBackground,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_comment_bubble),
+                    NekoIcon(
+                        drawableRes = R.drawable.ic_comment_bubble,
                         contentDescription = stringResource(id = R.string.comment_title),
                         tint = secondaryColor,
                         modifier = Modifier.size(19.dp),
@@ -2595,8 +2596,8 @@ fun PlayerMetadataRow(
                         actionBackground
                     },
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lyric_toggle),
+                    NekoIcon(
+                        drawableRes = R.drawable.ic_lyric_toggle,
                         contentDescription = stringResource(id = R.string.desktop_lyric),
                         tint = if (isDesktopLyricEnabled) RoseRed else secondaryColor,
                         modifier = Modifier.size(19.dp),
@@ -2659,7 +2660,7 @@ private fun PlayerMetaActionButton(
                     onClick = onFavoriteClick,
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = favColor,
@@ -2733,7 +2734,7 @@ fun LyricsSongInfo(
                         .align(Alignment.CenterEnd)
                         .size(40.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.FavoriteBorder,
                         contentDescription = stringResource(id = R.string.unfavorite),
                         tint = Color.Gray,
@@ -2831,14 +2832,14 @@ private fun PlayerMiniPlayerBar(
                             color = primary,
                             modifier = Modifier.size(width = 22.dp, height = 18.dp),
                         )
-                        musicFileUrl == null -> Icon(
+                        musicFileUrl == null -> NekoIcon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = stringResource(id = R.string.loading),
                             tint = primary.copy(alpha = 0.5f),
                             modifier = Modifier.size(22.dp),
                         )
-                        else -> Icon(
-                            painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
+                        else -> NekoIcon(
+                            drawableRes = if (isPlaying) R.drawable.pause else R.drawable.play,
                             contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
                             tint = primary,
                             modifier = Modifier.size(24.dp),
@@ -2849,8 +2850,8 @@ private fun PlayerMiniPlayerBar(
                     onClick = onNextClick,
                     size = 38.dp,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.next_song),
+                    NekoIcon(
+                        drawableRes = R.drawable.next_song,
                         contentDescription = stringResource(id = R.string.next),
                         tint = primary.copy(alpha = 0.86f),
                         modifier = Modifier.size(20.dp),
@@ -3066,8 +3067,8 @@ private fun PlayerUtilityRow(
                 .clickable(onClick = onPlaylistClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.playlist),
+            NekoIcon(
+                drawableRes = R.drawable.playlist,
                 contentDescription = stringResource(id = R.string.playlist),
                 tint = muted,
                 modifier = Modifier.size(actionIconSize),
@@ -3334,8 +3335,8 @@ fun PlaybackControls(
                     PlayMode.SINGLE_LOOP -> R.drawable.single_loop
                     PlayMode.SHUFFLE -> R.drawable.shuffle
                 }
-                Icon(
-                    painter = painterResource(iconRes),
+                NekoIcon(
+                    drawableRes = iconRes,
                     contentDescription = stringResource(id = R.string.player_play_mode),
                     tint = secondaryIconColor,
                     modifier = Modifier.size(20.dp),
@@ -3349,8 +3350,8 @@ fun PlaybackControls(
             onClick = onPreviousClick,
             size = transportSize,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.previous_song),
+            NekoIcon(
+                drawableRes = R.drawable.previous_song,
                 contentDescription = stringResource(id = R.string.previous),
                 tint = iconColor,
                 modifier = Modifier.size(if (compact) 22.dp else 24.dp),
@@ -3444,8 +3445,8 @@ fun PlaybackControls(
             onClick = onNextClick,
             size = transportSize,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.next_song),
+            NekoIcon(
+                drawableRes = R.drawable.next_song,
                 contentDescription = stringResource(id = R.string.next),
                 tint = iconColor,
                 modifier = Modifier.size(if (compact) 22.dp else 24.dp),
@@ -3457,7 +3458,7 @@ fun PlaybackControls(
                 onClick = onFavoriteClick,
                 size = transportSize,
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
                     tint = when {
@@ -3492,7 +3493,7 @@ private fun PlaybackButtonContent(
         }
 
         musicFileUrl == null -> {
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = stringResource(id = R.string.loading),
                 tint = iconColor.copy(alpha = 0.55f),
@@ -3501,8 +3502,8 @@ private fun PlaybackButtonContent(
         }
 
         else -> {
-            Icon(
-                painter = painterResource(id = if (isPlaying) R.drawable.pause else R.drawable.play),
+            NekoIcon(
+                drawableRes = if (isPlaying) R.drawable.pause else R.drawable.play,
                 contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
                 tint = iconColor,
                 modifier = Modifier.size(if (compact) 26.dp else 30.dp),
@@ -3658,7 +3659,7 @@ private fun AudioQualitySelector(
                 letterSpacing = 0.sp,
                 color = foreground,
             )
-            Icon(
+            NekoIcon(
                 imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = null,
                 tint = foreground.copy(alpha = 0.64f),
@@ -4047,7 +4048,7 @@ fun ShareDialogContent(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
+                                NekoIcon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = stringResource(id = R.string.create_new),
                                     tint = createPlaylistColor,
@@ -4219,8 +4220,8 @@ fun ShareGridItem(
             contentAlignment = Alignment.Center
         ) {
             if (iconRes != null) {
-                Icon(
-                    painter = painterResource(id = iconRes),
+                NekoIcon(
+                    drawableRes = iconRes,
                     contentDescription = label,
                     tint = iconTint,
                     modifier = Modifier.size(28.dp)
@@ -4482,8 +4483,8 @@ fun CustomSleepTimerDialog(
                                         onClick = { if (hours > 0) hours-- },
                                         modifier = Modifier.size(40.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.previous_song),
+                                        NekoIcon(
+                                            drawableRes = R.drawable.previous_song,
                                             contentDescription = stringResource(id = R.string.decrease),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
@@ -4502,8 +4503,8 @@ fun CustomSleepTimerDialog(
                                         onClick = { if (hours < 23) hours++ },
                                         modifier = Modifier.size(40.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.next_song),
+                                        NekoIcon(
+                                            drawableRes = R.drawable.next_song,
                                             contentDescription = stringResource(id = R.string.increase),
                                             tint = scheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
@@ -4537,8 +4538,8 @@ fun CustomSleepTimerDialog(
                                         onClick = { if (minutes > 0) minutes-- },
                                         modifier = Modifier.size(40.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.previous_song),
+                                        NekoIcon(
+                                            drawableRes = R.drawable.previous_song,
                                             contentDescription = stringResource(id = R.string.decrease),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)
@@ -4557,8 +4558,8 @@ fun CustomSleepTimerDialog(
                                         onClick = { if (minutes < 59) minutes++ },
                                         modifier = Modifier.size(40.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.next_song),
+                                        NekoIcon(
+                                            drawableRes = R.drawable.next_song,
                                             contentDescription = stringResource(id = R.string.increase),
                                             tint = scheme.onSurfaceVariant,
                                             modifier = Modifier.size(24.dp)

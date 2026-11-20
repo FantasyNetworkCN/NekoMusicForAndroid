@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -280,7 +282,7 @@ fun SettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(
+                        NekoIcon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(id = R.string.back),
                             tint = scheme.onSurfaceVariant,
@@ -640,7 +642,7 @@ fun SettingItem(
                         .background(scheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = icon,
                         contentDescription = title,
                         tint = scheme.onPrimaryContainer,
@@ -676,7 +678,7 @@ fun SettingItem(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = stringResource(id = R.string.more),
                         tint = scheme.onSurfaceVariant,
@@ -729,7 +731,7 @@ fun SettingSwitchItem(
                     .background(scheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = icon,
                     contentDescription = title,
                     tint = scheme.onPrimaryContainer,

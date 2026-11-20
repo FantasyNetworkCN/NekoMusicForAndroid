@@ -1,5 +1,7 @@
 package com.neko.music.ui.search
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -35,7 +37,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -153,7 +154,7 @@ fun SearchLiquidTopOverlay(
                         .padding(start = 14.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Search,
                         contentDescription = searchText,
                         tint = if (isDark) Color.White.copy(alpha = 0.72f) else scheme.onSurfaceVariant,
@@ -203,7 +204,7 @@ fun SearchLiquidTopOverlay(
                             onClick = { state.searchQuery = "" },
                             modifier = Modifier.size(38.dp),
                         ) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = clearQueryText,
                                 tint = if (isDark) Color.White.copy(alpha = 0.66f) else scheme.onSurfaceVariant,
@@ -231,8 +232,8 @@ fun SearchLiquidTopOverlay(
                     onClick = onRecognitionClick,
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_music_recognition),
+                    NekoIcon(
+                        drawableRes = R.drawable.ic_music_recognition,
                         contentDescription = stringResource(id = R.string.music_recognition),
                         tint = if (isDark) Color.White.copy(alpha = 0.92f) else scheme.onSurface,
                         modifier = Modifier.size(22.dp),

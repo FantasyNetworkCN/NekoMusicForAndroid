@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -43,7 +45,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FilterChip
@@ -369,7 +370,7 @@ private fun TogetherRoomPlaylistContent(
                 )
             }
             IconButton(onClick = onBackClick) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.close),
                     tint = scheme.onSurfaceVariant,
@@ -461,7 +462,7 @@ private fun TogetherRoomPlaylistContent(
                             )
                         }
                         IconButton(onClick = { onRemove(item.entryId) }) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.together_remove),
                                 tint = scheme.onSurfaceVariant,
@@ -583,7 +584,7 @@ fun PlaylistContent(
                 onClick = onBackClick,
                 modifier = Modifier.size(48.dp)
             ) {
-                Icon(
+                NekoIcon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(id = R.string.back),
                     tint = scheme.onSurface.copy(alpha = 0.88f),
@@ -676,7 +677,7 @@ fun PlaylistContent(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
@@ -853,7 +854,7 @@ fun PlaylistItem(
                     onClick = onRemoveClick,
                     modifier = Modifier.size(44.dp)
                 ) {
-                    Icon(
+                    NekoIcon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(id = R.string.playback_queue_remove_from_list),
                         tint = scheme.onSurfaceVariant.copy(alpha = 0.75f),

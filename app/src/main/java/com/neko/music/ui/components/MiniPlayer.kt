@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -36,7 +38,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -350,10 +351,8 @@ fun MeloXMiniPlayer(
                             },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                painter = painterResource(
-                                    if (morph.displayIsPlaying) R.drawable.pause else R.drawable.play,
-                                ),
+                            NekoIcon(
+                                drawableRes = if (morph.displayIsPlaying) R.drawable.pause else R.drawable.play,
                                 contentDescription = stringResource(
                                     if (isPlaying) R.string.content_description_pause
                                     else R.string.content_description_play,
@@ -371,8 +370,8 @@ fun MeloXMiniPlayer(
                         },
                         onPressChanged = { controlPressed = it },
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.next_song),
+                        NekoIcon(
+                            drawableRes = R.drawable.next_song,
                             contentDescription = stringResource(R.string.desktop_lyric_next),
                             tint = onSurface.copy(alpha = 0.94f),
                             modifier = Modifier

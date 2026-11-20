@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -365,8 +367,8 @@ fun MineHeader(
                             .clickable(onClick = onNotificationsClick),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_notification_message),
+                        NekoIcon(
+                            drawableRes = R.drawable.ic_notification_message,
                             contentDescription = stringResource(id = R.string.notifications_title),
                             tint = headerIconTint,
                             modifier = Modifier.size(21.dp)
@@ -408,8 +410,8 @@ fun MineHeader(
                         .clickable(onClick = onQrScanClick),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_qr_scan),
+                    NekoIcon(
+                        drawableRes = R.drawable.ic_qr_scan,
                         contentDescription = stringResource(id = R.string.qr_scan),
                         tint = headerIconTint,
                         modifier = Modifier.size(21.dp)
@@ -632,11 +634,11 @@ fun MenuItem(
                 .background(iconColor.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center,
         ) {
-            Image(
-                painter = painterResource(id = iconResId),
+            NekoIcon(
+                drawableRes = iconResId,
                 contentDescription = title,
                 modifier = Modifier.size(23.dp),
-                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(iconColor),
+                tint = iconColor,
             )
         }
 

@@ -1,7 +1,8 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,8 +18,8 @@ fun LrcBadge(
     tint: Color = Color(0xFF9370DB)
 ) {
     if (!visible) return
-    Icon(
-        painter = painterResource(R.drawable.ic_lrc_badge),
+    NekoIcon(
+        drawableRes = R.drawable.ic_lrc_badge,
         contentDescription = stringResource(R.string.has_lyrics),
         modifier = modifier.size(16.dp),
         tint = tint

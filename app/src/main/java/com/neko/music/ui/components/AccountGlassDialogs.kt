@@ -1,5 +1,7 @@
 package com.neko.music.ui.components
 
+import com.neko.music.ui.icons.NekoIcon
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -357,7 +358,7 @@ fun ChangePasswordGlassDialog(
                     visualTransformation = if (showOldPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { showOldPassword = !showOldPassword }) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = if (showOldPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showOldPassword) {
                                     stringResource(id = R.string.hide_password)
@@ -385,7 +386,7 @@ fun ChangePasswordGlassDialog(
                     visualTransformation = if (showNewPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { showNewPassword = !showNewPassword }) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = if (showNewPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showNewPassword) {
                                     stringResource(id = R.string.hide_password)
@@ -413,7 +414,7 @@ fun ChangePasswordGlassDialog(
                     visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                            Icon(
+                            NekoIcon(
                                 imageVector = if (showConfirmPassword) Icons.Default.Close else Icons.Default.Lock,
                                 contentDescription = if (showConfirmPassword) {
                                     stringResource(id = R.string.hide_password)
