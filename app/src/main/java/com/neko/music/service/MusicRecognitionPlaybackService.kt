@@ -68,9 +68,8 @@ class MusicRecognitionPlaybackService : Service() {
             ACTION_PREPARE -> {
                 returnToIdleJob?.cancel()
                 returnToIdleJob = null
-                val maxSeconds = intent.getIntExtra(EXTRA_MAX_SECONDS, MAX_SECONDS).coerceIn(1, MAX_SECONDS)
                 try {
-                    ensureForeground(maxSeconds)
+                    ensureForeground()
                     showFloatingWindowIfAllowed(idle = false)
                 } catch (error: Exception) {
                     Log.e(TAG, "Unable to prepare foreground recognition service", error)
@@ -89,7 +88,7 @@ class MusicRecognitionPlaybackService : Service() {
                     terminalStatusSent = false
                     Log.d(TAG, "Starting background recognition, maxSeconds=$maxSeconds, overlay=${Settings.canDrawOverlays(this)}")
                     try {
-                        ensureForeground(maxSeconds)
+                        ensureForeground()
                         startMicrophoneCapture(maxSeconds)
                     } catch (error: Exception) {
                         // A missing microphone permission or an OEM foreground-service
@@ -111,7 +110,7 @@ class MusicRecognitionPlaybackService : Service() {
                     if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
                         android.content.pm.PackageManager.PERMISSION_GRANTED
                     ) {
-                        ensureForeground(MAX_SECONDS, idle = !recognitionActive)
+                        ensureForeground(idle = !recognitionActive)
                     }
                 } catch (error: Exception) {
                     Log.e(TAG, "Unable to show idle floating recognition", error)
@@ -130,12 +129,12 @@ class MusicRecognitionPlaybackService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun ensureForeground(maxSeconds: Int, idle: Boolean = false) {
+    private fun ensureForeground(idle: Boolean = false) {
         if (foregroundStarted) {
-            notificationManager.notify(NOTIFICATION_ID, createNotification(maxSeconds, idle))
+            notificationManager.notify(NOTIFICATION_ID, createNotification(idle))
             return
         }
-        startForeground(NOTIFICATION_ID, createNotification(maxSeconds, idle))
+        startForeground(NOTIFICATION_ID, createNotification(idle))
         foregroundStarted = true
     }
 
@@ -227,13 +226,6 @@ class MusicRecognitionPlaybackService : Service() {
                     audioProcessor?.process(readBuffer, read)
                     audioExporter?.append(readBuffer, 0, read)
                     channel.send(readBuffer.copyOf(read))
-                    val elapsed = ((System.currentTimeMillis() - startedAt) / 1000L).toInt()
-                    serviceScope.launch {
-                        floatingWindow?.updateRecording(
-                            elapsedSeconds = elapsed.coerceAtMost(maxSeconds),
-                            maxSeconds = maxSeconds,
-                        )
-                    }
                 }
             } catch (_: CancellationException) {
                 // Explicit stop or service destruction.
@@ -335,7 +327,7 @@ class MusicRecognitionPlaybackService : Service() {
                 floatingWindow?.showIdle()
                 notificationManager.notify(
                     NOTIFICATION_ID,
-                    createNotification(MAX_SECONDS, idle = true),
+                    createNotification(idle = true),
                 )
             } else {
                 stopCaptureAndService(null)
@@ -355,7 +347,7 @@ class MusicRecognitionPlaybackService : Service() {
             floatingWindow?.showIdle()
             notificationManager.notify(
                 NOTIFICATION_ID,
-                createNotification(MAX_SECONDS, idle = true),
+                createNotification(idle = true),
             )
         } else {
             stopCaptureAndService(null)
@@ -423,7 +415,7 @@ class MusicRecognitionPlaybackService : Service() {
         }
     }
 
-    private fun createNotification(maxSeconds: Int, idle: Boolean = false): Notification {
+    private fun createNotification(idle: Boolean = false): Notification {
         val stopIntent = PendingIntent.getService(
             this,
             1,
@@ -436,7 +428,7 @@ class MusicRecognitionPlaybackService : Service() {
         val content = if (idle) {
             getString(R.string.recognition_idle_notification_text)
         } else {
-            getString(R.string.recognition_background_text, maxSeconds)
+            getString(R.string.recognition_background_text)
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_music_recognition)
@@ -469,6 +461,7 @@ class MusicRecognitionPlaybackService : Service() {
             window.showIdle()
         } else {
             window.showBubble()
+            if (recording || captureJob != null) window.showRecording()
         }
     }
 
@@ -498,7 +491,7 @@ class MusicRecognitionPlaybackService : Service() {
         returnToIdleJob = null
         terminalStatusSent = false
         try {
-            ensureForeground(MAX_SECONDS)
+            ensureForeground()
             startMicrophoneCapture(MAX_SECONDS)
             sendBroadcast(
                 baseResultIntent(STATUS_STARTED)

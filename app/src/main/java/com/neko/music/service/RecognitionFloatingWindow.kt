@@ -1,29 +1,41 @@
 package com.neko.music.service
 
+import android.animation.ValueAnimator
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Canvas
-import android.graphics.LinearGradient
+import android.graphics.Color
+import android.graphics.ColorFilter
 import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.Typeface
+import android.graphics.PixelFormat
+import android.graphics.Rect
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
+import android.content.res.ColorStateList
 import android.os.Build
-import android.text.TextPaint
+import android.os.SystemClock
 import android.text.TextUtils
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
 import com.neko.music.R
+import com.neko.music.config.AppConfig
+import com.neko.music.debug.NekoLog as Log
+import com.neko.music.ui.theme.resolveAppDarkTheme
 import kotlin.math.abs
 import kotlin.math.sin
 
-/**
- * Floating recognition control modeled after NetEase Cloud Music's floating
- * recognition ball/panel, with NekoMusic styling and interactions.
- */
 internal class RecognitionFloatingWindow(
     context: Context,
     private val onStopRecognition: () -> Unit,
@@ -32,58 +44,62 @@ internal class RecognitionFloatingWindow(
     private val onStartRecognition: () -> Unit,
 ) {
     private val appContext = context.applicationContext
-    private val windowManager = appContext.getSystemService(WindowManager::class.java)
+    private val manager = appContext.getSystemService(WindowManager::class.java)
     private val params = WindowManager.LayoutParams(
-        dp(OVERLAY_WIDTH_DP),
-        dp(OVERLAY_HEIGHT_DP),
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        },
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+        dp(56), dp(56),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-        android.graphics.PixelFormat.TRANSLUCENT,
+        PixelFormat.TRANSLUCENT,
     ).apply {
-        gravity = Gravity.TOP or Gravity.START
-        x = ((appContext.resources.displayMetrics.widthPixels - dp(OVERLAY_WIDTH_DP)) / 2)
-            .coerceAtLeast(0)
-        y = dp(92)
+        gravity = Gravity.TOP or Gravity.LEFT
+        x = appContext.resources.displayMetrics.widthPixels
+        y = dp(108)
     }
     private val view = RecognitionOverlayView(
-        context = appContext,
+        appContext,
         onExpand = { setMode(expandedMode) },
-        onCollapse = { setMode(OverlayMode.Bubble, repositionBubble = true) },
-        onStopRecognition = onStopRecognition,
+        onCollapse = { setMode(OverlayMode.Bubble); snapToEdge() },
+        onAction = {
+            when (mode) {
+                OverlayMode.Panel -> onStopRecognition()
+                OverlayMode.Result -> onOpenApp()
+                else -> onStartRecognition()
+            }
+        },
         onClose = onClose,
-        onOpenApp = onOpenApp,
-        onStartRecognition = onStartRecognition,
         onDrag = ::dragWindow,
-        onDragEnd = ::snapBubbleToEdge,
+        onDragEnd = ::snapToEdge,
     )
     private var attached = false
     private var visible = false
     private var mode = OverlayMode.Bubble
     private var expandedMode = OverlayMode.Idle
+    private var edgeAnimation: ValueAnimator? = null
+    private val configurationListener = object : ComponentCallbacks {
+        override fun onConfigurationChanged(newConfig: Configuration) {
+            view.refreshAppearance()
+            resizeAndClamp()
+        }
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onLowMemory() = Unit
+    }
 
-    val isVisible: Boolean
-        get() = attached && visible
+    val isVisible: Boolean get() = attached && visible
 
     fun showBubble() {
-        val firstAttach = !attached
         if (!attached) {
-            runCatching {
-                windowManager.addView(view, params)
-                attached = true
-            }.onFailure {
-                return
-            }
+            applyPlacement(placement())
+            if (runCatching { manager.addView(view, params) }.onFailure {
+                    Log.w("RecognitionFloatingWindow", "无法显示识曲悬浮窗", it)
+                }.isFailure) return
+            attached = true
+            appContext.registerComponentCallbacks(configurationListener)
         }
         visible = true
         view.visibility = View.VISIBLE
-        setMode(OverlayMode.Bubble, repositionBubble = firstAttach || mode != OverlayMode.Bubble)
+        setMode(OverlayMode.Bubble)
     }
 
     fun showIdle() {
@@ -93,725 +109,407 @@ internal class RecognitionFloatingWindow(
     }
 
     fun hide() {
-        if (!attached) return
         visible = false
+        edgeAnimation?.cancel()
         view.visibility = View.GONE
     }
 
     fun remove() {
-        if (!attached) return
-        runCatching { windowManager.removeView(view) }
+        edgeAnimation?.cancel()
+        if (attached) {
+            appContext.unregisterComponentCallbacks(configurationListener)
+            runCatching { manager.removeView(view) }
+        }
         attached = false
         visible = false
     }
 
-    fun updateRecording(elapsedSeconds: Int, maxSeconds: Int) {
+    fun showRecording() {
         expandedMode = OverlayMode.Panel
         view.setRecordingActive(true)
-        view.updateRecording(elapsedSeconds, maxSeconds)
-        if (mode == OverlayMode.Panel) setMode(OverlayMode.Panel)
+        if (mode != OverlayMode.Bubble && mode != OverlayMode.Panel) setMode(OverlayMode.Panel)
     }
 
     fun showMatch(title: String, artist: String, confidence: Double) {
         expandedMode = OverlayMode.Result
         view.setRecordingActive(false)
-        setMode(OverlayMode.Result)
         view.showMatch(title, artist, confidence)
+        setMode(OverlayMode.Result)
     }
 
     fun showMessage(title: String, subtitle: String, isError: Boolean = false) {
         expandedMode = OverlayMode.Message
         view.setRecordingActive(false)
-        setMode(OverlayMode.Message)
         view.showMessage(title, subtitle, isError)
+        setMode(OverlayMode.Message)
     }
 
-    private fun setMode(nextMode: OverlayMode, repositionBubble: Boolean = false) {
-        if (!attached || !visible) {
-            mode = nextMode
-            return
-        }
-        mode = nextMode
-        val width = if (nextMode == OverlayMode.Bubble) BUBBLE_SIZE_DP else OVERLAY_WIDTH_DP
-        val height = if (nextMode == OverlayMode.Bubble) BUBBLE_SIZE_DP else OVERLAY_HEIGHT_DP
-        params.width = dp(width)
-        params.height = dp(height)
-        if (nextMode == OverlayMode.Bubble && repositionBubble) {
-            params.x = (screenWidth() - params.width - dp(8))
-                .coerceAtLeast(0)
-            params.y = params.y.coerceAtLeast(dp(64))
-        } else if (nextMode != OverlayMode.Bubble) {
-            params.x = ((screenWidth() - params.width) / 2)
-                .coerceAtLeast(0)
-            params.y = params.y.coerceIn(dp(64), dp(220))
-        }
-        view.setOverlayMode(nextMode)
-        runCatching { windowManager.updateViewLayout(view, params) }
+    private fun setMode(next: OverlayMode) {
+        edgeAnimation?.cancel()
+        mode = next
+        view.setOverlayMode(next)
+        view.refreshAppearance()
+        resizeAndClamp()
     }
 
-    private fun snapBubbleToEdge() {
-        if (!attached || mode != OverlayMode.Bubble) return
-        val screenWidth = screenWidth()
-        val margin = dp(8)
-        val left = margin
-        val right = (screenWidth - params.width - margin).coerceAtLeast(left)
-        val target = if (params.x + params.width / 2 < screenWidth / 2) left else right
-        params.x = target
-        runCatching { windowManager.updateViewLayout(view, params) }
+    private fun placement(x: Int = params.x, y: Int = params.y): RecognitionOverlayPlacement {
+        val metrics = appContext.resources.displayMetrics
+        val bounds: Rect
+        val insets: android.graphics.Insets?
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val window = manager.currentWindowMetrics
+            bounds = window.bounds
+            insets = window.windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+            )
+        } else {
+            bounds = Rect(0, 0, metrics.widthPixels, metrics.heightPixels)
+            insets = null
+        }
+        val bubble = mode == OverlayMode.Bubble
+        val fontScale = appContext.resources.configuration.fontScale.coerceIn(1f, 1.5f)
+        return recognitionOverlayPlacement(
+            bounds.width(), bounds.height(), insets?.left ?: 0, insets?.top ?: dp(28),
+            insets?.right ?: 0, insets?.bottom ?: dp(24),
+            dp(if (bubble) 56 else 304), dp(if (bubble) 56 else (176 * fontScale).toInt()),
+            x, y, dp(8),
+        )
     }
+
+    private fun applyPlacement(position: RecognitionOverlayPlacement) {
+        params.x = position.x
+        params.y = position.y
+        params.width = position.width
+        params.height = position.height
+        if (attached) runCatching { manager.updateViewLayout(view, params) }
+    }
+
+    private fun resizeAndClamp() = applyPlacement(placement())
 
     private fun dragWindow(dx: Float, dy: Float) {
-        if (!attached) return
-        val screenWidth = screenWidth()
-        val screenHeight = appContext.resources.displayMetrics.heightPixels
-        params.x = (params.x + dx.toInt()).coerceIn(0, (screenWidth - params.width).coerceAtLeast(0))
-        params.y = (params.y + dy.toInt()).coerceIn(0, (screenHeight - params.height).coerceAtLeast(0))
-        runCatching { windowManager.updateViewLayout(view, params) }
+        edgeAnimation?.cancel()
+        if (attached) applyPlacement(placement(params.x + dx.toInt(), params.y + dy.toInt()))
     }
 
-    private fun dp(value: Int): Int =
-        (value * appContext.resources.displayMetrics.density).toInt()
-
-    private fun screenWidth(): Int =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager.currentWindowMetrics.bounds.width()
-        } else {
-            appContext.resources.displayMetrics.widthPixels
+    private fun snapToEdge() {
+        if (!attached || mode != OverlayMode.Bubble) return
+        val left = placement(x = Int.MIN_VALUE).x
+        val right = placement(x = Int.MAX_VALUE).x
+        val target = if (abs(params.x - left) < abs(params.x - right)) left else right
+        edgeAnimation?.cancel()
+        edgeAnimation = ValueAnimator.ofInt(params.x, target).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { if (attached && visible) applyPlacement(placement(x = it.animatedValue as Int)) }
+            start()
         }
-
-    private companion object {
-        const val BUBBLE_SIZE_DP = 44
-        const val OVERLAY_WIDTH_DP = 220
-        const val OVERLAY_HEIGHT_DP = 96
     }
+
+    private fun dp(value: Int) = (value * appContext.resources.displayMetrics.density).toInt()
 }
 
-private enum class OverlayMode {
-    Bubble,
-    Idle,
-    Panel,
-    Result,
-    Message,
-}
+private enum class OverlayMode { Bubble, Idle, Panel, Result, Message }
 
 private class RecognitionOverlayView(
     context: Context,
     private val onExpand: () -> Unit,
     private val onCollapse: () -> Unit,
-    private val onStopRecognition: () -> Unit,
+    private val onAction: () -> Unit,
     private val onClose: () -> Unit,
-    private val onOpenApp: () -> Unit,
-    private val onStartRecognition: () -> Unit,
     private val onDrag: (Float, Float) -> Unit,
     private val onDragEnd: () -> Unit,
-) : View(context) {
+) : FrameLayout(context) {
+    private val accent = Color.rgb(230, 55, 71)
     private val density = resources.displayMetrics.density
-    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
-    private val buttonPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-    }
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-    }
-    private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans-serif", Typeface.BOLD)
-    }
-    private val waveBars = FloatArray(9)
-    private val closeRect = RectF()
-    private val collapseRect = RectF()
-    private val actionRect = RectF()
-    private val stopRect = RectF()
-
-    private var mode = OverlayMode.Panel
-    private var elapsedSeconds = 0
-    private var maxSeconds = 20
+    private val bubble = RecognitionSignalView(context)
+    private val panel = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    private val title = label(16f, bold = true)
+    private val subtitle = label(12f)
+    private val brand = label(11f, bold = true)
+    private val footerHint = label(11f)
+    private val action = label(13f, bold = true)
+    private val minimize = ImageButton(context)
+    private val close = ImageButton(context)
+    private val signal = RecognitionSignalView(context)
+    private var mode = OverlayMode.Bubble
+    private var recording = false
     private var songTitle = ""
     private var songArtist = ""
     private var confidence = 0.0
     private var messageTitle = ""
     private var messageSubtitle = ""
-    private var isErrorMessage = false
-    private var recordingActive = false
-    private var animating = false
-    private var lastFrameNanos = 0L
-    private var downRawX = 0f
-    private var downRawY = 0f
-    private var lastRawX = 0f
-    private var lastRawY = 0f
-    private var bubbleDragging = false
-    private var panelDragging = false
-    private var panelCanDrag = false
-    private var pressedAction = Action.None
-
-    private val frameRunnable = object : Runnable {
-        override fun run() {
-            val now = System.nanoTime()
-            val deltaSeconds = if (lastFrameNanos == 0L) 0f else (now - lastFrameNanos) / 1_000_000_000f
-            lastFrameNanos = now
-            for (index in waveBars.indices) {
-                val wave = (sin((now / 1_000_000_000.0 + index * 0.52) * 5.2) + 1.0) / 2.0
-                val target = (0.18f + wave.toFloat() * 0.82f).coerceIn(0.16f, 1f)
-                waveBars[index] += (target - waveBars[index]) * (deltaSeconds * 13f).coerceIn(0f, 1f)
-            }
-            invalidate()
-            if (animating) postOnAnimation(this)
-        }
-    }
+    private var messageError = false
+    private var dark = false
+    private var downX = 0f
+    private var downY = 0f
+    private var lastX = 0f
+    private var lastY = 0f
+    private var dragging = false
+    private var dragEligible = false
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     init {
-        contentDescription = context.getString(R.string.recognition_float_brand)
-        waveBars.indices.forEach { waveBars[it] = 0.24f }
+        clipChildren = false
+        addView(bubble, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(panel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        bubble.setOnClickListener { onExpand() }
+        bubble.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        panel.setPadding(dp(14), dp(4), dp(8), dp(10))
+        val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        header.addView(brand, LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        minimize.contentDescription = context.getString(R.string.recognition_float_collapse)
+        close.contentDescription = context.getString(R.string.recognition_float_close)
+        minimize.setOnClickListener { onCollapse() }
+        close.setOnClickListener { onClose() }
+        header.addView(minimize, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(close, LinearLayout.LayoutParams(dp(48), dp(48)))
+        panel.addView(header, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48)))
+        val body = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        body.addView(signal, LinearLayout.LayoutParams(dp(48), dp(48)))
+        val copy = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(6), 0)
+        }
+        title.maxLines = 1
+        subtitle.maxLines = 2
+        copy.addView(title)
+        copy.addView(subtitle, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
+        body.addView(copy, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        panel.addView(body, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
+        val footer = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        footer.addView(footerHint, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        action.gravity = Gravity.CENTER
+        action.minHeight = dp(48)
+        action.setPadding(dp(16), 0, dp(16), 0)
+        action.setOnClickListener { onAction() }
+        action.isFocusable = true
+        action.maxLines = 1
+        footer.addView(action, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(48)).apply { marginEnd = dp(2) })
+        panel.addView(footer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48)))
+        refreshAppearance()
+        render()
     }
 
-    fun setOverlayMode(mode: OverlayMode) {
-        this.mode = mode
-        startOrStopAnimation()
-        invalidate()
-    }
-
+    fun setOverlayMode(mode: OverlayMode) { this.mode = mode; render() }
     fun setRecordingActive(active: Boolean) {
-        recordingActive = active
-        startOrStopAnimation()
+        if (recording == active) return
+        recording = active
+        render()
     }
-
-    fun updateRecording(elapsedSeconds: Int, maxSeconds: Int) {
-        this.elapsedSeconds = elapsedSeconds
-        this.maxSeconds = maxSeconds
-    }
-
     fun showMatch(title: String, artist: String, confidence: Double) {
-        songTitle = title
-        songArtist = artist
-        this.confidence = confidence
-        invalidate()
+        songTitle = title; songArtist = artist; this.confidence = confidence
     }
-
     fun showMessage(title: String, subtitle: String, isError: Boolean) {
-        messageTitle = title
-        messageSubtitle = subtitle
-        isErrorMessage = isError
-        invalidate()
+        messageTitle = title; messageSubtitle = subtitle; messageError = isError
     }
 
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        startOrStopAnimation()
-    }
-
-    override fun onDetachedFromWindow() {
-        animating = false
-        removeCallbacks(frameRunnable)
-        super.onDetachedFromWindow()
-    }
-
-    private fun startOrStopAnimation() {
-        val shouldAnimate = mode == OverlayMode.Panel || mode == OverlayMode.Bubble
-        if (shouldAnimate == animating) return
-        animating = shouldAnimate
-        if (animating) {
-            lastFrameNanos = 0L
-            postOnAnimation(frameRunnable)
-        } else {
-            removeCallbacks(frameRunnable)
+    fun refreshAppearance() {
+        val settings = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        dark = resolveAppDarkTheme(settings.getString(AppConfig.PrefConfig.KEY_THEME, AppConfig.PrefConfig.DEFAULT_THEME).orEmpty(), systemDark)
+        val foreground = if (dark) Color.rgb(247, 247, 250) else Color.rgb(30, 31, 35)
+        val muted = if (dark) Color.rgb(177, 179, 189) else Color.rgb(113, 115, 125)
+        panel.background = rounded(if (dark) Color.rgb(34, 35, 42) else Color.WHITE, 22f)
+        panel.elevation = dp(6).toFloat()
+        panel.clipToOutline = true
+        title.setTextColor(foreground)
+        subtitle.setTextColor(muted)
+        footerHint.setTextColor(muted)
+        brand.setTextColor(muted)
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        brand.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        footerHint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+        action.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+        minimize.setImageDrawable(WindowIconDrawable(false, muted, density))
+        close.setImageDrawable(WindowIconDrawable(true, muted, density))
+        for (button in listOf(minimize, close)) {
+            button.background = RippleDrawable(ColorStateList.valueOf(if (dark) 0x22FFFFFF else 0x11000000), null, rounded(Color.WHITE, 24f))
+            button.setPadding(dp(15), dp(15), dp(15), dp(15))
         }
+        action.setTextColor(Color.WHITE)
+        action.background = RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), rounded(accent, 24f), null)
+        signal.setDark(dark)
+        bubble.setDark(dark)
+        render()
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+    private fun render() {
+        bubble.visibility = if (mode == OverlayMode.Bubble) VISIBLE else GONE
+        panel.visibility = if (mode == OverlayMode.Bubble) GONE else VISIBLE
+        bubble.setActive(recording)
+        signal.setActive(recording && mode == OverlayMode.Panel)
+        bubble.contentDescription = context.getString(
+            if (recording) R.string.recognition_float_bubble_listening else R.string.recognition_float_bubble_ready,
+        )
         when (mode) {
-            OverlayMode.Bubble -> drawBubble(canvas)
-            OverlayMode.Idle -> drawIdle(canvas)
-            OverlayMode.Panel -> drawPanel(canvas)
-            OverlayMode.Result -> drawResult(canvas)
-            OverlayMode.Message -> drawMessage(canvas)
-        }
-    }
-
-    private fun drawBubble(canvas: Canvas) {
-        val cx = width / 2f
-        val cy = height / 2f
-        val radius = dp(19f)
-        val pulse = ((sin(System.nanoTime() / 520_000_000.0) + 1.0) / 2.0).toFloat()
-        fillPaint.shader = RadialGradient(
-            cx,
-            cy,
-            radius * 1.6f,
-            intArrayOf(
-                ColorTokens.ROSE.withAlpha(0.28f + pulse * 0.10f),
-                ColorTokens.ROSE.withAlpha(0f),
-            ),
-            floatArrayOf(0.42f, 1f),
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawCircle(cx, cy, radius * 1.6f, fillPaint)
-        fillPaint.shader = LinearGradient(
-            cx - radius,
-            cy - radius,
-            cx + radius,
-            cy + radius,
-            intArrayOf(ColorTokens.PANEL_START, ColorTokens.PANEL_END),
-            null,
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawCircle(cx, cy, radius, fillPaint)
-        fillPaint.shader = null
-        strokePaint.color = ColorTokens.ROSE.withAlpha(0.72f)
-        strokePaint.strokeWidth = dp(1.2f)
-        canvas.drawCircle(cx, cy, radius, strokePaint)
-        if (recordingActive) {
-            drawBubbleWave(canvas, cx, cy, radius)
-        } else {
-            drawBubbleIdleGlyph(canvas, cx, cy)
-        }
-    }
-
-    private fun drawBubbleIdleGlyph(canvas: Canvas, cx: Float, cy: Float) {
-        buttonPaint.color = ColorTokens.TEXT
-        buttonPaint.style = Paint.Style.FILL
-        canvas.drawCircle(cx - dp(7f), cy, dp(2.3f), buttonPaint)
-        canvas.drawCircle(cx, cy, dp(2.3f), buttonPaint)
-        canvas.drawCircle(cx + dp(7f), cy, dp(2.3f), buttonPaint)
-    }
-
-    private fun drawBubbleWave(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
-        val barWidth = dp(2.4f)
-        val gap = dp(3.2f)
-        val totalWidth = barWidth * 5 + gap * 4
-        var x = cx - totalWidth / 2f
-        for (index in 0 until 5) {
-            val wave = waveBars[(index * 2).coerceAtMost(waveBars.lastIndex)]
-            val h = dp(5f) + radius * 0.7f * wave
-            buttonPaint.color = ColorTokens.TEXT
-            buttonPaint.strokeCap = Paint.Cap.ROUND
-            buttonPaint.strokeWidth = barWidth
-            canvas.drawLine(x + barWidth / 2f, cy - h / 2f, x + barWidth / 2f, cy + h / 2f, buttonPaint)
-            x += barWidth + gap
-        }
-    }
-
-    private fun drawPanel(canvas: Canvas) {
-        drawCardBackground(canvas)
-        drawHeader(canvas, context.getString(R.string.recognition_float_brand))
-        drawText(
-            canvas,
-            context.getString(R.string.recognition_float_listening),
-            dp(12f),
-            dp(39f),
-            dp(11.4f),
-            ColorTokens.TEXT,
-            boldPaint,
-            width - dp(76f),
-        )
-        drawText(
-            canvas,
-            context.getString(R.string.recognition_float_time, elapsedSeconds, maxSeconds),
-            dp(12f),
-            dp(37f),
-            dp(7.8f),
-            ColorTokens.ROSE,
-            boldPaint,
-            width - dp(16f),
-            alignRight = true,
-        )
-        drawWaveform(
-            canvas = canvas,
-            left = dp(12f),
-            top = dp(46f),
-            right = width - dp(70f),
-            bottom = dp(66f),
-            accent = ColorTokens.ROSE,
-        )
-        stopRect.set(width - dp(64f), height - dp(32f), width - dp(10f), height - dp(10f))
-        drawPillButton(
-            canvas,
-            stopRect,
-            context.getString(R.string.recognition_float_stop),
-            ColorTokens.ROSE,
-            ColorTokens.TEXT,
-        )
-    }
-
-    private fun drawIdle(canvas: Canvas) {
-        drawCardBackground(canvas)
-        drawHeader(canvas, context.getString(R.string.recognition_float_idle_brand))
-        drawText(
-            canvas,
-            context.getString(R.string.recognition_float_idle_title),
-            dp(12f),
-            dp(39f),
-            dp(11.4f),
-            ColorTokens.TEXT,
-            boldPaint,
-            width - dp(76f),
-        )
-        drawText(
-            canvas,
-            context.getString(R.string.recognition_float_idle_tip),
-            dp(12f),
-            dp(56f),
-            dp(8.6f),
-            ColorTokens.MUTED,
-            textPaint,
-            width - dp(76f),
-        )
-        actionRect.set(width - dp(64f), height - dp(32f), width - dp(10f), height - dp(10f))
-        drawPillButton(
-            canvas,
-            actionRect,
-            context.getString(R.string.recognition_float_idle_action),
-            ColorTokens.ROSE,
-            ColorTokens.TEXT,
-        )
-    }
-
-    private fun drawResult(canvas: Canvas) {
-        drawCardBackground(canvas)
-        drawHeader(
-            canvas,
-            context.getString(R.string.recognition_float_result_title),
-            ColorTokens.SUCCESS,
-        )
-        drawText(
-            canvas,
-            songTitle.ifBlank { context.getString(R.string.recognition_success) },
-            dp(12f),
-            dp(38f),
-            dp(11.4f),
-            ColorTokens.TEXT,
-            boldPaint,
-            width - dp(76f),
-        )
-        drawText(
-            canvas,
-            buildString {
-                append(songArtist)
-                if (confidence > 0.0) {
-                    if (isNotEmpty()) append(" · ")
-                    append((confidence * 100).toInt().coerceIn(0, 100))
-                    append('%')
-                }
-            },
-            dp(12f),
-            dp(55f),
-            dp(8.6f),
-            ColorTokens.MUTED,
-            textPaint,
-            width - dp(76f),
-        )
-        actionRect.set(width - dp(66f), height - dp(32f), width - dp(10f), height - dp(10f))
-        drawPillButton(
-            canvas,
-            actionRect,
-            context.getString(R.string.recognition_float_open_app),
-            ColorTokens.SUCCESS,
-            ColorTokens.DARK_TEXT,
-        )
-    }
-
-    private fun drawMessage(canvas: Canvas) {
-        drawCardBackground(canvas)
-        drawHeader(
-            canvas,
-            context.getString(R.string.recognition_float_brand),
-            if (isErrorMessage) ColorTokens.ROSE else ColorTokens.SUCCESS,
-        )
-        drawText(
-            canvas,
-            messageTitle,
-            dp(12f),
-            dp(38f),
-            dp(11.4f),
-            if (isErrorMessage) ColorTokens.ROSE else ColorTokens.TEXT,
-            boldPaint,
-            width - dp(76f),
-        )
-        drawText(
-            canvas,
-            messageSubtitle,
-            dp(12f),
-            dp(55f),
-            dp(8.6f),
-            ColorTokens.MUTED,
-            textPaint,
-            width - dp(76f),
-        )
-        actionRect.set(width - dp(62f), height - dp(32f), width - dp(10f), height - dp(10f))
-        drawPillButton(
-            canvas,
-            actionRect,
-            context.getString(R.string.recognition_float_close),
-            ColorTokens.PANEL_BUTTON,
-            ColorTokens.TEXT,
-        )
-    }
-
-    private fun drawCardBackground(canvas: Canvas) {
-        val rect = RectF(dp(1f), dp(1f), width - dp(1f), height - dp(1f))
-        fillPaint.shader = LinearGradient(
-            rect.left,
-            rect.top,
-            rect.right,
-            rect.bottom,
-            intArrayOf(ColorTokens.PANEL_START, ColorTokens.PANEL_END),
-            null,
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRoundRect(rect, dp(16f), dp(16f), fillPaint)
-        fillPaint.shader = null
-        strokePaint.color = ColorTokens.ROSE.withAlpha(0.38f)
-        strokePaint.strokeWidth = dp(1f)
-        canvas.drawRoundRect(rect, dp(16f), dp(16f), strokePaint)
-        fillPaint.shader = RadialGradient(
-            width * 0.86f,
-            dp(10f),
-            width * 0.52f,
-            intArrayOf(ColorTokens.ROSE.withAlpha(0.17f), ColorTokens.ROSE.withAlpha(0f)),
-            floatArrayOf(0f, 1f),
-            Shader.TileMode.CLAMP,
-        )
-        canvas.drawRoundRect(rect, dp(16f), dp(16f), fillPaint)
-        fillPaint.shader = null
-    }
-
-    private fun drawHeader(
-        canvas: Canvas,
-        title: String,
-        accent: Int = ColorTokens.ROSE,
-    ) {
-        buttonPaint.color = accent
-        buttonPaint.style = Paint.Style.FILL
-        canvas.drawCircle(dp(11f), dp(14f), dp(2.2f), buttonPaint)
-        drawText(
-            canvas,
-            title,
-            dp(18f),
-            dp(18f),
-            dp(7.8f),
-            accent,
-            boldPaint,
-            width - dp(62f),
-        )
-        collapseRect.set(width - dp(58f), dp(2f), width - dp(32f), dp(28f))
-        closeRect.set(width - dp(32f), dp(2f), width - dp(6f), dp(28f))
-        drawWindowIcon(canvas, collapseRect, Icon.Minimize)
-        drawWindowIcon(canvas, closeRect, Icon.Close)
-    }
-
-    private fun drawWindowIcon(canvas: Canvas, rect: RectF, icon: Icon) {
-        buttonPaint.color = ColorTokens.MUTED.withAlpha(0.92f)
-        buttonPaint.strokeWidth = dp(1.6f)
-        buttonPaint.strokeCap = Paint.Cap.ROUND
-        buttonPaint.style = Paint.Style.STROKE
-        val cx = rect.centerX()
-        val cy = rect.centerY()
-        when (icon) {
-            Icon.Minimize -> canvas.drawLine(cx - dp(5f), cy, cx + dp(5f), cy, buttonPaint)
-            Icon.Close -> {
-                canvas.drawLine(cx - dp(4.5f), cy - dp(4.5f), cx + dp(4.5f), cy + dp(4.5f), buttonPaint)
-                canvas.drawLine(cx + dp(4.5f), cy - dp(4.5f), cx - dp(4.5f), cy + dp(4.5f), buttonPaint)
+            OverlayMode.Bubble -> Unit
+            OverlayMode.Idle -> {
+                brand.setText(R.string.music_recognition)
+                title.setText(R.string.recognition_float_idle_title)
+                subtitle.setText(R.string.recognition_float_enable_hint)
+                action.setText(R.string.recognition_float_start)
+                footerHint.setText(R.string.recognition_float_drag_hint)
+            }
+            OverlayMode.Panel -> {
+                brand.setText(R.string.recognition_float_listening)
+                title.setText(R.string.recognition_float_listening)
+                subtitle.setText(R.string.recognition_recording_hint)
+                footerHint.setText(R.string.recognition_float_drag_hint)
+                action.setText(R.string.recognition_float_stop)
+            }
+            OverlayMode.Result -> {
+                brand.setText(R.string.recognition_success)
+                title.text = songTitle.ifBlank { context.getString(R.string.recognition_success) }
+                subtitle.text = songArtist
+                footerHint.text = context.getString(R.string.recognition_confidence, (confidence * 100).toInt().coerceIn(0, 100))
+                action.setText(R.string.recognition_float_open_app)
+            }
+            OverlayMode.Message -> {
+                brand.setText(if (messageError) R.string.recognition_float_error else R.string.music_recognition)
+                title.text = messageTitle
+                subtitle.text = messageSubtitle
+                footerHint.setText(R.string.recognition_float_drag_hint)
+                action.setText(R.string.recognition_action_retry)
             }
         }
     }
 
-    private fun drawWaveform(
-        canvas: Canvas,
-        left: Float,
-        top: Float,
-        right: Float,
-        bottom: Float,
-        accent: Int,
-    ) {
-        val barWidth = dp(3f)
-        val gap = dp(4f)
-        val count = waveBars.size
-        var x = left
-        val centerY = (top + bottom) / 2f
-        val maxHeight = bottom - top
-        for (index in 0 until count) {
-            val level = if (mode == OverlayMode.Panel) waveBars[index] else 0.42f
-            val h = dp(4f) + maxHeight * level
-            buttonPaint.color = accent.withAlpha(0.5f + level * 0.5f)
-            buttonPaint.strokeCap = Paint.Cap.ROUND
-            buttonPaint.strokeWidth = barWidth
-            canvas.drawLine(x + barWidth / 2f, centerY - h / 2f, x + barWidth / 2f, centerY + h / 2f, buttonPaint)
-            x += barWidth + gap
-            if (x + barWidth > right) break
+    // 仅接管达到阈值的拖动，按钮点击与读屏焦点仍由原生子控件处理。
+    override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.rawX; downY = event.rawY; lastX = downX; lastY = downY
+                dragging = false
+                dragEligible = mode == OverlayMode.Bubble || !isOnControl(event.x, event.y)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (dragEligible && abs(event.rawX - downX) + abs(event.rawY - downY) > touchSlop) {
+                    dragging = true
+                    return true
+                }
+            }
         }
-    }
-
-    private fun drawPillButton(
-        canvas: Canvas,
-        rect: RectF,
-        label: String,
-        background: Int,
-        foreground: Int,
-    ) {
-        fillPaint.color = background
-        fillPaint.style = Paint.Style.FILL
-        canvas.drawRoundRect(rect, rect.height() / 2f, rect.height() / 2f, fillPaint)
-        textPaint.textAlign = Paint.Align.CENTER
-        textPaint.textSize = dp(8.2f)
-        textPaint.typeface = Typeface.create("sans-serif", Typeface.BOLD)
-        textPaint.color = foreground
-        val baseline = rect.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
-        canvas.drawText(label, rect.centerX(), baseline, textPaint)
-        textPaint.textAlign = Paint.Align.LEFT
-    }
-
-    private fun drawText(
-        canvas: Canvas,
-        text: String,
-        x: Float,
-        baseline: Float,
-        textSizeDp: Float,
-        color: Int,
-        paint: Paint,
-        maxWidth: Float,
-        alignRight: Boolean = false,
-    ) {
-        // Callers already convert the logical text size to pixels with dp().
-        paint.textSize = textSizeDp
-        paint.color = color
-        paint.textAlign = if (alignRight) Paint.Align.RIGHT else Paint.Align.LEFT
-        val widthLimit = (maxWidth - x).coerceAtLeast(dp(20f))
-        val measurePaint = TextPaint(paint)
-        val shown = TextUtils.ellipsize(
-            text,
-            measurePaint,
-            widthLimit,
-            TextUtils.TruncateAt.END,
-        )
-        canvas.drawText(shown.toString(), if (alignRight) x + widthLimit else x, baseline, paint)
-        paint.textAlign = Paint.Align.LEFT
+        return false
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                downRawX = event.rawX
-                downRawY = event.rawY
-                lastRawX = event.rawX
-                lastRawY = event.rawY
-                bubbleDragging = false
-                panelDragging = false
-                pressedAction = hitAction(event.x, event.y)
-                panelCanDrag = mode != OverlayMode.Bubble && pressedAction == Action.None
-                return true
-            }
-
+            MotionEvent.ACTION_DOWN -> return true
             MotionEvent.ACTION_MOVE -> {
-                if (mode == OverlayMode.Bubble) {
-                    val totalDx = event.rawX - downRawX
-                    val totalDy = event.rawY - downRawY
-                    if (!bubbleDragging && abs(totalDx) + abs(totalDy) > touchSlop) {
-                        bubbleDragging = true
-                    }
-                    if (bubbleDragging) {
-                        onDrag(event.rawX - lastRawX, event.rawY - lastRawY)
-                    }
-                } else if (panelCanDrag) {
-                    val totalDx = event.rawX - downRawX
-                    val totalDy = event.rawY - downRawY
-                    if (!panelDragging && abs(totalDx) + abs(totalDy) > touchSlop) {
-                        panelDragging = true
-                    }
-                    if (panelDragging) {
-                        onDrag(event.rawX - lastRawX, event.rawY - lastRawY)
-                    }
+                if (dragEligible && !dragging && abs(event.rawX - downX) + abs(event.rawY - downY) > touchSlop) {
+                    dragging = true
                 }
-                lastRawX = event.rawX
-                lastRawY = event.rawY
+                if (dragging) onDrag(event.rawX - lastX, event.rawY - lastY)
+                lastX = event.rawX; lastY = event.rawY
                 return true
             }
-
-            MotionEvent.ACTION_UP -> {
-                if (mode == OverlayMode.Bubble) {
-                    if (bubbleDragging) {
-                        onDragEnd()
-                    } else {
-                        onExpand()
-                    }
-                } else if (
-                    !panelDragging &&
-                    pressedAction != Action.None &&
-                    hitAction(event.x, event.y) == pressedAction
-                ) {
-                    when (pressedAction) {
-                        Action.Expand -> onExpand()
-                        Action.Collapse -> onCollapse()
-                        Action.Stop -> onStopRecognition()
-                        Action.Close -> onClose()
-                        Action.OpenApp -> onOpenApp()
-                        Action.StartRecognition -> onStartRecognition()
-                        Action.None -> Unit
-                    }
-                }
-                if (pressedAction != Action.None) performClick()
-                pressedAction = Action.None
-                return true
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                if (bubbleDragging) onDragEnd()
-                panelDragging = false
-                panelCanDrag = false
-                pressedAction = Action.None
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (dragging) onDragEnd()
+                dragging = false
                 return true
             }
         }
         return super.onTouchEvent(event)
     }
 
-    override fun performClick(): Boolean {
-        super.performClick()
-        return true
+    private fun isOnControl(x: Float, y: Float): Boolean = listOf(minimize, close, action).any { control ->
+        val rect = Rect()
+        control.getDrawingRect(rect)
+        offsetDescendantRectToMyCoords(control, rect)
+        rect.contains(x.toInt(), y.toInt())
     }
-
-    private fun hitAction(x: Float, y: Float): Action {
-        if (mode == OverlayMode.Bubble) return Action.Expand
-        if (closeRect.contains(x, y)) return Action.Close
-        if (collapseRect.contains(x, y)) return Action.Collapse
-        if (mode == OverlayMode.Panel && stopRect.contains(x, y)) return Action.Stop
-        if (mode == OverlayMode.Idle && actionRect.contains(x, y)) return Action.StartRecognition
-        if (mode == OverlayMode.Result && actionRect.contains(x, y)) return Action.OpenApp
-        if (mode == OverlayMode.Message && actionRect.contains(x, y)) return Action.Close
-        return Action.None
+    private fun label(size: Float, bold: Boolean = false) = TextView(context).apply {
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
+        typeface = android.graphics.Typeface.create("sans-serif", if (bold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+        ellipsize = TextUtils.TruncateAt.END
+        maxLines = 1
+        includeFontPadding = false
     }
-
-    private fun dp(value: Float): Float = value * density
-
-    private fun dp(value: Int): Float = value * density
-
-    private fun Int.withAlpha(alpha: Float): Int {
-        val alphaInt = (alpha.coerceIn(0f, 1f) * 255f).toInt()
-        return (this and 0x00FFFFFF) or (alphaInt shl 24)
+    private fun rounded(color: Int, radius: Float) = GradientDrawable().apply {
+        setColor(color); cornerRadius = dp(radius).toFloat()
     }
+    private fun dp(value: Int) = (value * density).toInt()
+    private fun dp(value: Float) = (value * density).toInt()
+}
 
-    private enum class Icon {
-        Minimize,
-        Close,
+private class RecognitionSignalView(context: Context) : View(context) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val accent = Color.rgb(230, 55, 71)
+    private var active = false
+    private var ticking = false
+    private var dark = false
+    private val frame = object : Runnable {
+        override fun run() {
+            invalidate()
+            if (ticking) postDelayed(this, 33L)
+        }
     }
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+    fun setDark(dark: Boolean) { this.dark = dark; invalidate() }
+    fun setActive(active: Boolean) { this.active = active; updateAnimation(); invalidate() }
+    override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); updateAnimation() }
+    override fun onWindowVisibilityChanged(visibility: Int) { super.onWindowVisibilityChanged(visibility); updateAnimation() }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); updateAnimation() }
+    override fun onDetachedFromWindow() { ticking = false; removeCallbacks(frame); super.onDetachedFromWindow() }
+    override fun getAccessibilityClassName(): CharSequence =
+        if (isClickable) "android.widget.Button" else super.getAccessibilityClassName()
+    private fun updateAnimation() {
+        val animate = active && isAttachedToWindow && isShown && windowVisibility == VISIBLE
+        if (ticking == animate) return
+        ticking = animate
+        removeCallbacks(frame)
+        if (animate) postOnAnimation(frame)
+    }
+    override fun onDraw(canvas: Canvas) {
+        val cx = width / 2f
+        val cy = height / 2f
+        val r = minOf(width, height) * .45f
+        paint.style = Paint.Style.FILL
+        paint.color = if (dark) Color.rgb(46, 36, 42) else Color.rgb(255, 236, 239)
+        canvas.drawCircle(cx, cy, r, paint)
+        paint.color = accent
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.strokeWidth = r * .12f
+        if (active) {
+            val phase = SystemClock.uptimeMillis() / 200.0
+            repeat(5) { i ->
+                val h = r * (.2f + .55f * abs(sin(phase + i * .8)).toFloat())
+                val x = cx + (i - 2) * r * .27f
+                canvas.drawLine(x, cy - h / 2, x, cy + h / 2, paint)
+            }
+        } else {
+            canvas.drawCircle(cx - r * .19f, cy + r * .24f, r * .20f, paint)
+            canvas.drawLine(cx - r * .02f, cy + r * .24f, cx - r * .02f, cy - r * .42f, paint)
+            canvas.drawLine(cx - r * .02f, cy - r * .42f, cx + r * .34f, cy - r * .30f, paint)
+        }
+        if (active) {
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = resources.displayMetrics.density * 1.5f
+            paint.alpha = 130
+            canvas.drawCircle(cx, cy, r - paint.strokeWidth, paint)
+            paint.alpha = 255
+        }
+    }
+}
 
-    private enum class Action {
-        None,
-        Expand,
-        Collapse,
-        Close,
-        Stop,
-        OpenApp,
-        StartRecognition,
+private class WindowIconDrawable(private val close: Boolean, private val color: Int, private val density: Float) : Drawable() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = this@WindowIconDrawable.color
+        strokeWidth = density * 1.6f
+        strokeCap = Paint.Cap.ROUND
     }
-
-    private object ColorTokens {
-        val ROSE = 0xFFFF7897.toInt()
-        val SUCCESS = 0xFF68D7A5.toInt()
-        val TEXT = 0xFFF7F2FA.toInt()
-        val MUTED = 0xFFC3B9CF.toInt()
-        val DARK_TEXT = 0xFF172019.toInt()
-        val PANEL_START = 0xF21A1725.toInt()
-        val PANEL_END = 0xF22B1724.toInt()
-        const val PANEL_BUTTON = 0x3DFFFFFF
+    override fun draw(canvas: Canvas) {
+        val cx = bounds.exactCenterX()
+        val cy = bounds.exactCenterY()
+        val r = minOf(bounds.width(), bounds.height()) * .27f
+        if (close) {
+            canvas.drawLine(cx - r, cy - r, cx + r, cy + r, paint)
+            canvas.drawLine(cx + r, cy - r, cx - r, cy + r, paint)
+        } else canvas.drawLine(cx - r, cy, cx + r, cy, paint)
     }
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
+    @Suppress("OVERRIDE_DEPRECATION") override fun getOpacity() = PixelFormat.TRANSLUCENT
 }

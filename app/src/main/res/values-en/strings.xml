@@ -728,7 +728,7 @@
     <string name="local_music_cloud_action_unavailable">Cloud actions are not available for local music</string>
     <string name="music_recognition">Identify Music</string>
     <string name="recognition_ready">Ready to listen</string>
-    <string name="recognition_listening">Listening · %1$d sec</string>
+    <string name="recognition_listening">Listening to music</string>
     <string name="recognition_success">Found your song</string>
     <string name="recognition_no_match">No match this time</string>
     <string name="recognition_permission_denied">Microphone permission is required to identify music</string>
@@ -739,9 +739,8 @@
     <string name="recognition_hero_title">Let Neko hear\nthis moment</string>
     <string name="recognition_hero_subtitle">Hold near the phone speaker and let the sound signature find what is playing</string>
     <string name="recognition_page_eyebrow">NEKO SOUND ID</string>
-    <string name="recognition_duration_badge">20 sec</string>
-    <string name="recognition_ready_hint">Tap the sound field to start. Recognition keeps running in the background</string>
-    <string name="recognition_recording_hint">Capturing the sound signature. Tap the sound field to stop</string>
+    <string name="recognition_ready_hint">Keep the music playing. Listening continues in the background.</string>
+    <string name="recognition_recording_hint">Listening to the music. Tap the record or the button below to stop.</string>
     <string name="recognition_matched_hint">Tap the card below to play this song</string>
     <string name="recognition_no_match_hint">Try a quieter place or move a little closer to the source</string>
     <string name="recognition_action_listen">Identify song</string>
@@ -754,8 +753,8 @@
     <string name="recognition_overlay_permission_authorize">Allow</string>
     <string name="recognition_privacy_hint">The microphone is used only while identifying. Recordings are not kept</string>
     <string name="recognition_background_title">Identifying music in the background</string>
-    <string name="recognition_background_text">Recognizing audio for up to %1$d seconds</string>
-    <string name="recognition_background_overlay">Recognizing in background · %1$d sec</string>
+    <string name="recognition_background_text">Identifying music. You can stop at any time.</string>
+    <string name="recognition_background_overlay">Identifying music in the background</string>
     <string name="recognition_background_stop">Stop</string>
     <string name="recognition_background_toast">Recognizing audio. Please wait…</string>
     <string name="recognition_background_ready_title">Background recognition</string>
@@ -765,12 +764,11 @@
     <string name="recognition_test_audio_save_failed">Unable to save test audio: %1$s</string>
     <string name="recognition_idle_notification_text">Floating recognition is ready and will keep listening in the background</string>
     <string name="recognition_float_idle_brand">NEKO · FLOATING ID</string>
-    <string name="recognition_float_idle_title">Floating recognition ready</string>
+    <string name="recognition_float_idle_title">Ready to listen</string>
     <string name="recognition_float_idle_tip">After recognition starts, it keeps listening to the phone speaker in the background</string>
     <string name="recognition_float_idle_action">Start recognizing</string>
     <string name="recognition_float_brand">NEKO · LISTENING</string>
-    <string name="recognition_float_listening">Recognizing phone audio</string>
-    <string name="recognition_float_time">%1$d / %2$d sec</string>
+    <string name="recognition_float_listening">Listening to music</string>
     <string name="recognition_float_tip">Keep media volume above zero and face the phone speaker</string>
     <string name="recognition_float_stop">Stop</string>
     <string name="recognition_float_result_title">Found this song</string>
@@ -852,4 +850,19 @@
     <string name="together_leave">Leave Listen Together</string>
     <string name="together_left">Left Listen Together</string>
     <string name="together_local_playback_disabled">Local playback is unavailable in Listen Together. Leave the room first.</string>
+
+    <!-- 识曲页面与悬浮控制 -->
+    <string name="recognition_overlay_open_failed">Unable to open overlay permissions. Allow them in system settings.</string>
+    <string name="recognition_listen_title">Hear it. Find it.</string>
+    <string name="recognition_listen_subtitle">Move closer to the music and let Neko find the song</string>
+    <string name="recognition_tap_disc">Tap the record to identify</string>
+    <string name="recognition_retry_hint">Check microphone access and your connection, then try again</string>
+    <string name="recognition_float_enabled">Floating recognition is on</string>
+    <string name="recognition_float_enabled_hint">Use the floating control to check progress or stop while in another app</string>
+    <string name="recognition_float_enable_hint">Check recognition progress from other apps</string>
+    <string name="recognition_float_collapse">Collapse to floating control</string>
+    <string name="recognition_float_start">Identify</string>
+    <string name="recognition_float_drag_hint">Drag to move</string>
+    <string name="recognition_float_bubble_listening">Identifying music. Tap for controls or drag to move.</string>
+    <string name="recognition_float_bubble_ready">Music identification. Tap for controls or drag to move.</string>
 </resources>
