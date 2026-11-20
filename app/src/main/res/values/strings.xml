@@ -356,6 +356,7 @@
 
     <string name="now_playing">正在哼唱喵</string>
     <string name="player_dismiss">收起播放页喵</string>
+    <string name="player_more_drag_handle">下拉关闭更多菜单喵</string>
     <string name="cover">封面喵</string>
     <string name="player_tab_lyrics">歌词</string>
     <string name="player_play_mode">播放模式</string>

@@ -329,6 +329,7 @@
     <!-- 播放器 -->
     <string name="now_playing">正在播放</string>
     <string name="player_dismiss">收起播放页</string>
+    <string name="player_more_drag_handle">下拉关闭更多菜单</string>
     <string name="cover">封面</string>
     <string name="player_tab_lyrics">歌词</string>
     <string name="player_play_mode">播放模式</string>

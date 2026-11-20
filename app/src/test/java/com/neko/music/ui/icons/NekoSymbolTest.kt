@@ -41,8 +41,18 @@ class NekoSymbolTest {
 
     @Test
     fun favoriteVariantsAndBackDirectionArePreserved() {
+        assertEquals(NekoSymbol.Star, nekoIconSpec("Filled.Favorite")?.symbol)
+        assertEquals(NekoSymbol.Star, nekoIconSpec("Filled.FavoriteBorder")?.symbol)
         assertEquals(NekoSymbolVariant.Fill, nekoIconSpec("Filled.Favorite")?.variant)
         assertEquals(NekoSymbolVariant.Regular, nekoIconSpec("Filled.FavoriteBorder")?.variant)
+        assertEquals(
+            NekoIconSpec(NekoSymbol.Star, NekoSymbolVariant.Fill),
+            nekoDrawableIconSpec(R.drawable.ic_favorite_filled),
+        )
+        assertEquals(
+            NekoIconSpec(NekoSymbol.Star),
+            nekoDrawableIconSpec(R.drawable.ic_favorite_border),
+        )
         assertEquals(NekoSymbol.ChevronLeft, nekoIconSpec("AutoMirrored.Filled.ArrowBack")?.symbol)
         assertEquals(NekoSymbol.ChevronRight, nekoIconSpec("AutoMirrored.Filled.KeyboardArrowRight")?.symbol)
         assertEquals(-90f, nekoIconSpec("Filled.KeyboardArrowDown")?.rotation)

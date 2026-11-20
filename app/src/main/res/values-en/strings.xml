@@ -365,6 +365,7 @@
     <!-- Player -->
     <string name="now_playing">Now Playing</string>
     <string name="player_dismiss">Collapse player</string>
+    <string name="player_more_drag_handle">Drag down to close the more menu</string>
     <string name="cover">Cover</string>
     <string name="player_tab_lyrics">Lyrics</string>
     <string name="player_play_mode">Play mode</string>

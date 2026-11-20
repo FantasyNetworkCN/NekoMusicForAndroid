@@ -1,6 +1,8 @@
 package com.neko.music.ui.screens
 
 import com.neko.music.ui.icons.NekoIcon
+import com.neko.music.ui.icons.NekoSymbol
+import com.neko.music.ui.icons.NekoSymbolIcon
 
 import android.content.Context
 import android.content.Intent
@@ -35,6 +37,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -52,6 +57,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -119,6 +125,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -130,6 +141,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -140,6 +152,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Precision
@@ -170,6 +183,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
+import com.neko.music.ui.components.MoreSheetDragState
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -893,7 +907,7 @@ fun PlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(if (pagerState.currentPage == 1) dismissDragModifier else Modifier)
+            .then(if (pagerState.currentPage == 1 && !showShareDialog) dismissDragModifier else Modifier)
             .pointerInput(showLyrics) {
                 if (!showLyrics) return@pointerInput
                 awaitEachGesture {
@@ -2393,7 +2407,7 @@ fun CoverImage(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
-                            if (isDarkTheme) SakuraPink else RoseRed
+                            RoseRed
                         } else {
                             if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                         },
@@ -2444,7 +2458,7 @@ fun MusicInfo(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (isFavorite) stringResource(id = R.string.favorite) else stringResource(id = R.string.unfavorite),
                         tint = if (isFavorite) {
-                            if (isDarkTheme) SakuraPink else RoseRed
+                            RoseRed
                         } else {
                             if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
                         },
@@ -2635,7 +2649,7 @@ private fun PlayerMetaActionButton(
         ) {
             val isDarkTheme = isSystemInDarkTheme()
             val favColor = if (isFavorite) {
-                if (isDarkTheme) SakuraPink else RoseRed
+                RoseRed
             } else {
                 if (isDarkTheme) Color.White.copy(alpha = 0.4f) else Color.Gray
             }
@@ -3462,8 +3476,7 @@ fun PlaybackControls(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = stringResource(if (isFavorite) R.string.favorite else R.string.unfavorite),
                     tint = when {
-                        isFavorite && useLiquidStyle -> RoseRed
-                        isFavorite -> scheme.primary
+                        isFavorite -> RoseRed
                         useLiquidStyle -> iconColor.copy(alpha = 0.56f)
                         else -> secondaryIconColor
                     },
@@ -3718,10 +3731,37 @@ fun ShareDialog(
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val isDarkTheme = isAppDarkTheme()
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val dragState = remember(scope, density.density) {
+        MoreSheetDragState(scope, density.density) { latestOnDismiss() }
+    }
+    val sheetScroll = rememberScrollState()
+    val nestedScroll = remember(dragState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || dragState.offsetPx <= 0f) return Offset.Zero
+                return Offset(0f, dragState.dragBy(available.y))
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
+                return Offset(0f, dragState.dragBy(available.y))
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragState.offsetPx <= 0f) return Velocity.Zero
+                dragState.release(available.y)
+                return Velocity(0f, available.y)
+            }
+        }
+    }
 
     // 预加载额外的字符串资源
     val customLabel = stringResource(id = R.string.custom)
     val closeLabel = stringResource(id = R.string.close)
+    val dragHandleLabel = stringResource(R.string.player_more_drag_handle)
 
     val sectionTitleColor = if (useLiquidStyle) {
         if (isDarkTheme) Color.White.copy(alpha = 0.6f) else scheme.onSurfaceVariant
@@ -3761,9 +3801,9 @@ fun ShareDialog(
         label = "share_scrim"
     )
 
-    BackHandler(onBack = onDismiss)
+    BackHandler(onBack = dragState::dismiss)
     // 不用 Dialog 独立窗口，避免首帧建窗卡顿；与播放页同层合成，液态采样更稳定
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(40f)
@@ -3771,11 +3811,14 @@ fun ShareDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.42f * scrimAlpha))
+                .graphicsLayer {
+                    alpha = scrimAlpha * (1f - dragState.offsetPx / dragState.heightPx).coerceIn(0f, 1f)
+                }
+                .background(Color.Black.copy(alpha = 0.42f))
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null,
-                    onClick = onDismiss
+                    onClick = dragState::dismiss
                 )
         )
         AnimatedVisibility(
@@ -3791,6 +3834,9 @@ fun ShareDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .graphicsLayer { translationY = dragState.offsetPx }
+                .nestedScroll(nestedScroll)
+                .semantics { dismiss { dragState.dismiss(); true } }
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = null,
@@ -3803,6 +3849,9 @@ fun ShareDialog(
             GlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = (maxHeight - WindowInsets.statusBars.asPaddingValues().calculateTopPadding() - 12.dp)
+                        .coerceAtLeast(1.dp))
+                    .onSizeChanged { dragState.updateHeight(it.height.toFloat()) }
                     .windowInsetsPadding(WindowInsets.navigationBars),
                 shape = panelShape,
                 backgroundAlpha = sharePanel.tint.background(isDarkTheme),
@@ -3815,39 +3864,58 @@ fun ShareDialog(
                 material3Shape = panelShape,
                 material3Container = scheme.surfaceContainerHigh,
             ) {
-                ShareDialogContent(
-                    isDarkTheme = isDarkTheme,
-                    sectionTitleColor = sectionTitleColor,
-                    cancelTextColor = cancelTextColor,
-                    dividerColor = dividerColor,
-                    createPlaylistColor = createPlaylistColor,
-                    copyLinkColor = copyLinkColor,
-                    playlists = playlists,
-                    selectedPlaylistId = selectedPlaylistId,
-                    playlistFirstMusicCovers = playlistFirstMusicCovers,
-                    onPlaylistSelected = onPlaylistSelected,
-                    onCreatePlaylist = onCreatePlaylist,
-                    currentSpeed = currentSpeed,
-                    onSpeedChange = onSpeedChange,
-                    currentSleepTimerMinutes = currentSleepTimerMinutes,
-                    onSleepTimerChange = onSleepTimerChange,
-                    customLabel = customLabel,
-                    closeLabel = closeLabel,
-                    onDismiss = onDismiss,
-                    onShareToTwitter = onShareToTwitter,
-                    onShareToQQ = onShareToQQ,
-                    onCopyLink = onCopyLink,
-                    onDownload = onDownload,
-                    onGenerateVideo = onGenerateVideo,
-                    canGenerateVideo = canGenerateVideo,
-                    videoRenderStatus = videoRenderStatus,
-                    canDownloadVideo = canDownloadVideo,
-                    onDownloadVideo = onDownloadVideo,
-                    onShowCustomSleepTimer = { showCustomSleepTimerDialog = true },
-                    onTogetherClick = onTogetherClick,
-                    isDesktopLyricEnabled = isDesktopLyricEnabled,
-                    onDesktopLyricClick = onDesktopLyricClick,
-                )
+                Column(Modifier.fillMaxWidth()) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .semantics { contentDescription = dragHandleLabel }
+                            .draggable(
+                                state = rememberDraggableState { dragState.dragBy(it) },
+                                orientation = Orientation.Vertical,
+                                onDragStopped = { dragState.release(it) },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.size(36.dp, 5.dp).clip(CircleShape)
+                            .background(scheme.onSurfaceVariant.copy(alpha = .35f)))
+                    }
+                    Box(Modifier.weight(1f, fill = false).verticalScroll(sheetScroll)) {
+                        ShareDialogContent(
+                            isDarkTheme = isDarkTheme,
+                            sectionTitleColor = sectionTitleColor,
+                            cancelTextColor = cancelTextColor,
+                            dividerColor = dividerColor,
+                            createPlaylistColor = createPlaylistColor,
+                            copyLinkColor = copyLinkColor,
+                            playlists = playlists,
+                            selectedPlaylistId = selectedPlaylistId,
+                            playlistFirstMusicCovers = playlistFirstMusicCovers,
+                            onPlaylistSelected = onPlaylistSelected,
+                            onCreatePlaylist = onCreatePlaylist,
+                            currentSpeed = currentSpeed,
+                            onSpeedChange = onSpeedChange,
+                            currentSleepTimerMinutes = currentSleepTimerMinutes,
+                            onSleepTimerChange = onSleepTimerChange,
+                            customLabel = customLabel,
+                            closeLabel = closeLabel,
+                            onDismiss = dragState::dismiss,
+                            onShareToTwitter = onShareToTwitter,
+                            onShareToQQ = onShareToQQ,
+                            onCopyLink = onCopyLink,
+                            onDownload = onDownload,
+                            onGenerateVideo = onGenerateVideo,
+                            canGenerateVideo = canGenerateVideo,
+                            videoRenderStatus = videoRenderStatus,
+                            canDownloadVideo = canDownloadVideo,
+                            onDownloadVideo = onDownloadVideo,
+                            onShowCustomSleepTimer = { showCustomSleepTimerDialog = true },
+                            onTogetherClick = onTogetherClick,
+                            isDesktopLyricEnabled = isDesktopLyricEnabled,
+                            onDesktopLyricClick = onDesktopLyricClick,
+                        )
+                    }
+                }
             }
         }
 
@@ -3922,7 +3990,7 @@ fun ShareDialogContent(
             ) {
                 item {
                     ShareGridItem(
-                        iconRes = R.drawable.playlist,
+                        symbol = NekoSymbol.RadioWaves,
                         label = stringResource(R.string.together_menu),
                         color = RoseRed,
                         labelColor = shareLabelTint,
@@ -4172,6 +4240,7 @@ fun ShareGridItem(
     color: Color,
     labelColor: Color,
     enabled: Boolean = true,
+    symbol: NekoSymbol? = null,
     onClick: () -> Unit
 ) {
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -4219,7 +4288,11 @@ fun ShareGridItem(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (iconRes != null) {
+            if (symbol != null) {
+                NekoSymbolIcon(
+                    symbol, label, Modifier.size(28.dp), iconTint,
+                )
+            } else if (iconRes != null) {
                 NekoIcon(
                     drawableRes = iconRes,
                     contentDescription = label,
