@@ -23,6 +23,7 @@ import androidx.core.app.NotificationCompat
 import com.neko.music.BuildConfig
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
+import com.neko.music.data.manager.RecognitionHistoryManager
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -48,7 +48,7 @@ class MusicRecognitionPlaybackService : Service() {
     private var floatingWindowRequested = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
-    private var returnToIdleJob: Job? = null
+    private var lastMatch: MusicApi.RecognitionMatch? = null
     private var terminalStatusSent = false
     private var audioExporter: RecognitionAudioExporter? = null
     private lateinit var api: MusicApi
@@ -60,17 +60,15 @@ class MusicRecognitionPlaybackService : Service() {
     override fun onCreate() {
         super.onCreate()
         api = MusicApi(applicationContext)
+        lastMatch = RecognitionHistoryManager.getInstance(this).entries.value.firstOrNull()?.toMatch()
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PREPARE -> {
-                returnToIdleJob?.cancel()
-                returnToIdleJob = null
                 try {
                     ensureForeground()
-                    showFloatingWindowIfAllowed(idle = false)
                 } catch (error: Exception) {
                     Log.e(TAG, "Unable to prepare foreground recognition service", error)
                     sendBroadcast(
@@ -82,8 +80,6 @@ class MusicRecognitionPlaybackService : Service() {
             }
             ACTION_START -> {
                 if (captureJob == null) {
-                    returnToIdleJob?.cancel()
-                    returnToIdleJob = null
                     val maxSeconds = intent.getIntExtra(EXTRA_MAX_SECONDS, MAX_SECONDS).coerceIn(1, MAX_SECONDS)
                     terminalStatusSent = false
                     Log.d(TAG, "Starting background recognition, maxSeconds=$maxSeconds, overlay=${Settings.canDrawOverlays(this)}")
@@ -104,6 +100,13 @@ class MusicRecognitionPlaybackService : Service() {
                     showFloatingWindowIfAllowed(idle = false)
                 }
             }
+            ACTION_SET_MATCH -> {
+                RecognitionHistoryManager.getInstance(this).entries.value.firstOrNull()?.let { entry ->
+                    lastMatch = entry.toMatch()
+                    if (recording || captureJob != null) stopRecognitionAndShowIdle(sendStopped = false)
+                    floatingWindow?.showMatch(requireNotNull(lastMatch), expand = false)
+                }
+            }
             ACTION_SHOW_IDLE -> {
                 try {
                     val recognitionActive = recording || captureJob != null
@@ -111,6 +114,7 @@ class MusicRecognitionPlaybackService : Service() {
                         android.content.pm.PackageManager.PERMISSION_GRANTED
                     ) {
                         ensureForeground(idle = !recognitionActive)
+                        if (recognitionActive) sendBroadcast(baseResultIntent(STATUS_STARTED))
                     }
                 } catch (error: Exception) {
                     Log.e(TAG, "Unable to show idle floating recognition", error)
@@ -250,6 +254,8 @@ class MusicRecognitionPlaybackService : Service() {
     }
 
     private fun sendMatch(match: MusicApi.RecognitionMatch) {
+        lastMatch = match
+        RecognitionHistoryManager.getInstance(this).record(match)
         val intent = baseResultIntent(STATUS_MATCHED).apply {
             putExtra(EXTRA_MUSIC_ID, match.music.id)
             putExtra(EXTRA_MUSIC_TITLE, match.music.title)
@@ -265,13 +271,10 @@ class MusicRecognitionPlaybackService : Service() {
         sendBroadcast(intent)
         finishCaptureKeepAlive()
         if (floatingWindowRequested && floatingWindow?.isVisible == true) {
-            val title = match.music.title
-            val artist = match.music.artist
-            val confidence = match.confidence
             Handler(Looper.getMainLooper()).post {
-                floatingWindow?.showMatch(title, artist, confidence)
+                floatingWindow?.showMatch(match)
             }
-            scheduleReturnToIdle(RESULT_HOLD_MS)
+            notificationManager.notify(NOTIFICATION_ID, createNotification(idle = true))
         } else {
             stopCaptureAndService(null)
         }
@@ -296,7 +299,7 @@ class MusicRecognitionPlaybackService : Service() {
             Handler(Looper.getMainLooper()).post {
                 floatingWindow?.showMessage(title, subtitle, error)
             }
-            scheduleReturnToIdle(MESSAGE_HOLD_MS)
+            notificationManager.notify(NOTIFICATION_ID, createNotification(idle = true))
         } else {
             stopCaptureAndService(null)
         }
@@ -319,25 +322,7 @@ class MusicRecognitionPlaybackService : Service() {
         publishDebugAudio()
     }
 
-    private fun scheduleReturnToIdle(delayMillis: Long) {
-        returnToIdleJob?.cancel()
-        returnToIdleJob = serviceScope.launch {
-            delay(delayMillis)
-            if (floatingWindowRequested && floatingWindow != null) {
-                floatingWindow?.showIdle()
-                notificationManager.notify(
-                    NOTIFICATION_ID,
-                    createNotification(idle = true),
-                )
-            } else {
-                stopCaptureAndService(null)
-            }
-        }
-    }
-
     private fun stopRecognitionAndShowIdle(sendStopped: Boolean) {
-        returnToIdleJob?.cancel()
-        returnToIdleJob = null
         terminalStatusSent = false
         finishCaptureKeepAlive()
         recognitionJob?.cancel()
@@ -355,8 +340,6 @@ class MusicRecognitionPlaybackService : Service() {
     }
 
     private fun stopCaptureAndService(status: String?) {
-        returnToIdleJob?.cancel()
-        returnToIdleJob = null
         recording = false
         try {
             audioRecord?.stop()
@@ -454,14 +437,16 @@ class MusicRecognitionPlaybackService : Service() {
             context = this,
             onStopRecognition = { stopRecognitionAndShowIdle(sendStopped = true) },
             onClose = ::closeFromFloatingWindow,
-            onOpenApp = ::openRecognitionApp,
+            onOpenApp = { openRecognitionApp() },
             onStartRecognition = ::startRecognitionFromFloatingWindow,
-        ).also { floatingWindow = it }
+        ).also {
+            floatingWindow = it
+            lastMatch?.let { match -> it.showMatch(match, expand = false) }
+        }
         if (idle) {
             window.showIdle()
         } else {
-            window.showBubble()
-            if (recording || captureJob != null) window.showRecording()
+            if (recording || captureJob != null) window.showRecording() else window.showBubble()
         }
     }
 
@@ -484,11 +469,9 @@ class MusicRecognitionPlaybackService : Service() {
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            openRecognitionApp()
+            openRecognitionApp(openResult = false)
             return
         }
-        returnToIdleJob?.cancel()
-        returnToIdleJob = null
         terminalStatusSent = false
         try {
             ensureForeground()
@@ -507,12 +490,15 @@ class MusicRecognitionPlaybackService : Service() {
         }
     }
 
-    private fun openRecognitionApp() {
-        floatingWindow?.showIdle()
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-        runCatching { launchIntent?.let(::startActivity) }
+    private fun openRecognitionApp(openResult: Boolean = true) {
+        val latest = lastMatch.takeIf { openResult }
+        val uri = if (latest != null) "nekomusic://player/${latest.music.id}" else "nekomusic://recognition"
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri)).apply {
+                setPackage(packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+        }.onFailure { Log.w(TAG, "无法打开识曲结果", it) }
     }
 
     private fun acquireKeepAliveLocks() {
@@ -573,6 +559,7 @@ class MusicRecognitionPlaybackService : Service() {
         const val ACTION_STOP_RECOGNITION = "com.neko.music.action.STOP_RECOGNITION_CAPTURE"
         const val ACTION_RETURN_IDLE = "com.neko.music.action.RETURN_RECOGNITION_IDLE"
         const val ACTION_STOP = "com.neko.music.action.STOP_RECOGNITION_PLAYBACK"
+        const val ACTION_SET_MATCH = "com.neko.music.action.SET_RECOGNITION_MATCH"
         const val ACTION_RESULT = "com.neko.music.action.RECOGNITION_PLAYBACK_RESULT"
         const val EXTRA_MAX_SECONDS = "max_seconds"
         const val EXTRA_STATUS = "status"
@@ -596,8 +583,6 @@ class MusicRecognitionPlaybackService : Service() {
         private const val SAMPLE_RATE = 16_000
         private const val BYTES_PER_SAMPLE = 2
         private const val MAX_SECONDS = 20
-        private const val RESULT_HOLD_MS = 8_000L
-        private const val MESSAGE_HOLD_MS = 4_500L
         private const val TAG = "MusicRecognitionService"
     }
 }

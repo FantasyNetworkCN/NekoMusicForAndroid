@@ -865,4 +865,9 @@
     <string name="recognition_float_drag_hint">Drag to move</string>
     <string name="recognition_float_bubble_listening">Identifying music. Tap for controls or drag to move.</string>
     <string name="recognition_float_bubble_ready">Music identification. Tap for controls or drag to move.</string>
+
+    <string name="recognition_history_title">History</string>
+    <string name="recognition_history_empty">No identified songs yet. Try identifying some music.</string>
+    <string name="recognition_history_hint">Recently identified songs. Tap a song to play.</string>
+    <string name="recognition_float_result_description">Identified: %1$s, %2$s. Tap to expand.</string>
 </resources>

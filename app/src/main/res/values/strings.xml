@@ -822,4 +822,9 @@
     <string name="recognition_float_drag_hint">拖动可移动</string>
     <string name="recognition_float_bubble_listening">正在识曲，点按展开控制，拖动可移动</string>
     <string name="recognition_float_bubble_ready">听歌识曲，点按展开控制，拖动可移动</string>
+
+    <string name="recognition_history_title">历史识别喵</string>
+    <string name="recognition_history_empty">还没有识别记录，听到喜欢的歌就来试试喵</string>
+    <string name="recognition_history_hint">最近识别成功的歌曲，点按即可播放喵</string>
+    <string name="recognition_float_result_description">已识别：%1$s，%2$s。点按展开喵</string>
 </resources>

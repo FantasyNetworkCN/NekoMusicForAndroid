@@ -26,9 +26,25 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
+import coil3.SingletonImageLoader
+import coil3.asDrawable
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import com.neko.music.data.api.MusicApi
+import com.neko.music.ui.theme.resolveAppColorScheme
+import com.neko.music.util.UrlConfig
+import com.neko.music.util.recognitionCoverUrl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import com.neko.music.R
 import com.neko.music.config.AppConfig
 import com.neko.music.debug.NekoLog as Log
@@ -59,23 +75,26 @@ internal class RecognitionFloatingWindow(
     }
     private val view = RecognitionOverlayView(
         appContext,
-        onExpand = { setMode(expandedMode) },
-        onCollapse = { setMode(OverlayMode.Bubble); snapToEdge() },
+        onExpand = { state.expand(); applyState() },
+        onCollapse = ::collapse,
         onAction = {
-            when (mode) {
+            when (state.mode) {
                 OverlayMode.Panel -> onStopRecognition()
                 OverlayMode.Result -> onOpenApp()
                 else -> onStartRecognition()
             }
         },
         onClose = onClose,
+        onRetry = onStartRecognition,
         onDrag = ::dragWindow,
         onDragEnd = ::snapToEdge,
     )
     private var attached = false
     private var visible = false
-    private var mode = OverlayMode.Bubble
-    private var expandedMode = OverlayMode.Idle
+    private val state = RecognitionOverlayState()
+    private val imageScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var coverJob: Job? = null
+    private var coverKey: String? = null
     private var edgeAnimation: ValueAnimator? = null
     private val configurationListener = object : ComponentCallbacks {
         override fun onConfigurationChanged(newConfig: Configuration) {
@@ -88,7 +107,7 @@ internal class RecognitionFloatingWindow(
 
     val isVisible: Boolean get() = attached && visible
 
-    fun showBubble() {
+    private fun ensureVisible() {
         if (!attached) {
             applyPlacement(placement())
             if (runCatching { manager.addView(view, params) }.onFailure {
@@ -99,13 +118,24 @@ internal class RecognitionFloatingWindow(
         }
         visible = true
         view.visibility = View.VISIBLE
-        setMode(OverlayMode.Bubble)
+    }
+
+    fun showBubble() {
+        ensureVisible()
+        applyState()
+    }
+
+    fun collapse() {
+        state.collapse()
+        applyState()
+        snapToEdge()
     }
 
     fun showIdle() {
-        expandedMode = OverlayMode.Idle
-        view.setRecordingActive(false)
-        showBubble()
+        state.stop()
+        ensureVisible()
+        applyState()
+        snapToEdge()
     }
 
     fun hide() {
@@ -116,6 +146,8 @@ internal class RecognitionFloatingWindow(
 
     fun remove() {
         edgeAnimation?.cancel()
+        coverJob?.cancel()
+        imageScope.cancel()
         if (attached) {
             appContext.unregisterComponentCallbacks(configurationListener)
             runCatching { manager.removeView(view) }
@@ -125,29 +157,52 @@ internal class RecognitionFloatingWindow(
     }
 
     fun showRecording() {
-        expandedMode = OverlayMode.Panel
-        view.setRecordingActive(true)
-        if (mode != OverlayMode.Bubble && mode != OverlayMode.Panel) setMode(OverlayMode.Panel)
+        state.start()
+        ensureVisible()
+        applyState()
+        snapToEdge()
     }
 
-    fun showMatch(title: String, artist: String, confidence: Double) {
-        expandedMode = OverlayMode.Result
-        view.setRecordingActive(false)
-        view.showMatch(title, artist, confidence)
-        setMode(OverlayMode.Result)
+    fun showMatch(match: MusicApi.RecognitionMatch, expand: Boolean = true) {
+        state.match(match)
+        if (!expand) state.collapse()
+        view.showMatch(match.music.title, match.music.artist, match.confidence)
+        val url = recognitionCoverUrl(match.music)
+        if (coverKey != url) {
+            coverKey = url
+            coverJob?.cancel()
+            view.setCover(null)
+            coverJob = imageScope.launch {
+                val result = runCatching {
+                    val loader = SingletonImageLoader.get(appContext)
+                    val initial = loader.execute(
+                        ImageRequest.Builder(appContext).data(url).size(dp(128)).build(),
+                    )
+                    val fallback = UrlConfig.getMusicCoverUrl(match.music.id)
+                    if (initial !is SuccessResult && url != fallback) {
+                        loader.execute(ImageRequest.Builder(appContext).data(fallback).size(dp(128)).build())
+                    } else initial
+                }.onFailure { Log.w("RecognitionFloatingWindow", "加载识曲封面失败", it) }.getOrNull()
+                if (coverKey == url && result is SuccessResult) {
+                    view.setCover(result.image.asDrawable(appContext.resources))
+                }
+            }
+        }
+        if (expand) ensureVisible()
+        applyState()
     }
 
     fun showMessage(title: String, subtitle: String, isError: Boolean = false) {
-        expandedMode = OverlayMode.Message
-        view.setRecordingActive(false)
+        state.message()
         view.showMessage(title, subtitle, isError)
-        setMode(OverlayMode.Message)
+        ensureVisible()
+        applyState()
     }
 
-    private fun setMode(next: OverlayMode) {
+    private fun applyState() {
         edgeAnimation?.cancel()
-        mode = next
-        view.setOverlayMode(next)
+        view.setRecordingActive(state.recording)
+        view.setOverlayMode(state.mode)
         view.refreshAppearance()
         resizeAndClamp()
     }
@@ -166,7 +221,7 @@ internal class RecognitionFloatingWindow(
             bounds = Rect(0, 0, metrics.widthPixels, metrics.heightPixels)
             insets = null
         }
-        val bubble = mode == OverlayMode.Bubble
+        val bubble = state.mode == OverlayMode.Bubble
         val fontScale = appContext.resources.configuration.fontScale.coerceIn(1f, 1.5f)
         return recognitionOverlayPlacement(
             bounds.width(), bounds.height(), insets?.left ?: 0, insets?.top ?: dp(28),
@@ -192,7 +247,7 @@ internal class RecognitionFloatingWindow(
     }
 
     private fun snapToEdge() {
-        if (!attached || mode != OverlayMode.Bubble) return
+        if (!attached || state.mode != OverlayMode.Bubble) return
         val left = placement(x = Int.MIN_VALUE).x
         val right = placement(x = Int.MAX_VALUE).x
         val target = if (abs(params.x - left) < abs(params.x - right)) left else right
@@ -208,7 +263,7 @@ internal class RecognitionFloatingWindow(
     private fun dp(value: Int) = (value * appContext.resources.displayMetrics.density).toInt()
 }
 
-private enum class OverlayMode { Bubble, Idle, Panel, Result, Message }
+private typealias OverlayMode = RecognitionOverlayMode
 
 private class RecognitionOverlayView(
     context: Context,
@@ -216,10 +271,11 @@ private class RecognitionOverlayView(
     private val onCollapse: () -> Unit,
     private val onAction: () -> Unit,
     private val onClose: () -> Unit,
+    private val onRetry: () -> Unit,
     private val onDrag: (Float, Float) -> Unit,
     private val onDragEnd: () -> Unit,
 ) : FrameLayout(context) {
-    private val accent = Color.rgb(230, 55, 71)
+    private var accent = Color.rgb(230, 57, 80)
     private val density = resources.displayMetrics.density
     private val bubble = RecognitionSignalView(context)
     private val panel = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -228,9 +284,12 @@ private class RecognitionOverlayView(
     private val brand = label(11f, bold = true)
     private val footerHint = label(11f)
     private val action = label(13f, bold = true)
+    private val retry = label(13f, bold = true)
     private val minimize = ImageButton(context)
     private val close = ImageButton(context)
     private val signal = RecognitionSignalView(context)
+    private val cover = ImageView(context)
+    private val bubbleCover = ImageView(context)
     private var mode = OverlayMode.Bubble
     private var recording = false
     private var songTitle = ""
@@ -252,6 +311,14 @@ private class RecognitionOverlayView(
         clipChildren = false
         addView(bubble, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(panel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(bubbleCover, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+            setMargins(dp(4), dp(4), dp(4), dp(4))
+        })
+        bubbleCover.scaleType = ImageView.ScaleType.CENTER_CROP
+        bubbleCover.background = rounded(Color.TRANSPARENT, 28f)
+        bubbleCover.clipToOutline = true
+        bubbleCover.contentDescription = null
+        bubbleCover.setOnClickListener { onExpand() }
         bubble.setOnClickListener { onExpand() }
         bubble.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         panel.setPadding(dp(14), dp(4), dp(8), dp(10))
@@ -265,7 +332,14 @@ private class RecognitionOverlayView(
         header.addView(close, LinearLayout.LayoutParams(dp(48), dp(48)))
         panel.addView(header, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48)))
         val body = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        body.addView(signal, LinearLayout.LayoutParams(dp(48), dp(48)))
+        val artwork = FrameLayout(context)
+        artwork.addView(signal, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        cover.scaleType = ImageView.ScaleType.CENTER_CROP
+        cover.background = rounded(Color.TRANSPARENT, 14f)
+        cover.clipToOutline = true
+        artwork.addView(cover, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        cover.contentDescription = null
+        body.addView(artwork, LinearLayout.LayoutParams(dp(54), dp(54)))
         val copy = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
@@ -279,6 +353,11 @@ private class RecognitionOverlayView(
         panel.addView(body, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         val footer = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         footer.addView(footerHint, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        retry.gravity = Gravity.CENTER
+        retry.setText(R.string.recognition_action_again)
+        retry.isFocusable = true
+        retry.setOnClickListener { onRetry() }
+        footer.addView(retry, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
         action.gravity = Gravity.CENTER
         action.minHeight = dp(48)
         action.setPadding(dp(16), 0, dp(16), 0)
@@ -297,6 +376,14 @@ private class RecognitionOverlayView(
         recording = active
         render()
     }
+    fun setCover(drawable: Drawable?) {
+        cover.setImageDrawable(drawable?.constantState?.newDrawable(resources)?.mutate()
+            ?: drawable ?: context.getDrawable(R.drawable.music))
+        bubbleCover.setImageDrawable(drawable?.constantState?.newDrawable(resources)?.mutate()
+            ?: drawable ?: context.getDrawable(R.drawable.music))
+        render()
+    }
+
     fun showMatch(title: String, artist: String, confidence: Double) {
         songTitle = title; songArtist = artist; this.confidence = confidence
     }
@@ -308,9 +395,18 @@ private class RecognitionOverlayView(
         val settings = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
         val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         dark = resolveAppDarkTheme(settings.getString(AppConfig.PrefConfig.KEY_THEME, AppConfig.PrefConfig.DEFAULT_THEME).orEmpty(), systemDark)
-        val foreground = if (dark) Color.rgb(247, 247, 250) else Color.rgb(30, 31, 35)
-        val muted = if (dark) Color.rgb(177, 179, 189) else Color.rgb(113, 115, 125)
-        panel.background = rounded(if (dark) Color.rgb(34, 35, 42) else Color.WHITE, 22f)
+        val colors = resolveAppColorScheme(context, dark, settings.getBoolean(AppConfig.PrefConfig.KEY_DYNAMIC_COLOR, true))
+        accent = colors.primary.toArgb()
+        val foreground = colors.onSurface.toArgb()
+        val muted = colors.onSurfaceVariant.toArgb()
+        val frosted = settings.getBoolean(AppConfig.PrefConfig.KEY_LIQUID_GLASS_HARDWARE_EFFECTS, true)
+        panel.background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(
+            colors.surfaceContainerHigh.copy(alpha = if (frosted) .96f else 1f).toArgb(),
+            colors.surfaceContainer.copy(alpha = if (frosted) .94f else 1f).toArgb(),
+        )).apply {
+            cornerRadius = dp(22).toFloat()
+            setStroke(dp(1), colors.outlineVariant.copy(alpha = .5f).toArgb())
+        }
         panel.elevation = dp(6).toFloat()
         panel.clipToOutline = true
         title.setTextColor(foreground)
@@ -328,15 +424,25 @@ private class RecognitionOverlayView(
             button.background = RippleDrawable(ColorStateList.valueOf(if (dark) 0x22FFFFFF else 0x11000000), null, rounded(Color.WHITE, 24f))
             button.setPadding(dp(15), dp(15), dp(15), dp(15))
         }
-        action.setTextColor(Color.WHITE)
+        action.setTextColor(colors.onPrimary.toArgb())
         action.background = RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), rounded(accent, 24f), null)
-        signal.setDark(dark)
-        bubble.setDark(dark)
+        retry.setTextColor(colors.onPrimaryContainer.toArgb())
+        retry.background = RippleDrawable(ColorStateList.valueOf(0x22FFFFFF), rounded(colors.primaryContainer.toArgb(), 24f), null)
+        signal.setColors(colors.primaryContainer.toArgb(), accent)
+        bubble.setColors(colors.primaryContainer.toArgb(), accent)
         render()
     }
 
     private fun render() {
-        bubble.visibility = if (mode == OverlayMode.Bubble) VISIBLE else GONE
+        val displayResult = mode == OverlayMode.Result
+        retry.visibility = if (displayResult) VISIBLE else GONE
+        footerHint.visibility = if (displayResult) GONE else VISIBLE
+        val collapsedResult = mode == OverlayMode.Bubble && !recording && songTitle.isNotBlank()
+        bubble.visibility = if (mode == OverlayMode.Bubble && !collapsedResult) VISIBLE else GONE
+        bubbleCover.visibility = if (collapsedResult) VISIBLE else GONE
+        cover.visibility = if (displayResult) VISIBLE else GONE
+        signal.visibility = if (displayResult) GONE else VISIBLE
+        bubbleCover.contentDescription = context.getString(R.string.recognition_float_result_description, songTitle, songArtist)
         panel.visibility = if (mode == OverlayMode.Bubble) GONE else VISIBLE
         bubble.setActive(recording)
         signal.setActive(recording && mode == OverlayMode.Panel)
@@ -414,7 +520,7 @@ private class RecognitionOverlayView(
         return super.onTouchEvent(event)
     }
 
-    private fun isOnControl(x: Float, y: Float): Boolean = listOf(minimize, close, action).any { control ->
+    private fun isOnControl(x: Float, y: Float): Boolean = listOf(minimize, close, action, retry).filter { it.visibility == VISIBLE }.any { control ->
         val rect = Rect()
         control.getDrawingRect(rect)
         offsetDescendantRectToMyCoords(control, rect)
@@ -436,10 +542,10 @@ private class RecognitionOverlayView(
 
 private class RecognitionSignalView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val accent = Color.rgb(230, 55, 71)
+    private var accent = Color.rgb(230, 57, 80)
     private var active = false
     private var ticking = false
-    private var dark = false
+    private var discColor = Color.rgb(255, 236, 239)
     private val frame = object : Runnable {
         override fun run() {
             invalidate()
@@ -447,7 +553,7 @@ private class RecognitionSignalView(context: Context) : View(context) {
         }
     }
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
-    fun setDark(dark: Boolean) { this.dark = dark; invalidate() }
+    fun setColors(background: Int, accent: Int) { discColor = background; this.accent = accent; invalidate() }
     fun setActive(active: Boolean) { this.active = active; updateAnimation(); invalidate() }
     override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); updateAnimation() }
     override fun onWindowVisibilityChanged(visibility: Int) { super.onWindowVisibilityChanged(visibility); updateAnimation() }
@@ -467,7 +573,7 @@ private class RecognitionSignalView(context: Context) : View(context) {
         val cy = height / 2f
         val r = minOf(width, height) * .45f
         paint.style = Paint.Style.FILL
-        paint.color = if (dark) Color.rgb(46, 36, 42) else Color.rgb(255, 236, 239)
+        paint.color = discColor
         canvas.drawCircle(cx, cy, r, paint)
         paint.color = accent
         paint.strokeCap = Paint.Cap.ROUND

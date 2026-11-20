@@ -52,7 +52,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.animation.animateContentSize
@@ -67,6 +66,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -101,6 +101,10 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
 import com.neko.music.data.model.Music
+import com.neko.music.data.manager.RecognitionHistoryManager
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.MusicRecognitionPlaybackService
 import com.neko.music.service.RecognitionAudioProcessor
@@ -108,7 +112,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.isAppDarkTheme
-import com.neko.music.util.UrlConfig
+import com.neko.music.util.recognitionCoverUrl
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -145,12 +149,15 @@ fun MusicRecognitionScreen(
     val api = remember(context) { MusicApi(context.applicationContext) }
     val playerManager = remember(context) { MusicPlayerManager.getInstance(context) }
     val recorder = remember { RecognitionAudioRecorder() }
+    val history = remember(context) { RecognitionHistoryManager.getInstance(context) }
+    val historyEntries by history.entries.collectAsState()
+    var showHistory by rememberSaveable { mutableStateOf(false) }
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
 
-    var stage by remember { mutableStateOf(RecognitionStage.Ready) }
-    var match by remember { mutableStateOf<MusicApi.RecognitionMatch?>(null) }
+    var match by remember { mutableStateOf(history.entries.value.firstOrNull()?.toMatch()) }
+    var stage by remember { mutableStateOf(if (match == null) RecognitionStage.Ready else RecognitionStage.Matched) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var recordingStartedAt by remember { mutableLongStateOf(0L) }
     var recognitionJob by remember { mutableStateOf<Job?>(null) }
@@ -233,7 +240,12 @@ fun MusicRecognitionScreen(
                         onSuccess = { response ->
                             val matched = response.match
                             if (matched != null) {
+                                history.record(matched)
                                 match = matched
+                                runCatching {
+                                    context.startService(Intent(context, MusicRecognitionPlaybackService::class.java)
+                                        .setAction(MusicRecognitionPlaybackService.ACTION_SET_MATCH))
+                                }
                                 errorMessage = null
                                 stage = RecognitionStage.Matched
                             } else {
@@ -293,11 +305,18 @@ fun MusicRecognitionScreen(
         recognitionJob = null
         recorder.cancel()
         stopBackgroundRecognition()
-        stage = RecognitionStage.Ready
+        match = history.entries.value.firstOrNull()?.toMatch()
+        stage = if (match == null) RecognitionStage.Ready else RecognitionStage.Matched
     }
 
     LaunchedEffect(overlayPermissionGranted) {
         startIdleFloatingWindow()
+        if (overlayPermissionGranted) {
+            runCatching {
+                context.startService(Intent(context, MusicRecognitionPlaybackService::class.java)
+                    .setAction(MusicRecognitionPlaybackService.ACTION_HIDE_FLOATING))
+            }
+        }
     }
 
     LaunchedEffect(stage, recordingStartedAt) {
@@ -354,9 +373,9 @@ fun MusicRecognitionScreen(
                         stage = RecognitionStage.NoMatch
                     }
                     MusicRecognitionPlaybackService.STATUS_STOPPED -> {
-                        match = null
+                        match = history.entries.value.firstOrNull()?.toMatch()
                         errorMessage = null
-                        stage = RecognitionStage.Ready
+                        stage = if (match == null) RecognitionStage.Ready else RecognitionStage.Matched
                     }
                     MusicRecognitionPlaybackService.STATUS_ERROR -> {
                         match = null
@@ -441,7 +460,7 @@ fun MusicRecognitionScreen(
 
     val titleColor = scheme.onSurface
     val mutedColor = scheme.onSurfaceVariant
-    val accent = if (isDark) Color(0xFFFF5B66) else Color(0xFFE63747)
+    val accent = scheme.primary
     val toggleRecognition = {
         if (stage == RecognitionStage.Recording) stopListening() else requestRecording()
     }
@@ -462,15 +481,7 @@ fun MusicRecognitionScreen(
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().layerBackdrop(pageBackdrop)) {
             AppPageBackgroundImage(modifier = Modifier.fillMaxSize())
-            // 提高背景遮罩，保证识别状态在自定义壁纸上仍然清楚。
-            Box(Modifier.fillMaxSize().background(scheme.background.copy(alpha = if (isDark) .94f else .92f)))
-            Canvas(Modifier.fillMaxSize()) {
-                val center = Offset(size.width * .5f, size.height * .38f)
-                drawCircle(
-                    Brush.radialGradient(listOf(accent.copy(alpha = .09f), Color.Transparent), center, size.width * .7f),
-                    radius = size.width * .7f, center = center,
-                )
-            }
+            PlaylistPageDarkTintOverlay(enabled = isDark)
         }
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
             Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -483,6 +494,11 @@ fun MusicRecognitionScreen(
                     }
                     Text(stringResource(R.string.music_recognition), Modifier.weight(1f),
                         fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = titleColor)
+                    TextButton(onClick = { showHistory = true }) {
+                        NekoSymbolIcon(NekoSymbol.Clock, null, Modifier.size(18.dp), accent)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.recognition_history_title))
+                    }
                 }
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 680.dp
@@ -545,6 +561,19 @@ fun MusicRecognitionScreen(
                 }
             }
         }
+        if (showHistory) {
+            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                RecognitionHistoryPanel(
+                    entries = historyEntries,
+                    onBack = { showHistory = false },
+                    onMusicClick = {
+                        if (stage == RecognitionStage.Recording) stopListening()
+                        showHistory = false
+                        onMusicClick(it)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -555,6 +584,9 @@ private fun RecognitionDisc(
     compact: Boolean,
     onClick: () -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val dark = isAppDarkTheme()
+    val tint = LiquidGlassDefaults.homeHeroShortcutCard
     val active = stage == RecognitionStage.Recording
     val phase = if (active) {
         val transition = rememberInfiniteTransition(label = "recognition_ripple")
@@ -586,27 +618,37 @@ private fun RecognitionDisc(
                     drawCircle(accent.copy(alpha = .08f), radius = radius * 1.55f, style = Stroke(1.dp.toPx()))
                 }
             }
-            Box(
-                Modifier.size(diameter * .61f).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(accent, Color(0xFFC91F37))))
+            GlassSurface(
+                modifier = Modifier.size(diameter * .61f)
                     .clickable(interactionSource = pressed, indication = null, role = Role.Button, onClick = onClick)
                     .semantics { contentDescription = label },
-                contentAlignment = Alignment.Center,
+                shape = CircleShape,
+                backgroundAlpha = tint.tint.background(dark),
+                borderAlpha = tint.tint.border(dark),
+                highlightAlpha = tint.tint.highlight(dark),
+                borderColor = accent.copy(alpha = .35f),
+                surfaceTint = accent.copy(alpha = .10f),
+                material3Container = scheme.primaryContainer,
+                liquidBlur = tint.liquid.blur,
+                liquidLensHeight = tint.liquid.lensHeight,
+                liquidLensAmount = tint.liquid.lensAmount,
             ) {
-                Canvas(Modifier.fillMaxSize()) {
-                    repeat(4) { i ->
-                        drawCircle(Color.White.copy(alpha = .07f), radius = size.minDimension * (.33f + i * .035f),
-                            style = Stroke(1.dp.toPx()))
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        repeat(4) { i ->
+                            drawCircle(Color.White.copy(alpha = .07f), radius = size.minDimension * (.33f + i * .035f),
+                                style = Stroke(1.dp.toPx()))
+                        }
                     }
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (active) {
-                        RecognitionWaveform({ phase.value }, Color.White, Modifier.size(64.dp, 36.dp))
-                    } else {
-                        NekoSymbolIcon(
-                            if (stage == RecognitionStage.Matched) NekoSymbol.Check else NekoSymbol.MusicNote,
-                            null, Modifier.size(52.dp), Color.White,
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (active) {
+                            RecognitionWaveform({ phase.value }, accent, Modifier.size(64.dp, 36.dp))
+                        } else {
+                            NekoSymbolIcon(
+                                if (stage == RecognitionStage.Matched) NekoSymbol.Check else NekoSymbol.MusicNote,
+                                null, Modifier.size(52.dp), accent,
+                            )
+                        }
                     }
                 }
             }
@@ -665,8 +707,9 @@ private fun RecognitionSecondaryAction(stage: RecognitionStage, accent: Color, o
 @Composable
 private fun RecognitionOverlayEntry(granted: Boolean, accent: Color, onAuthorize: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    RecognitionGlassCard {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(scheme.surfaceContainer)
+        Modifier.fillMaxWidth()
             .then(if (granted) Modifier else Modifier.clickable(role = Role.Button, onClick = onAuthorize))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -685,19 +728,17 @@ private fun RecognitionOverlayEntry(granted: Boolean, accent: Color, onAuthorize
         if (granted) NekoSymbolIcon(NekoSymbol.CheckCircle, null, Modifier.size(20.dp), accent)
         else NekoSymbolIcon(NekoSymbol.ChevronRight, null, Modifier.size(16.dp), scheme.onSurfaceVariant)
     }
+    }
 }
 
 @Composable
 private fun RecognitionMatchCard(match: MusicApi.RecognitionMatch, accent: Color, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Surface(
-        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-        color = scheme.surfaceContainerHigh, onClick = onClick,
-    ) {
+    RecognitionGlassCard(modifier = Modifier.clickable(role = Role.Button, onClick = onClick)) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
-                    model = UrlConfig.buildMusicCoverUrl(match.music.id, match.music.coverFilePath),
+                    model = recognitionCoverUrl(match.music),
                     contentDescription = null,
                     placeholder = painterResource(R.drawable.music), error = painterResource(R.drawable.music),
                     modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop,
@@ -712,8 +753,8 @@ private fun RecognitionMatchCard(match: MusicApi.RecognitionMatch, accent: Color
                         fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.width(8.dp))
-                Box(Modifier.size(48.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
-                    NekoSymbolIcon(NekoSymbol.Play, stringResource(R.string.recognition_open_result), Modifier.size(24.dp), Color.White)
+                Box(Modifier.size(48.dp).clip(CircleShape).background(scheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    NekoSymbolIcon(NekoSymbol.Play, stringResource(R.string.recognition_open_result), Modifier.size(24.dp), scheme.onPrimaryContainer)
                 }
             }
             Spacer(Modifier.height(14.dp))

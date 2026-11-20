@@ -1,6 +1,7 @@
 package com.neko.music.ui.theme
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -123,6 +124,14 @@ fun resolveAppDarkTheme(themeMode: String, systemDark: Boolean): Boolean = when 
     else -> systemDark
 }
 
+/** 非 Compose 窗口与应用页面使用同一套主题色。 */
+internal fun resolveAppColorScheme(context: Context, darkTheme: Boolean, dynamicColor: Boolean) = when {
+    dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    darkTheme -> DarkColorScheme
+    else -> LightColorScheme
+}
+
 @Composable
 fun isAppDarkTheme(): Boolean {
     val context = LocalContext.current
@@ -142,15 +151,7 @@ fun Neko歌姬计划(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = resolveAppColorScheme(LocalContext.current, darkTheme, dynamicColor)
 
     MaterialTheme(
         colorScheme = colorScheme,
