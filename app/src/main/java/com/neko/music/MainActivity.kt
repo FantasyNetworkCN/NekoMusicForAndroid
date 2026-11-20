@@ -131,7 +131,6 @@ import com.neko.music.ui.screens.HomeScreen
 import com.neko.music.navigation.AuthRoutes
 import com.neko.music.ui.screens.LocalMusicScreen
 import com.neko.music.ui.screens.LoginScreen
-import com.neko.music.ui.screens.AuthWebViewScreen
 import com.neko.music.ui.screens.ArtistDetailScreen
 import com.neko.music.ui.screens.MineScreen
 import com.neko.music.ui.screens.NotificationInboxScreen
@@ -1750,32 +1749,7 @@ fun MainScreen() {
             composable(AuthRoutes.LOGIN) {
                 LoginScreen(
                     onBackClick = { navController.popBackStack() },
-                    onOpenAuthWeb = { url, title ->
-                        navController.navigate(
-                            "auth/web?url=${android.net.Uri.encode(url)}&title=${android.net.Uri.encode(title)}"
-                        )
-                    },
                     onPrivacyClick = { navController.navigate("privacy_policy") },
-                )
-            }
-            composable(
-                "auth/web?url={url}&title={title}",
-                arguments = listOf(
-                    navArgument("url") { type = NavType.StringType; defaultValue = "" },
-                    navArgument("title") { type = NavType.StringType; defaultValue = "NekoAuth" },
-                ),
-            ) { entry ->
-                val url = android.net.Uri.decode(entry.arguments?.getString("url").orEmpty())
-                val title = android.net.Uri.decode(
-                    entry.arguments?.getString("title").orEmpty()
-                ).ifBlank { "NekoAuth" }
-                AuthWebViewScreen(
-                    url = url,
-                    title = title,
-                    onBackClick = { navController.popBackStack() },
-                    onSsoHandoff = { handoff ->
-                        (context as? MainActivity)?.handleSsoHandoff(handoff)
-                    },
                 )
             }
             composable("about") {

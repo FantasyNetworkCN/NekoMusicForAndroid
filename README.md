@@ -18,7 +18,7 @@ Neko 歌姬计划 Android 客户端基于 Kotlin 与 Jetpack Compose 构建，�
 统一账号体系。应用支持在线播放、每日推荐、收藏与歌单、逐字歌词、一起听、后台听歌识曲，
 并可从网易云音乐、QQ 音乐、酷狗音乐导入外部歌单。
 
-- **同一账号与曲库**：通过 NekoAuth 在应用内登录，播放、收藏和歌单与 Web / PC 同步。
+- **同一账号与曲库**：通过系统浏览器完成 NekoAuth 登录，播放、收藏和歌单与 Web / PC 同步。
 - **后台实时识曲**：通过 WebSocket 持续发送 16 kHz PCM，在自有曲库中实时匹配。
 - **完整播放体验**：逐字歌词、播放模式、倍速、定时关闭、桌面歌词与通知控制。
 - **多人一起听**：创建或加入房间，由服务端统一同步播放状态。
@@ -27,8 +27,9 @@ Neko 歌姬计划 Android 客户端基于 Kotlin 与 Jetpack Compose 构建，�
 
 ### NekoAuth 登录
 
-Android 使用应用内页面完成 NekoAuth 授权。服务端原生完成页返回应用内 WebView 后，客户端接收一次性
-handoff 并建立登录态；若从外部浏览器发起，`https://music.nekocore.cn/sso/native-complete` 也会拉起应用。
+Android 使用系统浏览器完成 NekoAuth 授权，注册、账号中心与找回密码入口也直接打开系统浏览器。
+登录完成后，`https://music.nekocore.cn/sso/native-complete` 或 `nekomusic://sso/complete` 拉起应用，
+客户端接收一次性 handoff 并建立登录态。
 登录回跳只携带一次性 handoff，不会把账号访问令牌放进链接。
 
 ### 界面预览

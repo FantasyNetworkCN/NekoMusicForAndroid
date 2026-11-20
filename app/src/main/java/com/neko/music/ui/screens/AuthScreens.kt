@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +38,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun LoginScreen(
     onBackClick: () -> Unit,
-    onOpenAuthWeb: (url: String, title: String) -> Unit,
     onPrivacyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -47,7 +48,21 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf("") }
     var hasAgreedPrivacy by remember { mutableStateOf(false) }
 
-    fun openPortal(target: String, title: String) {
+    fun openInBrowser(url: String) {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                }
+            )
+        } catch (e: android.content.ActivityNotFoundException) {
+            errorMessage = context.getString(R.string.open_browser_failed, e.localizedMessage.orEmpty())
+        } catch (e: SecurityException) {
+            errorMessage = context.getString(R.string.open_browser_failed, e.localizedMessage.orEmpty())
+        }
+    }
+
+    fun openPortal(target: String) {
         if (!hasAgreedPrivacy) {
             errorMessage = "请先阅读并勾选同意《隐私政策》"
             return
@@ -57,7 +72,7 @@ fun LoginScreen(
         errorMessage = ""
         scope.launch {
             when (val result = userApi.fetchPortalUrl(target)) {
-                is SsoStartResult.Ok -> onOpenAuthWeb(result.url, title)
+                is SsoStartResult.Ok -> openInBrowser(result.url)
                 is SsoStartResult.Err -> errorMessage = result.message
             }
             portalLoading = false
@@ -74,10 +89,7 @@ fun LoginScreen(
         errorMessage = ""
         scope.launch {
             when (val result = userApi.startSso()) {
-                is SsoStartResult.Ok -> onOpenAuthWeb(
-                    result.url,
-                    context.getString(R.string.nekoauth_sign_in_title),
-                )
+                is SsoStartResult.Ok -> openInBrowser(result.url)
                 is SsoStartResult.Err -> errorMessage = result.message
             }
             ssoLoading = false
@@ -89,7 +101,7 @@ fun LoginScreen(
     AuthPageShell(
         topBarTitle = stringResource(id = R.string.login),
         headline = stringResource(id = R.string.app_title),
-        subtitle = stringResource(id = R.string.nekoauth_password_hint),
+        subtitle = stringResource(id = R.string.nekoauth_browser_login_hint),
         onBack = onBackClick,
     ) { pageBackdrop ->
         Text(
@@ -122,15 +134,15 @@ fun LoginScreen(
         ) {
             AuthTextLink(
                 text = "注册账号",
-                onClick = { openPortal("register", "NekoAuth 注册") },
+                onClick = { openPortal("register") },
             )
             AuthTextLink(
                 text = "账号中心",
-                onClick = { openPortal("account", "NekoAuth 账号中心") },
+                onClick = { openPortal("account") },
             )
             AuthTextLink(
                 text = "找回密码",
-                onClick = { openPortal("forgot-password", "NekoAuth 找回密码") },
+                onClick = { openPortal("forgot-password") },
             )
         }
     }
