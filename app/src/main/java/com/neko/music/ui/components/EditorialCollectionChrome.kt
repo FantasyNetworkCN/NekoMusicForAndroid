@@ -47,7 +47,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -231,6 +233,7 @@ fun EditorialPlayAllButton(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
     val glass = LiquidGlassDefaults.playlistDetail
     val titleColor = if (isDark) Color(0xFFF4F4F7) else Color.Black
     val interactionSource = remember { MutableInteractionSource() }
@@ -252,7 +255,10 @@ fun EditorialPlayAllButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    onClick()
+                },
             ),
         shape = RoundedCornerShape(18.dp),
         material3Shape = RoundedCornerShape(50),

@@ -30,8 +30,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -609,6 +611,7 @@ fun SettingItem(
         onClick: () -> Unit = {}
     ) {
         val scheme = MaterialTheme.colorScheme
+        val haptics = LocalHapticFeedback.current
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -617,7 +620,10 @@ fun SettingItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onClick)
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onClick()
+                    }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -688,6 +694,7 @@ fun SettingSwitchItem(
 ) {
     val isDarkTheme = useDarkAppearance ?: isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -703,7 +710,10 @@ fun SettingSwitchItem(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onCheckedChange(!checked) },
+                    .clickable {
+                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onCheckedChange(!checked)
+                    },
                 verticalAlignment = Alignment.CenterVertically
             ) {
             Box(
@@ -747,7 +757,10 @@ fun SettingSwitchItem(
 
             LiquidGlassSwitch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = {
+                    haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    onCheckedChange(it)
+                },
                 isDarkChrome = isDarkTheme
             )
         }

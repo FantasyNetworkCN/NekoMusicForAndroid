@@ -98,9 +98,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1571,6 +1573,7 @@ internal fun PlaylistSearchBar(
 ) {
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val textColor = scheme.onSurface
     val secondaryColor = scheme.onSurfaceVariant
@@ -1667,6 +1670,7 @@ internal fun PlaylistAddToQueueButton(
 ) {
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
     val shape = RoundedCornerShape(21.dp)
     val contentColor = if (useLiquidStyle) {
@@ -1679,7 +1683,10 @@ internal fun PlaylistAddToQueueButton(
         modifier = modifier
             .height(42.dp)
             .clip(shape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled) {
+                haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                onClick()
+            },
         shape = shape,
         material3Shape = RoundedCornerShape(20.dp),
         material3Container = scheme.secondaryContainer,

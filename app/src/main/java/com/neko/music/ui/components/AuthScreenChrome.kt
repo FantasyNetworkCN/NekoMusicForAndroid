@@ -50,6 +50,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -387,10 +389,15 @@ fun AuthPrimaryButton(
     loading: Boolean = false,
     isDark: Boolean = isAppDarkTheme(),
 ) {
+    val haptics = LocalHapticFeedback.current
+    val performClick = {
+        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+        onClick()
+    }
     val panel = LiquidGlassDefaults.authPrimaryButton
     if (!isLiquidGlassEffectActive(pageBackdrop)) {
         Button(
-            onClick = onClick,
+            onClick = performClick,
             modifier = modifier
                 .fillMaxWidth()
                 .height(54.dp),
@@ -424,7 +431,7 @@ fun AuthPrimaryButton(
         modifier = modifier
             .fillMaxWidth()
             .height(54.dp)
-            .clickable(enabled = enabled && !loading, onClick = onClick),
+            .clickable(enabled = enabled && !loading, onClick = performClick),
         shape = RoundedCornerShape(27.dp),
         sampleBackdrop = pageBackdrop,
         backgroundAlpha = panel.tint.background(isDark),
