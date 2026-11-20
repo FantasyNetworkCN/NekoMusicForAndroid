@@ -2587,10 +2587,10 @@ fun PlayerMetadataRow(
                     onClick = onCommentClick,
                     background = actionBackground,
                 ) {
-                    NekoIcon(
-                        drawableRes = R.drawable.ic_comment_bubble,
+                    NekoSymbolIcon(
+                        symbol = NekoSymbol.Comment,
                         contentDescription = stringResource(id = R.string.comment_title),
-                        tint = secondaryColor,
+                        color = secondaryColor,
                         modifier = Modifier.size(19.dp),
                     )
                 }
@@ -3344,15 +3344,15 @@ fun PlaybackControls(
                 onClick = onPlayModeClick,
                 size = transportSize,
             ) {
-                val iconRes = when (playMode) {
-                    PlayMode.LIST_LOOP -> R.drawable.list_loop
-                    PlayMode.SINGLE_LOOP -> R.drawable.single_loop
-                    PlayMode.SHUFFLE -> R.drawable.shuffle
+                val symbol = when (playMode) {
+                    PlayMode.LIST_LOOP -> NekoSymbol.Repeat
+                    PlayMode.SINGLE_LOOP -> NekoSymbol.RepeatOne
+                    PlayMode.SHUFFLE -> NekoSymbol.Shuffle
                 }
-                NekoIcon(
-                    drawableRes = iconRes,
+                NekoSymbolIcon(
+                    symbol = symbol,
                     contentDescription = stringResource(id = R.string.player_play_mode),
-                    tint = secondaryIconColor,
+                    color = secondaryIconColor,
                     modifier = Modifier.size(20.dp),
                 )
             }

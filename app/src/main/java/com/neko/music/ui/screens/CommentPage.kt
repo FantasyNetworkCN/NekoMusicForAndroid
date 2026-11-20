@@ -1,6 +1,8 @@
 package com.neko.music.ui.screens
 
 import com.neko.music.ui.icons.NekoIcon
+import com.neko.music.ui.icons.NekoSymbol
+import com.neko.music.ui.icons.NekoSymbolIcon
 
 import android.content.Context
 import android.widget.Toast
@@ -315,10 +317,10 @@ fun CommentPage(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    NekoIcon(
-                        drawableRes = R.drawable.ic_comment_bubble,
+                    NekoSymbolIcon(
+                        symbol = NekoSymbol.Comment,
                         contentDescription = null,
-                        tint = RoseRed.copy(alpha = 0.92f),
+                        color = RoseRed.copy(alpha = 0.92f),
                         modifier = Modifier.size(13.dp),
                     )
                     Text(
@@ -568,10 +570,10 @@ private fun CommentEmptyState(
                     .background(palette.accentSoft),
                 contentAlignment = Alignment.Center,
             ) {
-                NekoIcon(
-                    drawableRes = R.drawable.ic_comments_glass,
+                NekoSymbolIcon(
+                    symbol = NekoSymbol.Comment,
                     contentDescription = null,
-                    tint = RoseRed.copy(alpha = 0.62f),
+                    color = RoseRed.copy(alpha = 0.62f),
                     modifier = Modifier.size(28.dp),
                 )
             }

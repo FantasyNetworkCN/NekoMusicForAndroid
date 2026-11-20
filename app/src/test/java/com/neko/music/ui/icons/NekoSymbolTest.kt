@@ -33,9 +33,6 @@ class NekoSymbolTest {
         assertEquals(NekoSymbol.Pause, nekoDrawableIconSpec(R.drawable.pause)?.symbol)
         assertEquals(NekoSymbol.Previous, nekoDrawableIconSpec(R.drawable.previous_song)?.symbol)
         assertEquals(NekoSymbol.Next, nekoDrawableIconSpec(R.drawable.next_song)?.symbol)
-        assertEquals(NekoSymbol.Repeat, nekoDrawableIconSpec(R.drawable.list_loop)?.symbol)
-        assertEquals(NekoSymbol.RepeatOne, nekoDrawableIconSpec(R.drawable.single_loop)?.symbol)
-        assertEquals(NekoSymbol.Shuffle, nekoDrawableIconSpec(R.drawable.shuffle)?.symbol)
         assertEquals(NekoSymbol.Queue, nekoDrawableIconSpec(R.drawable.playlist)?.symbol)
     }
 
