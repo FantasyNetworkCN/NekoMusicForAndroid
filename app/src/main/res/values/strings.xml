@@ -9,6 +9,20 @@
     <string name="widget_preview_artist">Neko Studio喵</string>
 
     <string name="settings">设置喵</string>
+    <string name="settings_section_app">应用喵</string>
+    <string name="settings_section_playback">播放与存储喵</string>
+    <string name="settings_section_about">关于与隐私喵</string>
+    <string name="settings_search_hint">搜索设置喵</string>
+    <string name="settings_search_clear">清除搜索喵</string>
+    <string name="settings_search_empty">没有找到相关设置喵</string>
+    <string name="settings_expanded">已展开</string>
+    <string name="settings_collapsed">已折叠</string>
+    <string name="settings_check_updates">检查更新喵</string>
+    <string name="settings_update_checking">正在检查更新喵…</string>
+    <string name="settings_update_current">已经是最新版本了喵</string>
+    <string name="settings_update_failed">检查失败了，稍后再试喵</string>
+    <string name="settings_privacy_title">隐私政策喵</string>
+    <string name="settings_privacy_subtitle">个人信息处理、权限使用与联系方式</string>
     <string name="general">通用喵</string>
     <string name="haptics_section">振动触感</string>
     <string name="haptics_enabled">触感反馈</string>

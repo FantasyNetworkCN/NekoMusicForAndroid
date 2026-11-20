@@ -1,6 +1,5 @@
 package com.neko.music.ui.icons
 
-// 符号清单和私有区码点移植自 MeloX-Android，来源与许可证见 assets/MeloX-NOTICE.txt。
 enum class NekoSymbol(
     val sfSymbolName: String,
     val materialLigature: String,

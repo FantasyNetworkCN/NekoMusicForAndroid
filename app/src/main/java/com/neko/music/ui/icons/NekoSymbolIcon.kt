@@ -43,7 +43,7 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-/** 与 MeloX 一致，页面可统一调节图标比例，默认保留字形原始比例。 */
+/** 页面可统一调节图标比例，默认保留字形原始比例。 */
 val LocalNekoIconScale = compositionLocalOf { 1f }
 
 /**

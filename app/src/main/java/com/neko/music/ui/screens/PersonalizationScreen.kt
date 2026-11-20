@@ -1,6 +1,8 @@
 package com.neko.music.ui.screens
 
 import com.neko.music.ui.icons.NekoIcon
+import com.neko.music.ui.icons.NekoSymbol
+import com.neko.music.ui.icons.NekoSymbolIcon
 
 import android.app.Activity
 import android.content.Context
@@ -20,6 +22,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -60,7 +64,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -261,7 +264,7 @@ fun PersonalizationScreen(
                         useDarkAppearance = isDarkChrome
                     ) {
                         ThemeModeOptionRow(
-                            icon = Icons.Default.Settings,
+                            symbol = NekoSymbol.Devices,
                             label = stringResource(id = R.string.theme_follow_system),
                             selected = themeMode == "auto",
                             isDarkChrome = isDarkChrome,
@@ -272,7 +275,7 @@ fun PersonalizationScreen(
                             color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
                         )
                         ThemeModeOptionRow(
-                            icon = Icons.Default.Settings,
+                            symbol = NekoSymbol.Sparkles,
                             label = stringResource(id = R.string.theme_light),
                             selected = themeMode == "light",
                             isDarkChrome = isDarkChrome,
@@ -283,7 +286,7 @@ fun PersonalizationScreen(
                             color = if (isDarkChrome) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
                         )
                         ThemeModeOptionRow(
-                            icon = Icons.Default.Settings,
+                            symbol = NekoSymbol.Moon,
                             label = stringResource(id = R.string.theme_dark),
                             selected = themeMode == "dark",
                             isDarkChrome = isDarkChrome,
@@ -299,7 +302,7 @@ fun PersonalizationScreen(
                             useDarkAppearance = isDarkChrome
                         ) {
                             SettingSwitchItem(
-                                icon = Icons.Default.Settings,
+                                symbol = NekoSymbol.Sparkles,
                                 title = stringResource(id = R.string.dynamic_color),
                                 subtitle = stringResource(id = R.string.dynamic_color_subtitle),
                                 checked = useDynamicColor,
@@ -395,8 +398,8 @@ fun PersonalizationScreen(
                                             enabled = savingBackgroundKind == null,
                                             modifier = Modifier.weight(1f),
                                         ) {
-                                            NekoIcon(
-                                                imageVector = Icons.Default.Settings,
+                                            NekoSymbolIcon(
+                                                symbol = NekoSymbol.PictureInPicture,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
                                             )
@@ -439,7 +442,7 @@ fun PersonalizationScreen(
                     ) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             SettingSwitchItem(
-                                icon = Icons.Default.Settings,
+                                symbol = NekoSymbol.Apps,
                                 title = stringResource(id = R.string.liquid_glass_hardware_effects),
                                 subtitle = stringResource(id = R.string.liquid_glass_hardware_effects_subtitle),
                                 checked = liquidHardwareEffects,
@@ -640,7 +643,7 @@ private fun LiquidGlassStrengthSlider(
 
 @Composable
 private fun ThemeModeOptionRow(
-    icon: ImageVector,
+    symbol: NekoSymbol,
     label: String,
     selected: Boolean,
     isDarkChrome: Boolean,
@@ -649,30 +652,28 @@ private fun ThemeModeOptionRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .heightIn(min = 58.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(RoseRed.copy(alpha = 0.1f)),
+                modifier = Modifier.size(28.dp),
                 contentAlignment = Alignment.Center
             ) {
-                NekoIcon(
-                    imageVector = icon,
+                NekoSymbolIcon(
+                    symbol = symbol,
                     contentDescription = null,
-                    tint = RoseRed,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = label,
                 modifier = Modifier.weight(1f),

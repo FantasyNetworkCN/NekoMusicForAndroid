@@ -1,7 +1,5 @@
 package com.neko.music.ui.icons
 
-// 保留 MeloX 从字体提取并校正绕向的播放模式轮廓，避免小尺寸下的重叠空洞。
-// 来源与许可证见 assets/MeloX-NOTICE.txt。
 internal object NekoSfGlyphPaths {
 
     const val SHUFFLE = 0

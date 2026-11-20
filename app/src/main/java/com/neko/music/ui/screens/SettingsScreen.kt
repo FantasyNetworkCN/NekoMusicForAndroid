@@ -1,58 +1,45 @@
 package com.neko.music.ui.screens
 
-import com.neko.music.ui.icons.NekoIcon
-
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.compose.foundation.Image
 import com.neko.music.R
+import com.neko.music.BuildConfig
 import com.neko.music.debug.NekoLog as Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.config.AppConfig
+import com.neko.music.ui.icons.NekoIcon
+import com.neko.music.ui.icons.NekoSymbol
+import com.neko.music.ui.icons.NekoSymbolIcon
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
 import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
-import com.neko.music.ui.components.GlassSurface
-import com.neko.music.ui.components.LiquidGlassDefaults
-import com.neko.music.ui.components.LiquidGlassSwitch
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -73,25 +60,12 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var search by rememberSaveable { mutableStateOf("") }
+    val sectionStates = rememberSaveableStateHolder()
     val updateManager = remember { AppUpdateManager(context) }
 
-    // 版本信息
-    val versionName = try {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName
-    } catch (e: Exception) {
-        "1.0.0"
-    }
-
-    val versionCode = try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(context.packageName, 0).versionCode.toLong()
-        }
-    } catch (e: Exception) {
-        1L
-    }
+    val versionName = BuildConfig.VERSION_NAME
+    val versionCode = BuildConfig.VERSION_CODE
 
     // 更新状态
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -99,6 +73,7 @@ fun SettingsScreen(
     var updateChangelog by remember { mutableStateOf<String?>(null) }
     var updateChangelogLoading by remember { mutableStateOf(false) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf("") }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadTransferred by remember { mutableStateOf(0L) }
     var downloadContentLength by remember { mutableStateOf(0L) }
@@ -109,11 +84,11 @@ fun SettingsScreen(
     // 缓存设置 - 使用与 MusicCacheManager 相同的 SharedPreferences
     val cachePrefs = remember { context.getSharedPreferences("music_cache", Context.MODE_PRIVATE) }
     var isCacheEnabled by remember { mutableStateOf(cachePrefs.getBoolean("cache_enabled", true)) }
-    
+
     // 焦点锁定设置
     val focusLockPrefs = remember { context.getSharedPreferences("player_prefs", Context.MODE_PRIVATE) }
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
-    
+
     // 语言设置
     val languagePrefs = remember { context.getSharedPreferences("app_settings", Context.MODE_PRIVATE) }
     var currentLanguage by remember { mutableStateOf(languagePrefs.getString("language", "system") ?: "system") }
@@ -127,60 +102,29 @@ fun SettingsScreen(
         "dark" -> stringResource(id = R.string.theme_dark)
         else -> stringResource(id = R.string.theme_follow_system)
     }
-    
-    // 悬浮窗权限检查
-    var hasOverlayPermission by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                android.provider.Settings.canDrawOverlays(context)
-            } else {
-                true
-            }
-        )
-    }
-    
+
     // 缓存管理
     val cacheManager = remember { com.neko.music.data.cache.MusicCacheManager.getInstance(context) }
     var cacheSize by remember { mutableStateOf(cacheManager.getCacheSizeFormatted()) }
     var cachedMusicCount by remember { mutableStateOf(cacheManager.getCachedMusicCount()) }
-    
+
     // 当缓存启用状态改变时更新缓存信息
     LaunchedEffect(isCacheEnabled) {
         cacheSize = cacheManager.getCacheSizeFormatted()
         cachedMusicCount = cacheManager.getCachedMusicCount()
     }
-    
-    // 监听权限状态变化
-    LaunchedEffect(Unit) {
-        hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            android.provider.Settings.canDrawOverlays(context)
-        } else {
-            true
-        }
-    }
 
-    // 监听应用生命周期，在恢复时重新检查权限
+    // 从缓存管理页返回时刷新统计，并在离开页面时移除监听。
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, cacheManager) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // 重新检查权限状态
-                val newPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    android.provider.Settings.canDrawOverlays(context)
-                } else {
-                    true
-                }
-                
-                hasOverlayPermission = newPermission
+                cacheSize = cacheManager.getCacheSizeFormatted()
+                cachedMusicCount = cacheManager.getCachedMusicCount()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        
-        try {
-            kotlinx.coroutines.delay(Long.MAX_VALUE)
-        } finally {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // 检查更新
@@ -197,10 +141,13 @@ fun SettingsScreen(
                     updateChangelog = updateManager.fetchChangelog(info.versionName)
                     updateChangelogLoading = false
                 } else {
-                    // 没有更新
+                    updateStatus = context.getString(
+                        if (info != null) R.string.settings_update_current else R.string.settings_update_failed,
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("SettingsScreen", "检查更新失败", e)
+                updateStatus = context.getString(R.string.settings_update_failed)
                 updateChangelogLoading = false
             } finally {
                 isCheckingUpdate = false
@@ -251,10 +198,38 @@ fun SettingsScreen(
     val scheme = MaterialTheme.colorScheme
     val isDarkTheme = isAppDarkTheme()
     val pageBackdrop = rememberLiquidPageBackdrop(scheme.background)
-    val glassTint = LiquidGlassDefaults.screenListCard
-    val glassBg = glassTint.background(isDarkTheme)
-    val glassBorder = glassTint.border(isDarkTheme)
-    val glassHighlight = glassTint.highlight(isDarkTheme)
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val appTitle = stringResource(R.string.settings_section_app)
+    val playbackTitle = stringResource(R.string.settings_section_playback)
+    val hapticsTitle = stringResource(R.string.haptics_section)
+    val aboutTitle = stringResource(R.string.settings_section_about)
+    val entries = listOf(
+        SettingsSearchEntry(SettingsEntryId.Appearance, SettingsSectionId.App,
+            stringResource(R.string.personalization), themeSubtitle, appTitle, "外观 主题 壁纸 appearance theme wallpaper"),
+        SettingsSearchEntry(SettingsEntryId.Lyrics, SettingsSectionId.App,
+            stringResource(R.string.lyrics_style_entry_title), stringResource(R.string.lyrics_style_entry_subtitle), appTitle,
+            "歌词 字号 翻译 音译 lyrics font translation"),
+        SettingsSearchEntry(SettingsEntryId.Language, SettingsSectionId.App,
+            stringResource(R.string.language), getLanguageDisplayName(context, currentLanguage), appTitle, "语言 language 中文 English"),
+        SettingsSearchEntry(SettingsEntryId.AudioFocus, SettingsSectionId.Playback,
+            stringResource(R.string.focus_lock), stringResource(R.string.focus_lock_subtitle), playbackTitle, "焦点 播放 focus audio playback"),
+        SettingsSearchEntry(SettingsEntryId.CacheEnabled, SettingsSectionId.Playback,
+            stringResource(R.string.cache_enabled), stringResource(R.string.cache_enabled_subtitle), playbackTitle, "缓存 离线 cache offline"),
+        SettingsSearchEntry(SettingsEntryId.CacheManagement, SettingsSectionId.Playback,
+            stringResource(R.string.cache_management), stringResource(R.string.cached_songs, cachedMusicCount, cacheSize), playbackTitle,
+            "缓存 存储 空间 清理 cache storage clear"),
+        SettingsSearchEntry(SettingsEntryId.Haptics, SettingsSectionId.Haptics,
+            stringResource(R.string.haptics_enabled), stringResource(R.string.haptics_strength), hapticsTitle, "振动 触感 测试 haptics vibration test"),
+        SettingsSearchEntry(SettingsEntryId.Update, SettingsSectionId.About,
+            stringResource(R.string.settings_check_updates),
+            if (isCheckingUpdate) stringResource(R.string.settings_update_checking)
+            else updateStatus.ifEmpty { "${stringResource(R.string.version)} $versionName ($versionCode)" },
+            aboutTitle, "版本 更新 version update"),
+        SettingsSearchEntry(SettingsEntryId.Privacy, SettingsSectionId.About,
+            stringResource(R.string.settings_privacy_title), stringResource(R.string.settings_privacy_subtitle), aboutTitle,
+            "隐私 权限 privacy permissions"),
+    )
+    val visibleEntries = filterSettingsEntries(entries, search)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -268,248 +243,197 @@ fun SettingsScreen(
             PlaylistPageDarkTintOverlay(enabled = isDarkTheme)
         }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        contentColor = scheme.onSurface,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(id = R.string.settings),
-                        color = scheme.onSurface,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        NekoIcon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = scheme.onSurfaceVariant,
+        Scaffold(
+            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = Color.Transparent,
+            contentColor = scheme.onSurface,
+            topBar = {
+                LargeTopAppBar(
+                    title = {
+                        Text(
+                            stringResource(id = R.string.settings),
+                            color = scheme.onSurface,
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.8).sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            NekoIcon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(id = R.string.back),
+                                tint = scheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    )
                 )
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            Column(
+            }
+        ) { paddingValues ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
+                    .padding(paddingValues)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                GlassSurface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    material3Container = scheme.surfaceContainerLow,
-                    backgroundAlpha = glassBg,
-                    borderAlpha = glassBorder,
-                    highlightAlpha = glassHighlight
-                ) {
+                CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .widthIn(max = 720.dp)
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .imePadding()
+                            .padding(horizontal = 20.dp)
+                            .padding(top = 8.dp, bottom = 140.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = stringResource(id = R.string.app_name),
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = scheme.onSurface,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "${stringResource(id = R.string.version)} $versionName ($versionCode)",
-                                    fontSize = 14.sp,
-                                    color = scheme.onSurfaceVariant,
-                                )
+                        SettingsSearchField(search) { search = it }
+                        Spacer(Modifier.height(20.dp))
+                        SettingsSectionId.entries.forEach { section ->
+                            val items = visibleEntries.filter { it.section == section }
+                            if (items.isNotEmpty()) {
+                                sectionStates.SaveableStateProvider(section.name) {
+                                    if (section == SettingsSectionId.Haptics) {
+                                        HapticSettingsSection(forceExpanded = search.isNotBlank())
+                                    } else {
+                                        SettingSection(
+                                            title = items.first().sectionTitle,
+                                            collapsible = true,
+                                            forceExpanded = search.isNotBlank(),
+                                        ) {
+                                            items.forEachIndexed { index, item ->
+                                                val separator = index > 0
+                                                when (item.id) {
+                                                    SettingsEntryId.Appearance -> SettingItem(
+                                                        NekoSymbol.Sparkles, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = onNavigateToPersonalization,
+                                                    )
+                                                    SettingsEntryId.Lyrics -> SettingItem(
+                                                        NekoSymbol.Lyrics, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = onNavigateToLyricsStyle,
+                                                    )
+                                                    SettingsEntryId.Language -> SettingItem(
+                                                        NekoSymbol.Switch, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = { showLanguageDialog = true },
+                                                    )
+                                                    SettingsEntryId.AudioFocus -> SettingSwitchItem(
+                                                        NekoSymbol.Volume, item.title, item.subtitle,
+                                                        checked = isFocusLockEnabled, showSeparator = separator,
+                                                        onCheckedChange = { enabled ->
+                                                            isFocusLockEnabled = enabled
+                                                            focusLockPrefs.edit().putBoolean("focus_lock_enabled", enabled).apply()
+                                                            com.neko.music.service.MusicPlayerManager.getInstance(context)
+                                                                .updateAudioAttributes(enabled)
+                                                        },
+                                                    )
+                                                    SettingsEntryId.CacheEnabled -> SettingSwitchItem(
+                                                        NekoSymbol.Download, item.title, item.subtitle,
+                                                        checked = isCacheEnabled, showSeparator = separator,
+                                                        onCheckedChange = { enabled ->
+                                                            isCacheEnabled = enabled
+                                                            cachePrefs.edit().putBoolean("cache_enabled", enabled).apply()
+                                                        },
+                                                    )
+                                                    SettingsEntryId.CacheManagement -> SettingItem(
+                                                        NekoSymbol.Storage, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = onNavigateToCache,
+                                                    )
+                                                    SettingsEntryId.Update -> SettingItem(
+                                                        NekoSymbol.ArrowUp, item.title, item.subtitle,
+                                                        showSeparator = separator, showLoading = isCheckingUpdate,
+                                                        onClick = { if (!isCheckingUpdate) checkUpdate() },
+                                                    )
+                                                    SettingsEntryId.Privacy -> SettingItem(
+                                                        NekoSymbol.Book, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = onNavigateToPrivacyPolicy,
+                                                    )
+                                                    SettingsEntryId.Haptics -> Unit
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(16.dp))
                             }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                scheme.primary,
-                                                scheme.tertiary,
-                                            )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
+                        }
+                        if (visibleEntries.isEmpty()) {
+                            Column(
+                                Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Image(
-                                    painter = painterResource(R.drawable.music),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                                NekoSymbolIcon(NekoSymbol.Search, null, Modifier.size(28.dp), scheme.onSurfaceVariant)
+                                Text(stringResource(R.string.settings_search_empty), color = scheme.onSurfaceVariant)
+                                TextButton(onClick = { search = "" }) { Text(stringResource(R.string.settings_search_clear)) }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingSection(title = stringResource(id = R.string.personalization_section)) {
-                    SettingItem(
-                        icon = Icons.Default.Settings,
-                        title = stringResource(id = R.string.personalization),
-                        subtitle = themeSubtitle,
-                        onClick = onNavigateToPersonalization
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = scheme.outlineVariant.copy(alpha = 0.45f),
-                    )
-                    SettingItem(
-                        icon = Icons.Default.Settings,
-                        title = stringResource(id = R.string.lyrics_style_entry_title),
-                        subtitle = stringResource(id = R.string.lyrics_style_entry_subtitle),
-                        onClick = onNavigateToLyricsStyle,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingSection(title = stringResource(id = R.string.general)) {
-                    SettingSwitchItem(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.cache_enabled),
-                        subtitle = stringResource(id = R.string.cache_enabled_subtitle),
-                        checked = isCacheEnabled,
-                        onCheckedChange = { enabled ->
-                            isCacheEnabled = enabled
-                            cachePrefs.edit().putBoolean("cache_enabled", enabled).apply()
-                        }
-                    )
-                    
-                    if (isCacheEnabled) {
-                        SettingItem(
-                            icon = Icons.Default.Info,
-                            title = stringResource(id = R.string.cache_management),
-                            subtitle = stringResource(id = R.string.cached_songs, cachedMusicCount, cacheSize),
-                            onClick = { onNavigateToCache() }
+                    // 更新对话框
+                    if (showUpdateDialog && updateInfo != null) {
+                        AppUpdatePromptDialog(
+                            versionName = updateInfo!!.versionName,
+                            versionCode = updateInfo!!.versionCode,
+                            changelog = updateChangelog,
+                            changelogLoading = updateChangelogLoading,
+                            onConfirm = { downloadAndInstall() },
+                            onDismiss = {
+                                showUpdateDialog = false
+                                updateChangelogLoading = false
+                            }
                         )
                     }
-                    
-                    SettingSwitchItem(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.focus_lock),
-                        subtitle = stringResource(id = R.string.focus_lock_subtitle),
-                        checked = isFocusLockEnabled,
-                        onCheckedChange = { enabled ->
-                            isFocusLockEnabled = enabled
-                            focusLockPrefs.edit().putBoolean("focus_lock_enabled", enabled).apply()
-                            
-                            // 通知MusicPlayerManager重新应用音频属性
-                            val playerManager = com.neko.music.service.MusicPlayerManager.getInstance(context)
-                            playerManager.updateAudioAttributes(enabled)
-                        }
-                    )
-                    
-                    SettingItem(
-                        icon = Icons.Default.Info,
-                        title = stringResource(id = R.string.language),
-                        subtitle = getLanguageDisplayName(context, currentLanguage),
-                        onClick = { showLanguageDialog = true }
-                    )
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                HapticSettingsSection()
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SettingSection(title = "合规与隐私") {
-                    SettingItem(
-                        icon = Icons.Default.Info,
-                        title = "隐私政策",
-                        subtitle = "查看个人信息处理规则、权限调用和联系方式",
-                        onClick = onNavigateToPrivacyPolicy
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(150.dp))
-            }
-
-            // 更新对话框
-            if (showUpdateDialog && updateInfo != null) {
-                AppUpdatePromptDialog(
-                    versionName = updateInfo!!.versionName,
-                    versionCode = updateInfo!!.versionCode,
-                    changelog = updateChangelog,
-                    changelogLoading = updateChangelogLoading,
-                    onConfirm = { downloadAndInstall() },
-                    onDismiss = {
-                        showUpdateDialog = false
-                        updateChangelogLoading = false
+                    if (isDownloading) {
+                        AppUpdateDownloadProgressDialog(
+                            transferredBytes = downloadTransferred,
+                            contentLengthBytes = downloadContentLength,
+                            onDismiss = { isDownloading = false }
+                        )
                     }
-                )
-            }
 
-            if (isDownloading) {
-                AppUpdateDownloadProgressDialog(
-                    transferredBytes = downloadTransferred,
-                    contentLengthBytes = downloadContentLength,
-                    onDismiss = { isDownloading = false }
-                )
-            }
-
-            if (showUpdateSuccessDialog) {
-                AppUpdateSuccessDialog(
-                    onDismiss = { showUpdateSuccessDialog = false }
-                )
-            }
-
-            if (showUpdateErrorDialog) {
-                AppUpdateErrorDialog(
-                    message = errorMessage,
-                    onDismiss = { showUpdateErrorDialog = false }
-                )
-            }
-            
-            // 语言选择对话框
-            if (showLanguageDialog) {
-                LanguageSelectionDialog(
-                    currentLanguage = currentLanguage,
-                    onDismiss = { showLanguageDialog = false },
-                    onLanguageSelected = { languageCode ->
-                        currentLanguage = languageCode
-                        languagePrefs.edit().putString("language", languageCode).apply()
-                        // 重新创建Activity以应用语言更改，保持在当前页面
-                        if (context is android.app.Activity) {
-                            context.recreate()
-                        }
+                    if (showUpdateSuccessDialog) {
+                        AppUpdateSuccessDialog(
+                            onDismiss = { showUpdateSuccessDialog = false }
+                        )
                     }
-                )
-            }
 
+                    if (showUpdateErrorDialog) {
+                        AppUpdateErrorDialog(
+                            message = errorMessage,
+                            onDismiss = { showUpdateErrorDialog = false }
+                        )
+                    }
+
+                    // 语言选择对话框
+                    if (showLanguageDialog) {
+                        LanguageSelectionDialog(
+                            currentLanguage = currentLanguage,
+                            onDismiss = { showLanguageDialog = false },
+                            onLanguageSelected = { languageCode ->
+                                currentLanguage = languageCode
+                                languagePrefs.edit().putString("language", languageCode).apply()
+                                // 重新创建Activity以应用语言更改，保持在当前页面
+                                if (context is android.app.Activity) {
+                                    context.recreate()
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
-    }
     }
 }
 
 @Composable
-private fun HapticSettingsSection() {
+private fun HapticSettingsSection(forceExpanded: Boolean) {
     val context = LocalContext.current
     val hasVibrator = remember(context) { AppHaptics.hasVibrator(context) }
     val supportsStrength = remember(context) { AppHaptics.supportsStrength(context) }
@@ -521,7 +445,7 @@ private fun HapticSettingsSection() {
         )
     }
 
-    SettingSection(title = stringResource(R.string.haptics_section)) {
+    SettingSection(title = stringResource(R.string.haptics_section), collapsible = true, forceExpanded = forceExpanded) {
         if (!hasVibrator) {
             Text(
                 text = stringResource(R.string.haptics_unavailable),
@@ -530,7 +454,7 @@ private fun HapticSettingsSection() {
             )
         } else {
             SettingSwitchItem(
-                icon = Icons.Default.Settings,
+                symbol = NekoSymbol.AutoMix,
                 title = stringResource(R.string.haptics_enabled),
                 checked = enabled,
                 onCheckedChange = { checked ->
@@ -541,7 +465,7 @@ private fun HapticSettingsSection() {
             )
             if (supportsStrength) {
                 val strengthLabel = stringResource(R.string.haptics_strength)
-                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
+                Column(modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -576,207 +500,6 @@ private fun HapticSettingsSection() {
 }
 
 @Composable
-fun SettingSection(
-    title: String,
-    useDarkAppearance: Boolean? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-        val isDark = useDarkAppearance ?: isAppDarkTheme()
-        val glassTint = LiquidGlassDefaults.screenListCard
-        val glassBg = glassTint.background(isDark)
-        val glassBorder = glassTint.border(isDark)
-        val glassHighlight = glassTint.highlight(isDark)
-        Column {
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-            )
-
-            GlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                material3Container = MaterialTheme.colorScheme.surfaceContainerLow,
-                backgroundAlpha = glassBg,
-                borderAlpha = glassBorder,
-                highlightAlpha = glassHighlight
-            ) {
-                Column {
-                    content()
-                }
-            }
-        }
-    }
-
-@Composable
-fun SettingItem(
-        icon: androidx.compose.ui.graphics.vector.ImageVector,
-        title: String,
-        subtitle: String = "",
-        showLoading: Boolean = false,
-        onClick: () -> Unit = {}
-    ) {
-        val scheme = MaterialTheme.colorScheme
-        val haptics = LocalHapticFeedback.current
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color.Transparent
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
-                        onClick()
-                    }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(scheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    NekoIcon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = scheme.onPrimaryContainer,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = scheme.onSurface,
-                    )
-                    if (subtitle.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = subtitle,
-                            fontSize = 13.sp,
-                            color = scheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                if (showLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = scheme.primary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    NekoIcon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = stringResource(id = R.string.more),
-                        tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-}
-
-@Composable
-fun SettingSwitchItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String = "",
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    /** 个性化页等可传入预览用的深浅色，与 [SettingSection] 一致 */
-    useDarkAppearance: Boolean? = null,
-) {
-    val isDarkTheme = useDarkAppearance ?: isAppDarkTheme()
-    val scheme = MaterialTheme.colorScheme
-    val haptics = LocalHapticFeedback.current
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
-                        onCheckedChange(!checked)
-                    },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(scheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                NekoIcon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = scheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = scheme.onSurface,
-                )
-                if (subtitle.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        fontSize = 13.sp,
-                        color = scheme.onSurfaceVariant,
-                    )
-                }
-            }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            LiquidGlassSwitch(
-                checked = checked,
-                onCheckedChange = {
-                    haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
-                    onCheckedChange(it)
-                },
-                isDarkChrome = isDarkTheme
-            )
-        }
-    }
-
-}
-
-@Composable
 fun LanguageSelectionDialog(
     currentLanguage: String,
     onDismiss: () -> Unit,
@@ -789,7 +512,7 @@ fun LanguageSelectionDialog(
         "nya" to stringResource(id = R.string.language_nya),
         "en" to stringResource(id = R.string.language_en)
     )
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
