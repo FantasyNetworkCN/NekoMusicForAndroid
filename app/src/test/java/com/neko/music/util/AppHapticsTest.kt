@@ -6,9 +6,16 @@ import org.junit.Test
 class AppHapticsTest {
     @Test
     fun mapsStrengthToVibrationAmplitude() {
-        assertEquals(26, AppHaptics.amplitudeFor(10))
-        assertEquals(128, AppHaptics.amplitudeFor(50))
+        assertEquals(64, AppHaptics.amplitudeFor(10))
+        assertEquals(148, AppHaptics.amplitudeFor(50))
         assertEquals(255, AppHaptics.amplitudeFor(100))
+    }
+
+    @Test
+    fun scalesPulseDurationWithStrength() {
+        assertEquals(22L, AppHaptics.durationFor(10))
+        assertEquals(60L, AppHaptics.durationFor(100))
+        assertEquals(38L, AppHaptics.durationFor(10, longPress = true))
     }
 
     @Test

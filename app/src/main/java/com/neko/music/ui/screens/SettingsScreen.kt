@@ -534,7 +534,7 @@ private fun HapticSettingsSection() {
                 onCheckedChange = { checked ->
                     enabled = checked
                     AppHaptics.setEnabled(context, checked)
-                    if (checked) AppHaptics.pulse(context)
+                    if (checked) AppHaptics.pulse(context, force = true)
                 },
             )
             if (supportsStrength) {
@@ -561,6 +561,12 @@ private fun HapticSettingsSection() {
                         enabled = enabled,
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = strengthLabel },
                     )
+                    TextButton(
+                        onClick = { AppHaptics.pulse(context, force = true) },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.haptics_test))
+                    }
                 }
             }
         }

@@ -16,6 +16,7 @@
     <string name="haptics_strength">振动强度</string>
     <string name="haptics_strength_percent">%1$d%%</string>
     <string name="haptics_unavailable">此设备不支持振动</string>
+    <string name="haptics_test">测试振动</string>
     <string name="cache_enabled">是否缓存</string>
     <string name="cache_enabled_subtitle">开启后可缓存音乐以便离线播放</string>
     <string name="cache_management">缓存管理</string>

@@ -16,6 +16,7 @@
     <string name="haptics_strength">Vibration intensity</string>
     <string name="haptics_strength_percent">%1$d%%</string>
     <string name="haptics_unavailable">This device does not support vibration</string>
+    <string name="haptics_test">Test vibration</string>
     <string name="cache_enabled">Enable Cache</string>
     <string name="cache_enabled_subtitle">Cache music for offline playback</string>
     <string name="cache_management">Cache Management</string>

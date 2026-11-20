@@ -8,7 +8,6 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.provider.Settings
 import com.neko.music.debug.NekoLog as Log
 
 internal object AppHaptics {
@@ -37,23 +36,20 @@ internal object AppHaptics {
 
     fun hasVibrator(context: Context): Boolean = vibrator(context)?.hasVibrator() == true
 
-    fun supportsStrength(context: Context): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-        vibrator(context)?.let { it.hasVibrator() && it.hasAmplitudeControl() } == true
+    fun supportsStrength(context: Context): Boolean = hasVibrator(context)
 
-    @Suppress("DEPRECATION") // 兼容 API 24–32；Android 13 起优先由系统按触摸用途处理。
-    fun pulse(context: Context, longPress: Boolean = false) {
-        if (!isEnabled(context) || Settings.System.getInt(
-                context.contentResolver, Settings.System.HAPTIC_FEEDBACK_ENABLED, 1,
-            ) == 0
-        ) return
+    @Suppress("DEPRECATION") // Android 13 以下需要 AudioAttributes 重载。
+    fun pulse(context: Context, longPress: Boolean = false, force: Boolean = false) {
+        if (!force && !isEnabled(context)) return
 
         val vibrator = vibrator(context) ?: return
         if (!vibrator.hasVibrator()) return
-        val duration = if (longPress) 20L else 12L
+        val strength = strength(context)
+        val duration = durationFor(strength, longPress)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val amplitude = if (vibrator.hasAmplitudeControl()) {
-                    amplitudeFor(strength(context))
+                    amplitudeFor(strength)
                 } else {
                     VibrationEffect.DEFAULT_AMPLITUDE
                 }
@@ -72,7 +68,14 @@ internal object AppHaptics {
     }
 
     internal fun amplitudeFor(strength: Int): Int =
-        (strength.coerceIn(MIN_STRENGTH, MAX_STRENGTH) * 255 + 50) / 100
+        64 + (strength.coerceIn(MIN_STRENGTH, MAX_STRENGTH) - MIN_STRENGTH) * 191 /
+            (MAX_STRENGTH - MIN_STRENGTH)
+
+    internal fun durationFor(strength: Int, longPress: Boolean = false): Long {
+        val normalized = strength.coerceIn(MIN_STRENGTH, MAX_STRENGTH) - MIN_STRENGTH
+        val regularDuration = 22L + normalized * 38L / (MAX_STRENGTH - MIN_STRENGTH)
+        return regularDuration + if (longPress) 16L else 0L
+    }
 
     private val touchAudioAttributes by lazy {
         AudioAttributes.Builder()
