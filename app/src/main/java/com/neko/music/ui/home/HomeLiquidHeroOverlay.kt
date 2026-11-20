@@ -50,7 +50,6 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,7 +83,6 @@ import com.neko.music.util.UrlConfig
 fun HomeLiquidHeroOverlay(
     state: HomeLiquidHeroState,
     liquidBackdrop: LayerBackdrop,
-    onRecognitionClick: () -> Unit,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToDailyRecommendations: () -> Unit,
     onNavigateToRanking: () -> Unit,
@@ -121,8 +119,6 @@ fun HomeLiquidHeroOverlay(
                     titleColor = titleColor,
                     secondaryColor = secondaryColor,
                     titleShadow = titleShadow,
-                    sampleBackdrop = liquidBackdrop,
-                    onRecognitionClick = onRecognitionClick,
                 )
             }
 
@@ -161,19 +157,7 @@ private fun HomeHeader(
     titleColor: Color,
     secondaryColor: Color,
     titleShadow: Shadow,
-    sampleBackdrop: LayerBackdrop,
-    onRecognitionClick: () -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val glass = LiquidGlassDefaults.homeHeroSearchBar
-    val useLiquidStyle = isLiquidGlassEffectActive(sampleBackdrop)
-    val recognitionSize = if (useLiquidStyle) 50.dp else 56.dp
-    val borderColor = if (isDarkHome) {
-        SakuraPink.copy(alpha = LiquidGlassDefaults.homeHeroSearchBarDarkBorderSakuraAlpha)
-    } else {
-        colorScheme.outline
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -203,34 +187,6 @@ private fun HomeHeader(
                     letterSpacing = (-0.6).sp,
                     style = androidx.compose.ui.text.TextStyle(shadow = titleShadow),
                 )
-            }
-
-            GlassSurface(
-                modifier = Modifier
-                    .size(recognitionSize)
-                    .clickable(onClick = onRecognitionClick),
-                sampleBackdrop = sampleBackdrop,
-                shape = CircleShape,
-                material3Container = colorScheme.surfaceContainerHigh,
-                backgroundAlpha = glass.tint.background(isDarkHome),
-                borderAlpha = glass.tint.border(isDarkHome),
-                highlightAlpha = glass.tint.highlight(isDarkHome),
-                borderColor = borderColor,
-                liquidBlur = glass.liquid.blur,
-                liquidLensHeight = glass.liquid.lensHeight,
-                liquidLensAmount = glass.liquid.lensAmount,
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_music_recognition),
-                        contentDescription = stringResource(R.string.music_recognition),
-                        tint = if (isDarkHome) SakuraPink else colorScheme.primary,
-                        modifier = Modifier.size(23.dp),
-                    )
-                }
             }
         }
     }

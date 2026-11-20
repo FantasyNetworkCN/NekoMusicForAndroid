@@ -2040,9 +2040,6 @@ fun MainScreen() {
                     HomeLiquidHeroOverlay(
                         state = homeLiquidHeroState,
                         liquidBackdrop = liquidBackdrop,
-                        onRecognitionClick = {
-                            navController.navigate("music_recognition")
-                        },
                         onNavigateToPlaylist = { playlistId ->
                             Log.d("MainActivity", "导航到歌单详情: $playlistId")
                             navController.navigate(
