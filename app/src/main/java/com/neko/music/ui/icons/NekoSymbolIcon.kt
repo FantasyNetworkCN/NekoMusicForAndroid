@@ -79,6 +79,30 @@ fun NekoSymbolIcon(
         contentAlignment = Alignment.Center,
     ) {
         when (symbol) {
+            NekoSymbol.Queue -> {
+                Canvas(Modifier.matchParentSize()) {
+                    val side = (explicitSizePx ?: min(size.width, size.height)) * iconScale
+                    val left = (size.width - side) / 2f
+                    val top = (size.height - side) / 2f
+                    val stroke = side * .11f
+                    for (row in 0..2) {
+                        val y = top + side * (.22f + row * .28f)
+                        drawCircle(
+                            tint,
+                            radius = stroke * .62f,
+                            center = androidx.compose.ui.geometry.Offset(left + side * .10f, y),
+                        )
+                        drawLine(
+                            tint,
+                            start = androidx.compose.ui.geometry.Offset(left + side * .30f, y),
+                            end = androidx.compose.ui.geometry.Offset(left + side * .92f, y),
+                            strokeWidth = stroke,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
+            }
+
             NekoSymbol.Heart -> {
                 val resource = if (variant == NekoSymbolVariant.Fill) {
                     R.drawable.ic_favorite_filled
