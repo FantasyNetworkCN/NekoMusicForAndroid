@@ -79,6 +79,25 @@ fun NekoSymbolIcon(
         contentAlignment = Alignment.Center,
     ) {
         when (symbol) {
+            NekoSymbol.Heart -> {
+                val resource = if (variant == NekoSymbolVariant.Fill) {
+                    R.drawable.ic_favorite_filled
+                } else {
+                    R.drawable.ic_favorite_border
+                }
+                val heartModifier = if (explicitSizePx != null) {
+                    Modifier.requiredSize(with(density) { (explicitSizePx * iconScale).toDp() })
+                } else {
+                    Modifier.matchParentSize()
+                }
+                Icon(
+                    painter = painterResource(resource),
+                    contentDescription = null,
+                    modifier = heartModifier,
+                    tint = tint,
+                )
+            }
+
             NekoSymbol.Home, NekoSymbol.Settings -> {
                 val resource = if (symbol == NekoSymbol.Home) {
                     R.drawable.ic_sf_home
