@@ -84,6 +84,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -3125,6 +3126,10 @@ fun ProgressSlider(
         scrubProgress = null
         latestScrubCallback(null)
     }
+    val sliderState = remember { SliderState(value = progress.coerceIn(0f, 1f)) }
+    androidx.compose.runtime.SideEffect {
+        sliderState.value = progress.coerceIn(0f, 1f)
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         if (useLiquidStyle && liquidBackdrop != null) {
@@ -3161,8 +3166,11 @@ fun ProgressSlider(
                 )
 
                 Slider(
-                    value = progress.coerceIn(0f, 1f),
-                    onValueChange = ::previewProgress,
+                    state = sliderState,
+                    onValueChange = { value ->
+                        sliderState.value = value
+                        previewProgress(value)
+                    },
                     onValueChangeFinished = ::finishScrubbing,
                     enabled = !isLoading,
                     colors = SliderDefaults.colors(

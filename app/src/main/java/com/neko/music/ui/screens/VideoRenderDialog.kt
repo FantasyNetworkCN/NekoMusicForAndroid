@@ -29,6 +29,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -208,10 +209,23 @@ fun VideoRenderDialog(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
+                    val startSliderRange = 0f..maxStartSec.coerceAtLeast(0f)
+                    val startSliderState = remember(startSliderRange) {
+                        SliderState(
+                            value = startSec.coerceIn(startSliderRange),
+                            trackRange = startSliderRange,
+                        )
+                    }
+                    androidx.compose.runtime.SideEffect {
+                        startSliderState.value = startSec.coerceIn(startSliderRange)
+                    }
                     Slider(
-                        value = startSec,
-                        onValueChange = { startSec = it.coerceIn(0f, maxStartSec) },
-                        valueRange = 0f..maxStartSec.coerceAtLeast(0f),
+                        state = startSliderState,
+                        onValueChange = { value ->
+                            val clampedValue = value.coerceIn(startSliderRange)
+                            startSliderState.value = clampedValue
+                            startSec = clampedValue
+                        },
                         enabled = maxStartSec > 0f && !busy,
                         colors = SliderDefaults.colors(
                             thumbColor = RoseRed,

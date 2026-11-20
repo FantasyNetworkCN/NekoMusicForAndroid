@@ -38,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -619,10 +620,18 @@ private fun LiquidGlassStrengthSlider(
                     .height(40.dp),
             )
         } else {
+            val sliderState = remember(range) {
+                SliderState(value = value, trackRange = range)
+            }
+            androidx.compose.runtime.SideEffect {
+                sliderState.value = value.coerceIn(range)
+            }
             Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = range,
+                state = sliderState,
+                onValueChange = { changedValue ->
+                    sliderState.value = changedValue
+                    onValueChange(changedValue)
+                },
             )
         }
     }

@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -511,6 +512,13 @@ private fun LyricSliderSetting(
     isDarkChrome: Boolean,
     onValueChange: (Float) -> Unit,
 ) {
+    val sliderState = remember(valueRange) {
+        SliderState(value = value, trackRange = valueRange)
+    }
+    androidx.compose.runtime.SideEffect {
+        sliderState.value = value.coerceIn(valueRange)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -534,9 +542,11 @@ private fun LyricSliderSetting(
             )
         }
         Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
+            state = sliderState,
+            onValueChange = { changedValue ->
+                sliderState.value = changedValue
+                onValueChange(changedValue)
+            },
             modifier = Modifier.fillMaxWidth(),
         )
     }
