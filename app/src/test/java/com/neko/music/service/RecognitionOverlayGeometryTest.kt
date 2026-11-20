@@ -6,6 +6,33 @@ import org.junit.Test
 
 class RecognitionOverlayGeometryTest {
     @Test
+    fun expansionInterpolatesPositionAndSizeTogether() {
+        val bubble = RecognitionOverlayPlacement(1000, 100, 56, 56)
+        val panel = RecognitionOverlayPlacement(752, 100, 304, 176)
+        assertEquals(bubble, interpolateRecognitionOverlay(bubble, panel, 0f))
+        assertEquals(RecognitionOverlayPlacement(876, 100, 180, 116),
+            interpolateRecognitionOverlay(bubble, panel, .5f))
+        assertEquals(panel, interpolateRecognitionOverlay(bubble, panel, 1f))
+    }
+
+    @Test
+    fun interruptedExpansionCanReverseFromItsCurrentPosition() {
+        val bubble = RecognitionOverlayPlacement(1000, 100, 56, 56)
+        val panel = RecognitionOverlayPlacement(752, 100, 304, 176)
+        val current = interpolateRecognitionOverlay(bubble, panel, .5f)
+        assertEquals(current, interpolateRecognitionOverlay(current, bubble, 0f))
+        assertEquals(bubble, interpolateRecognitionOverlay(current, bubble, 1f))
+    }
+
+    @Test
+    fun animationFractionsAreClamped() {
+        val bubble = RecognitionOverlayPlacement(1000, 100, 56, 56)
+        val panel = RecognitionOverlayPlacement(752, 100, 304, 176)
+        assertEquals(bubble, interpolateRecognitionOverlay(bubble, panel, -1f))
+        assertEquals(panel, interpolateRecognitionOverlay(bubble, panel, 2f))
+    }
+
+    @Test
     fun expandedPanelStaysInsideSystemBarsAndCutout() {
         val position = recognitionOverlayPlacement(1080, 2400, 0, 96, 0, 72, 912, 528, 950, -100, 24)
         assertEquals(144, position.x)

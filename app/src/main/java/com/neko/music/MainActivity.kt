@@ -609,7 +609,6 @@ fun MainScreen() {
     // 检查是否在播放页面
     val isPlayerScreen = currentRoute?.startsWith("player") == true
     val isAuthScreen = AuthRoutes.isAuthRoute(currentRoute)
-    val isRecognitionScreen = currentRoute == "music_recognition"
 
     // 获取播放器状态
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -2087,7 +2086,6 @@ fun MainScreen() {
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val bottomChromeVisible = showBottomControls &&
             !isAuthScreen &&
-            !isRecognitionScreen &&
             !playlistBatchHidingChrome
         val bottomChromeEnter = remember {
             slideInVertically(

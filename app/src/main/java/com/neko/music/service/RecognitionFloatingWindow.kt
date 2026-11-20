@@ -96,10 +96,16 @@ internal class RecognitionFloatingWindow(
     private var coverJob: Job? = null
     private var coverKey: String? = null
     private var edgeAnimation: ValueAnimator? = null
+    private var modeAnimation: ValueAnimator? = null
+    private var expandedFraction = 0f
     private val configurationListener = object : ComponentCallbacks {
         override fun onConfigurationChanged(newConfig: Configuration) {
+            modeAnimation?.cancel()
+            modeAnimation = null
             view.refreshAppearance()
             resizeAndClamp()
+            expandedFraction = if (state.mode == OverlayMode.Bubble) 0f else 1f
+            view.setExpansion(expandedFraction, placement(bubble = false))
         }
         @Suppress("OVERRIDE_DEPRECATION")
         override fun onLowMemory() = Unit
@@ -128,24 +134,25 @@ internal class RecognitionFloatingWindow(
     fun collapse() {
         state.collapse()
         applyState()
-        snapToEdge()
     }
 
     fun showIdle() {
         state.stop()
         ensureVisible()
         applyState()
-        snapToEdge()
     }
 
     fun hide() {
         visible = false
         edgeAnimation?.cancel()
+        modeAnimation?.cancel()
+        modeAnimation = null
         view.visibility = View.GONE
     }
 
     fun remove() {
         edgeAnimation?.cancel()
+        modeAnimation?.cancel()
         coverJob?.cancel()
         imageScope.cancel()
         if (attached) {
@@ -160,7 +167,6 @@ internal class RecognitionFloatingWindow(
         state.start()
         ensureVisible()
         applyState()
-        snapToEdge()
     }
 
     fun showMatch(match: MusicApi.RecognitionMatch, expand: Boolean = true) {
@@ -201,13 +207,49 @@ internal class RecognitionFloatingWindow(
 
     private fun applyState() {
         edgeAnimation?.cancel()
+        modeAnimation?.cancel()
+        modeAnimation = null
         view.setRecordingActive(state.recording)
         view.setOverlayMode(state.mode)
         view.refreshAppearance()
-        resizeAndClamp()
+        val from = RecognitionOverlayPlacement(params.x, params.y, params.width, params.height)
+        var target = placement()
+        val bubble = state.mode == OverlayMode.Bubble
+        if (bubble) {
+            val left = placement(x = Int.MIN_VALUE).x
+            val right = placement(x = Int.MAX_VALUE).x
+            target = placement(x = if (abs(params.x - left) < abs(params.x - right)) left else right)
+        }
+        val endFraction = if (bubble) 0f else 1f
+        val panelBounds = placement(bubble = false)
+        if (!attached || !visible || (from == target && expandedFraction == endFraction)) {
+            applyPlacement(target)
+            expandedFraction = endFraction
+            view.setExpansion(expandedFraction, panelBounds)
+            return
+        }
+        val initialFraction = expandedFraction
+        view.setExpansion(expandedFraction, panelBounds)
+        modeAnimation = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 280
+            interpolator = DecelerateInterpolator(1.5f)
+            addUpdateListener {
+                if (attached && visible) {
+                    val progress = it.animatedValue as Float
+                    expandedFraction = initialFraction + (endFraction - initialFraction) * progress
+                    applyPlacement(interpolateRecognitionOverlay(from, target, progress))
+                    view.setExpansion(expandedFraction, panelBounds)
+                }
+            }
+            start()
+        }
     }
 
-    private fun placement(x: Int = params.x, y: Int = params.y): RecognitionOverlayPlacement {
+    private fun placement(
+        x: Int = params.x,
+        y: Int = params.y,
+        bubble: Boolean = state.mode == OverlayMode.Bubble,
+    ): RecognitionOverlayPlacement {
         val metrics = appContext.resources.displayMetrics
         val bounds: Rect
         val insets: android.graphics.Insets?
@@ -221,7 +263,6 @@ internal class RecognitionFloatingWindow(
             bounds = Rect(0, 0, metrics.widthPixels, metrics.heightPixels)
             insets = null
         }
-        val bubble = state.mode == OverlayMode.Bubble
         val fontScale = appContext.resources.configuration.fontScale.coerceIn(1f, 1.5f)
         return recognitionOverlayPlacement(
             bounds.width(), bounds.height(), insets?.left ?: 0, insets?.top ?: dp(28),
@@ -243,6 +284,8 @@ internal class RecognitionFloatingWindow(
 
     private fun dragWindow(dx: Float, dy: Float) {
         edgeAnimation?.cancel()
+        modeAnimation?.cancel()
+        modeAnimation = null
         if (attached) applyPlacement(placement(params.x + dx.toInt(), params.y + dy.toInt()))
     }
 
@@ -306,6 +349,9 @@ private class RecognitionOverlayView(
     private var dragging = false
     private var dragEligible = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var expansion = 0f
+    private var panelWidth = 0
+    private var panelHeight = 0
 
     init {
         clipChildren = false
@@ -371,6 +417,48 @@ private class RecognitionOverlayView(
     }
 
     fun setOverlayMode(mode: OverlayMode) { this.mode = mode; render() }
+    fun setExpansion(fraction: Float, panelBounds: RecognitionOverlayPlacement) {
+        expansion = fraction.coerceIn(0f, 1f)
+        panelWidth = panelBounds.width
+        panelHeight = panelBounds.height
+        val panelParams = panel.layoutParams
+        if (panelParams.width != panelWidth || panelParams.height != panelHeight) {
+            panelParams.width = panelWidth
+            panelParams.height = panelHeight
+            panel.layoutParams = panelParams
+        }
+        updateExpansion()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        updateExpansion()
+    }
+
+    private fun updateExpansion() {
+        if (panelWidth <= 0 || panelHeight <= 0) return
+        panel.pivotX = 0f
+        panel.pivotY = 0f
+        panel.scaleX = width.toFloat() / panelWidth
+        panel.scaleY = height.toFloat() / panelHeight
+        panel.alpha = ((expansion - .12f) / .88f).coerceIn(0f, 1f)
+        panel.visibility = if (expansion > 0f) VISIBLE else GONE
+        val showCover = !recording && songTitle.isNotBlank()
+        val bubbleAlpha = (1f - expansion * 2f).coerceIn(0f, 1f)
+        for (item in listOf(bubble, bubbleCover)) {
+            val params = item.layoutParams as LayoutParams
+            val side = dp(if (item === bubbleCover) 48 else 56)
+            if (params.width != side || params.height != side || params.gravity != Gravity.CENTER) {
+                params.width = side
+                params.height = side
+                params.setMargins(0, 0, 0, 0)
+                params.gravity = Gravity.CENTER
+                item.layoutParams = params
+            }
+            item.alpha = bubbleAlpha
+            item.visibility = if (bubbleAlpha > 0f && ((item === bubbleCover) == showCover)) VISIBLE else GONE
+        }
+    }
     fun setRecordingActive(active: Boolean) {
         if (recording == active) return
         recording = active
@@ -480,10 +568,12 @@ private class RecognitionOverlayView(
                 action.setText(R.string.recognition_action_retry)
             }
         }
+        updateExpansion()
     }
 
     // 仅接管达到阈值的拖动，按钮点击与读屏焦点仍由原生子控件处理。
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+        if (expansion > 0f && expansion < 1f) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.rawX; downY = event.rawY; lastX = downX; lastY = downY
@@ -501,6 +591,7 @@ private class RecognitionOverlayView(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (expansion > 0f && expansion < 1f) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> return true
             MotionEvent.ACTION_MOVE -> {

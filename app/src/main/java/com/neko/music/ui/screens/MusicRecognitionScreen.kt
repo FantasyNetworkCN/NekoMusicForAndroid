@@ -21,6 +21,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -500,7 +505,7 @@ fun MusicRecognitionScreen(
                         Text(stringResource(R.string.recognition_history_title))
                     }
                 }
-                BoxWithConstraints(Modifier.fillMaxSize()) {
+                BoxWithConstraints(Modifier.fillMaxSize().padding(bottom = recognitionBottomControlsPadding())) {
                     val wide = maxWidth >= 680.dp
                     val compact = maxHeight < 600.dp
                     val ready = stage == RecognitionStage.Ready
@@ -561,9 +566,14 @@ fun MusicRecognitionScreen(
                 }
             }
         }
-        if (showHistory) {
+        AnimatedVisibility(
+            visible = showHistory,
+            enter = slideInHorizontally(tween(300)) { it / 4 } + fadeIn(tween(220)),
+            exit = slideOutHorizontally(tween(260)) { it / 4 } + fadeOut(tween(200)),
+        ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                 RecognitionHistoryPanel(
+                    active = showHistory,
                     entries = historyEntries,
                     onBack = { showHistory = false },
                     onMusicClick = {

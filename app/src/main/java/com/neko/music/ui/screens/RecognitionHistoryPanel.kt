@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.content.res.Configuration
 import android.text.format.DateUtils
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -29,6 +30,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
+import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,70 +77,101 @@ internal fun RecognitionGlassCard(modifier: Modifier = Modifier, content: @Compo
 }
 
 @Composable
+internal fun recognitionBottomControlsPadding(): Dp =
+    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) 72.dp else 136.dp
+
+@Composable
 internal fun RecognitionHistoryPanel(
+    active: Boolean,
     entries: List<RecognitionHistoryEntry>,
     onBack: () -> Unit,
     onMusicClick: (Music) -> Unit,
 ) {
-    BackHandler(onBack = onBack)
+    BackHandler(enabled = active, onBack = onBack)
     val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxSize().background(scheme.background).statusBarsPadding().navigationBarsPadding()) {
-        Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                NekoIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
-            }
-            Text(stringResource(R.string.recognition_history_title), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+    val backdrop = rememberLiquidPageBackdrop(scheme.background)
+    val dark = isAppDarkTheme()
+    Box(Modifier.fillMaxSize().background(scheme.background)) {
+        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+            AppPageBackgroundImage(modifier = Modifier.fillMaxSize())
+            PlaylistPageDarkTintOverlay(enabled = dark)
         }
-        if (entries.isEmpty()) {
-            Column(
-                Modifier.fillMaxSize().padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                NekoSymbolIcon(NekoSymbol.Clock, null, Modifier.size(42.dp), scheme.primary)
-                Spacer(Modifier.height(16.dp))
-                Text(stringResource(R.string.recognition_history_empty), color = scheme.onSurfaceVariant)
-            }
-        } else {
-            Box(Modifier.align(Alignment.CenterHorizontally).widthIn(max = 720.dp)
-                .fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            RecognitionGlassCard {
-            LazyColumn(
-                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
-                contentPadding = PaddingValues(top = 14.dp, bottom = 24.dp),
-            ) {
-                item {
-                    Text(stringResource(R.string.recognition_history_hint), Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = scheme.onSurfaceVariant, fontSize = 12.sp)
+        CompositionLocalProvider(LocalLiquidLayerBackdrop provides backdrop) {
+            Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                Row(
+                    Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onBack) {
+                        NekoIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back))
+                    }
+                    Text(stringResource(R.string.recognition_history_title), fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                items(entries, key = { it.music.id }) { entry ->
-                        Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onMusicClick(entry.music) }.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(
-                                model = recognitionCoverUrl(entry.music),
-                                contentDescription = null,
-                                placeholder = painterResource(R.drawable.music),
-                                error = painterResource(R.drawable.music),
-                                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
-                                contentScale = ContentScale.Crop,
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(entry.music.title, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(entry.music.artist, color = scheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(
-                                    DateUtils.getRelativeTimeSpanString(entry.recognizedAt, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
-                                    color = scheme.onSurfaceVariant, fontSize = 11.sp,
-                                )
-                            }
-                            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                NekoSymbolIcon(NekoSymbol.Play, null, Modifier.size(22.dp), scheme.primary)
+                if (entries.isEmpty()) {
+                    Column(
+                        Modifier.fillMaxSize().padding(bottom = recognitionBottomControlsPadding()).padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        NekoSymbolIcon(NekoSymbol.Clock, null, Modifier.size(42.dp), scheme.primary)
+                        Spacer(Modifier.height(16.dp))
+                        Text(stringResource(R.string.recognition_history_empty), color = scheme.onSurfaceVariant)
+                    }
+                } else {
+                    Box(
+                        Modifier.align(Alignment.CenterHorizontally).widthIn(max = 720.dp)
+                            .fillMaxSize().padding(horizontal = 20.dp)
+                            .padding(top = 12.dp, bottom = recognitionBottomControlsPadding()),
+                    ) {
+                        RecognitionGlassCard {
+                            LazyColumn(
+                                Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)),
+                                contentPadding = PaddingValues(top = 14.dp, bottom = 24.dp),
+                            ) {
+                                item {
+                                    Text(stringResource(R.string.recognition_history_hint),
+                                        Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                        color = scheme.onSurfaceVariant, fontSize = 12.sp)
+                                }
+                                items(entries, key = { it.music.id }) { entry ->
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .clickable(enabled = active, role = Role.Button) { onMusicClick(entry.music) }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        AsyncImage(
+                                            model = recognitionCoverUrl(entry.music),
+                                            contentDescription = null,
+                                            placeholder = painterResource(R.drawable.music),
+                                            error = painterResource(R.drawable.music),
+                                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(entry.music.title, fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(entry.music.artist, color = scheme.onSurfaceVariant,
+                                                fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(
+                                                DateUtils.getRelativeTimeSpanString(entry.recognizedAt,
+                                                    System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
+                                                color = scheme.onSurfaceVariant, fontSize = 11.sp,
+                                            )
+                                        }
+                                        Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                            NekoSymbolIcon(NekoSymbol.Play, null, Modifier.size(22.dp), scheme.primary)
+                                        }
+                                    }
+                                    HorizontalDivider(Modifier.padding(start = 82.dp, end = 14.dp),
+                                        color = scheme.outlineVariant.copy(alpha = .4f))
+                                }
                             }
                         }
-                    HorizontalDivider(Modifier.padding(start = 82.dp, end = 14.dp), color = scheme.outlineVariant.copy(alpha = .4f))
+                    }
                 }
-            }
-            }
             }
         }
     }

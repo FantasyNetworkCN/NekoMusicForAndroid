@@ -124,9 +124,12 @@ fun PlayerPresentationHost(
             sinkEnabled = { closingIntentState.value },
         )
     }
+    val sharedShellState = with(sharedTransitionScope) {
+        rememberSharedContentState(key = NekoPlayerShellKey)
+    }
     val sharedShellModifier = with(sharedTransitionScope) {
         Modifier.sharedBounds(
-            sharedContentState = rememberSharedContentState(key = NekoPlayerShellKey),
+            sharedContentState = sharedShellState,
             animatedVisibilityScope = animatedVisibilityScope,
             enter = EnterTransition.None,
             exit = ExitTransition.None,
@@ -154,6 +157,12 @@ fun PlayerPresentationHost(
                 .then(sharedShellModifier)
                 .graphicsLayer {
                     val expansion = expansionProgressState.value.coerceIn(0f, 1f)
+                    // 没有迷你栏可衔接时，仍提供完整的进入和退出动画。
+                    val fallback = !sharedShellState.isMatchFound
+                    translationY = if (fallback) size.height * .24f * (1f - expansion) else 0f
+                    scaleX = if (fallback) .94f + .06f * expansion else 1f
+                    scaleY = scaleX
+                    alpha = if (fallback) smoothStep(expansion, 0f, .24f) else 1f
                     val rise = smoothStep(
                         expansion,
                         NekoPlayerCornerRiseStart,
