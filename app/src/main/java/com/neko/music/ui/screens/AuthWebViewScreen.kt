@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.net.Uri
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.webkit.CookieManager
@@ -34,6 +35,7 @@ fun AuthWebViewScreen(
     url: String,
     title: String,
     onBackClick: () -> Unit,
+    onSsoHandoff: (String) -> Unit,
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
     var canGoBack by remember { mutableStateOf(false) }
@@ -69,6 +71,18 @@ fun AuthWebViewScreen(
                     CookieManager.getInstance().setAcceptCookie(true)
                     CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: android.webkit.WebResourceRequest,
+                        ): Boolean {
+                            val uri = request.url
+                            if (request.isForMainFrame && isNativeSsoCallback(uri)) {
+                                onSsoHandoff(uri.getQueryParameter("handoff").orEmpty())
+                                return true
+                            }
+                            return false
+                        }
+
                         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                             canGoBack = view.canGoBack()
                         }
@@ -83,4 +97,15 @@ fun AuthWebViewScreen(
             },
         )
     }
+}
+
+private fun isNativeSsoCallback(uri: Uri): Boolean {
+    val customScheme = uri.scheme.equals("nekomusic", ignoreCase = true)
+        && uri.host.equals("sso", ignoreCase = true)
+        && uri.path == "/complete"
+    val verifiedWebCallback = uri.scheme.equals("https", ignoreCase = true)
+        && uri.host.equals("music.nekocore.cn", ignoreCase = true)
+        && uri.path == "/sso/native-complete"
+        && uri.getQueryParameter("client") == "android"
+    return customScheme || verifiedWebCallback
 }

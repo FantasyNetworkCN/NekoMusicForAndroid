@@ -357,7 +357,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 else -> {
-                    if (uri.host == "music.nekocore.cn" && isSsoCompletePath(uri.path)) {
+                    if (uri.host == "music.nekocore.cn" && isNativeSsoCompleteLink(uri)) {
                         handleSsoHandoff(uri.getQueryParameter("handoff"))
                         return@let
                     }
@@ -416,11 +416,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun isSsoCompletePath(path: String?): Boolean {
-        return path == "/sso/complete" || path == "/oauth/nekocore/complete"
-    }
+    private fun isNativeSsoCompleteLink(uri: android.net.Uri): Boolean =
+        uri.path == "/sso/native-complete"
+            && uri.getQueryParameter("client") == "android"
 
-    private fun handleSsoHandoff(handoff: String?) {
+    internal fun handleSsoHandoff(handoff: String?) {
         if (handoff.isNullOrBlank()) {
             Log.w("MainActivity", "SSO 回跳缺少 handoff")
             android.widget.Toast.makeText(this, "登录交接参数缺失，请重新登录", android.widget.Toast.LENGTH_LONG).show()
@@ -1769,6 +1769,9 @@ fun MainScreen() {
                     url = url,
                     title = title,
                     onBackClick = { navController.popBackStack() },
+                    onSsoHandoff = { handoff ->
+                        (context as? MainActivity)?.handleSsoHandoff(handoff)
+                    },
                 )
             }
             composable("about") {

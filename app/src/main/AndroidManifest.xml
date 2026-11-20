@@ -120,19 +120,11 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <!-- 只接管原生客户端授权完成页，Web 登录完成页仍留在浏览器。 -->
                 <data
                     android:scheme="https"
                     android:host="music.nekocore.cn"
-                    android:path="/sso/complete" />
-            </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="music.nekocore.cn"
-                    android:path="/oauth/nekocore/complete" />
+                    android:path="/sso/native-complete" />
             </intent-filter>
         </activity>
         

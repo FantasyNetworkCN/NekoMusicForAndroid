@@ -25,6 +25,12 @@ Neko 歌姬计划 Android 客户端基于 Kotlin 与 Jetpack Compose 构建，�
 - **歌单迁移**：支持外部平台歌单链接 / ID 导入并匹配站内曲库。
 - **安装包安全**：只从官方站点或本仓库发布页获取 APK。
 
+### NekoAuth 登录
+
+Android 使用应用内页面完成 NekoAuth 授权。服务端原生完成页返回应用内 WebView 后，客户端接收一次性
+handoff 并建立登录态；若从外部浏览器发起，`https://music.nekocore.cn/sso/native-complete` 也会拉起应用。
+登录回跳只携带一次性 handoff，不会把账号访问令牌放进链接。
+
 ### 界面预览
 
 | 首页与每日推荐 | 播放页与逐字歌词 |

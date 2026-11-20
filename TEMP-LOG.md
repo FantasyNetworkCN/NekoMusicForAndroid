@@ -6,3 +6,8 @@
 ## 移除
 
 - 移除首页右上角多余的听歌识曲入口按钮。
+
+## 优化
+
+- 统一使用当前 NekoAuth SSO 回跳地址，移除旧 OAuth 完成页的 Android App Link 接入。
+- Android 登录改为在应用内完成 NekoAuth 授权，并自动接收登录回跳。

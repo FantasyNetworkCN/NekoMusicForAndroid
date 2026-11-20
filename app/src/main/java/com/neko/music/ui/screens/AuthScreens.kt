@@ -74,18 +74,10 @@ fun LoginScreen(
         errorMessage = ""
         scope.launch {
             when (val result = userApi.startSso()) {
-                is SsoStartResult.Ok -> {
-                    try {
-                        context.startActivity(
-                            android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse(result.url),
-                            )
-                        )
-                    } catch (e: Exception) {
-                        errorMessage = "无法打开 NekoAuth 登录页：${e.message}"
-                    }
-                }
+                is SsoStartResult.Ok -> onOpenAuthWeb(
+                    result.url,
+                    context.getString(R.string.nekoauth_sign_in_title),
+                )
                 is SsoStartResult.Err -> errorMessage = result.message
             }
             ssoLoading = false
