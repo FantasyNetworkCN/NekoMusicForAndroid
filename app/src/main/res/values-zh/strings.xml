@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="lan_permission_enable">启用局域网发现</string>
+    <string name="lan_permission_hint">允许访问附近设备后，可发现同一网络中的播放列表。本机播放不受影响。</string>
+    <string name="lan_permission_denied">未获得局域网访问权限，将继续使用本机播放列表。可在应用设置的“附近的设备”权限中开启。</string>
     <string name="player_volume_settings">音量设置</string>
     <string name="player_system_media_volume">系统媒体音量</string>
     <string name="player_volume_percent">%1$d%%</string>

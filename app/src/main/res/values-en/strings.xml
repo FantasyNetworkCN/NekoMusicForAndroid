@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="lan_permission_enable">Enable LAN discovery</string>
+    <string name="lan_permission_hint">Allow nearby device access to discover playlists on the same network. Local playback remains available.</string>
+    <string name="lan_permission_denied">Local network access was not granted. Local playlists remain available. Enable Nearby devices in app settings to allow discovery.</string>
     <string name="player_volume_settings">Volume settings</string>
     <string name="player_system_media_volume">System media volume</string>
     <string name="player_volume_percent">%1$d%%</string>

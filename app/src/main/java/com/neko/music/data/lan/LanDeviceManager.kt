@@ -1,11 +1,14 @@
 package com.neko.music.data.lan
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.manager.PlaylistManager
 import com.neko.music.data.manager.TokenManager
@@ -13,6 +16,7 @@ import com.neko.music.service.MusicPlayerManager
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.Closeable
+import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.DatagramPacket
@@ -23,6 +27,7 @@ import java.net.MulticastSocket
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
@@ -141,6 +146,11 @@ class LanDeviceManager private constructor(private val context: Context) {
         @Volatile
         private var instance: LanDeviceManager? = null
 
+        fun hasLocalNetworkPermission(context: Context): Boolean =
+            Build.VERSION.SDK_INT < 37 || ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_LOCAL_NETWORK
+            ) == PackageManager.PERMISSION_GRANTED
+
         fun getInstance(context: Context): LanDeviceManager {
             return instance ?: synchronized(this) {
                 instance ?: LanDeviceManager(context.applicationContext).also { instance = it }
@@ -181,6 +191,11 @@ class LanDeviceManager private constructor(private val context: Context) {
     val remoteQueue: StateFlow<LanQueueSnapshot?> = _remoteQueue.asStateFlow()
 
     fun start() {
+        if (!hasLocalNetworkPermission(appContext)) {
+            stop()
+            Log.d(TAG, "未获得局域网访问权限，暂不启动设备发现")
+            return
+        }
         val currentAccountTag = accountTag()
         if (runtimeJob?.isActive == true && runningAccountTag == currentAccountTag) return
         if (runtimeJob?.isActive == true) {
@@ -206,14 +221,19 @@ class LanDeviceManager private constructor(private val context: Context) {
                 launch { queueChangeLoop() }
                 launch { expireDevicesLoop() }
                 awaitCancellation()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: IOException) {
+                Log.w(TAG, "局域网服务启动失败，保留本机播放", error)
+            } catch (error: SecurityException) {
+                Log.w(TAG, "局域网访问被系统拒绝，保留本机播放", error)
             } finally {
                 closeQuietly(server)
-                serverSocketRef.set(null)
-                closeQuietly(multicastSocketRef.getAndSet(null))
-                releaseMulticastLock()
-                synchronized(devicesLock) { devicesById.clear() }
-                _devices.value = emptyList()
+                serverSocketRef.compareAndSet(server, null)
                 if (runtimeScope === runScope) {
+                    releaseMulticastLock()
+                    synchronized(devicesLock) { devicesById.clear() }
+                    _devices.value = emptyList()
                     runtimeScope = null
                     runningAccountTag = null
                 }
@@ -387,20 +407,35 @@ class LanDeviceManager private constructor(private val context: Context) {
         }
     }
 
-    private suspend fun discoveryLoop(serverPort: Int) = coroutineScope {
+    private suspend fun discoveryLoop(serverPort: Int) {
+        retryLanNetworkOperation(
+            retryDelayMillis = ANNOUNCE_INTERVAL_MS,
+            onFailure = { error -> Log.w(TAG, "局域网发现受限，稍后重新尝试", error) },
+        ) {
+            discoverySession(serverPort)
+        }
+    }
+
+    private suspend fun discoverySession(serverPort: Int) = coroutineScope {
         val group = InetAddress.getByName(GROUP)
         val networkInterfaces = findMulticastNetworkInterfaces()
         val primaryInterface = networkInterfaces.firstOrNull()
-        val socket = MulticastSocket(PORT).apply {
-            reuseAddress = true
+        // 先保存未绑定的套接字，保证绑定、选网卡或入组失败时也能关闭。
+        val socket = MulticastSocket(null)
+        multicastSocketRef.set(socket)
+        var receiveJob: Job? = null
+        try {
+            socket.reuseAddress = true
+            socket.soTimeout = 1_000
+            socket.bind(InetSocketAddress(PORT))
             if (primaryInterface != null) {
-                setNetworkInterface(primaryInterface)
+                socket.networkInterface = primaryInterface
             }
             var joined = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 for (networkInterface in networkInterfaces) {
                     try {
-                        joinGroup(InetSocketAddress(group, PORT), networkInterface)
+                        socket.joinGroup(InetSocketAddress(group, PORT), networkInterface)
                         joined = true
                     } catch (e: Exception) {
                         Log.d(TAG, "加入局域网发现组失败: ${networkInterface.displayName}", e)
@@ -408,49 +443,55 @@ class LanDeviceManager private constructor(private val context: Context) {
                 }
             }
             if (!joined) {
-                joinGroup(group)
+                socket.joinGroup(group)
             }
-        }
-        Log.d(
-            TAG,
-            "局域网发现已启动: interfaces=${networkInterfaces.joinToString { it.displayName }}"
-        )
-        multicastSocketRef.set(socket)
-        val receiveJob = launch {
-            val buffer = ByteArray(16 * 1024)
-            while (isActive && !socket.isClosed) {
-                try {
-                    val packet = DatagramPacket(buffer, buffer.size)
-                    socket.receive(packet)
-                    val text = String(packet.data, packet.offset, packet.length, StandardCharsets.UTF_8)
-                    val announcement = json.decodeFromString<LanAnnouncement>(text)
-                    if (announcement.protocol != 1 ||
-                        announcement.type != "announce" ||
-                        announcement.accountTag != accountTag() ||
-                        announcement.deviceId == deviceId() ||
-                        announcement.port <= 0
-                    ) continue
-                    val device = LanDevice(
-                        deviceId = announcement.deviceId,
-                        deviceName = announcement.deviceName,
-                        platform = announcement.platform,
-                        host = packet.address.hostAddress ?: continue,
-                        port = announcement.port,
-                        accountTag = announcement.accountTag,
-                        queueRevision = announcement.queueRevision,
-                        queueCount = announcement.queueCount,
-                        currentMusicId = announcement.currentMusicId,
-                        lastSeen = System.currentTimeMillis()
-                    )
-                    synchronized(devicesLock) { devicesById[device.deviceId] = device }
-                    publishDevices()
-                } catch (e: Exception) {
-                    if (!socket.isClosed) Log.d(TAG, "局域网设备广播解析失败", e)
+            Log.d(
+                TAG,
+                "局域网发现已启动: interfaces=${networkInterfaces.joinToString { it.displayName }}"
+            )
+            receiveJob = launch {
+                val buffer = ByteArray(16 * 1024)
+                while (isActive && !socket.isClosed) {
+                    try {
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        socket.receive(packet)
+                        val text = String(packet.data, packet.offset, packet.length, StandardCharsets.UTF_8)
+                        val announcement = json.decodeFromString<LanAnnouncement>(text)
+                        if (announcement.protocol != 1 ||
+                            announcement.type != "announce" ||
+                            announcement.accountTag != accountTag() ||
+                            announcement.deviceId == deviceId() ||
+                            announcement.port <= 0
+                        ) continue
+                        val device = LanDevice(
+                            deviceId = announcement.deviceId,
+                            deviceName = announcement.deviceName,
+                            platform = announcement.platform,
+                            host = packet.address.hostAddress ?: continue,
+                            port = announcement.port,
+                            accountTag = announcement.accountTag,
+                            queueRevision = announcement.queueRevision,
+                            queueCount = announcement.queueCount,
+                            currentMusicId = announcement.currentMusicId,
+                            lastSeen = System.currentTimeMillis()
+                        )
+                        synchronized(devicesLock) { devicesById[device.deviceId] = device }
+                        publishDevices()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: SocketTimeoutException) {
+                        currentCoroutineContext().ensureActive()
+                    } catch (error: IOException) {
+                        currentCoroutineContext().ensureActive()
+                        if (!socket.isClosed) throw error
+                    } catch (error: SecurityException) {
+                        throw error
+                    } catch (e: Exception) {
+                        if (!socket.isClosed) Log.d(TAG, "局域网设备广播解析失败", e)
+                    }
                 }
             }
-        }
 
-        try {
             while (isActive && !socket.isClosed) {
                 val announcement = buildAnnouncement(serverPort)
                 val bytes = json.encodeToString(announcement).toByteArray(StandardCharsets.UTF_8)
@@ -458,22 +499,10 @@ class LanDeviceManager private constructor(private val context: Context) {
                 delay(ANNOUNCE_INTERVAL_MS)
             }
         } finally {
-            receiveJob.cancelAndJoin()
-            for (networkInterface in networkInterfaces) {
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        socket.leaveGroup(InetSocketAddress(group, PORT), networkInterface)
-                    }
-                } catch (_: Exception) {
-                }
-            }
-            if (networkInterfaces.isEmpty()) {
-                try {
-                    socket.leaveGroup(group)
-                } catch (_: Exception) {
-                }
-            }
+            // 先解除阻塞读取，再取消接收任务；不在已取消的上下文中等待阻塞任务退出。
+            multicastSocketRef.compareAndSet(socket, null)
             closeQuietly(socket)
+            receiveJob?.cancel()
         }
     }
 

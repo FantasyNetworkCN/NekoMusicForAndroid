@@ -1,5 +1,7 @@
 package com.neko.music.ui.screens
 
+import android.Manifest
+import android.widget.Toast
 import com.neko.music.ui.icons.NekoIcon
 
 import androidx.compose.animation.AnimatedVisibility
@@ -85,6 +87,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import coil3.compose.AsyncImage
 import com.neko.music.R
 import com.neko.music.data.api.MusicApi
@@ -124,6 +128,22 @@ fun PlaylistScreen(
     val lanDevices by lanManager.devices.collectAsState()
     val selectedDeviceId by lanManager.selectedDeviceId.collectAsState()
     val remoteQueue by lanManager.remoteQueue.collectAsState()
+    var hasLocalNetworkPermission by remember { mutableStateOf(LanDeviceManager.hasLocalNetworkPermission(context)) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasLocalNetworkPermission = granted
+        if (granted) {
+            lanManager.start()
+        } else {
+            lanManager.stop()
+            Toast.makeText(context, R.string.lan_permission_denied, Toast.LENGTH_LONG).show()
+        }
+    }
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            hasLocalNetworkPermission = LanDeviceManager.hasLocalNetworkPermission(context)
+            if (hasLocalNetworkPermission) lanManager.start()
+        }
+    }
     val scope = rememberCoroutineScope()
     val isDark = isAppDarkTheme()
 
@@ -273,6 +293,10 @@ fun PlaylistScreen(
                                 lanDevices = lanDevices,
                                 selectedDeviceId = selectedDeviceId,
                                 remoteQueue = remoteQueue,
+                                hasLocalNetworkPermission = hasLocalNetworkPermission,
+                                onRequestLocalNetworkPermission = {
+                                    permissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+                                },
                                 onSelectDevice = { lanManager.selectDevice(it) },
                                 onBackClick = onBackClick,
                                 onMusicClick = onMusicClick,
@@ -498,7 +522,9 @@ fun PlaylistContent(
     onBackClick: () -> Unit,
     onMusicClick: (Music) -> Unit,
     playlistManager: PlaylistManager,
-    scope: kotlinx.coroutines.CoroutineScope
+    scope: kotlinx.coroutines.CoroutineScope,
+    hasLocalNetworkPermission: Boolean = true,
+    onRequestLocalNetworkPermission: () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -649,7 +675,13 @@ fun PlaylistContent(
                     label = { Text(device.deviceName, maxLines = 1) }
                 )
             }
-            if (lanDevices.isEmpty()) {
+            if (!hasLocalNetworkPermission) {
+                item {
+                    OutlinedButton(onClick = onRequestLocalNetworkPermission) {
+                        Text(stringResource(R.string.lan_permission_enable))
+                    }
+                }
+            } else if (lanDevices.isEmpty()) {
                 item {
                     Text(
                         text = "未发现其他设备",
@@ -659,6 +691,15 @@ fun PlaylistContent(
                     )
                 }
             }
+        }
+
+        if (!hasLocalNetworkPermission) {
+            Text(
+                text = stringResource(R.string.lan_permission_hint),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+            )
         }
 
         if (isRemote && remotePlaylist.isNotEmpty()) {
