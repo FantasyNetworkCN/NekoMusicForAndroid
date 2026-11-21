@@ -64,18 +64,42 @@ class StemAudioProcessorTest {
         assertTrue(closed.await(2, TimeUnit.SECONDS))
     }
 
+    @Test fun inferenceFailureDegradesGpuThenRecoversOnNextChunk() {
+        val preferences = mutableListOf<StemBackendPreference>()
+        val calls = AtomicInteger()
+        val worker = StemInferenceWorker { preference ->
+            preferences += preference
+            object : StemInference {
+                override fun instrumental(context: FloatArray, outputFrames: Int): FloatArray {
+                    if (calls.incrementAndGet() == 1) error("GPU context lost")
+                    return FloatArray(outputFrames * 2) { 0.2f }
+                }
+                override fun close() {}
+            }
+        }
+        try {
+            runCatching { worker.prewarm(8)?.get(3, TimeUnit.SECONDS) }
+            assertEquals(StemBackendPreference.AUTO, preferences.firstOrNull())
+            val recovered = worker.submit(FloatArray(16), 8)?.get(3, TimeUnit.SECONDS)
+            assertTrue(recovered != null && recovered.isNotEmpty())
+            assertTrue(preferences.contains(StemBackendPreference.NO_GPU))
+        } finally {
+            worker.close()
+        }
+    }
+
     @Test fun slowInferenceFallsBackInOrderAndResetCancelsOldOutput() {
         var now = 0L
         val pending = mutableListOf<CompletableFuture<FloatArray>>()
         val phases = mutableListOf<StemStreamPhase>()
         val mixer = StemStreamingMixer(2, StemChunkInference { _, _ ->
             CompletableFuture<FloatArray>().also(pending::add)
-        }, { phases.add(it) }, { throw it }, 4, 1, { now }, 2)
+        }, { phases.add(it) }, { throw it }, 4, 1, { now }, 2, 2)
         val allocate = { size: Int -> ByteBuffer.allocate(size).order(ByteOrder.nativeOrder()) }
         val input = pcm(13)
         mixer.queueInput(input)
-        assertTrue(input.hasRemaining())
-        assertEquals(2, pending.size)
+        assertFalse(input.hasRemaining())
+        assertTrue(pending.size >= 2)
         assertNull(mixer.output(settings, allocate))
         now = 2
         val original = mixer.output(settings.copy(vocals = 0f, instrumental = 0f), allocate)!!

@@ -73,7 +73,12 @@ internal class StemSeparationController(
         val state = _state.value
         val model = verifiedModel
         if (state.enabled && !state.realtime && model != null) {
-            if (worker.value == null) worker.value = StemInferenceWorker { MdxStemEngine(model) }
+            if (worker.value == null) {
+                worker.value = StemInferenceWorker { preference -> MdxStemEngine(model, preference) }.also {
+                    // 提前编译 WebGPU 着色器/加载模型，避免占用第一个播放分片的等待窗口。
+                    it.prewarm(MdxStemEngine.MODEL_FRAMES)
+                }
+            }
         } else {
             val previous = worker.value
             worker.value = null
@@ -84,6 +89,9 @@ internal class StemSeparationController(
 
     override fun reportAiPhase(inference: StemChunkInference?, phase: StemStreamPhase) {
         if (_state.value.enabled && !_state.value.realtime && worker.value === inference) {
+            if (_streamPhase.value != phase) {
+                Log.d("StemSeparation", "AI 分片状态: ${_streamPhase.value} -> $phase")
+            }
             _streamPhase.value = phase
         }
     }

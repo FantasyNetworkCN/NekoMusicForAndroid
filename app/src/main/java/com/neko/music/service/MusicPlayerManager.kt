@@ -183,6 +183,26 @@ class MusicPlayerManager private constructor(context: Context) {
                 enableOffload: Boolean,
             ): AudioSink = DefaultAudioSink.Builder(context)
                 .setAudioProcessors(arrayOf(StemAudioProcessor(stemSeparation)))
+                .setAudioTrackBufferSizeProvider(object : DefaultAudioSink.AudioTrackBufferSizeProvider {
+                    override fun getBufferSizeInBytes(
+                        minBufferSizeInBytes: Int,
+                        encoding: Int,
+                        outputMode: Int,
+                        pcmFrameSize: Int,
+                        sampleRate: Int,
+                        bitrate: Int,
+                        maxAudioTrackPlaybackSpeed: Double,
+                    ): Int {
+                        if (encoding != com.google.android.exoplayer2.C.ENCODING_PCM_16BIT || pcmFrameSize <= 0) {
+                            return minBufferSizeInBytes
+                        }
+                        // AI 分片推理需要解码器提前跑约两个分片，避免播放线程到点才开始推理。
+                        val target = sampleRate.toLong() * pcmFrameSize * 6L
+                        val size = maxOf(minBufferSizeInBytes.toLong(), target)
+                            .coerceAtMost(Int.MAX_VALUE.toLong())
+                        return (size - size % pcmFrameSize).toInt()
+                    }
+                })
                 .build()
         })
             .setMediaSourceFactory(

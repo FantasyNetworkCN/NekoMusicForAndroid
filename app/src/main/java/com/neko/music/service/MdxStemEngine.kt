@@ -11,18 +11,25 @@ import java.io.File
 import java.nio.FloatBuffer
 
 internal interface StemInference : Closeable {
+    val backendName: String get() = "unknown"
     fun instrumental(context: FloatArray, outputFrames: Int): FloatArray
 }
 
+internal enum class StemBackendPreference { AUTO, NO_GPU, CPU_ONLY }
+
 /** 使用轻量 UVR_MDXNET_1_9703，所有推理与关闭操作在后台串行执行。 */
-internal class MdxStemEngine(file: File) : StemInference {
+internal class MdxStemEngine(
+    file: File,
+    preference: StemBackendPreference = StemBackendPreference.AUTO,
+) : StemInference {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
     val acceleration: String
+    override val backendName: String get() = acceleration
     private val dsp = StemDsp(bins = SPECTRUM_BINS, frames = SPECTRUM_FRAMES)
 
     init {
-        val created = createSession(MdxModelWindow.shorten(file.readBytes(), SPECTRUM_FRAMES))
+        val created = createSession(MdxModelWindow.shorten(file.readBytes(), SPECTRUM_FRAMES), preference)
         session = created.first
         acceleration = created.second
         Log.d("MdxStemEngine", "AI 分离执行后端: $acceleration")
@@ -69,14 +76,22 @@ internal class MdxStemEngine(file: File) : StemInference {
     @Synchronized
     override fun close() = session.close()
 
-    private fun createSession(model: ByteArray): Pair<OrtSession, String> {
+    private fun createSession(model: ByteArray, preference: StemBackendPreference): Pair<OrtSession, String> {
         val available = OrtEnvironment.getAvailableProviders()
+        Log.d("MdxStemEngine", "AI 可用执行后端: ${available.joinToString { it.name }}")
         val candidates = buildList {
-            if (OrtProvider.XNNPACK in available) add(listOf(OrtProvider.XNNPACK))
-            if (OrtProvider.NNAPI in available && OrtProvider.XNNPACK in available) {
+            if (preference != StemBackendPreference.CPU_ONLY && OrtProvider.XNNPACK in available) {
+                add(listOf(OrtProvider.XNNPACK))
+            }
+            if (preference == StemBackendPreference.AUTO && OrtProvider.WEBGPU in available) {
+                add(listOf(OrtProvider.WEBGPU))
+            }
+            if (preference == StemBackendPreference.AUTO && OrtProvider.NNAPI in available && OrtProvider.XNNPACK in available) {
                 add(listOf(OrtProvider.NNAPI, OrtProvider.XNNPACK))
             }
-            if (OrtProvider.NNAPI in available) add(listOf(OrtProvider.NNAPI))
+            if (preference == StemBackendPreference.AUTO && OrtProvider.NNAPI in available) {
+                add(listOf(OrtProvider.NNAPI))
+            }
             add(emptyList())
         }.distinct()
         var failure: Exception? = null
@@ -94,6 +109,7 @@ internal class MdxStemEngine(file: File) : StemInference {
                     options.addConfigEntry("session.intra_op.allow_spinning", "0")
                     for (provider in providers) {
                         when (provider) {
+                            OrtProvider.WEBGPU -> options.addWebGPU(emptyMap())
                             OrtProvider.NNAPI -> options.addNnapi()
                             OrtProvider.XNNPACK -> options.addXnnpack(
                                 mapOf("intra_op_num_threads" to threads.toString())

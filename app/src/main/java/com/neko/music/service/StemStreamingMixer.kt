@@ -1,5 +1,7 @@
 package com.neko.music.service
 
+import android.os.Process
+import com.neko.music.debug.NekoLog as Log
 import java.io.Closeable
 import java.nio.ByteBuffer
 import java.util.concurrent.ArrayBlockingQueue
@@ -17,25 +19,65 @@ internal fun interface StemChunkInference {
     fun submit(context: FloatArray, frames: Int): Future<FloatArray>?
 }
 
-/** 单线程复用已加载模型，保留一个运行中的推理和一个候选任务。 */
-internal class StemInferenceWorker(createEngine: () -> StemInference) : StemChunkInference, Closeable {
+/** 单线程复用已加载模型；推理失败时逐级降级后端并允许后续分片恢复。 */
+internal class StemInferenceWorker(
+    createEngine: (StemBackendPreference) -> StemInference,
+) : StemChunkInference, Closeable {
     private val engine = AtomicReference<StemInference?>()
-    private val executor = ThreadPoolExecutor(0, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue(1)) { run ->
-        Thread(run, "NekoStemInference").apply { isDaemon = true }
+    @Volatile private var preference = StemBackendPreference.AUTO
+    private val executor = ThreadPoolExecutor(0, 1, 30, TimeUnit.SECONDS, ArrayBlockingQueue(3)) { run ->
+        Thread({
+            runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_MORE_FAVORABLE) }
+            run.run()
+        }, "NekoStemInference").apply { isDaemon = true }
     }
     private val factory = createEngine
+    private val submitted = java.util.concurrent.atomic.AtomicLong()
+    private val completed = java.util.concurrent.atomic.AtomicLong()
 
     override fun submit(context: FloatArray, frames: Int): Future<FloatArray>? {
         executor.purge()
+        val sequence = submitted.incrementAndGet()
         return try {
             executor.submit<FloatArray> {
-                val current = engine.get() ?: factory().also { engine.compareAndSet(null, it) }
-                current.instrumental(context, frames)
+                runCatching { Log.d("StemInferenceWorker", "AI 分片 #$sequence 开始，后端偏好=$preference") }
+                val started = System.nanoTime()
+                val current = engine.get() ?: factory(preference).also { engine.compareAndSet(null, it) }
+                try {
+                    current.instrumental(context, frames)
+                        .also {
+                            val elapsed = (System.nanoTime() - started) / 1e9
+                            val done = completed.incrementAndGet()
+                            runCatching {
+                                Log.d("StemInferenceWorker", "AI 分片 #$sequence 完成，耗时=${"%.3f".format(elapsed)}s，后端=${current.backendName}，队列=$done/$sequence")
+                            }
+                        }
+                } catch (error: Throwable) {
+                    runCatching {
+                        Log.w("StemInferenceWorker", "AI 分片 #$sequence 失败，后端=${current.backendName}，将降级", error)
+                    }
+                    if (engine.compareAndSet(current, null)) {
+                        preference = when (preference) {
+                            StemBackendPreference.AUTO -> StemBackendPreference.NO_GPU
+                            StemBackendPreference.NO_GPU -> StemBackendPreference.CPU_ONLY
+                            StemBackendPreference.CPU_ONLY -> StemBackendPreference.CPU_ONLY
+                        }
+                        Thread({
+                            runCatching { current.close() }
+                        }, "NekoStemInferenceRecover").apply { isDaemon = true }.start()
+                    }
+                    throw error
+                }
             }
         } catch (_: RejectedExecutionException) {
+            runCatching {
+                Log.w("StemInferenceWorker", "AI 分片 #$sequence 被队列拒绝，活动任务=${executor.activeCount}，排队=${executor.queue.size}")
+            }
             null
         }
     }
+
+    fun prewarm(frames: Int): Future<FloatArray>? = submit(FloatArray(frames * 2), frames)
 
     override fun close() {
         executor.shutdownNow().forEach { (it as? Future<*>)?.cancel(false) }
@@ -57,26 +99,31 @@ internal class StemStreamingMixer(
     private val chunkFrames: Int,
     private val trimFrames: Int,
     private val clock: () -> Long = System::nanoTime,
-    private val maxWaitNanos: Long = TimeUnit.MILLISECONDS.toNanos(120),
+    private val maxWaitNanos: Long = TimeUnit.MILLISECONDS.toNanos(3000),
+    private val initialWaitNanos: Long = TimeUnit.MILLISECONDS.toNanos(4000),
 ) {
+    private companion object {
+        const val MAX_BUFFERED_CHUNKS = 4
+    }
     private class Chunk(val original: FloatArray, val result: Future<FloatArray>?) {
         var waitStarted: Long? = null
         var offset = 0
         var backing: FloatArray? = null
+        var error: Throwable? = null
         var decided = false
     }
 
-    private val chunks = ArrayDeque<Chunk>(2)
+    private val chunks = ArrayDeque<Chunk>(MAX_BUFFERED_CHUNKS)
     private val input = FloatArray((chunkFrames + trimFrames) * 2)
     private val history = FloatArray(trimFrames * 2)
     private var collectedFrames = 0
-    private var failed = false
     private var ended = false
+    private var firstChunkDecided = false
     val isDrained: Boolean get() = chunks.isEmpty() && collectedFrames == 0
 
     fun queueInput(buffer: ByteBuffer) {
         val frameBytes = channels * 2
-        while (buffer.remaining() >= frameBytes && chunks.size < 2) {
+        while (buffer.remaining() >= frameBytes && chunks.size < MAX_BUFFERED_CHUNKS) {
             val left = buffer.short / 32768f
             val right = if (channels == 2) buffer.short / 32768f else left
             input[collectedFrames * 2] = left
@@ -88,12 +135,10 @@ internal class StemStreamingMixer(
 
     private fun enqueue(frames: Int) {
         val original = input.copyOf(frames * 2)
-        val result = if (failed) null else {
-            val context = FloatArray((chunkFrames + trimFrames * 2) * 2)
-            history.copyInto(context)
-            input.copyInto(context, history.size, endIndex = collectedFrames * 2)
-            inference.submit(context, chunkFrames)
-        }
+        val context = FloatArray((chunkFrames + trimFrames * 2) * 2)
+        history.copyInto(context)
+        input.copyInto(context, history.size, endIndex = collectedFrames * 2)
+        val result = inference.submit(context, chunkFrames)
         val previousSamples = minOf(history.size, original.size)
         original.copyInto(history, history.size - previousSamples, original.size - previousSamples)
         input.copyInto(input, startIndex = frames * 2, endIndex = collectedFrames * 2)
@@ -106,14 +151,16 @@ internal class StemStreamingMixer(
     }
 
     fun output(gains: StemSeparationState, allocate: (Int) -> ByteBuffer): ByteBuffer? {
-        if (ended && collectedFrames > 0 && chunks.size < 2) enqueue(minOf(collectedFrames, chunkFrames))
+        if (ended && collectedFrames > 0 && chunks.size < MAX_BUFFERED_CHUNKS) {
+            enqueue(minOf(collectedFrames, chunkFrames))
+        }
         val chunk = chunks.firstOrNull() ?: return null
         if (!chunk.decided) {
             val result = chunk.result
             if (result != null && !result.isDone) {
                 val now = clock()
                 val started = chunk.waitStarted ?: now.also { chunk.waitStarted = it }
-                if (now - started < maxWaitNanos) {
+                if (now - started < if (firstChunkDecided) maxWaitNanos else initialWaitNanos) {
                     report(StemStreamPhase.PROCESSING)
                     return null
                 }
@@ -122,10 +169,10 @@ internal class StemStreamingMixer(
                 try {
                     chunk.backing = result.get().also { check(it.size >= chunk.original.size) }
                 } catch (error: ExecutionException) {
-                    failed = true
-                    reportError(error.cause ?: error)
+                    chunk.error = error.cause ?: error
+                    reportError(chunk.error!!)
                 } catch (error: IllegalStateException) {
-                    failed = true
+                    chunk.error = error
                     reportError(error)
                 } catch (_: java.util.concurrent.CancellationException) {
                     // 切换模式时可能与推理完成同时发生，继续输出原曲。
@@ -134,9 +181,10 @@ internal class StemStreamingMixer(
                 }
             }
             chunk.decided = true
+            firstChunkDecided = true
             report(when {
-                failed -> StemStreamPhase.FAILED
                 chunk.backing != null -> StemStreamPhase.ACTIVE
+                chunk.error != null -> StemStreamPhase.FAILED
                 else -> StemStreamPhase.FALLBACK
             })
         }
@@ -162,5 +210,6 @@ internal class StemStreamingMixer(
         chunks.forEach { it.result?.cancel(false) }
         chunks.clear()
         collectedFrames = 0
+        firstChunkDecided = false
     }
 }
