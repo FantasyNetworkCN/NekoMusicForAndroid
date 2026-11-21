@@ -438,13 +438,7 @@ private fun ensureCacheDirs() {
      * 获取缓存大小（格式化字符串）
      */
     fun getCacheSizeFormatted(): String {
-        val size = getCacheSize()
-        return when {
-            size < 1024 -> "$size B"
-            size < 1024 * 1024 -> "${size / 1024} KiB"
-            size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)} MiB"
-            else -> "${size / (1024 * 1024 * 1024)} GiB"
-        }
+        return AppStorageManager.format(getCacheSize())
     }
 
     /**

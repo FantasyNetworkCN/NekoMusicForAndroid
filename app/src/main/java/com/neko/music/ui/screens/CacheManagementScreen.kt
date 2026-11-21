@@ -1,6 +1,7 @@
 package com.neko.music.ui.screens
 
 import com.neko.music.ui.icons.NekoIcon
+import com.neko.music.ui.icons.NekoSymbol
 
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.background
@@ -16,11 +17,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.neko.music.data.cache.MusicCacheManager
+import com.neko.music.data.cache.AppStorageManager
+import com.neko.music.data.cache.AppStorageKind
+import com.neko.music.data.cache.AppStorageUsage
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.components.GlassSurface
@@ -39,6 +44,9 @@ import androidx.compose.ui.res.stringResource
 import com.neko.music.R
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,11 +76,19 @@ fun CacheManagementScreen(
     var showClearDialog by remember { mutableStateOf(false) }
     var showDeleteItemDialog by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var storageUsage by remember { mutableStateOf(AppStorageUsage()) }
+    var storageLoading by remember { mutableStateOf(true) }
+
+    suspend fun refreshStorage() {
+        storageUsage = withContext(Dispatchers.IO) { AppStorageManager.calculate(context) }
+        storageLoading = false
+    }
     
     // 定期更新缓存数据
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(2000)
+            refreshStorage()
+            delay(5000)
             cacheSize = cacheManager.getCacheSizeFormatted()
             cachedMusicCount = cacheManager.getCachedMusicCount()
             cachedItems = cacheManager.getAllCachedItems()
@@ -99,7 +115,7 @@ fun CacheManagementScreen(
             TopAppBar(
                 title = {
                     Text(
-                        stringResource(id = R.string.cache_management),
+                        stringResource(id = R.string.space_management),
                         color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                     )
                 },
@@ -203,118 +219,73 @@ fun CacheManagementScreen(
                 .padding(paddingValues)
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            if (cachedItems.isEmpty()) {
-                // 空状态
-                Column(
+                LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 150.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = stringResource(id = R.string.no_cache),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(id = R.string.cache_hint),
-                        fontSize = 14.sp,
-                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant.copy(alpha = 0.85f)
-                    )
-                }
-            } else {
-                // 缓存列表
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    GlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        backgroundAlpha = glassBg,
-                        borderAlpha = glassBorder,
-                        highlightAlpha = glassHighlight
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                    item {
+                        StorageOverviewCard(
+                            usage = storageUsage,
+                            loading = storageLoading,
+                            cachedMusicCount = cachedMusicCount,
+                            cacheSize = cacheSize,
+                            isLoading = isLoading,
+                        )
+                    }
+                    item {
+                        Text(
+                            text = stringResource(R.string.storage_breakdown),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
+                            modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp),
+                        )
+                    }
+                    items(storageUsage.items, key = { it.kind.name }) { item ->
+                        StorageUsageRow(item = item, total = storageUsage.total, isDarkTheme = isDarkTheme)
+                    }
+                    item {
+                        Text(
+                            text = stringResource(id = R.string.cache_list),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
+                            modifier = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 4.dp),
+                        )
+                    }
+                    if (cachedItems.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
                             ) {
-                                Column {
-                                    Text(
-                                        text = stringResource(id = R.string.cache_statistics),
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.cached_songs_count, cachedMusicCount),
-                                        fontSize = 14.sp,
-                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = stringResource(id = R.string.cache_size, cacheSize),
-                                        fontSize = 14.sp,
-                                        color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant
-                                    )
-                                    if (isLoading) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = stringResource(id = R.string.preparing_playlist),
-                                            fontSize = 14.sp,
-                                            color = RoseRed
-                                        )
-                                    }
-                                }
-                                Image(
-                                    painter = painterResource(R.drawable.music),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp)
+                                Text(
+                                    text = stringResource(id = R.string.no_cache),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.8f) else scheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = stringResource(id = R.string.cache_hint),
+                                    fontSize = 14.sp,
+                                    color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.6f) else scheme.onSurfaceVariant.copy(alpha = 0.85f),
                                 )
                             }
                         }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(
-                        text = stringResource(id = R.string.cache_list),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                    
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentPadding = PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 8.dp,
-                            bottom = 150.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(cachedItems) { item ->
+                    } else {
+                        items(cachedItems, key = { it.first }) { item ->
                             CacheItem(
                                 musicId = item.first,
                                 title = item.second,
                                 artist = item.third,
-                                onDelete = {
-                                    showDeleteItemDialog = item
-                                }
+                                onDelete = { showDeleteItemDialog = item },
                             )
                         }
                     }
                 }
-            }
             }
         }
     }
@@ -447,6 +418,140 @@ fun CacheManagementScreen(
         )
     }
 }
+
+@Composable
+private fun StorageOverviewCard(
+    usage: AppStorageUsage,
+    loading: Boolean,
+    cachedMusicCount: Int,
+    cacheSize: String,
+    isLoading: Boolean,
+) {
+    val isDark = isAppDarkTheme()
+    val scheme = MaterialTheme.colorScheme
+    val tint = LiquidGlassDefaults.screenListCard
+    val deviceFraction = if (usage.deviceTotal > 0L) usage.deviceUsed.toFloat() / usage.deviceTotal else 0f
+    val reclaimable = usage.items.filter {
+        it.kind in setOf(
+            AppStorageKind.MUSIC, AppStorageKind.MEDIA, AppStorageKind.AI_CACHE,
+            AppStorageKind.OTHER_CACHE, AppStorageKind.EXTERNAL_CACHE,
+        )
+    }.sumOf { it.bytes }
+    GlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        backgroundAlpha = tint.background(isDark),
+        borderAlpha = tint.border(isDark),
+        highlightAlpha = tint.highlight(isDark),
+        borderColor = if (isDark) RoseRed.copy(alpha = 0.7f) else scheme.outline,
+        material3Container = scheme.surfaceContainerHigh,
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text(
+                text = stringResource(R.string.space_management),
+                style = MaterialTheme.typography.titleMedium,
+                color = scheme.onSurfaceVariant,
+            )
+            Text(
+                text = if (loading) stringResource(R.string.storage_calculating) else AppStorageManager.format(usage.total),
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = scheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.storage_app_total, AppStorageManager.format(usage.total)),
+                fontSize = 12.sp,
+                color = scheme.onSurfaceVariant,
+            )
+            LinearProgressIndicator(
+                progress = { deviceFraction.coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+            )
+            Text(
+                text = stringResource(
+                    R.string.storage_device_usage,
+                    AppStorageManager.format(usage.deviceUsed),
+                    AppStorageManager.format(usage.deviceTotal),
+                    AppStorageManager.format(usage.deviceAvailable),
+                ),
+                fontSize = 12.sp,
+                color = scheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.storage_reclaimable, AppStorageManager.format(reclaimable)),
+                fontSize = 12.sp,
+                color = RoseRed,
+            )
+            Text(
+                text = stringResource(R.string.storage_cache_count, cachedMusicCount, cacheSize),
+                fontSize = 12.sp,
+                color = scheme.onSurfaceVariant,
+            )
+            if (isLoading) {
+                Text(stringResource(R.string.preparing_playlist), color = RoseRed, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StorageUsageRow(item: com.neko.music.data.cache.AppStorageItem, total: Long, isDarkTheme: Boolean) {
+    val scheme = MaterialTheme.colorScheme
+    val tint = LiquidGlassDefaults.screenListCard
+    val fraction = if (total > 0L) item.bytes.toFloat() / total else 0f
+    GlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        backgroundAlpha = tint.background(isDarkTheme) * 0.72f,
+        borderAlpha = tint.border(isDarkTheme),
+        highlightAlpha = tint.highlight(isDarkTheme),
+        material3Container = scheme.surfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            com.neko.music.ui.icons.NekoSymbolIcon(
+                symbol = NekoSymbol.Storage,
+                contentDescription = null,
+                color = scheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(storageKindLabel(item.kind), fontSize = 14.sp, color = scheme.onSurface)
+                    Text(
+                        stringResource(R.string.storage_percent, AppStorageManager.format(item.bytes), fraction * 100f),
+                        fontSize = 12.sp,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { fraction.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun storageKindLabel(kind: AppStorageKind): String = stringResource(
+    when (kind) {
+        AppStorageKind.INSTALL -> R.string.storage_category_install
+        AppStorageKind.MUSIC -> R.string.storage_category_music
+        AppStorageKind.MEDIA -> R.string.storage_category_media
+        AppStorageKind.AI_MODEL -> R.string.storage_category_ai_model
+        AppStorageKind.AI_CACHE -> R.string.storage_category_ai_cache
+        AppStorageKind.DATABASE -> R.string.storage_category_database
+        AppStorageKind.PREFERENCES -> R.string.storage_category_preferences
+        AppStorageKind.LOCAL_FILES -> R.string.storage_category_local_files
+        AppStorageKind.OTHER_CACHE -> R.string.storage_category_other_cache
+        AppStorageKind.OTHER_DATA -> R.string.storage_category_other_data
+        AppStorageKind.EXTERNAL_CACHE -> R.string.storage_category_external_cache
+    }
+)
 
 @Composable
 fun CacheItem(

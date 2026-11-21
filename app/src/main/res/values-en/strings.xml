@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="storage_category_external_cache">External cache</string>
+    <string name="storage_category_other_data">Other app data</string>
+    <string name="storage_category_other_cache">Other cache</string>
+    <string name="storage_category_local_files">Local files</string>
+    <string name="storage_category_preferences">Preferences</string>
+    <string name="storage_category_database">Database</string>
+    <string name="storage_category_ai_cache">AI temporary cache</string>
+    <string name="storage_category_ai_model">AI model</string>
+    <string name="storage_category_media">Artwork and lyrics</string>
+    <string name="storage_category_music">Music cache</string>
+    <string name="storage_category_install">App package</string>
+    <string name="storage_percent">%1$s · %2$.1f%%</string>
+    <string name="storage_cache_count">Music cache: %1$d songs · %2$s</string>
+    <string name="storage_reclaimable">Reclaimable cache: %1$s</string>
+    <string name="storage_device_usage">Device used %1$s / %2$s · %3$s available</string>
+    <string name="storage_app_total">App data: %1$s</string>
+    <string name="storage_calculating">Calculating…</string>
+    <string name="storage_breakdown">Storage usage</string>
+    <string name="storage_summary_songs">%1$d songs · %2$s total</string>
+    <string name="space_management">Storage</string>
     <string name="stem_stream_failed">AI separation failed. Original audio continues. Retry in Settings.</string>
     <string name="stem_stream_fallback">AI processing is running behind. Playing the original audio for this chunk.</string>
     <string name="stem_stream_active">AI audio mixing is active.</string>
@@ -67,7 +87,7 @@
     <string name="haptics_test">Test vibration</string>
     <string name="cache_enabled">Enable Cache</string>
     <string name="cache_enabled_subtitle">Cache music for offline playback</string>
-    <string name="cache_management">Cache Management</string>
+    <string name="cache_management">Storage</string>
     <string name="cached_songs" formatted="false">%1$d songs cached (%2$s)</string>
     <string name="focus_lock">Focus Lock</string>
     <string name="focus_lock_subtitle">Won\'t be interrupted by other apps when enabled, allows simultaneous playback</string>

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="storage_category_external_cache">外部缓存喵</string>
+    <string name="storage_category_other_data">其他应用数据喵</string>
+    <string name="storage_category_other_cache">其他缓存喵</string>
+    <string name="storage_category_local_files">本地文件喵</string>
+    <string name="storage_category_preferences">应用设置喵</string>
+    <string name="storage_category_database">数据库喵</string>
+    <string name="storage_category_ai_cache">AI 临时缓存喵</string>
+    <string name="storage_category_ai_model">AI 模型喵</string>
+    <string name="storage_category_media">封面和歌词喵</string>
+    <string name="storage_category_music">音乐缓存喵</string>
+    <string name="storage_category_install">安装包喵</string>
+    <string name="storage_percent">%1$s · %2$.1f%% 喵</string>
+    <string name="storage_cache_count">音乐缓存 %1$d 首 · %2$s 喵</string>
+    <string name="storage_reclaimable">可以清理的缓存：%1$s 喵</string>
+    <string name="storage_device_usage">设备已用 %1$s / %2$s，还能用 %3$s 喵</string>
+    <string name="storage_app_total">本软件占用 %1$s 喵</string>
+    <string name="storage_calculating">正在算…喵</string>
+    <string name="storage_breakdown">存储占用喵</string>
+    <string name="storage_summary_songs">%1$d 首歌 · 一共占了 %2$s 喵</string>
+    <string name="space_management">空间管理喵</string>
     <string name="stem_stream_failed">AI 分离失败，正在播放原曲。可以在设置里重试喵。</string>
     <string name="stem_stream_fallback">AI 处理比较慢，这一段先播放原曲喵。</string>
     <string name="stem_stream_active">AI 片段混音已生效喵。</string>
@@ -66,7 +86,7 @@
     <string name="haptics_test">测试振动喵</string>
     <string name="cache_enabled">要缓存吗喵？</string>
     <string name="cache_enabled_subtitle">开启后可以把音乐藏进肉垫，离线也能听喵</string>
-    <string name="cache_management">缓存仓库喵</string>
+    <string name="cache_management">空间管理喵</string>
     <string name="cached_songs" formatted="false">已抓到 %1$d 首歌曲 (%2$s) 喵</string>
     <string name="focus_lock">焦点锁定喵</string>
     <string name="focus_lock_subtitle">开启后人家就不会被其他坏应用打断了，可以一起叫喵</string>

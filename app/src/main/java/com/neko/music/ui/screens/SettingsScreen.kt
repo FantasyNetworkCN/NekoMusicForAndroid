@@ -5,6 +5,8 @@ import com.neko.music.R
 import com.neko.music.BuildConfig
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import com.neko.music.ui.theme.isAppDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +38,8 @@ import com.neko.music.ui.icons.NekoSymbol
 import com.neko.music.ui.icons.NekoSymbolIcon
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
+import com.neko.music.data.cache.AppStorageManager
+import com.neko.music.data.cache.AppStorageUsage
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
 import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
@@ -44,6 +48,10 @@ import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
+import com.neko.music.ui.components.GlassSurface
+import com.neko.music.ui.components.LiquidGlassDefaults
+import com.neko.music.ui.components.LiquidGlassSlider
+import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.StemStreamPhase
@@ -119,6 +127,13 @@ fun SettingsScreen(
     val cacheManager = remember { com.neko.music.data.cache.MusicCacheManager.getInstance(context) }
     var cacheSize by remember { mutableStateOf(cacheManager.getCacheSizeFormatted()) }
     var cachedMusicCount by remember { mutableStateOf(cacheManager.getCachedMusicCount()) }
+    var storageUsage by remember { mutableStateOf(AppStorageUsage()) }
+
+    LaunchedEffect(Unit) {
+        storageUsage = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            AppStorageManager.calculate(context)
+        }
+    }
 
     // 当缓存启用状态改变时更新缓存信息
     LaunchedEffect(isCacheEnabled) {
@@ -133,6 +148,11 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 cacheSize = cacheManager.getCacheSizeFormatted()
                 cachedMusicCount = cacheManager.getCachedMusicCount()
+                scope.launch {
+                    storageUsage = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        AppStorageManager.calculate(context)
+                    }
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -230,7 +250,8 @@ fun SettingsScreen(
         SettingsSearchEntry(SettingsEntryId.CacheEnabled, SettingsSectionId.Playback,
             stringResource(R.string.cache_enabled), stringResource(R.string.cache_enabled_subtitle), playbackTitle, "缓存 离线 cache offline"),
         SettingsSearchEntry(SettingsEntryId.CacheManagement, SettingsSectionId.Playback,
-            stringResource(R.string.cache_management), stringResource(R.string.cached_songs, cachedMusicCount, cacheSize), playbackTitle,
+            stringResource(R.string.space_management), stringResource(R.string.storage_summary_songs,
+                cachedMusicCount, AppStorageManager.format(storageUsage.total)), playbackTitle,
             "缓存 存储 空间 清理 cache storage clear"),
         SettingsSearchEntry(SettingsEntryId.Haptics, SettingsSectionId.Haptics,
             stringResource(R.string.haptics_enabled), stringResource(R.string.haptics_strength), hapticsTitle, "振动 触感 测试 haptics vibration test"),
@@ -477,12 +498,15 @@ private fun HapticSettingsSection(forceExpanded: Boolean) {
     val hasVibrator = remember(context) { AppHaptics.hasVibrator(context) }
     val supportsStrength = remember(context) { AppHaptics.supportsStrength(context) }
     var enabled by remember(context) { mutableStateOf(AppHaptics.isEnabled(context)) }
+    var strength by remember(context) { mutableFloatStateOf(AppHaptics.strength(context).toFloat()) }
     val strengthState = remember(context) {
         SliderState(
-            value = AppHaptics.strength(context).toFloat(),
+            value = strength,
             trackRange = AppHaptics.MIN_STRENGTH.toFloat()..AppHaptics.MAX_STRENGTH.toFloat(),
         )
     }
+    val backdrop = LocalLiquidLayerBackdrop.current
+    val useLiquid = backdrop != null && isLiquidGlassEffectActive(backdrop)
 
     SettingSection(title = stringResource(R.string.haptics_section), collapsible = true, forceExpanded = forceExpanded) {
         if (!hasVibrator) {
@@ -504,7 +528,9 @@ private fun HapticSettingsSection(forceExpanded: Boolean) {
             )
             if (supportsStrength) {
                 val strengthLabel = stringResource(R.string.haptics_strength)
-                Column(modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 12.dp)) {
+                val testLabel = stringResource(R.string.haptics_test)
+                val isDark = isAppDarkTheme()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -512,25 +538,57 @@ private fun HapticSettingsSection(forceExpanded: Boolean) {
                     ) {
                         Text(text = strengthLabel, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         Text(
-                            text = stringResource(R.string.haptics_strength_percent, strengthState.value.roundToInt()),
+                            text = stringResource(R.string.haptics_strength_percent, strength.roundToInt()),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Slider(
-                        state = strengthState,
-                        onValueChange = { strengthState.value = it },
-                        onValueChangeFinished = {
-                            AppHaptics.setStrength(context, strengthState.value.roundToInt())
-                            AppHaptics.pulse(context)
-                        },
-                        enabled = enabled,
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = strengthLabel },
-                    )
-                    TextButton(
-                        onClick = { AppHaptics.pulse(context, force = true) },
-                        modifier = Modifier.align(Alignment.End),
+                    val saveStrength = {
+                        AppHaptics.setStrength(context, strength.roundToInt())
+                        AppHaptics.pulse(context)
+                    }
+                    if (useLiquid) {
+                        val range = (AppHaptics.MAX_STRENGTH - AppHaptics.MIN_STRENGTH).toFloat()
+                        LiquidGlassSlider(
+                            value = (strength - AppHaptics.MIN_STRENGTH) / range,
+                            onValueChange = { fraction ->
+                                strength = AppHaptics.MIN_STRENGTH + fraction * range
+                                strengthState.value = strength
+                            },
+                            backdrop = backdrop,
+                            enabled = enabled,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .semantics { contentDescription = strengthLabel },
+                            onValueChangeFinished = saveStrength,
+                        )
+                    } else {
+                        Slider(
+                            state = strengthState,
+                            onValueChange = { strength = it },
+                            onValueChangeFinished = saveStrength,
+                            enabled = enabled,
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = strengthLabel },
+                        )
+                    }
+                    val panel = LiquidGlassDefaults.shareSheetSection
+                    GlassSurface(
+                        modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(onClick = { AppHaptics.pulse(context, force = true) })
+                            .semantics { contentDescription = testLabel },
+                        shape = RoundedCornerShape(20.dp),
+                        backgroundAlpha = panel.tint.background(isDark),
+                        borderAlpha = panel.tint.border(isDark),
+                        highlightAlpha = panel.tint.highlight(isDark),
+                        borderColor = MaterialTheme.colorScheme.outline,
+                        liquidBlur = panel.liquid.blur,
+                        liquidLensHeight = panel.liquid.lensHeight,
+                        liquidLensAmount = panel.liquid.lensAmount,
+                        material3Container = MaterialTheme.colorScheme.surfaceContainer,
                     ) {
-                        Text(stringResource(R.string.haptics_test))
+                        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                            Text(testLabel, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                        }
                     }
                 }
             }
