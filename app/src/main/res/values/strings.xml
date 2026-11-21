@@ -12,7 +12,7 @@
     <string name="stem_ai_model_ready">AI 模型已经下载好，不用重复下载喵。</string>
     <string name="stem_ai_model_verifying">正在校验本地 AI 模型喵…</string>
     <string name="stem_ai_download_progress">AI 模型下载：%1$d%% · %2$.1f / %3$.1f MB</string>
-    <string name="stem_mode_quality_hint">选中后下载约 28 MB 的本机 AI 模型。开启调节后，AI 会逐段处理播放器解码的音频喵。</string>
+    <string name="stem_mode_quality_hint">选中后通过国内代理下载约 28 MB 的本机 AI 模型喵。开启调节后，AI 会逐段处理播放器解码的音频。</string>
     <string name="stem_realtime_limit">用声道与频谱计算近似分离，不用下载模型，可以边播放边调节喵。可能混入乐器，单声道效果有限。</string>
     <string name="stem_mode_quality">AI 分离</string>
     <string name="stem_mode_realtime">无 AI 计算分离</string>

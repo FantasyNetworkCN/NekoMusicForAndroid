@@ -47,6 +47,7 @@ Android 使用系统浏览器完成 NekoAuth 授权，注册、账号中心与�
   AI 推理优先使用 XNNPACK；NNAPI 参考驱动会带来额外分区开销，因此只作为 XNNPACK 不可用时的回退。
 
 模型为 [UVR_MDXNET_1_9703](https://github.com/TRvlvr/model_repo/releases/tag/all_public_uvr_models)，
+客户端通过国内代理下载，不直连 GitHub；主代理失败时自动尝试备用代理，下载后仍校验固定 SHA-256。
 输入规格与推理参数参考 [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui)。
 推理使用 [ONNX Runtime](https://github.com/microsoft/onnxruntime)，频谱变换使用
 [JTransforms](https://github.com/wendykierp/JTransforms)。模型下载后验证固定的 SHA-256，再加载到内存。

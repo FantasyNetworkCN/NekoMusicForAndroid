@@ -12,7 +12,7 @@
     <string name="stem_ai_model_ready">AI model downloaded. No repeat download needed.</string>
     <string name="stem_ai_model_verifying">Verifying the local AI model…</string>
     <string name="stem_ai_download_progress">AI model download: %1$d%% · %2$.1f / %3$.1f MB</string>
-    <string name="stem_mode_quality_hint">Selecting this option downloads a 28 MB on-device AI model. When mixing is enabled, AI processes chunks of decoded playback audio.</string>
+    <string name="stem_mode_quality_hint">Selecting this option downloads a 28 MB on-device AI model through a China-accessible proxy. When mixing is enabled, AI processes chunks of decoded playback audio.</string>
     <string name="stem_realtime_limit">Approximate separation using stereo and spectral calculations. No model download is needed; adjust during playback. Instruments may leak into vocals, especially with mono audio.</string>
     <string name="stem_mode_quality">AI separation</string>
     <string name="stem_mode_realtime">Non-AI computational separation</string>

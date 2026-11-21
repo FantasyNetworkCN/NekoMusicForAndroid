@@ -1,5 +1,6 @@
 package com.neko.music.service
 
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.installNekoClientHeader
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -98,9 +99,13 @@ internal class StemModelRepository(
     companion object {
         const val MODEL_BYTES = 29_704_436L
         private const val MODEL_SHA256 = "229ad3bb96a037e89d8ed86732d6d3675856e6a07c3e3f02896eac01ec7ee4be"
-        private const val MODEL_URL = "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_1_9703.onnx"
+        private val MODEL_URLS = listOf(
+            "https://ghfast.top/https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_1_9703.onnx",
+            "https://ghproxy.net/https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR_MDXNET_1_9703.onnx",
+        )
 
         private suspend fun download(destination: File, progress: (Long) -> Unit) {
+            var lastFailure: Exception? = null
             HttpClient(OkHttp) {
                 installNekoClientHeader()
                 expectSuccess = true
@@ -110,24 +115,37 @@ internal class StemModelRepository(
                     requestTimeoutMillis = 600_000
                 }
             }.use { client ->
-                client.prepareGet(MODEL_URL).execute { response ->
-                    val channel = response.bodyAsChannel()
-                    destination.outputStream().buffered().use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        var received = 0L
-                        while (true) {
-                            currentCoroutineContext().ensureActive()
-                            val count = channel.readAvailable(buffer, 0, buffer.size)
-                            if (count < 0) break
-                            if (count == 0) continue
-                            received += count
-                            check(received <= MODEL_BYTES)
-                            output.write(buffer, 0, count)
-                            progress(received)
+                for ((index, url) in MODEL_URLS.withIndex()) {
+                    try {
+                        client.prepareGet(url).execute { response ->
+                            val channel = response.bodyAsChannel()
+                            destination.outputStream().buffered().use { output ->
+                                val buffer = ByteArray(64 * 1024)
+                                var received = 0L
+                                while (true) {
+                                    currentCoroutineContext().ensureActive()
+                                    val count = channel.readAvailable(buffer, 0, buffer.size)
+                                    if (count < 0) break
+                                    if (count == 0) continue
+                                    received += count
+                                    check(received <= MODEL_BYTES)
+                                    output.write(buffer, 0, count)
+                                    progress(received)
+                                }
+                                check(received == MODEL_BYTES) { "国内代理返回的 AI 模型不完整" }
+                            }
                         }
+                        return
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        lastFailure = error
+                        destination.delete()
+                        Log.w("StemModelRepository", "国内代理 ${index + 1} 下载失败，尝试备用代理", error)
                     }
                 }
             }
+            throw lastFailure ?: IllegalStateException("没有可用的 AI 模型国内代理")
         }
     }
 }
