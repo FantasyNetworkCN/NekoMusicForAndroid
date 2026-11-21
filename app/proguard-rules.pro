@@ -60,5 +60,8 @@
     native <methods>;
 }
 
+# JTransforms 仅在桌面 JVM 的堆外数组路径引用该可选类，Android 运行时不使用。
+-dontwarn sun.misc.Cleaner
+
 # 应用模型（按需保留，避免接口字段被混淆）
 -keep class com.neko.music.data.model.** { *; }

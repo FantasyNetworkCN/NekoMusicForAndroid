@@ -38,8 +38,8 @@ android {
         applicationId = "com.neko.music"
         minSdk = 24
         targetSdk = 37
-        versionCode = 107
-        versionName = "20261121"
+        versionCode = 108
+        versionName = "20261122"
 
         vectorDrawables.useSupportLibrary = true
 
