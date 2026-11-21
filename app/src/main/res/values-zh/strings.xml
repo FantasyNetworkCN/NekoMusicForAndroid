@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="stem_mode_quality_hint">使用本机模型分离，首次需下载约 64 MB 模型。后台准备完成后生效，期间继续播放原曲。</string>
     <string name="stem_realtime_limit">实时模式按声道与频谱估计人声，乐器可能串入人声，单声道效果有限；无需下载模型，可边播放边调节。</string>
     <string name="stem_mode_quality">高质量模型分离（后台准备）</string>
     <string name="stem_mode_realtime">实时近似分离（无需模型）</string>

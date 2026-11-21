@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="stem_mode_quality_hint">Uses an on-device model with a 64 MB download on first use. Applies after background preparation; original audio continues meanwhile.</string>
     <string name="stem_realtime_limit">Real-time mode estimates vocals from stereo and spectral information. Instruments may leak into vocals, especially with mono audio. No model download is needed; mix changes apply during playback.</string>
     <string name="stem_mode_quality">High-quality model (background preparation)</string>
     <string name="stem_mode_realtime">Real-time approximation (no model)</string>

@@ -47,6 +47,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.stemPreparationDescription
+import com.neko.music.ui.components.StemSeparationModeSelector
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -93,7 +94,6 @@ fun SettingsScreen(
     val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val stemState by stemSeparation.state.collectAsState()
     var showStemDownloadDialog by rememberSaveable { mutableStateOf(false) }
-    var showStemModeDialog by rememberSaveable { mutableStateOf(false) }
     val stemSubtitle = when {
         stemState.enabled -> stemPreparationDescription(stemState)
         else -> stringResource(R.string.stem_separation_hint)
@@ -365,11 +365,17 @@ fun SettingsScreen(
                                                                 }
                                                             },
                                                         )
-                                                        SettingItem(
-                                                            NekoSymbol.AutoMix,
-                                                            stringResource(R.string.stem_mode),
-                                                            stringResource(if (stemState.realtime) R.string.stem_mode_realtime else R.string.stem_mode_quality),
-                                                            onClick = { showStemModeDialog = true },
+                                                        StemSeparationModeSelector(
+                                                            realtime = stemState.realtime,
+                                                            onSelect = { realtime ->
+                                                                if (realtime != stemState.realtime) {
+                                                                    if (!realtime && !stemSeparation.modelDownloaded) {
+                                                                        showStemDownloadDialog = true
+                                                                    } else {
+                                                                        stemSeparation.setRealtime(realtime)
+                                                                    }
+                                                                }
+                                                            },
                                                         )
                                                         if (stemState.enabled) {
                                                             if (stemState.errorRes != null && !stemState.preparing) {
@@ -418,29 +424,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    if (showStemModeDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showStemModeDialog = false },
-                            title = { Text(stringResource(R.string.stem_mode)) },
-                            text = {
-                                Column {
-                                    Text(stringResource(R.string.stem_realtime_limit))
-                                    TextButton(onClick = {
-                                        stemSeparation.setRealtime(true)
-                                        showStemModeDialog = false
-                                    }) { Text(stringResource(R.string.stem_mode_realtime)) }
-                                    TextButton(onClick = {
-                                        showStemModeDialog = false
-                                        if (!stemSeparation.modelDownloaded) showStemDownloadDialog = true
-                                        else stemSeparation.setRealtime(false)
-                                    }) { Text(stringResource(R.string.stem_mode_quality)) }
-                                }
-                            },
-                            confirmButton = {
-                                TextButton(onClick = { showStemModeDialog = false }) { Text(stringResource(R.string.close)) }
-                            },
-                        )
-                    }
                     if (showStemDownloadDialog) {
                         AlertDialog(
                             onDismissRequest = { showStemDownloadDialog = false },
