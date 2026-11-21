@@ -44,6 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -213,26 +214,35 @@ private fun AudioSettingsTabStrip(
             onTabSelected(index)
         }
     }
-    val rowModifier = modifier.height(48.dp)
+    val rowModifier = modifier.height(56.dp)
     if (backdrop != null && isLiquidGlassEffectActive(backdrop)) {
-        LiquidTabStrip(
-            selectedTabIndex = selectedTab,
-            onTabSelected = select,
-            backdrop = backdrop,
-            tabsCount = labels.size,
-            isDark = isDark,
-            accentColor = scheme.primary,
-            barHeight = 48.dp,
-            modifier = rowModifier,
-        ) {
-            labels.forEachIndexed { index, label ->
-                AudioSettingsTab(
-                    label = label,
-                    selected = selectedTab == index,
-                    isDark = isDark,
-                    liquidStyle = true,
-                    onClick = { select(index) },
-                )
+        val baseScale = LocalLiquidGlassUiScale.current
+        val amplifiedScale = baseScale.copy(
+            tintStrength = (baseScale.tintStrength * 1.25f).coerceAtMost(LiquidGlassUiScale.StrengthMax),
+            blurStrength = (baseScale.blurStrength * 1.45f).coerceAtMost(LiquidGlassUiScale.StrengthMax),
+            lensHeightStrength = (baseScale.lensHeightStrength * 1.65f).coerceAtMost(LiquidGlassUiScale.StrengthMax),
+            lensAmountStrength = (baseScale.lensAmountStrength * 1.65f).coerceAtMost(LiquidGlassUiScale.StrengthMax),
+        )
+        CompositionLocalProvider(LocalLiquidGlassUiScale provides amplifiedScale) {
+            LiquidTabStrip(
+                selectedTabIndex = selectedTab,
+                onTabSelected = select,
+                backdrop = backdrop,
+                tabsCount = labels.size,
+                isDark = isDark,
+                accentColor = scheme.primary,
+                barHeight = 56.dp,
+                modifier = rowModifier,
+            ) {
+                labels.forEachIndexed { index, label ->
+                    AudioSettingsTab(
+                        label = label,
+                        selected = selectedTab == index,
+                        isDark = isDark,
+                        liquidStyle = true,
+                        onClick = { select(index) },
+                    )
+                }
             }
         }
     } else {
