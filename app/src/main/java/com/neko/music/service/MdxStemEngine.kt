@@ -2,6 +2,7 @@ package com.neko.music.service
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtProvider
 import ai.onnxruntime.OrtSession
 import ai.onnxruntime.TensorInfo
 import java.io.Closeable
@@ -16,16 +17,23 @@ internal interface StemInference : Closeable {
 internal class MdxStemEngine(file: File) : StemInference {
     private val environment = OrtEnvironment.getEnvironment()
     private val session = OrtSession.SessionOptions().use { options ->
-        options.setIntraOpNumThreads(2)
+        val threads = Runtime.getRuntime().availableProcessors().coerceIn(1, 4)
+        if (OrtProvider.XNNPACK in OrtEnvironment.getAvailableProviders()) {
+            options.setIntraOpNumThreads(1)
+            options.addConfigEntry("session.intra_op.allow_spinning", "0")
+            options.addXnnpack(mapOf("intra_op_num_threads" to threads.toString()))
+        } else {
+            options.setIntraOpNumThreads(threads)
+        }
         options.setInterOpNumThreads(1)
         environment.createSession(file.absolutePath, options)
     }
-    private val dsp = StemDsp()
+    private val dsp = StemDsp(frames = SPECTRUM_FRAMES)
 
     init {
         try {
             val shape = (session.inputInfo.getValue("input").info as TensorInfo).shape
-            require(shape.contentEquals(longArrayOf(-1, 4, 3072, 256)))
+            require(shape.contentEquals(longArrayOf(-1, 4, 3072, SPECTRUM_FRAMES.toLong())))
         } catch (error: Exception) {
             session.close()
             throw error
@@ -38,10 +46,10 @@ internal class MdxStemEngine(file: File) : StemInference {
         val spectrum = dsp.encode(wave)
         // 与模型上游推理流程一致，清除最底部三个频率桶。
         for (channel in 0 until 4) {
-            spectrum.fill(0f, channel * 3072 * 256, (channel * 3072 + 3) * 256)
+            spectrum.fill(0f, channel * 3072 * SPECTRUM_FRAMES, (channel * 3072 + 3) * SPECTRUM_FRAMES)
         }
         val prediction = OnnxTensor.createTensor(
-            environment, FloatBuffer.wrap(spectrum), longArrayOf(1, 4, 3072, 256)
+            environment, FloatBuffer.wrap(spectrum), longArrayOf(1, 4, 3072, SPECTRUM_FRAMES.toLong())
         ).use { input ->
             session.run(mapOf("input" to input)).use { result ->
                 val tensor = result[0] as OnnxTensor
@@ -62,7 +70,8 @@ internal class MdxStemEngine(file: File) : StemInference {
 
     companion object {
         const val SAMPLE_RATE = 44_100
-        const val MODEL_FRAMES = 261_120
+        const val SPECTRUM_FRAMES = 256
+        const val MODEL_FRAMES = 1024 * (SPECTRUM_FRAMES - 1)
         const val TRIM_FRAMES = 3072
         const val OUTPUT_FRAMES = MODEL_FRAMES - TRIM_FRAMES * 2
     }

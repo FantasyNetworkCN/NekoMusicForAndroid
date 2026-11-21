@@ -69,7 +69,8 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
     }
 
     // 仅播放控件可见且页面在前台时读取，实体按键和系统面板都以系统实际音量为准。
-    LaunchedEffect(audioManager, lifecycle) {
+    LaunchedEffect(audioManager, lifecycle, state.enabled) {
+        if (state.enabled) return@LaunchedEffect
         lifecycle.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 refreshVolume()
@@ -79,28 +80,36 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
     }
 
     Column(modifier = modifier) {
-        val available = !volume.fixed && volume.maximum > volume.minimum
-        val fraction = if (volume.maximum > volume.minimum) {
-            (volume.current - volume.minimum).toFloat() / (volume.maximum - volume.minimum)
-        } else 0f
-        VolumeSlider(
-            label = stringResource(R.string.player_system_media_volume),
-            value = fraction.coerceIn(0f, 1f),
-            enabled = available,
-            showSpeaker = true,
-            onValueChange = { value ->
-                val target = volume.minimum + (value * (volume.maximum - volume.minimum)).roundToInt()
-                try {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target.coerceIn(volume.minimum, volume.maximum), 0)
-                } catch (_: SecurityException) {
-                    Toast.makeText(context, failureText, Toast.LENGTH_SHORT).show()
-                }
-                refreshVolume()
-            },
-        )
         if (state.enabled) {
             VolumeSlider(stringResource(R.string.stem_vocals), state.vocals, onValueChange = separation::setVocals)
             VolumeSlider(stringResource(R.string.stem_instrumental), state.instrumental, onValueChange = separation::setInstrumental)
+            if (!state.ready && !state.realtime) {
+                Text(
+                    text = stemPreparationDescription(state) + "\n" + stringResource(R.string.stem_pending_mix),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            val available = !volume.fixed && volume.maximum > volume.minimum
+            val fraction = if (volume.maximum > volume.minimum) {
+                (volume.current - volume.minimum).toFloat() / (volume.maximum - volume.minimum)
+            } else 0f
+            VolumeSlider(
+                label = stringResource(R.string.player_system_media_volume),
+                value = fraction.coerceIn(0f, 1f),
+                enabled = available,
+                showSpeaker = true,
+                onValueChange = { value ->
+                    val target = volume.minimum + (value * (volume.maximum - volume.minimum)).roundToInt()
+                    try {
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target.coerceIn(volume.minimum, volume.maximum), 0)
+                    } catch (_: SecurityException) {
+                        Toast.makeText(context, failureText, Toast.LENGTH_SHORT).show()
+                    }
+                    refreshVolume()
+                },
+            )
         }
     }
 }
@@ -156,7 +165,10 @@ private fun VolumeSlider(
         } else {
             val sliderState = remember { SliderState(value = value) }
             LaunchedEffect(value) { sliderState.value = value }
-            Slider(state = sliderState, onValueChange = onValueChange, enabled = enabled, modifier = semantics)
+            Slider(state = sliderState, onValueChange = {
+                sliderState.value = it
+                onValueChange(it)
+            }, enabled = enabled, modifier = semantics)
         }
         Text(
             percent, style = MaterialTheme.typography.bodySmall,

@@ -810,7 +810,7 @@ fun PlayerScreen(
         playerManager.stemSeparation.state.map { it.enabled }.distinctUntilChanged()
     }.collectAsState(initial = playerManager.stemSeparation.state.value.enabled)
     val fullBottomReserve = (if (isLandscape) 154.dp else 248.dp) +
-        if (stemControlsVisible) 96.dp else 0.dp
+        if (stemControlsVisible) 88.dp else 0.dp
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val miniPlayerReserve = 84.dp + navigationBarBottom
     val lyricsControlsHidden = showLyrics && !lyricsControlsVisible

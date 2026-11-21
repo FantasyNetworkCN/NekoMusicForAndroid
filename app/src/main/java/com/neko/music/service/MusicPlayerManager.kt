@@ -98,17 +98,22 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_AUDIO_QUALITY = "audio_quality"
     private val KEY_PREFERRED_AUDIO_QUALITY = "preferred_audio_quality"
 
-    internal val stemSeparation = StemSeparationController(appContext) {
+    internal val stemSeparation = StemSeparationController(appContext) { source ->
         // 在同一播放器当前位置刷新音频管线，保留队列、倍速、音频焦点和通知会话。
-        activePlayer.currentMediaItem?.let { item ->
+        activePlayer.currentMediaItem?.let {
             val position = activePlayer.currentPosition.coerceAtLeast(0L)
-            activePlayer.setMediaItem(item, position)
+            activePlayer.setMediaItem(MediaItem.fromUri(source), position)
             activePlayer.prepare()
+            _currentPosition.value = position
+            if (activePlayer.playWhenReady) startPositionUpdate()
         }
     }
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
+
+    private fun stemSource(source: String, musicId: Int? = _currentMusicId.value, quality: AudioQuality = _audioQuality.value): String =
+        stemSeparation.sourceForPlayback(source, musicId?.let { "music:$it:${quality.id}" } ?: source)
 
     @Volatile
     private var roomPlaybackDelegate: RoomPlaybackDelegate? = null
@@ -463,7 +468,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
         try {
             // resetPosition=false：位置由下一行的 seekTo 精确接管，避免回到 0
-            player.setMediaItem(MediaItem.fromUri(url), /* resetPosition = */ false)
+            player.setMediaItem(MediaItem.fromUri(stemSource(url, musicId, quality)), /* resetPosition = */ false)
             player.seekTo(position)
             player.prepare()
         } catch (e: Exception) {
@@ -486,7 +491,6 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
         _playbackSpeed.value = speed
-        stemSeparation.playbackSpeed = speed
         activePlayer.setPlaybackSpeed(speed)
         Log.d("MusicPlayerManager", "播放速度设置为: $speed")
     }
@@ -967,6 +971,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
             override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
                 Log.e("MusicPlayerManager", "播放错误: code = ${error.errorCode}, message = ${error.message}, 重试次数: $retryCount", error)
+                if (stemSeparation.recoverOriginal()) return
                 // 增加重试计数器
                 retryCount++
 
@@ -982,7 +987,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     // 延迟 500ms 后重试
                     mainHandler.postDelayed({
                         try {
-                            val mediaItem = MediaItem.fromUri(currentUrl)
+                            val mediaItem = MediaItem.fromUri(stemSource(currentUrl))
                             // 重试同样不能用 stop()：那会释放音频焦点，重试时焦点请求失败又会被静默暂停
                             activePlayer.setMediaItem(mediaItem, true)
                             activePlayer.prepare()
@@ -1022,6 +1027,8 @@ class MusicPlayerManager private constructor(context: Context) {
                         if (!isReleased) {
                             _isBuffering.value = false
                             _duration.value = activePlayer.duration
+                            _currentPosition.value = activePlayer.currentPosition.coerceAtLeast(0L)
+                            if (activePlayer.playWhenReady) startPositionUpdate()
                             // 音乐加载完成，预加载下一首
                             preloadNextMusic()
                         }
@@ -1363,9 +1370,7 @@ class MusicPlayerManager private constructor(context: Context) {
         updateJob = scope.launch {
             while (true) {
                 delay(100)
-                if (activePlayer.isPlaying) {
-                    _currentPosition.value = activePlayer.currentPosition
-                }
+                _currentPosition.value = activePlayer.currentPosition.coerceAtLeast(0L)
             }
         }
     }
@@ -1637,7 +1642,7 @@ class MusicPlayerManager private constructor(context: Context) {
             // setMediaItem() 不经过 IDLE（旧媒体由内部播放器原子替换），音频焦点得以保持。
             try {
                 Log.d("MusicPlayerManager", "正在设置 MediaItem 并准备播放: $playUrl")
-                val mediaItem = MediaItem.fromUri(playUrl)
+                val mediaItem = MediaItem.fromUri(stemSource(playUrl, id))
                 activePlayer.setMediaItem(mediaItem, /* resetPosition = */ true)
                 activePlayer.prepare()
             } catch (e: Exception) {
@@ -1645,7 +1650,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 // 如果准备失败，尝试重新设置
                 try {
                     Log.d("MusicPlayerManager", "尝试使用原始 URL 重试设置 MediaItem: $normalizedUrl")
-                    val mediaItem = MediaItem.fromUri(normalizedUrl)
+                    val mediaItem = MediaItem.fromUri(stemSource(normalizedUrl, id))
                     activePlayer.setMediaItem(mediaItem, /* resetPosition = */ true)
                     activePlayer.prepare()
                 } catch (e2: Exception) {
@@ -1997,7 +2002,7 @@ class MusicPlayerManager private constructor(context: Context) {
             withContext(Dispatchers.Main) {
                 try {
                     Log.d("MusicPlayerManager", "正在主线程恢复最后播放的媒体源: $url")
-                    val mediaItem = MediaItem.fromUri(url)
+                    val mediaItem = MediaItem.fromUri(stemSource(url, music.id))
                     activePlayer.setMediaItem(mediaItem)
                     activePlayer.prepare()
                 } catch (e: Exception) {

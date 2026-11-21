@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="stem_realtime_limit">实时模式按声道与频谱估计人声，乐器可能串入人声，单声道效果有限；无需下载模型，可边播放边调节。</string>
+    <string name="stem_mode_quality">高质量模型分离（后台准备）</string>
+    <string name="stem_mode_realtime">实时近似分离（无需模型）</string>
+    <string name="stem_mode">分离方式</string>
+    <string name="stem_pending_mix">可先调整两路音量，准备完成后生效；当前仍播放原曲。</string>
+    <string name="stem_cache_ready">已使用本地分离缓存，可立即调节</string>
+    <string name="stem_decoding_track">正在本机解码歌曲（不下载）…</string>
+    <string name="stem_downloading_track_unknown">正在从曲库下载当前歌曲：已接收 %1$d KB</string>
+    <string name="stem_downloading_track">正在从曲库下载当前歌曲：%1$d / %2$d KB</string>
+    <string name="stem_reading_local">正在读取本地歌曲（不下载）…</string>
+    <string name="stem_loading_model">正在加载本地模型（不下载）…</string>
+    <string name="stem_checking_model">正在校验本地模型（不下载）…</string>
+    <string name="stem_memory_unavailable">当前空闲内存不足，原曲继续播放，开关保持开启。关闭其他应用后可重新准备。</string>
+    <string name="stem_retry">重新准备</string>
+    <string name="stem_track_preparing">正在本机分离：%1$d%%（不下载）</string>
     <string name="lan_permission_enable">启用局域网发现</string>
     <string name="lan_permission_hint">允许访问附近设备后，可发现同一网络中的播放列表。本机播放不受影响。</string>
     <string name="lan_permission_denied">未获得局域网访问权限，将继续使用本机播放列表。可在应用设置的“附近的设备”权限中开启。</string>
@@ -10,18 +25,18 @@
     <string name="player_system_volume_fixed">当前设备的媒体音量由系统或外接设备控制。</string>
     <string name="player_volume_change_failed">暂时无法调整系统媒体音量，请使用手机音量键。</string>
     <string name="stem_separation">人声与伴奏调节</string>
-    <string name="stem_separation_hint">开启后可在播放页底部调节人声和伴奏音量。在本机分离音频，会增加耗电和内存占用。</string>
+    <string name="stem_separation_hint">默认实时近似分离，可边播放边调节；也可选择高质量模型后台准备。开关与音量自动保存。</string>
     <string name="stem_room_unavailable">一起听期间暂不支持音源分离，以保持房间播放同步。</string>
     <string name="stem_vocals">人声</string>
     <string name="stem_instrumental">伴奏</string>
     <string name="stem_reset_mix">恢复原声比例</string>
-    <string name="stem_download_confirmation">首次开启需从 GitHub 下载约 64 MB 的音源分离模型，建议使用 Wi-Fi。音频仅在本机处理。开启和拖动进度后需缓冲约 6 秒，实际等待取决于设备性能；分离效果因歌曲而异。是否下载并开启？</string>
+    <string name="stem_download_confirmation">首次开启需从 GitHub 下载约 64 MB 模型，建议使用 Wi-Fi。歌曲只在本机处理。客户端会先在后台分离整首歌曲并缓存，完成后切换到双路调节；期间原曲正常播放。慢设备可能等待数分钟，缓存会占用额外存储空间。是否下载并开启？</string>
     <string name="stem_enable_download">下载并开启</string>
     <string name="stem_downloading">正在下载模型：%1$d%%，关闭开关可取消</string>
-    <string name="stem_preparing">正在校验并加载模型，关闭开关可取消…</string>
-    <string name="stem_buffer_hint">开启和拖动进度后需缓冲约 6 秒；关闭后恢复原曲播放。</string>
-    <string name="stem_prepare_failed">模型下载、校验或加载失败，正在保持原曲播放，可重新开启重试。</string>
-    <string name="stem_processing_failed">音源分离失败，已恢复原曲播放。</string>
+    <string name="stem_preparing">正在后台下载或解码歌曲，原曲继续播放…</string>
+    <string name="stem_buffer_hint">后台准备完成后切换到分离缓存，拖动进度无需重新分离。</string>
+    <string name="stem_prepare_failed">本次分离准备失败，原曲继续播放，开关保持开启。请检查网络和剩余空间后重试。</string>
+    <string name="stem_processing_failed">分离缓存读取失败，已恢复原曲，可在设置页重新准备。</string>
     <string name="stem_device_too_slow">当前设备无法持续实时分离，已恢复原曲播放。</string>
     <string name="stem_format_unsupported">当前音频声道格式不支持分离，已恢复原曲播放。</string>
     <string name="app_name">Neko歌姬计划</string>

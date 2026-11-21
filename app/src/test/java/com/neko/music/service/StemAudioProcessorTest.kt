@@ -5,217 +5,106 @@ package com.neko.music.service
 import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.audio.AudioProcessingPipeline
 import com.google.android.exoplayer2.audio.AudioProcessor
+import com.google.android.exoplayer2.audio.SonicAudioProcessor
 import com.google.common.collect.ImmutableList
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
 class StemAudioProcessorTest {
-    private class Control(override val engine: StemInference?) : StemProcessingControl {
-        override val state = MutableStateFlow(StemSeparationState(enabled = engine != null))
-        var failure: Exception? = null
-        override fun fail(expectedEngine: StemInference, messageRes: Int, error: Exception?) {
-            failure = error ?: IllegalStateException("音源分离意外停止")
-        }
+    private class Control : StemProcessingControl {
+        override val state = MutableStateFlow(StemSeparationState(enabled = true, ready = true, realtime = false))
+        override var cachedPlayback = true
     }
 
-    private fun processor(control: Control, channels: Int = 2, rate: Int = 44_100) =
-        StemAudioProcessor(control).apply {
-            configure(AudioProcessor.AudioFormat(rate, channels, C.ENCODING_PCM_16BIT))
-            flush()
-        }
-
-    private fun pcm(frames: Int, channels: Int = 2): ByteBuffer =
-        ByteBuffer.allocateDirect(frames * channels * 2).order(ByteOrder.nativeOrder()).apply {
-            repeat(frames * channels) { putShort((it % 14000 - 7000).toShort()) }
+    private fun source(frames: Int): ByteBuffer = ByteBuffer.allocateDirect(frames * 8)
+        .order(ByteOrder.nativeOrder()).apply {
+            repeat(frames) { putShort(6000).putShort(-4000).putShort(2000).putShort(-1000) }
             flip()
         }
 
-    @Test
-    fun disabledProcessingPassesPcmThroughUnchanged() {
-        val processor = processor(Control(null))
-        val source = pcm(4096)
-        val expected = ByteArray(source.remaining()).also { source.duplicate().get(it) }
-        processor.queueInput(source)
-        val result = processor.output
-        assertArrayEquals(expected, ByteArray(result.remaining()).also(result::get))
-        processor.queueEndOfStream()
-        assertTrue(processor.isEnded)
-        processor.reset()
-    }
-
-    @Test
-    fun emptyInputBeforeFirstAudioDoesNotCreateOutput() {
-        val processor = processor(Control(null))
-        repeat(3) {
-            processor.queueInput(AudioProcessor.EMPTY_BUFFER)
-            assertFalse(processor.output.hasRemaining())
-        }
-        processor.queueEndOfStream()
-        assertTrue(processor.isEnded)
-        processor.reset()
-    }
-
-    @Test
-    fun emptyInputDoesNotDiscardPendingOriginalAudio() {
-        val processor = processor(Control(null))
-        val source = pcm(2048)
-        val expected = ByteArray(source.remaining()).also { source.duplicate().get(it) }
-        processor.queueInput(source)
-        processor.queueInput(AudioProcessor.EMPTY_BUFFER)
-        val result = processor.output
-        assertArrayEquals(expected, ByteArray(result.remaining()).also(result::get))
-        processor.reset()
-    }
-
-    @Test
-    fun originalPlaybackHandlesRealPipelinePollingAndReset() {
-        val processor = StemAudioProcessor(Control(null))
-        val pipeline = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(processor))
-        try {
-            for (rate in listOf(44_100, 48_000, 96_000)) {
-                pipeline.configure(AudioProcessor.AudioFormat(rate, 2, C.ENCODING_PCM_16BIT))
-                pipeline.flush()
-                repeat(3) { assertFalse(pipeline.output.hasRemaining()) }
-                repeat(3) {
-                    val source = pcm(1024 + it)
-                    val expected = ByteArray(source.remaining()).also { source.duplicate().get(it) }
-                    pipeline.queueInput(source)
-                    assertFalse(source.hasRemaining())
-                    val output = pipeline.output
-                    assertArrayEquals(expected, ByteArray(output.remaining()).also(output::get))
-                    repeat(3) { assertFalse(pipeline.output.hasRemaining()) }
-                }
-                pipeline.queueEndOfStream()
-                assertFalse(pipeline.output.hasRemaining())
-                assertTrue(pipeline.isEnded)
-                pipeline.reset()
-            }
-        } finally {
-            pipeline.reset()
+    private fun pipeline(control: Control, speed: Float = 1f): AudioProcessingPipeline {
+        val sonic = SonicAudioProcessor().apply { setSpeed(speed) }
+        return AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(StemAudioProcessor(control), sonic)).apply {
+            configure(AudioProcessor.AudioFormat(44_100, 4, C.ENCODING_PCM_16BIT))
+            flush()
         }
     }
 
-    @Test
-    fun shortFinalChunkAndResampledMonoPreserveEverySample() {
-        for (channels in 1..2) {
-            val engine = object : StemInference {
-                override fun instrumental(context: FloatArray, outputFrames: Int) = FloatArray(outputFrames * 2) { 0.2f }
-                override fun close() {}
-            }
-            val control = Control(engine)
-            val processor = processor(control, channels, 48_000)
-            val source = pcm(1201, channels)
-            val expected = ByteArray(source.remaining()).also { source.duplicate().get(it) }
-            processor.queueInput(source)
-            processor.queueEndOfStream()
-            val output = drain(processor)
-            assertArrayEquals(expected, output)
-            assertEquals(null, control.failure)
-            processor.reset()
-        }
-    }
-
-    @Test
-    fun boundedStreamingKeepsChunkBoundariesAndFinalLookahead() {
-        val control = Control(object : StemInference {
-            override fun instrumental(context: FloatArray, outputFrames: Int) = FloatArray(outputFrames * 2) { 0.4f }
-            override fun close() {}
-        })
-        val processor = processor(control)
-        val source = pcm(MdxStemEngine.OUTPUT_FRAMES * 2 + 77)
-        val expected = ByteArray(source.remaining()).also { source.duplicate().get(it) }
+    private fun drain(pipeline: AudioProcessingPipeline): ByteArray {
         val output = ByteArrayOutputStream()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (source.hasRemaining() && System.nanoTime() < deadline) {
-            val limit = source.limit()
-            source.limit(minOf(source.position() + 4096, limit))
-            processor.queueInput(source)
-            source.limit(limit)
-            val buffer = processor.output
-            output.write(ByteArray(buffer.remaining()).also(buffer::get))
-            if (!buffer.hasRemaining()) Thread.yield()
+        repeat(1000) {
+            val buffer = pipeline.output
+            if (buffer.hasRemaining()) output.write(ByteArray(buffer.remaining()).also(buffer::get))
+            if (pipeline.isEnded) return output.toByteArray()
         }
-        assertFalse(source.hasRemaining())
-        processor.queueEndOfStream()
-        output.write(drain(processor))
-        assertArrayEquals(expected, output.toByteArray())
-        assertEquals(null, control.failure)
-        processor.reset()
+        error("缓存音频应当立即排空，不能等待模型")
     }
 
-    @Test
-    fun liveGainsApplyToAlreadySeparatedOutput() {
-        val control = Control(object : StemInference {
-            override fun instrumental(context: FloatArray, outputFrames: Int) = FloatArray(outputFrames * 2)
-            override fun close() {}
-        })
-        val processor = processor(control)
-        processor.queueInput(pcm(2048))
-        processor.queueEndOfStream()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3)
-        var first = processor.output
-        while (!first.hasRemaining() && System.nanoTime() < deadline) {
-            Thread.sleep(1)
-            first = processor.output
-        }
-        assertTrue(first.hasRemaining())
-        control.state.value = control.state.value.copy(vocals = 0f, instrumental = 0f)
-        val rest = drain(processor)
-        assertEquals(1024 * 4, rest.size)
-        assertTrue(rest.all { it == 0.toByte() })
-        processor.reset()
-    }
-
-    @Test
-    fun flushDiscardsInferenceFromPreviousTrack() {
-        val started = CountDownLatch(1)
-        val release = CountDownLatch(1)
-        val control = Control(object : StemInference {
-            override fun instrumental(context: FloatArray, outputFrames: Int): FloatArray {
-                started.countDown()
-                check(release.await(3, TimeUnit.SECONDS))
-                return FloatArray(outputFrames * 2)
-            }
-            override fun close() {}
-        })
-        val processor = processor(control)
+    @Test fun unityMixPreservesOriginalAndConvertsToStereo() {
+        val pipeline = pipeline(Control())
         try {
-            processor.queueInput(pcm(500))
-            processor.queueEndOfStream()
-            processor.output
-            assertTrue(started.await(3, TimeUnit.SECONDS))
-            processor.flush()
-            release.countDown()
-            processor.queueEndOfStream()
-            assertTrue(drain(processor).isEmpty())
-            assertFalse(processor.output.hasRemaining())
-        } finally {
-            release.countDown()
-            processor.reset()
-        }
+            repeat(3) { assertFalse(pipeline.output.hasRemaining()) }
+            val input = source(1024)
+            pipeline.queueInput(input)
+            assertFalse(input.hasRemaining())
+            pipeline.queueEndOfStream()
+            val output = ByteBuffer.wrap(drain(pipeline)).order(ByteOrder.nativeOrder())
+            assertEquals(4096, output.remaining())
+            repeat(1024) { assertEquals(6000, output.short.toInt()); assertEquals(-4000, output.short.toInt()) }
+        } finally { pipeline.reset() }
     }
 
-    private fun drain(processor: StemAudioProcessor): ByteArray {
-        val result = ByteArrayOutputStream()
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (!processor.isEnded && System.nanoTime() < deadline) {
-            val buffer = processor.output
-            if (buffer.hasRemaining()) {
-                result.write(ByteArray(buffer.remaining()).also(buffer::get))
-            } else {
-                Thread.sleep(1)
+    @Test fun gainsChangeWithoutAnyModelOrBuffering() {
+        val control = Control()
+        val pipeline = pipeline(control)
+        try {
+            for ((vocals, backing, left, right) in listOf(
+                listOf(0, 1, 2000, -1000), listOf(1, 0, 4000, -3000), listOf(0, 0, 0, 0)
+            )) {
+                control.state.value = control.state.value.copy(vocals = vocals.toFloat(), instrumental = backing.toFloat())
+                pipeline.queueInput(source(1))
+                val output = pipeline.output
+                assertEquals(left, output.short.toInt())
+                assertEquals(right, output.short.toInt())
             }
-        }
-        assertTrue("音频尾部应当在处理完成后排空", processor.isEnded)
-        return result.toByteArray()
+        } finally { pipeline.reset() }
+    }
+
+    @Test fun cachedPlaybackSupportsSpeedAndEndOfStream() {
+        val pipeline = pipeline(Control(), 1.25f)
+        try {
+            pipeline.queueInput(source(20_000))
+            pipeline.queueEndOfStream()
+            val output = drain(pipeline)
+            assertTrue(output.isNotEmpty())
+            assertTrue(output.any { it != 0.toByte() })
+            assertTrue(output.size < 20_000 * 4)
+        } finally { pipeline.reset() }
+    }
+
+    @Test fun disablingAndSeekingFlushOldCacheAndRestoreOriginalPipeline() {
+        val control = Control()
+        val pipeline = pipeline(control)
+        try {
+            pipeline.queueInput(source(1024))
+            pipeline.flush()
+            assertFalse(pipeline.output.hasRemaining())
+            control.cachedPlayback = false
+            pipeline.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+            pipeline.flush()
+            assertFalse(pipeline.isOperational)
+        } finally { pipeline.reset() }
+    }
+
+    @Test fun activeCacheRejectsWrongChannelLayout() {
+        val processor = StemAudioProcessor(Control())
+        try {
+            processor.configure(AudioProcessor.AudioFormat(44_100, 2, C.ENCODING_PCM_16BIT))
+            fail("双声道原曲不能当作四声道缓存混音")
+        } catch (_: AudioProcessor.UnhandledAudioFormatException) {}
     }
 }

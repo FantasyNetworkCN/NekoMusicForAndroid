@@ -46,6 +46,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.ui.components.stemPreparationDescription
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -92,12 +93,10 @@ fun SettingsScreen(
     val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val stemState by stemSeparation.state.collectAsState()
     var showStemDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    var showStemModeDialog by rememberSaveable { mutableStateOf(false) }
     val stemSubtitle = when {
         stemState.roomPlaybackActive -> stringResource(R.string.stem_room_unavailable)
-        stemState.preparing -> stemState.downloadProgress?.let {
-            stringResource(R.string.stem_downloading, (it * 100).roundToInt())
-        } ?: stringResource(R.string.stem_preparing)
-        stemState.errorRes != null -> stringResource(stemState.errorRes!!)
+        stemState.enabled -> stemPreparationDescription(stemState)
         else -> stringResource(R.string.stem_separation_hint)
     }
 
@@ -361,14 +360,25 @@ fun SettingsScreen(
                                                             showSeparator = separator,
                                                             enabled = !stemState.roomPlaybackActive,
                                                             onCheckedChange = { enabled ->
-                                                                if (enabled && !stemSeparation.modelDownloaded) {
+                                                                if (enabled && !stemState.realtime && !stemSeparation.modelDownloaded) {
                                                                     showStemDownloadDialog = true
                                                                 } else {
                                                                     stemSeparation.setEnabled(enabled)
                                                                 }
                                                             },
                                                         )
+                                                        SettingItem(
+                                                            NekoSymbol.AutoMix,
+                                                            stringResource(R.string.stem_mode),
+                                                            stringResource(if (stemState.realtime) R.string.stem_mode_realtime else R.string.stem_mode_quality),
+                                                            onClick = { showStemModeDialog = true },
+                                                        )
                                                         if (stemState.enabled) {
+                                                            if (stemState.errorRes != null && !stemState.preparing) {
+                                                                TextButton(onClick = stemSeparation::retry) {
+                                                                    Text(stringResource(R.string.stem_retry))
+                                                                }
+                                                            }
                                                             TextButton(onClick = {
                                                                 stemSeparation.setVocals(1f)
                                                                 stemSeparation.setInstrumental(1f)
@@ -410,6 +420,29 @@ fun SettingsScreen(
                         }
                     }
 
+                    if (showStemModeDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showStemModeDialog = false },
+                            title = { Text(stringResource(R.string.stem_mode)) },
+                            text = {
+                                Column {
+                                    Text(stringResource(R.string.stem_realtime_limit))
+                                    TextButton(onClick = {
+                                        stemSeparation.setRealtime(true)
+                                        showStemModeDialog = false
+                                    }) { Text(stringResource(R.string.stem_mode_realtime)) }
+                                    TextButton(onClick = {
+                                        showStemModeDialog = false
+                                        if (!stemSeparation.modelDownloaded) showStemDownloadDialog = true
+                                        else stemSeparation.setRealtime(false)
+                                    }) { Text(stringResource(R.string.stem_mode_quality)) }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showStemModeDialog = false }) { Text(stringResource(R.string.close)) }
+                            },
+                        )
+                    }
                     if (showStemDownloadDialog) {
                         AlertDialog(
                             onDismissRequest = { showStemDownloadDialog = false },
@@ -418,6 +451,7 @@ fun SettingsScreen(
                             confirmButton = {
                                 TextButton(onClick = {
                                     showStemDownloadDialog = false
+                                    stemSeparation.setRealtime(false)
                                     stemSeparation.setEnabled(true)
                                 }) { Text(stringResource(R.string.stem_enable_download)) }
                             },

@@ -1,7 +1,6 @@
 package com.neko.music.service
 
 import android.content.Context
-import android.widget.Toast
 import com.neko.music.R
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.installNekoClientHeader
@@ -18,11 +17,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
@@ -32,94 +32,203 @@ internal data class StemSeparationState(
     val enabled: Boolean = false,
     val preparing: Boolean = false,
     val downloadProgress: Float? = null,
+    val trackProgress: Float? = null,
+    val phase: StemPreparationPhase = StemPreparationPhase.IDLE,
+    val receivedBytes: Long = 0,
+    val totalBytes: Long? = null,
+    val ready: Boolean = false,
     val vocals: Float = 1f,
     val instrumental: Float = 1f,
     val errorRes: Int? = null,
     val roomPlaybackActive: Boolean = false,
+    val realtime: Boolean = true,
 )
-
-internal interface StemProcessingControl {
-    val engine: StemInference?
-    val state: StateFlow<StemSeparationState>
-    val playbackSpeed: Float get() = 1f
-    fun fail(expectedEngine: StemInference, messageRes: Int, error: Exception? = null)
-}
 
 internal class StemSeparationController(
     context: Context,
-    private val restartAudio: () -> Unit,
+    private val switchSource: (String) -> Unit,
 ) : StemProcessingControl {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val _state = MutableStateFlow(StemSeparationState())
+    private val prefs = appContext.getSharedPreferences("stem_settings", Context.MODE_PRIVATE)
+    private val _state = MutableStateFlow(StemSeparationState(
+        enabled = prefs.getBoolean("enabled", false),
+        vocals = validGain(prefs.getFloat("vocals", 1f)),
+        instrumental = validGain(prefs.getFloat("instrumental", 1f)),
+        realtime = prefs.getBoolean("realtime", true),
+    ))
     override val state = _state.asStateFlow()
-    @Volatile override var engine: StemInference? = null
+    @Volatile override var cachedPlayback = false
         private set
-    @Volatile override var playbackSpeed: Float = 1f
     private var preparation: Job? = null
+    private val workMutex = Mutex()
+    @Volatile private var generation = 0
+    private var originalSource: String? = null
+    private var sourceKey: String? = null
+    private val cacheDirectory = File(appContext.cacheDir, "separated-audio-v1")
     private val modelFile = File(appContext.noBackupFilesDir, "audio-models/inst-hq3.onnx")
     val modelDownloaded: Boolean get() = modelFile.length() == MODEL_BYTES
 
+    /** 主线程先更新源标记，再设置播放器，防止旧任务把刚切换的歌曲覆盖。 */
+    fun sourceForPlayback(source: String, identity: String = source): String {
+        originalSource = source
+        if (identity != sourceKey) {
+            sourceKey = identity
+            generation++
+            preparation?.cancel()
+            preparation = null
+            cachedPlayback = false
+            _state.update { it.copy(ready = false, preparing = false, trackProgress = null, errorRes = null, phase = StemPreparationPhase.IDLE) }
+        }
+        if (!_state.value.enabled || _state.value.roomPlaybackActive) return source
+        if (_state.value.realtime) {
+            cachedPlayback = false
+            _state.update { it.copy(ready = !it.roomPlaybackActive, phase = StemPreparationPhase.READY) }
+            return source
+        }
+        if (_state.value.roomPlaybackActive) return source
+        val cached = File(cacheDirectory, "${StemCacheFile.key(identity)}.wav")
+        if (StemCacheFile.isComplete(cached)) {
+            cachedPlayback = true
+            cached.setLastModified(System.currentTimeMillis())
+            _state.update { it.copy(ready = true, preparing = false, trackProgress = null, phase = StemPreparationPhase.READY) }
+            return cached.absolutePath
+        }
+        if (preparation?.isActive != true) prepare(source)
+        return source
+    }
+
     fun setRoomPlaybackActive(active: Boolean) {
-        if (active) setEnabled(false)
-        _state.update { it.copy(roomPlaybackActive = active) }
+        if (_state.value.roomPlaybackActive == active) return
+        if (active) {
+            generation++
+            preparation?.cancel()
+            cachedPlayback = false
+        }
+        _state.update { it.copy(roomPlaybackActive = active, ready = false, preparing = false) }
+        originalSource?.let { source ->
+            val target = sourceForPlayback(source, sourceKey ?: source)
+            switchSource(target)
+        }
     }
 
     fun setVocals(value: Float) {
-        if (value.isFinite()) _state.update { it.copy(vocals = value.coerceIn(0f, 1f)) }
+        if (value.isFinite()) {
+            val gain = value.coerceIn(0f, 1f)
+            prefs.edit().putFloat("vocals", gain).apply()
+            _state.update { it.copy(vocals = gain) }
+        }
     }
 
     fun setInstrumental(value: Float) {
-        if (value.isFinite()) _state.update { it.copy(instrumental = value.coerceIn(0f, 1f)) }
+        if (value.isFinite()) {
+            val gain = value.coerceIn(0f, 1f)
+            prefs.edit().putFloat("instrumental", gain).apply()
+            _state.update { it.copy(instrumental = gain) }
+        }
+    }
+
+    fun setRealtime(realtime: Boolean) {
+        if (realtime == _state.value.realtime) return
+        generation++
+        preparation?.cancel()
+        preparation = null
+        cachedPlayback = false
+        prefs.edit().putBoolean("realtime", realtime).apply()
+        _state.update { it.copy(realtime = realtime, ready = false, preparing = false, errorRes = null) }
+        originalSource?.let { switchSource(sourceForPlayback(it, sourceKey ?: it)) }
     }
 
     fun setEnabled(enabled: Boolean) {
+        if (enabled && _state.value.roomPlaybackActive) return
+        prefs.edit().putBoolean("enabled", enabled).apply()
         if (!enabled) {
+            generation++
             preparation?.cancel()
             preparation = null
-            val oldEngine = engine
-            engine = null
-            val wasEnabled = _state.value.enabled
-            _state.update { it.copy(enabled = false, preparing = false, downloadProgress = null, errorRes = null) }
-            if (wasEnabled) restartAudio()
-            if (oldEngine != null) scope.launch(Dispatchers.IO) { oldEngine.close() }
-            return
-        }
-        if (_state.value.enabled || _state.value.preparing || _state.value.roomPlaybackActive) return
-        _state.update { it.copy(preparing = true, errorRes = null) }
-        preparation = scope.launch {
-            var loaded: MdxStemEngine? = null
-            try {
-                withContext(Dispatchers.IO) {
-                    if (!isValidModel(modelFile)) downloadModel()
-                    coroutineContext.ensureActive()
-                    loaded = MdxStemEngine(modelFile)
-                }
-                coroutineContext.ensureActive()
-                engine = loaded
-                loaded = null
-                _state.update { it.copy(enabled = true, preparing = false, downloadProgress = null) }
-                restartAudio()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.e("StemSeparation", "准备音源分离失败", error)
-                _state.update {
-                    it.copy(enabled = false, preparing = false, downloadProgress = null, errorRes = R.string.stem_prepare_failed)
-                }
-            } finally {
-                loaded?.let { unused -> scope.launch(Dispatchers.IO) { unused.close() } }
+            val wasActive = cachedPlayback || _state.value.realtime
+            cachedPlayback = false
+            _state.update { it.copy(enabled = false, ready = false, preparing = false, trackProgress = null, downloadProgress = null, errorRes = null, phase = StemPreparationPhase.IDLE) }
+            if (wasActive) originalSource?.let(switchSource)
+        } else {
+            _state.update { it.copy(enabled = true, errorRes = null) }
+            originalSource?.let { source ->
+                val target = sourceForPlayback(source, sourceKey ?: source)
+                if (target != source || _state.value.realtime) switchSource(target)
             }
         }
     }
 
-    override fun fail(expectedEngine: StemInference, messageRes: Int, error: Exception?) {
-        scope.launch {
-            if (engine !== expectedEngine) return@launch
-            Log.w("StemSeparation", "音源分离已停止，恢复原曲", error)
-            setEnabled(false)
-            _state.update { it.copy(errorRes = messageRes) }
-            Toast.makeText(appContext, messageRes, Toast.LENGTH_LONG).show()
+    fun retry() {
+        if (_state.value.enabled && !_state.value.realtime && !_state.value.preparing) originalSource?.let(::prepare)
+    }
+
+    /** 缓存读取失败只回到原曲，保留用户开启意愿。 */
+    fun recoverOriginal(): Boolean {
+        if (!cachedPlayback) return false
+        cachedPlayback = false
+        _state.update { it.copy(ready = false, errorRes = R.string.stem_processing_failed) }
+        originalSource?.let(switchSource)
+        return true
+    }
+
+    private fun prepare(source: String) {
+        preparation?.cancel()
+        val token = ++generation
+        val identity = sourceKey ?: source
+        _state.update { it.copy(preparing = true, trackProgress = null, downloadProgress = null, errorRes = null, phase = StemPreparationPhase.CHECKING_MODEL, receivedBytes = 0, totalBytes = null) }
+        preparation = scope.launch {
+            try {
+                val cached = withContext(Dispatchers.IO) {
+                    workMutex.withLock {
+                        coroutineContext.ensureActive()
+                        check(cacheDirectory.isDirectory || cacheDirectory.mkdirs())
+                        // 保留最近三首完整缓存与当前准备进度，关闭开关后重开可接着处理。
+                        val key = StemCacheFile.key(identity)
+                        val retained = cacheDirectory.listFiles()?.filter { it.extension == "wav" }
+                            ?.sortedByDescending { it.lastModified() }?.take(2)?.map { it.nameWithoutExtension }.orEmpty().toSet() + key
+                        cacheDirectory.listFiles()?.filter { it.name.substringBefore('.') !in retained }?.forEach { it.delete() }
+                        if (!isValidModel(modelFile)) downloadModel()
+                        coroutineContext.ensureActive()
+                        val target = File(cacheDirectory, "$key.wav")
+                        val temporary = File(cacheDirectory, "$key.partial")
+                        if (token == generation) _state.update { it.copy(phase = StemPreparationPhase.LOADING_MODEL, downloadProgress = null) }
+                        MdxStemEngine(modelFile).use { engine ->
+                            val parts = identity.split(':')
+                            val local = if (parts.size == 3 && parts[0] == "music") {
+                                parts[1].toIntOrNull()?.takeIf { it > 0 }?.let { id ->
+                                    com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
+                                        .getCachedMusicFile(id, parts[2])?.absolutePath
+                                }
+                            } else null
+                            StemTrackPreparer(appContext).prepare(local ?: source, engine, temporary) { progress ->
+                                if (token == generation) _state.update {
+                                    it.copy(phase = progress.phase, trackProgress = progress.fraction,
+                                        receivedBytes = progress.receivedBytes, totalBytes = progress.totalBytes, downloadProgress = null)
+                                }
+                            }
+                        }
+                        coroutineContext.ensureActive()
+                        check(temporary.renameTo(target))
+                        target
+                    }
+                }
+                coroutineContext.ensureActive()
+                if (token != generation || identity != sourceKey || !_state.value.enabled) return@launch
+                cachedPlayback = true
+                _state.update { it.copy(ready = true, preparing = false, trackProgress = null, downloadProgress = null, phase = StemPreparationPhase.READY) }
+                switchSource(cached.absolutePath)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: OutOfMemoryError) {
+                if (token != generation) return@launch
+                Log.e("StemSeparation", "当前内存不足，保留开关并继续播放原曲", error)
+                _state.update { it.copy(ready = false, preparing = false, trackProgress = null, downloadProgress = null, errorRes = R.string.stem_memory_unavailable) }
+            } catch (error: Exception) {
+                if (token != generation) return@launch
+                Log.e("StemSeparation", "后台音源分离失败，保留开关并继续播放原曲", error)
+                _state.update { it.copy(ready = false, preparing = false, trackProgress = null, downloadProgress = null, errorRes = R.string.stem_prepare_failed) }
+            }
         }
     }
 
@@ -138,6 +247,7 @@ internal class StemSeparationController(
     }
 
     private suspend fun downloadModel() {
+        _state.update { it.copy(phase = StemPreparationPhase.DOWNLOADING_MODEL) }
         check(modelFile.parentFile!!.isDirectory || modelFile.parentFile!!.mkdirs())
         val temporary = File(modelFile.parentFile, "${UUID.randomUUID()}.part")
         try {
@@ -177,6 +287,7 @@ internal class StemSeparationController(
     }
 
     private companion object {
+        fun validGain(value: Float): Float = if (value.isFinite()) value.coerceIn(0f, 1f) else 1f
         const val MODEL_BYTES = 66_759_214L
         const val MODEL_SHA256 = "317554b07fe1ea5279a77f2b1520a41ea4b93432560c4ffd08792c30fddf9adc"
         const val MODEL_URL = "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR-MDX-NET-Inst_HQ_3.onnx"
