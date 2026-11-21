@@ -20,7 +20,6 @@ class RealtimeStemMixerTest {
         val state = MutableStateFlow(StemSeparationState(enabled = true, roomPlaybackActive = true))
         val control = object : StemProcessingControl {
             override val state = state
-            override val cachedPlayback = false
         }
         val pipeline = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(StemAudioProcessor(control)))
         pipeline.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
@@ -54,7 +53,6 @@ class RealtimeStemMixerTest {
             val state = MutableStateFlow(StemSeparationState(enabled = true))
             val control = object : StemProcessingControl {
                 override val state = state
-                override val cachedPlayback = false
             }
             val pipeline = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(StemAudioProcessor(control)))
             pipeline.configure(AudioProcessor.AudioFormat(48_000, channels, C.ENCODING_PCM_16BIT))

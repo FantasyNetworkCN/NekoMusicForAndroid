@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.neko.music.R
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.StemStreamPhase
 import com.neko.music.ui.icons.NekoSymbol
 import com.neko.music.ui.icons.NekoSymbolIcon
 import kotlinx.coroutines.delay
@@ -51,6 +52,8 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val separation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val state by separation.state.collectAsState()
+    val modelState by separation.modelState.collectAsState()
+    val streamPhase by separation.streamPhase.collectAsState()
     val lifecycle = LocalLifecycleOwner.current
     var volume by remember { mutableStateOf(MediaVolume()) }
     val failureText = stringResource(R.string.player_volume_change_failed)
@@ -83,9 +86,9 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
         if (state.enabled) {
             VolumeSlider(stringResource(R.string.stem_vocals), state.vocals, onValueChange = separation::setVocals)
             VolumeSlider(stringResource(R.string.stem_instrumental), state.instrumental, onValueChange = separation::setInstrumental)
-            if (!state.ready && !state.realtime) {
+            if (!state.realtime && streamPhase != StemStreamPhase.ACTIVE) {
                 Text(
-                    text = stemPreparationDescription(state) + "\n" + stringResource(R.string.stem_pending_mix),
+                    text = stemPreparationDescription(state, modelState, streamPhase),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

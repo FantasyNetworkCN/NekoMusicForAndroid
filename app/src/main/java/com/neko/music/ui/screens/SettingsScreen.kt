@@ -46,6 +46,7 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
+import com.neko.music.service.StemStreamPhase
 import com.neko.music.ui.components.stemPreparationDescription
 import com.neko.music.ui.components.StemSeparationModeSelector
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -93,9 +94,10 @@ fun SettingsScreen(
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
     val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val stemState by stemSeparation.state.collectAsState()
-    var showStemDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    val stemModelState by stemSeparation.modelState.collectAsState()
+    val stemStreamPhase by stemSeparation.streamPhase.collectAsState()
     val stemSubtitle = when {
-        stemState.enabled -> stemPreparationDescription(stemState)
+        stemState.enabled -> stemPreparationDescription(stemState, stemModelState, stemStreamPhase)
         else -> stringResource(R.string.stem_separation_hint)
     } + if (stemState.roomPlaybackActive) "\n" + stringResource(R.string.stem_local_only) else ""
 
@@ -355,30 +357,18 @@ fun SettingsScreen(
                                                     SettingsEntryId.StemSeparation -> {
                                                         SettingSwitchItem(
                                                             NekoSymbol.AutoMix, item.title, item.subtitle,
-                                                            checked = stemState.enabled || stemState.preparing,
+                                                            checked = stemState.enabled,
                                                             showSeparator = separator,
-                                                            onCheckedChange = { enabled ->
-                                                                if (enabled && !stemState.realtime && !stemSeparation.modelDownloaded) {
-                                                                    showStemDownloadDialog = true
-                                                                } else {
-                                                                    stemSeparation.setEnabled(enabled)
-                                                                }
-                                                            },
+                                                            onCheckedChange = stemSeparation::setEnabled,
                                                         )
                                                         StemSeparationModeSelector(
                                                             realtime = stemState.realtime,
-                                                            onSelect = { realtime ->
-                                                                if (realtime != stemState.realtime) {
-                                                                    if (!realtime && !stemSeparation.modelDownloaded) {
-                                                                        showStemDownloadDialog = true
-                                                                    } else {
-                                                                        stemSeparation.setRealtime(realtime)
-                                                                    }
-                                                                }
-                                                            },
+                                                            modelState = stemModelState,
+                                                            onSelect = stemSeparation::setRealtime,
+                                                            onRetryDownload = stemSeparation::requestAiModel,
                                                         )
                                                         if (stemState.enabled) {
-                                                            if (stemState.errorRes != null && !stemState.preparing) {
+                                                            if (!stemState.realtime && stemStreamPhase == StemStreamPhase.FAILED) {
                                                                 TextButton(onClick = stemSeparation::retry) {
                                                                     Text(stringResource(R.string.stem_retry))
                                                                 }
@@ -422,26 +412,6 @@ fun SettingsScreen(
                                 TextButton(onClick = { search = "" }) { Text(stringResource(R.string.settings_search_clear)) }
                             }
                         }
-                    }
-
-                    if (showStemDownloadDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showStemDownloadDialog = false },
-                            title = { Text(stringResource(R.string.stem_separation)) },
-                            text = { Text(stringResource(R.string.stem_download_confirmation)) },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    showStemDownloadDialog = false
-                                    stemSeparation.setRealtime(false)
-                                    stemSeparation.setEnabled(true)
-                                }) { Text(stringResource(R.string.stem_enable_download)) }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showStemDownloadDialog = false }) {
-                                    Text(stringResource(R.string.cancel))
-                                }
-                            },
-                        )
                     }
 
                     // 更新对话框

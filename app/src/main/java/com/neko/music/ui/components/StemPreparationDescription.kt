@@ -3,28 +3,34 @@ package com.neko.music.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.neko.music.R
-import com.neko.music.service.StemPreparationPhase
+import com.neko.music.service.StemModelPhase
+import com.neko.music.service.StemModelState
 import com.neko.music.service.StemSeparationState
+import com.neko.music.service.StemStreamPhase
 import kotlin.math.roundToInt
 
 @Composable
-internal fun stemPreparationDescription(state: StemSeparationState): String {
-    state.errorRes?.let { return stringResource(it) }
+internal fun stemPreparationDescription(
+    state: StemSeparationState,
+    model: StemModelState,
+    stream: StemStreamPhase,
+): String {
     if (state.realtime) return stringResource(R.string.stem_realtime_limit)
-    return when (state.phase) {
-        StemPreparationPhase.CHECKING_MODEL -> stringResource(R.string.stem_checking_model)
-        StemPreparationPhase.DOWNLOADING_MODEL -> stringResource(R.string.stem_downloading, ((state.downloadProgress ?: 0f) * 100).roundToInt())
-        StemPreparationPhase.LOADING_MODEL -> stringResource(R.string.stem_loading_model)
-        StemPreparationPhase.READING_TRACK -> stringResource(R.string.stem_reading_local)
-        StemPreparationPhase.DOWNLOADING_TRACK -> {
-            val received = (state.receivedBytes / 1024).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            val total = state.totalBytes
-            if (total != null) stringResource(R.string.stem_downloading_track, received, (total / 1024).coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
-            else stringResource(R.string.stem_downloading_track_unknown, received)
-        }
-        StemPreparationPhase.DECODING -> stringResource(R.string.stem_decoding_track)
-        StemPreparationPhase.SEPARATING -> stringResource(R.string.stem_track_preparing, ((state.trackProgress ?: 0f) * 100).roundToInt())
-        StemPreparationPhase.READY -> stringResource(R.string.stem_cache_ready)
-        StemPreparationPhase.IDLE -> stringResource(R.string.stem_separation_hint)
+    return when (model.phase) {
+        StemModelPhase.MISSING -> stringResource(R.string.stem_ai_model_waiting)
+        StemModelPhase.CHECKING, StemModelPhase.VERIFYING -> stringResource(R.string.stem_ai_model_verifying)
+        StemModelPhase.DOWNLOADING -> stringResource(
+            R.string.stem_ai_download_progress,
+            (model.progress * 100).roundToInt(), model.receivedBytes / 1048576.0, model.totalBytes / 1048576.0,
+        )
+        StemModelPhase.FAILED -> stringResource(R.string.stem_ai_model_failed)
+        StemModelPhase.READY -> stringResource(when (stream) {
+            StemStreamPhase.WAITING -> R.string.stem_track_waiting
+            StemStreamPhase.PROCESSING -> R.string.stem_stream_processing
+            StemStreamPhase.ACTIVE -> R.string.stem_stream_active
+            StemStreamPhase.FALLBACK -> R.string.stem_stream_fallback
+            StemStreamPhase.FAILED -> R.string.stem_stream_failed
+            StemStreamPhase.UNSUPPORTED -> R.string.stem_format_unsupported
+        })
     }
 }
