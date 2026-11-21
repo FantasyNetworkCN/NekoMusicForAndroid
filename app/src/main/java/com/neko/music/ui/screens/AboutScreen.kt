@@ -30,6 +30,7 @@ import com.neko.music.ui.theme.*
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
@@ -109,13 +110,14 @@ fun AboutScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 150.dp)
-        ) {
+        NekoAdaptivePageContent(maxWidth = 760.dp) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 150.dp)
+            ) {
             Spacer(modifier = Modifier.height(24.dp))
             
             // 应用信息卡片
@@ -154,7 +156,8 @@ fun AboutScreen(
             // 版权信息
             CopyrightCard()
             
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
         }
     }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,7 +68,10 @@ import com.neko.music.data.model.Music
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoMediaContentWidth
+import com.neko.music.ui.components.adaptiveGridColumns
 import com.neko.music.ui.components.isLiquidGlassEffectActive
+import com.neko.music.ui.components.nekoPageHorizontalPadding
 import com.neko.music.ui.screens.LatestMusicCard
 import com.neko.music.ui.screens.PlaylistCard
 import com.neko.music.ui.screens.RankingMusicCard
@@ -104,6 +109,10 @@ fun HomeLiquidHeroOverlay(
     } else {
         Shadow(Color.Black.copy(alpha = 0.08f), Offset(0f, 1f), 4f)
     }
+    val windowWidthDp = LocalConfiguration.current.screenWidthDp
+    val gridColumns = adaptiveGridColumns(windowWidthDp)
+    val horizontalPadding = nekoPageHorizontalPadding()
+    val bottomPadding = if (windowWidthDp >= 840) 132.dp else 250.dp
 
     CompositionLocalProvider(LocalLiquidLayerBackdrop provides liquidBackdrop) {
         LazyColumn(
@@ -111,42 +120,61 @@ fun HomeLiquidHeroOverlay(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .onSizeChanged { onHeroHeightChanged(it.height) },
-            contentPadding = PaddingValues(bottom = 250.dp),
+            contentPadding = PaddingValues(bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item(key = "home_header") {
-                HomeHeader(
-                    isDarkHome = isDarkHome,
-                    titleColor = titleColor,
-                    secondaryColor = secondaryColor,
-                    titleShadow = titleShadow,
-                )
-            }
-
-            if (state.dailyRecommendedMusic.isNotEmpty()) {
-                item(key = "home_daily") {
-                    HomeDailyFeature(
-                        musicList = state.dailyRecommendedMusic,
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    HomeHeader(
                         isDarkHome = isDarkHome,
                         titleColor = titleColor,
                         secondaryColor = secondaryColor,
-                        sampleBackdrop = liquidBackdrop,
-                        onClick = onNavigateToDailyRecommendations,
+                        titleShadow = titleShadow,
+                        horizontalPadding = horizontalPadding,
                     )
                 }
             }
 
+            if (state.dailyRecommendedMusic.isNotEmpty()) {
+                item(key = "home_daily") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        HomeDailyFeature(
+                            musicList = state.dailyRecommendedMusic,
+                            isDarkHome = isDarkHome,
+                            titleColor = titleColor,
+                            secondaryColor = secondaryColor,
+                            sampleBackdrop = liquidBackdrop,
+                            horizontalPadding = horizontalPadding,
+                            onClick = onNavigateToDailyRecommendations,
+                        )
+                    }
+                }
+            }
+
             item(key = "home_recommended") {
-                HomeRecommendedPanel(
-                    state = state,
-                    isDarkHome = isDarkHome,
-                    titleColor = titleColor,
-                    secondaryColor = secondaryColor,
-                    sampleBackdrop = liquidBackdrop,
-                    onNavigateToPlaylist = onNavigateToPlaylist,
-                    onNavigateToRanking = onNavigateToRanking,
-                    onNavigateToLatest = onNavigateToLatest,
-                )
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    HomeRecommendedPanel(
+                        state = state,
+                        isDarkHome = isDarkHome,
+                        titleColor = titleColor,
+                        secondaryColor = secondaryColor,
+                        sampleBackdrop = liquidBackdrop,
+                        horizontalPadding = horizontalPadding,
+                        gridColumns = gridColumns,
+                        onNavigateToPlaylist = onNavigateToPlaylist,
+                        onNavigateToRanking = onNavigateToRanking,
+                        onNavigateToLatest = onNavigateToLatest,
+                    )
+                }
             }
         }
     }
@@ -158,11 +186,13 @@ private fun HomeHeader(
     titleColor: Color,
     secondaryColor: Color,
     titleShadow: Shadow,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
 ) {
     Column(
         modifier = Modifier
+            .widthIn(max = NekoMediaContentWidth)
             .fillMaxWidth()
-            .padding(start = 20.dp, top = 8.dp, end = 20.dp),
+            .padding(start = horizontalPadding, top = 8.dp, end = horizontalPadding),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -200,6 +230,7 @@ private fun HomeDailyFeature(
     titleColor: Color,
     secondaryColor: Color,
     sampleBackdrop: LayerBackdrop,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
 ) {
     val music = musicList.firstOrNull() ?: return
@@ -231,8 +262,9 @@ private fun HomeDailyFeature(
 
     GlassSurface(
         modifier = Modifier
+            .widthIn(max = NekoMediaContentWidth)
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = horizontalPadding),
         sampleBackdrop = sampleBackdrop,
         shape = RoundedCornerShape(24.dp),
         material3Shape = RoundedCornerShape(16.dp),
@@ -338,6 +370,8 @@ private fun HomeRecommendedPanel(
     titleColor: Color,
     secondaryColor: Color,
     sampleBackdrop: LayerBackdrop,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
+    gridColumns: Int,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToRanking: () -> Unit,
     onNavigateToLatest: () -> Unit,
@@ -352,8 +386,9 @@ private fun HomeRecommendedPanel(
 
     GlassSurface(
         modifier = Modifier
+            .widthIn(max = NekoMediaContentWidth)
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = horizontalPadding),
         sampleBackdrop = sampleBackdrop,
         shape = RoundedCornerShape(24.dp),
         material3Shape = RoundedCornerShape(16.dp),
@@ -453,6 +488,7 @@ private fun HomeRecommendedPanel(
 
                 else -> HomeRecommendationGrid(
                     state = state,
+                    columns = gridColumns,
                     onNavigateToPlaylist = onNavigateToPlaylist,
                     onNavigateToRanking = onNavigateToRanking,
                     onNavigateToLatest = onNavigateToLatest,
@@ -469,6 +505,7 @@ private fun HomeRecommendedPanel(
 @Composable
 private fun HomeRecommendationGrid(
     state: HomeLiquidHeroState,
+    columns: Int,
     onNavigateToPlaylist: (Int) -> Unit,
     onNavigateToRanking: () -> Unit,
     onNavigateToLatest: () -> Unit,
@@ -509,7 +546,7 @@ private fun HomeRecommendationGrid(
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        cards.chunked(2).forEach { rowCards ->
+        cards.chunked(columns.coerceAtLeast(1)).forEach { rowCards ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),

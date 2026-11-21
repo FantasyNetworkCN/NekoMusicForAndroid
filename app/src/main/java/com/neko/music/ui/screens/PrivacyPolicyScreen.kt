@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +47,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.RoseRed
@@ -80,23 +83,30 @@ fun PrivacyPolicyScreen(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "隐私政策",
-                            color = textColor,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            NekoIcon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "返回",
-                                tint = mutedColor,
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    TopAppBar(
+                        modifier = Modifier
+                            .widthIn(max = 840.dp)
+                            .fillMaxWidth(),
+                        title = {
+                            Text(
+                                text = "隐私政策",
+                                color = textColor,
+                                fontWeight = FontWeight.Bold,
                             )
-                        }
-                    },
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                NekoIcon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "返回",
+                                    tint = mutedColor,
+                                )
+                            }
+                        },
 //                    actions = {
 //                        TextButton(
 //                            onClick = {
@@ -116,22 +126,26 @@ fun PrivacyPolicyScreen(
 //                            Text(text = "网页版本", color = RoseRed)
 //                        }
 //                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
-                    ),
-                )
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                        ),
+                    )
+                }
             },
         ) { paddingValues ->
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                NekoAdaptivePageContent(
+                    modifier = Modifier.padding(paddingValues),
+                    maxWidth = 840.dp,
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
                     PrivacyCard(glassBg, glassBorder, glassHighlight) {
                         Text(
                             text = "Neko歌姬计划隐私政策",
@@ -250,7 +264,8 @@ fun PrivacyPolicyScreen(
                         glassHighlight = glassHighlight,
                     )
 
-                    Spacer(modifier = Modifier.height(120.dp))
+                        Spacer(modifier = Modifier.height(120.dp))
+                    }
                 }
             }
         }

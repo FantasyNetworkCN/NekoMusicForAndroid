@@ -46,6 +46,7 @@ import com.neko.music.util.UrlConfig
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
@@ -226,6 +227,7 @@ fun FavoriteScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            NekoAdaptivePageContent {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -523,6 +525,7 @@ fun FavoriteScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

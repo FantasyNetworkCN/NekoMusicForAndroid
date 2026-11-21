@@ -67,6 +67,7 @@ import com.neko.music.ui.components.LiquidGlassSwitch
 import com.neko.music.ui.components.LyricStylePreferences
 import com.neko.music.ui.components.LyricStyleSettings
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.theme.LightRose
@@ -161,10 +162,10 @@ fun LyricsPersonalizationScreen(
             },
         ) { paddingValues ->
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                NekoAdaptivePageContent(modifier = Modifier.padding(paddingValues)) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                        .fillMaxSize(),
                 ) {
                     Column(
                         modifier = Modifier
@@ -418,6 +419,7 @@ fun LyricsPersonalizationScreen(
 
                         Spacer(modifier = Modifier.height(150.dp))
                     }
+                }
                 }
             }
         }

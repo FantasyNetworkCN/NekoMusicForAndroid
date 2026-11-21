@@ -60,6 +60,7 @@ import com.neko.music.ui.components.ChangeAvatarGlassDialog
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
@@ -158,10 +159,13 @@ fun AccountInfoScreen(
                 )
             }
         ) { paddingValues ->
+            NekoAdaptivePageContent(
+                modifier = Modifier.padding(paddingValues),
+                maxWidth = 720.dp,
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
@@ -292,6 +296,7 @@ fun AccountInfoScreen(
 
                     Spacer(modifier = Modifier.height(160.dp))
                 }
+            }
         }
 
         // 加载中提示

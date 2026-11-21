@@ -84,6 +84,7 @@ import com.neko.music.ui.components.GlassDialogOverlay
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import kotlinx.coroutines.launch
@@ -450,6 +451,7 @@ fun MyPlaylistsScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            NekoAdaptivePageContent {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -699,6 +701,7 @@ fun MyPlaylistsScreen(
                         }
                     }
                 }
+            }
             }
         }
 
@@ -2119,6 +2122,7 @@ fun PlaylistDialog(
         ) {
             GlassSurface(
                 modifier = Modifier
+                    .widthIn(max = 560.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .clickable(

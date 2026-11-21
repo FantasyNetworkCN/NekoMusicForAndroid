@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -70,6 +71,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -435,12 +437,18 @@ fun PlayerScreen(
     var favoriteCount by remember { mutableStateOf<Int?>(null) }
     var commentCount by remember { mutableStateOf(0) }
     val commentApi = remember { CommentApi(context) }
+    val widePlayerLayout = LocalConfiguration.current.screenWidthDp >= 840
     val pagerState = rememberPagerState(
-        // 0 = 评论，1 = 封面，2 = 歌词
+        // 0 = 评论，1 = 播放（大屏同屏显示歌词），2 = 独立歌词页（仅小屏）
         initialPage = 1,
-        pageCount = { 3 },
+        pageCount = { if (widePlayerLayout) 2 else 3 },
     )
-    val showLyrics = pagerState.currentPage == 2
+    val showLyrics = !widePlayerLayout && pagerState.currentPage == 2
+    LaunchedEffect(widePlayerLayout) {
+        if (widePlayerLayout && pagerState.currentPage > 1) {
+            pagerState.scrollToPage(1)
+        }
+    }
     var lyricsControlsVisible by remember { mutableStateOf(true) }
     var lyricsInteractionPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(showLyrics, lyricsInteractionPulse) {
@@ -1013,6 +1021,7 @@ fun PlayerScreen(
                 if (togetherActive) {
                     Box(
                         modifier = Modifier
+                            .widthIn(max = 920.dp)
                             .fillMaxWidth()
                             .height(52.dp)
                             .padding(horizontal = 16.dp),
@@ -1026,7 +1035,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // 评论 / 封面 / 歌词共用一个可横滑容器，保持原有手势与状态。
+                // 大屏把封面与歌词合并在播放页；小屏继续使用评论、封面、歌词三页横滑。
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
@@ -1054,28 +1063,16 @@ fun PlayerScreen(
                         }
 
                         1 -> {
-                            // 封面与歌曲信息由持久播放视觉层绘制，分页页只保留手势区域。
-                            Box(Modifier.fillMaxSize())
-                        }
-
-                        2 -> {
-                            if (lyricsPageReady) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    DisposableEffect(lyricsListState) {
-                                        com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(lyricsListState)
-                                        onDispose {
-                                            com.neko.music.util.LyricScrollManager.clearPlayerPageScrollState(lyricsListState)
-                                        }
-                                    }
-                                    AmllLyricsView(
+                            if (widePlayerLayout && lyricsPageReady) {
+                                Box(Modifier.fillMaxSize()) {
+                                    PlayerLyricsPane(
                                         lyrics = lyrics,
                                         currentProgressSeconds = currentProgressSeconds,
                                         isLoading = isLoading,
                                         isPlaying = isPlaying && !isBuffering,
                                         playbackSpeed = playbackSpeed,
-                                        active = showLyrics,
+                                        active = true,
                                         scrubPositionSeconds = lyricScrubPosition,
-                                        modifier = Modifier.fillMaxSize(),
                                         listState = lyricsListState,
                                         onLineClick = { lineTime ->
                                             if (togetherActive) {
@@ -1084,8 +1081,36 @@ fun PlayerScreen(
                                                 playerManager.seekTo((lineTime * 1000f).toLong())
                                             }
                                         },
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.46f)
+                                            .padding(start = 8.dp, end = 24.dp, top = 4.dp, bottom = 8.dp),
                                     )
                                 }
+                            }
+                        }
+
+                        2 -> {
+                            if (lyricsPageReady) {
+                                PlayerLyricsPane(
+                                    lyrics = lyrics,
+                                    currentProgressSeconds = currentProgressSeconds,
+                                    isLoading = isLoading,
+                                    isPlaying = isPlaying && !isBuffering,
+                                    playbackSpeed = playbackSpeed,
+                                    active = showLyrics,
+                                    scrubPositionSeconds = lyricScrubPosition,
+                                    listState = lyricsListState,
+                                    onLineClick = { lineTime ->
+                                        if (togetherActive) {
+                                            TogetherSessionManager.seekTo((lineTime * 1000f).toLong())
+                                        } else {
+                                            playerManager.seekTo((lineTime * 1000f).toLong())
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             } else {
                                 Box(Modifier.fillMaxSize())
                             }
@@ -1797,6 +1822,39 @@ fun PlayerScreen(
 }
 
 @Composable
+private fun PlayerLyricsPane(
+    lyrics: List<LrcLine>,
+    currentProgressSeconds: State<Float>,
+    isLoading: Boolean,
+    isPlaying: Boolean,
+    playbackSpeed: Float,
+    active: Boolean,
+    scrubPositionSeconds: Float?,
+    listState: LazyListState,
+    onLineClick: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    DisposableEffect(listState) {
+        com.neko.music.util.LyricScrollManager.setPlayerPageScrollState(listState)
+        onDispose {
+            com.neko.music.util.LyricScrollManager.clearPlayerPageScrollState(listState)
+        }
+    }
+    AmllLyricsView(
+        lyrics = lyrics,
+        currentProgressSeconds = currentProgressSeconds,
+        isLoading = isLoading,
+        isPlaying = isPlaying,
+        playbackSpeed = playbackSpeed,
+        active = active,
+        scrubPositionSeconds = scrubPositionSeconds,
+        modifier = modifier,
+        listState = listState,
+        onLineClick = onLineClick,
+    )
+}
+
+@Composable
 private fun PlayerTopReserve(
     isLandscape: Boolean,
     lyricsHeaderVisible: Boolean,
@@ -1924,7 +1982,14 @@ private fun PlayerPersistentVisualLayer(
             maxHeight - bottomReserve - contentTop
         ).coerceAtLeast(1.dp)
 
-        val largeCoverSize = if (isLandscape) {
+        val combinedLyricsLayout = isLandscape && maxWidth >= 840.dp
+        val largeCoverSize = if (isLandscape && combinedLyricsLayout) {
+            minOf(
+                maxWidth * 0.23f,
+                availableHeight * 0.64f,
+                240.dp,
+            )
+        } else if (isLandscape) {
             minOf(
                 maxWidth * (if (togetherActive) 0.24f else 0.30f),
                 availableHeight * 0.72f,
@@ -1959,14 +2024,30 @@ private fun PlayerPersistentVisualLayer(
         val largeTextY: Dp
         val largeBlockWidth: Dp
         if (isLandscape) {
-            val blockWidth = (maxWidth - 64.dp).coerceAtLeast(1.dp)
-            largeCoverX = 32.dp
-            largeCoverY = contentTop + ((availableHeight - largeCoverSize) / 2f)
-                .coerceAtLeast(0.dp)
-            largeTextX = largeCoverX + largeCoverSize + 30.dp
-            largeTextY = largeCoverY + ((largeCoverSize - 54.dp) / 2f).coerceAtLeast(0.dp)
-            largeBlockWidth = (blockWidth - largeCoverSize - 30.dp)
-                .coerceAtLeast(1.dp)
+            if (combinedLyricsLayout) {
+                largeCoverX = 40.dp
+                val identityHeight = 54.dp
+                val identityGap = 16.dp
+                val totalHeight = largeCoverSize + identityGap + identityHeight
+                largeCoverY = contentTop + ((availableHeight - totalHeight) / 2f)
+                    .coerceAtLeast(0.dp)
+                largeTextX = largeCoverX
+                largeTextY = largeCoverY + largeCoverSize + identityGap
+                largeBlockWidth = (largeCoverSize + 72.dp)
+                    .coerceAtLeast(1.dp)
+            } else {
+                val blockWidth = minOf(
+                    (maxWidth - 64.dp).coerceAtLeast(1.dp),
+                    760.dp,
+                )
+                largeCoverX = ((maxWidth - blockWidth) / 2f).coerceAtLeast(0.dp)
+                largeCoverY = contentTop + ((availableHeight - largeCoverSize) / 2f)
+                    .coerceAtLeast(0.dp)
+                largeTextX = largeCoverX + largeCoverSize + 30.dp
+                largeTextY = largeCoverY + ((largeCoverSize - 54.dp) / 2f).coerceAtLeast(0.dp)
+                largeBlockWidth = (blockWidth - largeCoverSize - 30.dp)
+                    .coerceAtLeast(1.dp)
+            }
         } else {
             val identityHeight = 54.dp
             val totalHeight = largeCoverSize + 30.dp + identityHeight
@@ -2972,50 +3053,56 @@ private fun PlayerBottomBar(
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
         if (isLandscape) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(22.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center,
+                Row(
+                    modifier = Modifier
+                        .widthIn(max = 1040.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(22.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ProgressSlider(
-                        positionMillis = positionMillis,
-                        durationMillis = durationMillis,
-                        isLoading = isLoading,
-                        compact = true,
-                        audioQuality = audioQuality,
-                        maxQuality = maxQuality,
-                        onQualitySelected = onQualitySelected,
-                        onProgressChange = onProgressChange,
-                        onScrubPositionChange = onScrubPositionChange,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    PlayerUtilityRow(
-                        isDarkTheme = isDarkTheme,
-                        compact = true,
-                        onPlaylistClick = onPlaylistClick,
-                        onVolumeClick = onVolumeClick,
-                    )
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    PlaybackControls(
-                        isPlaying = isPlaying,
-                        isLoading = isLoading || isBuffering,
-                        musicFileUrl = musicFileUrl,
-                        playMode = playMode,
-                        isFavorite = isFavorite,
-                        compact = true,
-                        onPlayPauseClick = onPlayPauseClick,
-                        onPreviousClick = onPreviousClick,
-                        onNextClick = onNextClick,
-                        onFavoriteClick = onFavoriteClick,
-                        onPlayModeClick = onPlayModeClick,
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        ProgressSlider(
+                            positionMillis = positionMillis,
+                            durationMillis = durationMillis,
+                            isLoading = isLoading,
+                            compact = true,
+                            audioQuality = audioQuality,
+                            maxQuality = maxQuality,
+                            onQualitySelected = onQualitySelected,
+                            onProgressChange = onProgressChange,
+                            onScrubPositionChange = onScrubPositionChange,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        PlayerUtilityRow(
+                            isDarkTheme = isDarkTheme,
+                            compact = true,
+                            onPlaylistClick = onPlaylistClick,
+                            onVolumeClick = onVolumeClick,
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        PlaybackControls(
+                            isPlaying = isPlaying,
+                            isLoading = isLoading || isBuffering,
+                            musicFileUrl = musicFileUrl,
+                            playMode = playMode,
+                            isFavorite = isFavorite,
+                            compact = true,
+                            onPlayPauseClick = onPlayPauseClick,
+                            onPreviousClick = onPreviousClick,
+                            onNextClick = onNextClick,
+                            onFavoriteClick = onFavoriteClick,
+                            onPlayModeClick = onPlayModeClick,
+                        )
+                    }
                 }
             }
         } else {
@@ -3853,6 +3940,7 @@ fun ShareDialog(
                 animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
             ) + fadeOut(animationSpec = tween(180)),
             modifier = Modifier
+                .widthIn(max = 840.dp)
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .graphicsLayer { translationY = dragState.offsetPx }

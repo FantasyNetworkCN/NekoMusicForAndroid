@@ -50,6 +50,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.VipPill
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -135,6 +136,7 @@ fun MineScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            NekoAdaptivePageContent {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
@@ -265,6 +267,7 @@ fun MineScreen(
                         )
                     }
                 }
+            }
             }
         }
     }

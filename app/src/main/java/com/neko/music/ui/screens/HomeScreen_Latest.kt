@@ -1,7 +1,6 @@
 package com.neko.music.ui.screens
 
 import com.neko.music.debug.NekoLog as Log
-import android.content.res.Configuration
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -29,7 +28,6 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -42,6 +40,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.neko.music.R
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.adaptiveHomeCardAspectRatio
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.util.UrlConfig
 import com.neko.music.ui.theme.Lilac
@@ -103,13 +102,7 @@ fun LatestMusicCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(
-                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                        1.65f
-                    } else {
-                        1f
-                    }
-                )
+                .aspectRatio(adaptiveHomeCardAspectRatio())
                 .clip(coverShape)
                 .then(
                     if (useLiquidStyle) {

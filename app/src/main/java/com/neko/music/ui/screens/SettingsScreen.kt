@@ -45,6 +45,7 @@ import com.neko.music.ui.components.AppUpdateErrorDialog
 import com.neko.music.ui.components.AppUpdatePromptDialog
 import com.neko.music.ui.components.AppUpdateSuccessDialog
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
@@ -283,45 +284,50 @@ fun SettingsScreen(
             containerColor = Color.Transparent,
             contentColor = scheme.onSurface,
             topBar = {
-                LargeTopAppBar(
-                    title = {
-                        Text(
-                            stringResource(id = R.string.settings),
-                            color = scheme.onSurface,
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.8).sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            NekoIcon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(id = R.string.back),
-                                tint = scheme.onSurfaceVariant,
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    LargeTopAppBar(
+                        modifier = Modifier
+                            .widthIn(max = 720.dp)
+                            .fillMaxWidth(),
+                        title = {
+                            Text(
+                                stringResource(id = R.string.settings),
+                                color = scheme.onSurface,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.8).sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                        }
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent,
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                NekoIcon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(id = R.string.back),
+                                    tint = scheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                        scrollBehavior = scrollBehavior,
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                        )
                     )
-                )
+                }
             }
         ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+            NekoAdaptivePageContent(
+                modifier = Modifier.padding(paddingValues),
+                maxWidth = 720.dp,
             ) {
                 CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                     Column(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .widthIn(max = 720.dp)
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .imePadding()

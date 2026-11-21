@@ -101,6 +101,7 @@ import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -250,11 +251,7 @@ fun UploadedMusicScreen(
                     )
                 }
             ) { paddingValues ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                ) {
+                NekoAdaptivePageContent(modifier = Modifier.padding(paddingValues)) {
                     when {
                         isLoading -> {
                             LoadingView(isDarkTheme = isDarkTheme)

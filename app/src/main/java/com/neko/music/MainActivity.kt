@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.scale
@@ -116,6 +117,8 @@ import com.neko.music.ui.components.BottomNavItem
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.LocalNavHostRecordingBackdrop
 import com.neko.music.ui.components.MeloXMiniPlayer
+import com.neko.music.ui.components.NekoMediaContentWidth
+import com.neko.music.ui.components.NekoReadableContentWidth
 import com.neko.music.ui.components.PlayerPresentationHost
 import com.neko.music.ui.components.nekoPlayerSettlementSpec
 import com.neko.music.ui.components.reboundPlayerToClosed
@@ -927,8 +930,9 @@ fun MainScreen() {
     var showBottomControls by androidx.compose.runtime.remember { mutableStateOf(true) }
     var bottomChromeCollapsed by remember { mutableStateOf(false) }
     var bottomChromeScrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val keepBottomChromeExpanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val bottomChromeCompactProgress by animateFloatAsState(
-        targetValue = if (bottomChromeCollapsed) 1f else 0f,
+        targetValue = if (bottomChromeCollapsed && !keepBottomChromeExpanded) 1f else 0f,
         animationSpec = spring(
             dampingRatio = 0.82f,
             stiffness = 320f,
@@ -937,10 +941,14 @@ fun MainScreen() {
         label = "bottom_chrome_compact",
     )
     val bottomChromeCollapseThresholdPx = with(LocalDensity.current) { 18.dp.toPx() }
-    val bottomChromeScrollConnection = remember(bottomChromeCollapseThresholdPx) {
+    val bottomChromeScrollConnection = remember(
+        bottomChromeCollapseThresholdPx,
+        keepBottomChromeExpanded,
+    ) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (keepBottomChromeExpanded) return Offset.Zero
                 if (available.y < 0f) {
                     if (bottomChromeScrollAccumulator > 0f) bottomChromeScrollAccumulator = 0f
                     bottomChromeScrollAccumulator += available.y
@@ -1301,6 +1309,8 @@ fun MainScreen() {
             navController = navController,
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = NekoMediaContentWidth)
                 .fillMaxSize()
                 .nestedScroll(bottomChromeScrollConnection)
                 .then(
@@ -2011,7 +2021,8 @@ fun MainScreen() {
         if (currentRoute == BottomNavItem.Home.route && !isPlayerScreen) {
             Box(
                 modifier = Modifier
-                    .align(androidx.compose.ui.Alignment.TopStart)
+                    .align(androidx.compose.ui.Alignment.TopCenter)
+                    .widthIn(max = NekoMediaContentWidth)
                     .fillMaxSize()
                     .zIndex(1f)
                     .layerBackdrop(homeContentBackdrop)
@@ -2050,8 +2061,9 @@ fun MainScreen() {
         if (currentRoute == "ranking" && !isPlayerScreen) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = NekoReadableContentWidth)
+                    .fillMaxSize()
                     .zIndex(1f)
             ) {
                 RankingLiquidTopBarOverlay(
@@ -2066,8 +2078,9 @@ fun MainScreen() {
         if (currentRoute == "latest" && !isPlayerScreen) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = NekoReadableContentWidth)
+                    .fillMaxSize()
                     .zIndex(1f)
             ) {
                 LatestLiquidTopBarOverlay(

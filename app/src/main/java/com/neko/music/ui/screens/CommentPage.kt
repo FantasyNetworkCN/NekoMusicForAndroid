@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.neko.music.R
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.data.api.CommentApi
 import com.neko.music.data.api.CommentItem
 import com.neko.music.data.api.CommentReply
@@ -292,7 +293,8 @@ fun CommentPage(
     val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val keyboardLift = (imeBottom - bottomReserve).coerceAtLeast(0.dp)
 
-    Column(modifier = modifier.fillMaxSize().padding(bottom = keyboardLift)) {
+    NekoAdaptivePageContent(modifier = modifier) {
+    Column(modifier = Modifier.fillMaxSize().padding(bottom = keyboardLift)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -463,6 +465,7 @@ fun CommentPage(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
     }
 
     deleteTarget?.let { target ->

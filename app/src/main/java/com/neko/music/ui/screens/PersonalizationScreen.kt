@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,6 +79,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LiquidGlassUiScale
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -221,33 +223,40 @@ fun PersonalizationScreen(
         containerColor = Color.Transparent,
         contentColor = if (isDarkChrome) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(id = R.string.personalization),
-                        color = if (isDarkChrome) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        NekoIcon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                TopAppBar(
+                    modifier = Modifier
+                        .widthIn(max = 720.dp)
+                        .fillMaxWidth(),
+                    title = {
+                        Text(
+                            stringResource(id = R.string.personalization),
+                            color = if (isDarkChrome) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            NekoIcon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(id = R.string.back),
+                                tint = if (isDarkChrome) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    )
                 )
-            )
+            }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+        NekoAdaptivePageContent(
+            modifier = Modifier.padding(paddingValues),
+            maxWidth = 720.dp,
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
                 Box(modifier = Modifier.fillMaxSize()) {

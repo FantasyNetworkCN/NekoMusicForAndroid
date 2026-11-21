@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -77,6 +78,8 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
+import com.neko.music.ui.components.NekoReadableContentWidth
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
@@ -239,6 +242,7 @@ fun SearchResultScreen(
             PlaylistPageDarkTintOverlay(enabled = isDark)
         }
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            NekoAdaptivePageContent {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -316,14 +320,16 @@ fun SearchResultScreen(
                     }
                 }
             }
+            }
         }
         SearchLiquidTopOverlay(
             state = liquidBarState,
             onRecognitionClick = onRecognitionClick,
             onBarHeightChanged = { barInsetPx = it },
             modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = NekoReadableContentWidth)
                 .fillMaxWidth()
-                .align(Alignment.TopStart)
                 .zIndex(2f),
             sampleBackdrop = pageBackdrop
         )

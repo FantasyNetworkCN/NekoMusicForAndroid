@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -72,6 +73,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.PlaylistDetailLiquidGlassParams
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
@@ -444,7 +446,7 @@ fun PlaylistDetailScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            NekoAdaptivePageContent {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1399,6 +1401,7 @@ internal fun PlaylistShareSheet(
                         animationSpec = tween(220, easing = FastOutSlowInEasing),
                     ) + fadeOut(tween(180)),
                     modifier = Modifier
+                        .widthIn(max = 840.dp)
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                         .clickable(

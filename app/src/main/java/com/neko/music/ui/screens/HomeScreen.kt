@@ -2,7 +2,6 @@ package com.neko.music.ui.screens
 
 import com.neko.music.ui.icons.NekoIcon
 
-import android.content.res.Configuration
 import com.neko.music.debug.NekoLog as Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -90,6 +89,7 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.data.manager.AppBackgroundKind
 import com.neko.music.ui.home.HomeLiquidHeroState
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.adaptiveHomeCardAspectRatio
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.theme.Lilac
 import com.neko.music.ui.theme.RoseRed
@@ -100,7 +100,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalConfiguration
 import java.io.File
 
 @Composable
@@ -865,13 +864,7 @@ fun PlaylistCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(
-                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                        1.65f
-                    } else {
-                        1f
-                    }
-                )
+                .aspectRatio(adaptiveHomeCardAspectRatio())
                 .clip(coverShape)
                 .then(
                     if (useLiquidStyle) {
@@ -1081,13 +1074,7 @@ fun RankingMusicCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(
-                    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                        1.65f
-                    } else {
-                        1f
-                    }
-                )
+                .aspectRatio(adaptiveHomeCardAspectRatio())
                 .clip(coverShape)
                 .then(
                     if (useLiquidStyle) {

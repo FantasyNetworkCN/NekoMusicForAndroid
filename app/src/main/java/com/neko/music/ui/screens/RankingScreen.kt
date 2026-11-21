@@ -68,6 +68,7 @@ import com.neko.music.ui.components.EditorialPlayAllButton
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.LrcBadge
 import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
@@ -204,6 +205,7 @@ fun RankingScreen(
         }
 
         CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+            NekoAdaptivePageContent {
             when {
                 loading && musicList.isEmpty() -> {
                     EditorialCollectionLoading(
@@ -301,6 +303,7 @@ fun RankingScreen(
 
                     }
                 }
+            }
             }
         }
     }

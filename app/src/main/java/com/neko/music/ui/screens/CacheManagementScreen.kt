@@ -31,6 +31,7 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.components.GlassSurface
 import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
+import com.neko.music.ui.components.NekoAdaptivePageContent
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.layout.ContentScale
@@ -112,27 +113,34 @@ fun CacheManagementScreen(
         containerColor = Color.Transparent,
         contentColor = if (isDarkTheme) Color(0xFFF0F0F5) else scheme.onSurface,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(id = R.string.space_management),
-                        color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        NekoIcon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                TopAppBar(
+                    modifier = Modifier
+                        .widthIn(max = 920.dp)
+                        .fillMaxWidth(),
+                    title = {
+                        Text(
+                            stringResource(id = R.string.space_management),
+                            color = if (isDarkTheme) Color(0xFFF0F0F5).copy(alpha = 0.95f) else scheme.onSurface
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                ),
-                actions = {
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            NekoIcon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(id = R.string.back),
+                                tint = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.9f) else scheme.onSurface
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    ),
+                    actions = {
                     // 播放全部按钮
                     TextButton(
                         onClick = { 
@@ -209,8 +217,9 @@ fun CacheManagementScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                }
-            )
+                    }
+                )
+            }
         }
     ) { paddingValues ->
         Box(
@@ -219,6 +228,7 @@ fun CacheManagementScreen(
                 .padding(paddingValues)
         ) {
             CompositionLocalProvider(LocalLiquidLayerBackdrop provides pageBackdrop) {
+                NekoAdaptivePageContent {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 150.dp),
@@ -285,6 +295,7 @@ fun CacheManagementScreen(
                             )
                         }
                     }
+                }
                 }
             }
         }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -141,6 +142,9 @@ fun AuthPageShell(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .widthIn(max = 560.dp)
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
                 ) {

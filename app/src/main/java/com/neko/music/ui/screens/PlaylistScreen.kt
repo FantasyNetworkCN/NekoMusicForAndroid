@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -247,6 +248,7 @@ fun PlaylistScreen(
             val panelShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             val panelModifier = Modifier
                 .align(Alignment.BottomCenter)
+                .widthIn(max = 840.dp)
                 .fillMaxWidth()
                 .height(with(density) { panelHeight.value.toDp() })
                 .clip(panelShape)
