@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="player_audio_settings">Audio settings</string>
+    <string name="eq_db_value">%1$+.1f dB</string>
+    <string name="eq_reset">Reset equalizer</string>
+    <string name="eq_bands">Bands</string>
+    <string name="eq_preset_custom">Custom</string>
+    <string name="eq_preset_treble">Treble</string>
+    <string name="eq_preset_bass">Bass boost</string>
+    <string name="eq_preset_vocal">Vocal</string>
+    <string name="eq_preset_classical">Classical</string>
+    <string name="eq_preset_jazz">Jazz</string>
+    <string name="eq_preset_rock">Rock</string>
+    <string name="eq_preset_pop">Pop</string>
+    <string name="eq_preset_flat">Flat</string>
+    <string name="eq_presets">Equalizer preset</string>
+    <string name="eq_gain_value">%1$+.1f dB</string>
+    <string name="eq_preamp">Preamp</string>
+    <string name="eq_enable">Enable equalizer</string>
+    <string name="eq_title">10-band frequency control</string>
+    <string name="player_eq_tab">EQ</string>
+    <string name="player_volume_tab">Volume</string>
     <string name="storage_category_external_cache">External cache</string>
     <string name="storage_category_other_data">Other app data</string>
     <string name="storage_category_other_cache">Other cache</string>

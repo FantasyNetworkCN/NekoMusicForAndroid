@@ -98,7 +98,7 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_AUDIO_QUALITY = "audio_quality"
     private val KEY_PREFERRED_AUDIO_QUALITY = "preferred_audio_quality"
 
-    internal val stemSeparation = StemSeparationController(appContext) {
+    private fun refreshAudioPipeline() {
         // 在同一播放器当前位置刷新音频管线，保留队列、倍速、音频焦点和通知会话。
         activePlayer.currentMediaItem?.let { item ->
             val position = activePlayer.currentPosition.coerceAtLeast(0L)
@@ -108,6 +108,9 @@ class MusicPlayerManager private constructor(context: Context) {
             if (activePlayer.playWhenReady) startPositionUpdate()
         }
     }
+
+    internal val stemSeparation = StemSeparationController(appContext) { refreshAudioPipeline() }
+    internal val equalizer = EqualizerController(appContext) { refreshAudioPipeline() }
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
@@ -182,7 +185,10 @@ class MusicPlayerManager private constructor(context: Context) {
                 enableAudioTrackPlaybackParams: Boolean,
                 enableOffload: Boolean,
             ): AudioSink = DefaultAudioSink.Builder(context)
-                .setAudioProcessors(arrayOf(StemAudioProcessor(stemSeparation)))
+                .setAudioProcessors(arrayOf(
+                    StemAudioProcessor(stemSeparation),
+                    EqualizerAudioProcessor(equalizer),
+                ))
                 .setAudioTrackBufferSizeProvider(object : DefaultAudioSink.AudioTrackBufferSizeProvider {
                     override fun getBufferSizeInBytes(
                         minBufferSizeInBytes: Int,

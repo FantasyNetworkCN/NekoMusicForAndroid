@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="player_audio_settings">音频设置</string>
+    <string name="eq_db_value">%1$+.1f dB</string>
+    <string name="eq_reset">重置均衡器</string>
+    <string name="eq_bands">频段</string>
+    <string name="eq_preset_custom">自定义</string>
+    <string name="eq_preset_treble">高音</string>
+    <string name="eq_preset_bass">重低音</string>
+    <string name="eq_preset_vocal">人声</string>
+    <string name="eq_preset_classical">古典</string>
+    <string name="eq_preset_jazz">爵士</string>
+    <string name="eq_preset_rock">摇滚</string>
+    <string name="eq_preset_pop">流行</string>
+    <string name="eq_preset_flat">平坦</string>
+    <string name="eq_presets">均衡器预设</string>
+    <string name="eq_gain_value">%1$+.1f dB</string>
+    <string name="eq_preamp">预增益</string>
+    <string name="eq_enable">开启均衡器</string>
+    <string name="eq_title">10 段频段调节</string>
+    <string name="player_eq_tab">EQ 调音</string>
+    <string name="player_volume_tab">音量</string>
     <string name="storage_category_external_cache">外部缓存</string>
     <string name="storage_category_other_data">其他应用数据</string>
     <string name="storage_category_other_cache">其他缓存</string>

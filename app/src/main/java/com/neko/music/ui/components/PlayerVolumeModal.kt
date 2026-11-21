@@ -12,16 +12,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,10 +61,11 @@ private const val VOLUME_MODAL_EXIT_MS = 180L
 internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val isDark = isAppDarkTheme()
-    val title = stringResource(R.string.player_volume_settings)
+    val title = stringResource(R.string.player_audio_settings)
     val closeLabel = stringResource(R.string.close)
     var shown by remember { mutableStateOf(false) }
     var closing by remember { mutableStateOf(false) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
     val requestClose = {
         if (!closing) {
             closing = true
@@ -75,7 +82,7 @@ internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
     val scrimAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(180), label = "volume_modal_scrim")
     BackHandler(onBack = requestClose)
 
-    Box(
+    BoxWithConstraints(
         Modifier.fillMaxSize().zIndex(45f),
         contentAlignment = Alignment.Center,
     ) {
@@ -100,6 +107,7 @@ internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
             val shape = RoundedCornerShape(24.dp)
             GlassSurface(
                 modifier = Modifier.fillMaxWidth()
+                    .heightIn(max = maxHeight - 48.dp)
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -120,7 +128,10 @@ internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
                 liquidLensAmount = panel.liquid.lensAmount,
                 material3Container = scheme.surfaceContainerHigh,
             ) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
+                Column(
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = title,
@@ -136,7 +147,28 @@ internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
                             )
                         }
                     }
-                    PlayerVolumeSection(Modifier.fillMaxWidth().padding(top = 8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            label = { Text(stringResource(R.string.player_volume_tab), color = scheme.onSurface) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            label = { Text(stringResource(R.string.player_eq_tab), color = scheme.onSurface) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (selectedTab == 0) {
+                        PlayerVolumeSection(Modifier.fillMaxWidth())
+                    } else {
+                        EqualizerPanel(Modifier.fillMaxWidth())
+                    }
                 }
             }
         }

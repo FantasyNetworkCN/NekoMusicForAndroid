@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="player_audio_settings">音频设置喵</string>
+    <string name="eq_db_value">%1$+.1f dB</string>
+    <string name="eq_reset">重置均衡器喵</string>
+    <string name="eq_bands">频段喵</string>
+    <string name="eq_preset_custom">自定义喵</string>
+    <string name="eq_preset_treble">高音喵</string>
+    <string name="eq_preset_bass">重低音喵</string>
+    <string name="eq_preset_vocal">人声喵</string>
+    <string name="eq_preset_classical">古典喵</string>
+    <string name="eq_preset_jazz">爵士喵</string>
+    <string name="eq_preset_rock">摇滚喵</string>
+    <string name="eq_preset_pop">流行喵</string>
+    <string name="eq_preset_flat">平坦喵</string>
+    <string name="eq_presets">均衡器预设喵</string>
+    <string name="eq_gain_value">%1$+.1f dB</string>
+    <string name="eq_preamp">预增益喵</string>
+    <string name="eq_enable">打开均衡器喵</string>
+    <string name="eq_title">10 段频段调节喵</string>
+    <string name="player_eq_tab">EQ 调音喵</string>
+    <string name="player_volume_tab">音量喵</string>
     <string name="storage_category_external_cache">外部缓存喵</string>
     <string name="storage_category_other_data">其他应用数据喵</string>
     <string name="storage_category_other_cache">其他缓存喵</string>
