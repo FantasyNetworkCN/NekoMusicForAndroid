@@ -15,6 +15,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StemAudioProcessorTest {
+    @Test fun togetherPlaybackKeepsHighQualityCacheMixLocal() {
+        val control = Control()
+        control.state.value = control.state.value.copy(roomPlaybackActive = true, vocals = 0f, instrumental = 1f)
+        val pipeline = pipeline(control)
+        try {
+            assertTrue(pipeline.isOperational)
+            pipeline.queueInput(source(1))
+            val output = pipeline.output
+            assertEquals(2000, output.short.toInt())
+            assertEquals(-1000, output.short.toInt())
+            assertTrue(control.state.value.roomPlaybackActive)
+            assertTrue(control.state.value.enabled)
+        } finally { pipeline.reset() }
+    }
+
     private class Control : StemProcessingControl {
         override val state = MutableStateFlow(StemSeparationState(enabled = true, ready = true, realtime = false))
         override var cachedPlayback = true

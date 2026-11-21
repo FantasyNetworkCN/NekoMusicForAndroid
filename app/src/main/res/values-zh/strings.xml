@@ -26,7 +26,7 @@
     <string name="player_volume_change_failed">暂时无法调整系统媒体音量，请使用手机音量键。</string>
     <string name="stem_separation">人声与伴奏调节</string>
     <string name="stem_separation_hint">默认实时近似分离，可边播放边调节；也可选择高质量模型后台准备。开关与音量自动保存。</string>
-    <string name="stem_room_unavailable">一起听期间暂不支持音源分离，以保持房间播放同步。</string>
+    <string name="stem_local_only">一起听期间也可使用，仅调整本机声音，不改变房间或其他成员的音量。</string>
     <string name="stem_vocals">人声</string>
     <string name="stem_instrumental">伴奏</string>
     <string name="stem_reset_mix">恢复原声比例</string>

@@ -95,10 +95,9 @@ fun SettingsScreen(
     var showStemDownloadDialog by rememberSaveable { mutableStateOf(false) }
     var showStemModeDialog by rememberSaveable { mutableStateOf(false) }
     val stemSubtitle = when {
-        stemState.roomPlaybackActive -> stringResource(R.string.stem_room_unavailable)
         stemState.enabled -> stemPreparationDescription(stemState)
         else -> stringResource(R.string.stem_separation_hint)
-    }
+    } + if (stemState.roomPlaybackActive) "\n" + stringResource(R.string.stem_local_only) else ""
 
     // 语言设置
     val languagePrefs = remember { context.getSharedPreferences("app_settings", Context.MODE_PRIVATE) }
@@ -358,7 +357,6 @@ fun SettingsScreen(
                                                             NekoSymbol.AutoMix, item.title, item.subtitle,
                                                             checked = stemState.enabled || stemState.preparing,
                                                             showSeparator = separator,
-                                                            enabled = !stemState.roomPlaybackActive,
                                                             onCheckedChange = { enabled ->
                                                                 if (enabled && !stemState.realtime && !stemSeparation.modelDownloaded) {
                                                                     showStemDownloadDialog = true

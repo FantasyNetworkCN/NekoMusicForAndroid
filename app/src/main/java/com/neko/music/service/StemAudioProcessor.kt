@@ -23,7 +23,7 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         val state = controller.state.value
-        realtime = state.enabled && state.realtime && !state.roomPlaybackActive
+        realtime = state.enabled && state.realtime
         if (realtime) {
             if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount !in 1..2) {
                 return AudioProcessor.AudioFormat.NOT_SET

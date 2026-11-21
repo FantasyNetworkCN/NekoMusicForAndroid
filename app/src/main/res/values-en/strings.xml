@@ -26,7 +26,7 @@
     <string name="player_volume_change_failed">Unable to change media volume. Please use the phone volume buttons.</string>
     <string name="stem_separation">Vocal and instrumental mix</string>
     <string name="stem_separation_hint">Real-time approximation by default, with an optional high-quality background model. The switch and mix levels are saved automatically.</string>
-    <string name="stem_room_unavailable">Audio separation is unavailable during Listen Together to keep room playback in sync.</string>
+    <string name="stem_local_only">Available during Listen Together. Adjusts audio on this device only, without changing room or other members’ volume.</string>
     <string name="stem_vocals">Vocals</string>
     <string name="stem_instrumental">Instrumental</string>
     <string name="stem_reset_mix">Reset original mix</string>

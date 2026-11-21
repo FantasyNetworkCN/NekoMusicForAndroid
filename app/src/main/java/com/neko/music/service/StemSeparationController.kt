@@ -80,13 +80,12 @@ internal class StemSeparationController(
             cachedPlayback = false
             _state.update { it.copy(ready = false, preparing = false, trackProgress = null, errorRes = null, phase = StemPreparationPhase.IDLE) }
         }
-        if (!_state.value.enabled || _state.value.roomPlaybackActive) return source
+        if (!_state.value.enabled) return source
         if (_state.value.realtime) {
             cachedPlayback = false
-            _state.update { it.copy(ready = !it.roomPlaybackActive, phase = StemPreparationPhase.READY) }
+            _state.update { it.copy(ready = true, phase = StemPreparationPhase.READY) }
             return source
         }
-        if (_state.value.roomPlaybackActive) return source
         val cached = File(cacheDirectory, "${StemCacheFile.key(identity)}.wav")
         if (StemCacheFile.isComplete(cached)) {
             cachedPlayback = true
@@ -99,17 +98,8 @@ internal class StemSeparationController(
     }
 
     fun setRoomPlaybackActive(active: Boolean) {
-        if (_state.value.roomPlaybackActive == active) return
-        if (active) {
-            generation++
-            preparation?.cancel()
-            cachedPlayback = false
-        }
-        _state.update { it.copy(roomPlaybackActive = active, ready = false, preparing = false) }
-        originalSource?.let { source ->
-            val target = sourceForPlayback(source, sourceKey ?: source)
-            switchSource(target)
-        }
+        // 房间状态仅供界面说明，不中断本地分离任务，也不触发换源或房间控制。
+        _state.update { it.copy(roomPlaybackActive = active) }
     }
 
     fun setVocals(value: Float) {
@@ -140,7 +130,6 @@ internal class StemSeparationController(
     }
 
     fun setEnabled(enabled: Boolean) {
-        if (enabled && _state.value.roomPlaybackActive) return
         prefs.edit().putBoolean("enabled", enabled).apply()
         if (!enabled) {
             generation++

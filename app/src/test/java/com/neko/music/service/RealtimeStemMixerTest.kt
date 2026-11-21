@@ -16,6 +16,39 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RealtimeStemMixerTest {
+    @Test fun togetherPlaybackKeepsRealtimeSeparationActiveAndLocalGainsEffective() {
+        val state = MutableStateFlow(StemSeparationState(enabled = true, roomPlaybackActive = true))
+        val control = object : StemProcessingControl {
+            override val state = state
+            override val cachedPlayback = false
+        }
+        val pipeline = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(StemAudioProcessor(control)))
+        pipeline.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
+        pipeline.flush()
+        try {
+            assertTrue("一起听期间仍应启用本地实时分离", pipeline.isOperational)
+            val audible = ByteArrayOutputStream()
+            repeat(4) {
+                val input = ByteBuffer.allocateDirect(1024 * 4).order(ByteOrder.nativeOrder())
+                repeat(1024) { input.putShort(4000).putShort(-4000) }
+                input.flip()
+                pipeline.queueInput(input)
+                val output = pipeline.output
+                audible.write(ByteArray(output.remaining()).also(output::get))
+            }
+            assertTrue(audible.toByteArray().any { it != 0.toByte() })
+            state.value = state.value.copy(vocals = 0f, instrumental = 0f)
+            val input = ByteBuffer.allocateDirect(1024 * 4).order(ByteOrder.nativeOrder())
+            repeat(1024) { input.putShort(4000).putShort(-4000) }
+            input.flip()
+            pipeline.queueInput(input)
+            val output = pipeline.output
+            assertTrue(output.hasRemaining())
+            assertTrue(ByteArray(output.remaining()).also(output::get).all { it == 0.toByte() })
+            assertTrue(state.value.roomPlaybackActive)
+        } finally { pipeline.reset() }
+    }
+
     @Test fun realtimePipelinePreservesEverySampleAtUnityForMonoAndStereo() {
         for (channels in 1..2) {
             val state = MutableStateFlow(StemSeparationState(enabled = true))
