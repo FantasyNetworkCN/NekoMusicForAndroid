@@ -42,11 +42,17 @@ class EqualizerAudioProcessorTest {
         }
     }
 
-    @Test fun disabledEqualizerLeavesPipelineInactive() {
-        val processor = EqualizerAudioProcessor(Control())
+    @Test fun disabledEqualizerRemainsInstalledAsPassThrough() {
+        val control = Control()
+        val processor = EqualizerAudioProcessor(control)
         processor.configure(AudioProcessor.AudioFormat(44_100, 2, C.ENCODING_PCM_16BIT))
         processor.flush()
-        assertFalse(processor.isActive)
+        assertTrue(processor.isActive)
+        val input = pcm(1_024)
+        val expected = ByteArray(input.remaining()).also(input.duplicate()::get)
+        processor.queueInput(input)
+        val output = processor.output
+        assertArrayEquals(expected, ByteArray(output.remaining()).also(output::get))
     }
 
     @Test fun flatPresetPreservesPcmExactly() {

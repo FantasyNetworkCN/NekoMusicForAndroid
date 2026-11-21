@@ -51,7 +51,6 @@ internal interface EqualizerProcessingControl {
 
 class EqualizerController(
     context: Context,
-    private val refreshAudio: () -> Unit,
 ) : EqualizerProcessingControl {
     private val prefs = context.applicationContext.getSharedPreferences("equalizer_settings", Context.MODE_PRIVATE)
     private val _state = MutableStateFlow(loadState())
@@ -61,7 +60,6 @@ class EqualizerController(
         if (_state.value.enabled == enabled) return
         prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
         _state.update { it.copy(enabled = enabled) }
-        refreshAudio()
     }
 
     fun setPreamp(value: Float) {

@@ -45,9 +45,8 @@ internal class EqualizerAudioProcessor(
     private var appliedSignature = ""
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (!controller.state.value.enabled) return AudioProcessor.AudioFormat.NOT_SET
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount !in 1..2) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+            return AudioProcessor.AudioFormat.NOT_SET
         }
         return inputAudioFormat
     }

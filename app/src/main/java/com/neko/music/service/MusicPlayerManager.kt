@@ -110,7 +110,7 @@ class MusicPlayerManager private constructor(context: Context) {
     }
 
     internal val stemSeparation = StemSeparationController(appContext) { refreshAudioPipeline() }
-    internal val equalizer = EqualizerController(appContext) { refreshAudioPipeline() }
+    internal val equalizer = EqualizerController(appContext)
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
