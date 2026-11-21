@@ -63,7 +63,8 @@ object AppStorageManager {
         val musicCache = File(roots.cacheDir, "music_cache/music").byteCount()
         val mediaCache = File(roots.cacheDir, "music_cache/cover").byteCount() +
             File(roots.cacheDir, "music_cache/lyrics").byteCount()
-        val aiCache = File(roots.cacheDir, "separated-audio-v1").byteCount()
+        val aiCache = File(roots.noBackupDir, "ai-stem-cache").byteCount() +
+            File(roots.cacheDir, "separated-audio-v1").byteCount()
         val aiModel = File(roots.noBackupDir, "audio-models").byteCount()
         val database = roots.databasesDir.byteCount()
         val preferences = roots.preferencesDir.byteCount()

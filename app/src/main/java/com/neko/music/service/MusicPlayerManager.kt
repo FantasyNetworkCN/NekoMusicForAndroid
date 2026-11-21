@@ -22,6 +22,7 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.audio.AudioSink
 import com.google.android.exoplayer2.audio.DefaultAudioSink
+import com.google.android.exoplayer2.audio.ForwardingAudioSink
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.neko.music.data.manager.PlaylistManager
@@ -184,32 +185,52 @@ class MusicPlayerManager private constructor(context: Context) {
                 enableFloatOutput: Boolean,
                 enableAudioTrackPlaybackParams: Boolean,
                 enableOffload: Boolean,
-            ): AudioSink = DefaultAudioSink.Builder(context)
-                .setAudioProcessors(arrayOf(
-                    StemAudioProcessor(stemSeparation),
-                    EqualizerAudioProcessor(equalizer),
-                ))
-                .setAudioTrackBufferSizeProvider(object : DefaultAudioSink.AudioTrackBufferSizeProvider {
-                    override fun getBufferSizeInBytes(
-                        minBufferSizeInBytes: Int,
-                        encoding: Int,
-                        outputMode: Int,
-                        pcmFrameSize: Int,
-                        sampleRate: Int,
-                        bitrate: Int,
-                        maxAudioTrackPlaybackSpeed: Double,
-                    ): Int {
-                        if (encoding != com.google.android.exoplayer2.C.ENCODING_PCM_16BIT || pcmFrameSize <= 0) {
-                            return minBufferSizeInBytes
+            ): AudioSink {
+                val stemProcessor = StemAudioProcessor(stemSeparation)
+                val sink = DefaultAudioSink.Builder(context)
+                    .setAudioProcessors(arrayOf(
+                        stemProcessor,
+                        EqualizerAudioProcessor(equalizer),
+                    ))
+                    .setAudioTrackBufferSizeProvider(object : DefaultAudioSink.AudioTrackBufferSizeProvider {
+                        override fun getBufferSizeInBytes(
+                            minBufferSizeInBytes: Int,
+                            encoding: Int,
+                            outputMode: Int,
+                            pcmFrameSize: Int,
+                            sampleRate: Int,
+                            bitrate: Int,
+                            maxAudioTrackPlaybackSpeed: Double,
+                        ): Int {
+                            if (encoding != com.google.android.exoplayer2.C.ENCODING_PCM_16BIT || pcmFrameSize <= 0) {
+                                return minBufferSizeInBytes
+                            }
+                            // 最终混音保持较短输出缓冲，滑条变动无需等待几秒旧增益音频播完。
+                            val target = sampleRate.toLong() * pcmFrameSize / 4L
+                            val size = maxOf(minBufferSizeInBytes.toLong(), target)
+                                .coerceAtMost(Int.MAX_VALUE.toLong())
+                            return (size - size % pcmFrameSize).toInt()
                         }
-                        // AI 分片推理需要解码器提前跑约两个分片，避免播放线程到点才开始推理。
-                        val target = sampleRate.toLong() * pcmFrameSize * 6L
-                        val size = maxOf(minBufferSizeInBytes.toLong(), target)
-                            .coerceAtMost(Int.MAX_VALUE.toLong())
-                        return (size - size % pcmFrameSize).toInt()
+                    })
+                    .build()
+                return object : ForwardingAudioSink(sink) {
+                    private var streamOffsetUs = 0L
+
+                    override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) {
+                        streamOffsetUs = outputStreamOffsetUs
+                        super.setOutputStreamOffsetUs(outputStreamOffsetUs)
                     }
-                })
-                .build()
+
+                    override fun handleBuffer(
+                        buffer: java.nio.ByteBuffer,
+                        presentationTimeUs: Long,
+                        encodedAccessUnitCount: Int,
+                    ): Boolean {
+                        stemProcessor.setInputTimestampUs(presentationTimeUs - streamOffsetUs)
+                        return super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
+                    }
+                }
+            }
         })
             .setMediaSourceFactory(
                 com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
@@ -480,6 +501,7 @@ class MusicPlayerManager private constructor(context: Context) {
     ) {
         val player = activePlayer
         val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
+        stemSeparation.onTrackChanged("music:$musicId:${quality.id}")
         val position = player.currentPosition.coerceAtLeast(0L)
         // 播放意图完全以 playWhenReady 为准：原地换源不会改动它，所以既不重新申请音频焦点，
         // 也不会出现"界面显示播放中但一声不响"（旧的双播放器接管方案正是在这里出的问题）。
@@ -1592,6 +1614,7 @@ class MusicPlayerManager private constructor(context: Context) {
             baseUrl
         }
         Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$normalizedUrl")
+        stemSeparation.onTrackChanged(id?.let { "music:$it:${_audioQuality.value.id}" } ?: normalizedUrl)
         // 重置重试计数器
         retryCount = 0
 
@@ -2006,6 +2029,7 @@ class MusicPlayerManager private constructor(context: Context) {
         lastPlayed?.let { music ->
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
             val url = musicApi.getMusicFileUrl(music)
+            stemSeparation.onTrackChanged("music:${music.id}:${_audioQuality.value.id}")
             val fullCoverUrl = buildPlayableCoverUrl(music)
             
             _currentMusicUrl.value = url

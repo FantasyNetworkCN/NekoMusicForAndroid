@@ -12,8 +12,10 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.nio.file.Files
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -52,12 +54,12 @@ class StemAudioProcessorTest {
                 FloatArray(outputFrames * 2) { 0.1f }
             override fun close() { closed.countDown() }
         }
-        val worker = StemInferenceWorker {
+        val worker = StemInferenceWorker(createEngine = {
             created.incrementAndGet()
             engine
-        }
+        })
         repeat(3) {
-            assertEquals(engine, worker.submit(FloatArray(16), 8)!!.get(2, TimeUnit.SECONDS).let { engine })
+            assertEquals(engine, worker.submit(FloatArray(16), 8).get(2, TimeUnit.SECONDS).let { engine })
         }
         assertEquals(1, created.get())
         worker.close()
@@ -67,7 +69,7 @@ class StemAudioProcessorTest {
     @Test fun inferenceFailureDegradesGpuThenRecoversOnNextChunk() {
         val preferences = mutableListOf<StemBackendPreference>()
         val calls = AtomicInteger()
-        val worker = StemInferenceWorker { preference ->
+        val worker = StemInferenceWorker(createEngine = { preference ->
             preferences += preference
             object : StemInference {
                 override fun instrumental(context: FloatArray, outputFrames: Int): FloatArray {
@@ -76,11 +78,11 @@ class StemAudioProcessorTest {
                 }
                 override fun close() {}
             }
-        }
+        })
         try {
-            runCatching { worker.prewarm(8)?.get(3, TimeUnit.SECONDS) }
+            runCatching { worker.prewarm(8).get(3, TimeUnit.SECONDS) }
             assertEquals(StemBackendPreference.AUTO, preferences.firstOrNull())
-            val recovered = worker.submit(FloatArray(16), 8)?.get(3, TimeUnit.SECONDS)
+            val recovered = worker.submit(FloatArray(16), 8).get(3, TimeUnit.SECONDS)
             assertTrue(recovered != null && recovered.isNotEmpty())
             assertTrue(preferences.contains(StemBackendPreference.NO_GPU))
         } finally {
@@ -88,7 +90,81 @@ class StemAudioProcessorTest {
         }
     }
 
-    @Test fun slowInferenceFallsBackInOrderAndResetCancelsOldOutput() {
+    @Test fun timeoutFallsBackButLeavesInferenceRunningToFillCache() {
+        var now = 0L
+        val pending = CompletableFuture<FloatArray>()
+        val mixer = StemStreamingMixer(2, StemChunkInference { _, _ -> pending }, {}, {},
+            4, 1, { now }, 10, 10)
+        val allocate = { size: Int -> ByteBuffer.allocate(size).order(ByteOrder.nativeOrder()) }
+        mixer.queueInput(pcm(6))
+        assertNull(mixer.output(settings, allocate))
+        now = 11
+        assertTrue(mixer.output(settings.copy(vocals = 0f, instrumental = 0f), allocate)!!.hasRemaining())
+        assertFalse("等待超时后仍应在后台补全缓存", pending.isCancelled)
+        mixer.reset()
+        assertFalse("已经播放过的分片仍应在后台补全缓存", pending.isCancelled)
+    }
+
+    @Test fun diskContentCacheHitSkipsModelCreationAndPublishesIntoCurrentTrack() {
+        val directory = Files.createTempDirectory("stem-worker-cache").toFile()
+        try {
+            val cache = StemChunkCache(directory)
+            val context = FloatArray(32) { it / 64f }
+            val cached = FloatArray(16) { 0.2f }
+            val key = cache.key(context)
+            cache.write(key, StemCachedSamples.fromFloats(cached), null, 44_100, 0)
+            val track = StemTrackCache("music:1:hq")
+            var created = 0
+            val worker = StemInferenceWorker(
+                createEngine = { created++; error("缓存命中不应创建模型") },
+                chunkCache = cache,
+            )
+            try {
+                val result = worker.submitForTrack(context, 8, track, 44_100, 16).get(2, TimeUnit.SECONDS)
+                assertArrayEquals(cached, result, 0f)
+                assertEquals(0, created)
+                assertEquals(0.2f, track.chunkAt(44_100, 16)!!.samples.sample(0, 0), 0f)
+            } finally { worker.close() }
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test fun oldInferenceOnlyPublishesToItsOwnTrackEvenAfterSwitch() {
+        val directory = Files.createTempDirectory("stem-track-switch-cache").toFile()
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        try {
+            val cache = StemChunkCache(directory)
+            val oldTrack = StemTrackCache("music:old:hq")
+            val newTrack = StemTrackCache("music:new:hq")
+            val worker = StemInferenceWorker(
+                createEngine = {
+                    object : StemInference {
+                        override fun instrumental(context: FloatArray, outputFrames: Int): FloatArray {
+                            started.countDown()
+                            release.await(2, TimeUnit.SECONDS)
+                            return FloatArray(outputFrames * 2) { 0.1f }
+                        }
+                        override fun close() {}
+                    }
+                },
+                chunkCache = cache,
+            )
+            try {
+                val old = worker.submitForTrack(FloatArray(32), 8, oldTrack, 44_100, 0)
+                assertTrue(started.await(2, TimeUnit.SECONDS))
+                oldTrack.release()
+                release.countDown()
+                old.get(2, TimeUnit.SECONDS)
+                assertNull(newTrack.chunkAt(44_100, 0))
+                assertEquals(0, oldTrack.chunkCount)
+            } finally { worker.close() }
+        } finally {
+            release.countDown()
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test fun slowInferenceFallsBackInOrderAndDrainsOnReset() {
         var now = 0L
         val pending = mutableListOf<CompletableFuture<FloatArray>>()
         val phases = mutableListOf<StemStreamPhase>()
@@ -106,7 +182,6 @@ class StemAudioProcessorTest {
         assertEquals(6000, original.short.toInt())
         assertEquals(StemStreamPhase.FALLBACK, phases.last())
         mixer.reset()
-        assertTrue(pending.all { it.isCancelled })
         assertTrue(mixer.isDrained)
     }
 

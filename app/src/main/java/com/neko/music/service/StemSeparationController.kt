@@ -40,8 +40,13 @@ internal class StemSeparationController(
     val modelState = models.state
     private var modelRequest: Job? = null
     private var verifiedModel: File? = null
+    private val chunkCache = StemChunkCache(File(appContext.noBackupFilesDir, "ai-stem-cache"))
+    private var trackCache: StemTrackCache? = null
+    @Volatile private var trackInference: StemTrackInference? = null
+    private var prefetchJob: Job? = null
     private val worker = MutableStateFlow<StemInferenceWorker?>(null)
-    override val aiInference: StemChunkInference? get() = worker.value
+    override val aiInference: StemChunkInference?
+        get() = trackInference.takeIf { _state.value.enabled && !_state.value.realtime }
     private val _streamPhase = MutableStateFlow(StemStreamPhase.WAITING)
     val streamPhase = _streamPhase.asStateFlow()
 
@@ -74,10 +79,11 @@ internal class StemSeparationController(
         val model = verifiedModel
         if (state.enabled && !state.realtime && model != null) {
             if (worker.value == null) {
-                worker.value = StemInferenceWorker { preference -> MdxStemEngine(model, preference) }.also {
-                    // 提前编译 WebGPU 着色器/加载模型，避免占用第一个播放分片的等待窗口。
-                    it.prewarm(MdxStemEngine.MODEL_FRAMES)
-                }
+                // 已有整曲缓存无需创建推理会话，缺片首次提交时才加载模型。
+                worker.value = StemInferenceWorker(
+                    { preference -> MdxStemEngine(model, preference) },
+                    chunkCache,
+                )
             }
         } else {
             val previous = worker.value
@@ -88,11 +94,44 @@ internal class StemSeparationController(
     }
 
     override fun reportAiPhase(inference: StemChunkInference?, phase: StemStreamPhase) {
-        if (_state.value.enabled && !_state.value.realtime && worker.value === inference) {
+        if (_state.value.enabled && !_state.value.realtime && aiInference === inference) {
             if (_streamPhase.value != phase) {
                 Log.d("StemSeparation", "AI 分片状态: ${_streamPhase.value} -> $phase")
             }
             _streamPhase.value = phase
+        }
+    }
+
+    /** 在设置媒体源之前立即启动整曲缓存准备；切歌释放上一首的全部内存引用。 */
+    fun onTrackChanged(identity: String) {
+        if (trackCache?.identity != identity) {
+            prefetchJob?.cancel()
+            prefetchJob = null
+            trackCache?.release()
+            val track = StemTrackCache(identity)
+            trackCache = track
+            trackInference = StemTrackInference(track) { worker.value }
+        }
+        startTrackPrefetch()
+    }
+
+    private fun startTrackPrefetch() {
+        val track = trackCache ?: return
+        if (!_state.value.enabled || _state.value.realtime || track.ready.isDone || prefetchJob?.isActive == true) return
+        Log.d("StemSeparation", "起播准备：开始读取整曲已有分离缓存，曲目=${track.identity}")
+        prefetchJob = scope.launch(Dispatchers.IO) {
+            val started = System.nanoTime()
+            try {
+                chunkCache.prepareTrack(track)
+            } catch (error: Exception) {
+                Log.w("StemSeparation", "整曲缓存读取失败，缺失范围将在后台补全", error)
+            } finally {
+                track.ready.complete(Unit)
+                if (!track.released) {
+                    val elapsedMs = (System.nanoTime() - started) / 1_000_000
+                    Log.d("StemSeparation", "起播准备完成：整曲缓存已读取 ${track.chunkCount} 片，耗时=${elapsedMs}ms")
+                }
+            }
         }
     }
 
@@ -130,6 +169,7 @@ internal class StemSeparationController(
         }
         updateWorker()
         if (!realtime) requestAiModel()
+        if (_state.value.enabled && !realtime) startTrackPrefetch()
         if (_state.value.enabled) refreshAudio()
     }
 
@@ -139,6 +179,7 @@ internal class StemSeparationController(
         _state.update { it.copy(enabled = enabled) }
         updateWorker()
         if (enabled && !_state.value.realtime) requestAiModel()
+        if (enabled && !_state.value.realtime) startTrackPrefetch()
         refreshAudio()
     }
 

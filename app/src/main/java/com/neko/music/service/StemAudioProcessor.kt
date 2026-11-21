@@ -24,6 +24,13 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
     private var streaming: StemStreamingMixer? = null
     private var mixer: RealtimeStemMixer? = null
     private var tail = AudioProcessor.EMPTY_BUFFER
+    private var inputTimestampUs = 0L
+    private var nextSourceFrame: Long? = null
+
+    /** 音频接收器提供解码采样时间，跳转或循环后不再依赖 AI 提交次数定位缓存。 */
+    fun setInputTimestampUs(presentationTimeUs: Long) {
+        inputTimestampUs = presentationTimeUs.coerceAtLeast(0L)
+    }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         val state = controller.state.value
@@ -40,6 +47,9 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
         if (ai) {
+            if (nextSourceFrame == null) {
+                nextSourceFrame = (inputTimestampUs * inputAudioFormat.sampleRate + 500_000L) / 1_000_000L
+            }
             val inference = controller.aiInference
             if (streaming == null && inference != null) {
                 val rate = inputAudioFormat.sampleRate
@@ -50,12 +60,17 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
                     reportError = { Log.w("StemAudioProcessor", "AI 片段推理失败，恢复原曲", it) },
                     chunkFrames = (MdxStemEngine.OUTPUT_FRAMES * (rate.toDouble() / MdxStemEngine.SAMPLE_RATE)).roundToInt().coerceAtLeast(1),
                     trimFrames = (MdxStemEngine.TRIM_FRAMES * (rate.toDouble() / MdxStemEngine.SAMPLE_RATE)).roundToInt().coerceAtLeast(1),
+                    sampleRate = rate,
+                    startFrame = nextSourceFrame!!,
                 )
                 controller.reportAiPhase(inference, StemStreamPhase.PROCESSING)
             }
             val current = streaming
             if (current != null) current.queueInput(inputBuffer)
-            else replaceOutputBuffer(inputBuffer.remaining()).apply { put(inputBuffer); flip() }
+            else {
+                nextSourceFrame = nextSourceFrame!! + inputBuffer.remaining() / (inputAudioFormat.channelCount * 2)
+                replaceOutputBuffer(inputBuffer.remaining()).apply { put(inputBuffer); flip() }
+            }
             return
         }
         val realtimeMixer = mixer
@@ -86,6 +101,7 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
     override fun onFlush() {
         streaming?.reset()
         streaming = null
+        nextSourceFrame = null
         if (ai && outputAudioFormat != AudioProcessor.AudioFormat.NOT_SET) {
             controller.reportAiPhase(controller.aiInference, StemStreamPhase.WAITING)
         }
@@ -114,6 +130,10 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
     override fun isEnded(): Boolean = super.isEnded() && !tail.hasRemaining() && streaming?.isDrained != false
 
     override fun onReset() {
+        streaming?.reset()
+        streaming = null
+        nextSourceFrame = null
+        inputTimestampUs = 0L
         mixer = null
         tail = AudioProcessor.EMPTY_BUFFER
         realtime = false
