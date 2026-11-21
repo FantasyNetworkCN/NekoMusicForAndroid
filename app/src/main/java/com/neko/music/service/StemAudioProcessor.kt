@@ -7,7 +7,6 @@ import com.google.android.exoplayer2.audio.AudioProcessor
 import com.google.android.exoplayer2.audio.BaseAudioProcessor
 import com.neko.music.debug.NekoLog as Log
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.StateFlow
 
@@ -17,13 +16,10 @@ internal interface StemProcessingControl {
     fun reportAiPhase(inference: StemChunkInference?, phase: StemStreamPhase) {}
 }
 
-/** 轻量实时近似分离或 AI 片段混音，播放线程不运行神经网络。 */
+/** AI 片段混音，播放线程不运行神经网络。 */
 internal class StemAudioProcessor(private val controller: StemProcessingControl) : BaseAudioProcessor() {
-    private var realtime = false
     private var ai = false
     private var streaming: StemStreamingMixer? = null
-    private var mixer: RealtimeStemMixer? = null
-    private var tail = AudioProcessor.EMPTY_BUFFER
     private var inputTimestampUs = 0L
     private var nextSourceFrame: Long? = null
 
@@ -34,8 +30,7 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         val state = controller.state.value
-        realtime = state.enabled && state.realtime
-        ai = state.enabled && !state.realtime
+        ai = state.enabled
         if (!state.enabled) return AudioProcessor.AudioFormat.NOT_SET
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT || inputAudioFormat.channelCount !in 1..2) {
             if (ai) controller.reportAiPhase(controller.aiInference, StemStreamPhase.UNSUPPORTED)
@@ -73,29 +68,6 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
             }
             return
         }
-        val realtimeMixer = mixer
-        if (realtimeMixer != null) {
-            val channels = inputAudioFormat.channelCount
-            val frames = inputBuffer.remaining() / (channels * 2)
-            val output = replaceOutputBuffer((frames + 1024) * channels * 2)
-            repeat(frames) {
-                val left = inputBuffer.short / 32768f
-                val right = if (channels == 2) inputBuffer.short / 32768f else left
-                realtimeMixer.append(left, right) { l, r, vocal -> mixRealtime(output, l, r, vocal) }
-            }
-            output.flip()
-            return
-        }
-    }
-
-    private fun mixRealtime(output: ByteBuffer, left: Float, right: Float, vocal: Float) {
-        val state = controller.state.value
-        fun write(original: Float) {
-            val sample = original * state.instrumental + vocal * (state.vocals - state.instrumental)
-            output.putShort((sample * 32768f).roundToInt().coerceIn(-32768, 32767).toShort())
-        }
-        write(left)
-        if (inputAudioFormat.channelCount == 2) write(right)
     }
 
     override fun onFlush() {
@@ -105,38 +77,26 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
         if (ai && outputAudioFormat != AudioProcessor.AudioFormat.NOT_SET) {
             controller.reportAiPhase(controller.aiInference, StemStreamPhase.WAITING)
         }
-        tail = AudioProcessor.EMPTY_BUFFER
-        mixer = if (realtime && inputAudioFormat.sampleRate > 0) {
-            RealtimeStemMixer(inputAudioFormat.sampleRate, inputAudioFormat.channelCount == 1)
-        } else null
     }
 
     override fun onQueueEndOfStream() {
         streaming?.finish()
-        val realtimeMixer = mixer ?: return
-        val output = ByteBuffer.allocateDirect(2048 * inputAudioFormat.channelCount * 2).order(ByteOrder.nativeOrder())
-        realtimeMixer.finish { left, right, vocal -> mixRealtime(output, left, right, vocal) }
-        output.flip()
-        tail = output
     }
 
     override fun getOutput(): ByteBuffer {
         val output = super.getOutput()
         if (output.hasRemaining()) return output
         if (ai && streaming?.output(controller.state.value, ::replaceOutputBuffer) != null) return super.getOutput()
-        return tail.also { tail = AudioProcessor.EMPTY_BUFFER }
+        return AudioProcessor.EMPTY_BUFFER
     }
 
-    override fun isEnded(): Boolean = super.isEnded() && !tail.hasRemaining() && streaming?.isDrained != false
+    override fun isEnded(): Boolean = super.isEnded() && streaming?.isDrained != false
 
     override fun onReset() {
         streaming?.reset()
         streaming = null
         nextSourceFrame = null
         inputTimestampUs = 0L
-        mixer = null
-        tail = AudioProcessor.EMPTY_BUFFER
-        realtime = false
         ai = false
     }
 }

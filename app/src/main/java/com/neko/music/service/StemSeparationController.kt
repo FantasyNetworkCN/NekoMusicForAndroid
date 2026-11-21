@@ -19,7 +19,6 @@ internal data class StemSeparationState(
     val vocals: Float = 1f,
     val instrumental: Float = 1f,
     val roomPlaybackActive: Boolean = false,
-    val realtime: Boolean = true,
 )
 
 internal class StemSeparationController(
@@ -33,7 +32,6 @@ internal class StemSeparationController(
         enabled = prefs.getBoolean("enabled", false),
         vocals = validGain(prefs.getFloat("vocals", 1f)),
         instrumental = validGain(prefs.getFloat("instrumental", 1f)),
-        realtime = prefs.getBoolean("realtime", true),
     ))
     override val state = _state.asStateFlow()
     private val models = StemModelRepository(File(appContext.noBackupFilesDir, "audio-models/vocals-mdx-9703.onnx"))
@@ -46,18 +44,20 @@ internal class StemSeparationController(
     private var prefetchJob: Job? = null
     private val worker = MutableStateFlow<StemInferenceWorker?>(null)
     override val aiInference: StemChunkInference?
-        get() = trackInference.takeIf { _state.value.enabled && !_state.value.realtime }
+        get() = trackInference.takeIf { _state.value.enabled }
     private val _streamPhase = MutableStateFlow(StemStreamPhase.WAITING)
     val streamPhase = _streamPhase.asStateFlow()
 
     init {
         // 清理旧版整曲分离模型，避免继续占用约 64 MB 私有空间。
         File(appContext.noBackupFilesDir, "audio-models/inst-hq3.onnx").delete()
-        if (!_state.value.realtime) requestAiModel()
+        // 无 AI 方案已移除，清理旧版方式偏好。
+        prefs.edit().remove("realtime").apply()
+        if (_state.value.enabled) requestAiModel()
     }
 
     fun requestAiModel() {
-        if (_state.value.realtime || modelRequest?.isActive == true) return
+        if (modelRequest?.isActive == true) return
         if (verifiedModel?.isFile == true) {
             updateWorker()
             return
@@ -77,7 +77,7 @@ internal class StemSeparationController(
     private fun updateWorker() {
         val state = _state.value
         val model = verifiedModel
-        if (state.enabled && !state.realtime && model != null) {
+        if (state.enabled && model != null) {
             if (worker.value == null) {
                 // 已有整曲缓存无需创建推理会话，缺片首次提交时才加载模型。
                 worker.value = StemInferenceWorker(
@@ -94,7 +94,7 @@ internal class StemSeparationController(
     }
 
     override fun reportAiPhase(inference: StemChunkInference?, phase: StemStreamPhase) {
-        if (_state.value.enabled && !_state.value.realtime && aiInference === inference) {
+        if (_state.value.enabled && aiInference === inference) {
             if (_streamPhase.value != phase) {
                 Log.d("StemSeparation", "AI 分片状态: ${_streamPhase.value} -> $phase")
             }
@@ -117,7 +117,7 @@ internal class StemSeparationController(
 
     private fun startTrackPrefetch() {
         val track = trackCache ?: return
-        if (!_state.value.enabled || _state.value.realtime || track.ready.isDone || prefetchJob?.isActive == true) return
+        if (!_state.value.enabled || track.ready.isDone || prefetchJob?.isActive == true) return
         Log.d("StemSeparation", "起播准备：开始读取整曲已有分离缓存，曲目=${track.identity}")
         prefetchJob = scope.launch(Dispatchers.IO) {
             val started = System.nanoTime()
@@ -156,35 +156,18 @@ internal class StemSeparationController(
         }
     }
 
-    fun setRealtime(realtime: Boolean) {
-        if (realtime == _state.value.realtime) {
-            if (!realtime) requestAiModel()
-            return
-        }
-        prefs.edit().putBoolean("realtime", realtime).apply()
-        _state.update { it.copy(realtime = realtime) }
-        if (realtime) {
-            modelRequest?.cancel()
-            modelRequest = null
-        }
-        updateWorker()
-        if (!realtime) requestAiModel()
-        if (_state.value.enabled && !realtime) startTrackPrefetch()
-        if (_state.value.enabled) refreshAudio()
-    }
-
     fun setEnabled(enabled: Boolean) {
         if (_state.value.enabled == enabled) return
         prefs.edit().putBoolean("enabled", enabled).apply()
         _state.update { it.copy(enabled = enabled) }
         updateWorker()
-        if (enabled && !_state.value.realtime) requestAiModel()
-        if (enabled && !_state.value.realtime) startTrackPrefetch()
+        if (enabled) requestAiModel()
+        if (enabled) startTrackPrefetch()
         refreshAudio()
     }
 
     fun retry() {
-        if (!_state.value.enabled || _state.value.realtime) return
+        if (!_state.value.enabled) return
         val previous = worker.value
         worker.value = null
         previous?.close()

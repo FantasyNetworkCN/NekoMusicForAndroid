@@ -41,7 +41,7 @@ class StemCachedPlaybackTest {
             disk.prepareTrack(track)
             directory.listFiles()!!.forEach { assertTrue(it.delete()) }
             val inference = StemTrackInference(track) { error("完整缓存播放不应请求 AI") }
-            val state = MutableStateFlow(StemSeparationState(enabled = true, realtime = false, vocals = 0f))
+            val state = MutableStateFlow(StemSeparationState(enabled = true, vocals = 0f))
             val control = object : StemProcessingControl {
                 override val state = state
                 override val aiInference = inference
@@ -70,7 +70,7 @@ class StemCachedPlaybackTest {
         track.put(44_100, StemCachedChunk(0, StemCachedSamples.fromFloats(FloatArray(2000) { 0.1f })))
         val inference = StemTrackInference(track) { error("缓存准备阶段不能计算 AI") }
         val control = object : StemProcessingControl {
-            override val state = MutableStateFlow(StemSeparationState(enabled = true, realtime = false))
+            override val state = MutableStateFlow(StemSeparationState(enabled = true))
             override val aiInference = inference
         }
         val pipeline = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(StemAudioProcessor(control)))
@@ -101,7 +101,7 @@ class StemCachedPlaybackTest {
                 }
                 track.ready.complete(Unit)
                 val control = object : StemProcessingControl {
-                    override val state = MutableStateFlow(StemSeparationState(enabled = true, realtime = false, vocals = 0f))
+                    override val state = MutableStateFlow(StemSeparationState(enabled = true, vocals = 0f))
                     override val aiInference = StemTrackInference(track) { error("已缓存范围不能提交 AI") }
                 }
                 val processor = StemAudioProcessor(control)
@@ -167,7 +167,7 @@ class StemCachedPlaybackTest {
         assertFalse(input.hasRemaining())
         mixer.finish()
         val actual = mutableListOf<Int>()
-        val gains = StemSeparationState(enabled = true, realtime = false, vocals = 0f)
+        val gains = StemSeparationState(enabled = true, vocals = 0f)
         while (!mixer.isDrained) {
             val buffer = mixer.output(gains) { ByteBuffer.allocate(it).order(ByteOrder.nativeOrder()) }!!
             while (buffer.hasRemaining()) actual += buffer.short.toInt()

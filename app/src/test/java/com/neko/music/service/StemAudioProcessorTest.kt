@@ -23,7 +23,7 @@ import org.junit.Test
 
 class StemAudioProcessorTest {
     private val format = AudioProcessor.AudioFormat(44_100, 2, C.ENCODING_PCM_16BIT)
-    private val settings = StemSeparationState(enabled = true, realtime = false)
+    private val settings = StemSeparationState(enabled = true)
 
     private fun pcm(frames: Int, sample: Short = 6000): ByteBuffer =
         ByteBuffer.allocateDirect(frames * 4).order(ByteOrder.nativeOrder()).apply {

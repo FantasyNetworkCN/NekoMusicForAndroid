@@ -5,17 +5,14 @@ import androidx.compose.ui.res.stringResource
 import com.neko.music.R
 import com.neko.music.service.StemModelPhase
 import com.neko.music.service.StemModelState
-import com.neko.music.service.StemSeparationState
 import com.neko.music.service.StemStreamPhase
 import kotlin.math.roundToInt
 
 @Composable
 internal fun stemPreparationDescription(
-    state: StemSeparationState,
     model: StemModelState,
     stream: StemStreamPhase,
 ): String {
-    if (state.realtime) return stringResource(R.string.stem_realtime_limit)
     return when (model.phase) {
         StemModelPhase.MISSING -> stringResource(R.string.stem_ai_model_waiting)
         StemModelPhase.CHECKING, StemModelPhase.VERIFYING -> stringResource(R.string.stem_ai_model_verifying)

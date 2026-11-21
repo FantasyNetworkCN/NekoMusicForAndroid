@@ -52,11 +52,7 @@
     <string name="stem_ai_model_ready">AI model downloaded. No repeat download needed.</string>
     <string name="stem_ai_model_verifying">Verifying the local AI model…</string>
     <string name="stem_ai_download_progress">AI model download: %1$d%% · %2$.1f / %3$.1f MB</string>
-    <string name="stem_mode_quality_hint">Selecting this option downloads a 28 MB on-device AI model through a China-accessible proxy. AI processes buffered chunks of decoded playback audio and switches backends automatically if needed.</string>
-    <string name="stem_realtime_limit">Approximate separation using stereo and spectral calculations. No model download is needed; adjust during playback. Instruments may leak into vocals, especially with mono audio.</string>
-    <string name="stem_mode_quality">AI separation</string>
-    <string name="stem_mode_realtime">Non-AI computational separation</string>
-    <string name="stem_mode">Separation method</string>
+    <string name="stem_ai_hint">Uses on-device AI to separate vocals and accompaniment. The first enable downloads a 28 MB model through a China-accessible proxy. Original audio plays if processing fails.</string>
     <string name="stem_retry">Retry AI separation</string>
     <string name="lan_permission_enable">Enable LAN discovery</string>
     <string name="lan_permission_hint">Allow nearby device access to discover playlists on the same network. Local playback remains available.</string>
@@ -68,7 +64,7 @@
     <string name="player_system_volume_fixed">Media volume is controlled by the system or an external device.</string>
     <string name="player_volume_change_failed">Unable to change media volume. Please use the phone volume buttons.</string>
     <string name="stem_separation">Vocal and instrumental mix</string>
-    <string name="stem_separation_hint">Choose non-AI computational or AI separation. The switch, method and mix levels are saved automatically.</string>
+    <string name="stem_separation_hint">Uses on-device AI to separate vocals and accompaniment. The switch and mix levels are saved automatically.</string>
     <string name="stem_local_only">Available during Listen Together. Adjusts audio on this device only, without changing room or other members’ volume.</string>
     <string name="stem_vocals">Vocals</string>
     <string name="stem_instrumental">Instrumental</string>

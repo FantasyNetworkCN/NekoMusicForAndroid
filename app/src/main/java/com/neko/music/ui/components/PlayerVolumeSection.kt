@@ -86,9 +86,9 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
         if (state.enabled) {
             VolumeSlider(stringResource(R.string.stem_vocals), state.vocals, onValueChange = separation::setVocals)
             VolumeSlider(stringResource(R.string.stem_instrumental), state.instrumental, onValueChange = separation::setInstrumental)
-            if (!state.realtime && streamPhase != StemStreamPhase.ACTIVE) {
+            if (streamPhase != StemStreamPhase.ACTIVE) {
                 Text(
-                    text = stemPreparationDescription(state, modelState, streamPhase),
+                    text = stemPreparationDescription(modelState, streamPhase),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

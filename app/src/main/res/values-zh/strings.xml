@@ -52,11 +52,7 @@
     <string name="stem_ai_model_ready">AI 模型已下载，无需重复下载。</string>
     <string name="stem_ai_model_verifying">正在校验本地 AI 模型…</string>
     <string name="stem_ai_download_progress">AI 模型下载：%1$d%% · %2$.1f / %3$.1f MB</string>
-    <string name="stem_mode_quality_hint">选择后通过国内代理下载约 28 MB 的本机 AI 模型。开启调节后，AI 会逐段处理播放器解码的音频并预缓冲，优先保证连续播放，失败时自动切换计算后端。</string>
-    <string name="stem_realtime_limit">使用声道与频谱计算近似分离，无需模型下载，可边播放边调节；可能混入乐器，单声道效果有限。</string>
-    <string name="stem_mode_quality">AI 分离</string>
-    <string name="stem_mode_realtime">无 AI 计算分离</string>
-    <string name="stem_mode">分离方式</string>
+    <string name="stem_ai_hint">使用本机 AI 分离人声与伴奏。首次启用会通过国内代理下载约 28 MB 模型，处理失败时自动播放原曲。</string>
     <string name="stem_retry">重试 AI 分离</string>
     <string name="lan_permission_enable">启用局域网发现</string>
     <string name="lan_permission_hint">允许访问附近设备后，可发现同一网络中的播放列表。本机播放不受影响。</string>
@@ -68,7 +64,7 @@
     <string name="player_system_volume_fixed">当前设备的媒体音量由系统或外接设备控制。</string>
     <string name="player_volume_change_failed">暂时无法调整系统媒体音量，请使用手机音量键。</string>
     <string name="stem_separation">人声与伴奏调节</string>
-    <string name="stem_separation_hint">可选择无 AI 计算分离或 AI 分离；开关、方式和两路音量自动保存。</string>
+    <string name="stem_separation_hint">使用本机 AI 分离人声与伴奏，开关和两路音量自动保存。</string>
     <string name="stem_local_only">一起听期间也可使用，仅调整本机声音，不改变房间或其他成员的音量。</string>
     <string name="stem_vocals">人声</string>
     <string name="stem_instrumental">伴奏</string>

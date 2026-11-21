@@ -55,8 +55,8 @@ import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.StemStreamPhase
+import com.neko.music.ui.components.StemAiModelSection
 import com.neko.music.ui.components.stemPreparationDescription
-import com.neko.music.ui.components.StemSeparationModeSelector
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -105,7 +105,7 @@ fun SettingsScreen(
     val stemModelState by stemSeparation.modelState.collectAsState()
     val stemStreamPhase by stemSeparation.streamPhase.collectAsState()
     val stemSubtitle = when {
-        stemState.enabled -> stemPreparationDescription(stemState, stemModelState, stemStreamPhase)
+        stemState.enabled -> stemPreparationDescription(stemModelState, stemStreamPhase)
         else -> stringResource(R.string.stem_separation_hint)
     } + if (stemState.roomPlaybackActive) "\n" + stringResource(R.string.stem_local_only) else ""
 
@@ -382,14 +382,12 @@ fun SettingsScreen(
                                                             showSeparator = separator,
                                                             onCheckedChange = stemSeparation::setEnabled,
                                                         )
-                                                        StemSeparationModeSelector(
-                                                            realtime = stemState.realtime,
+                                                        StemAiModelSection(
                                                             modelState = stemModelState,
-                                                            onSelect = stemSeparation::setRealtime,
                                                             onRetryDownload = stemSeparation::requestAiModel,
                                                         )
                                                         if (stemState.enabled) {
-                                                            if (!stemState.realtime && stemStreamPhase == StemStreamPhase.FAILED) {
+                                                            if (stemStreamPhase == StemStreamPhase.FAILED) {
                                                                 TextButton(onClick = stemSeparation::retry) {
                                                                     Text(stringResource(R.string.stem_retry))
                                                                 }
