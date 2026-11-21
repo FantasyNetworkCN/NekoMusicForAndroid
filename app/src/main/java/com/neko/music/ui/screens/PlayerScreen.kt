@@ -184,6 +184,7 @@ import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.MoreSheetDragState
+import com.neko.music.ui.components.PlayerVolumeSection
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -4135,6 +4136,10 @@ fun ShareDialogContent(
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
+
+        PlayerVolumeSection()
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = stringResource(id = R.string.playback_speed),

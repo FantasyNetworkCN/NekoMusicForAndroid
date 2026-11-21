@@ -55,6 +55,7 @@
 }
 
 # JNI
+-keep class ai.onnxruntime.** { *; }
 -keepclasseswithmembernames class * {
     native <methods>;
 }

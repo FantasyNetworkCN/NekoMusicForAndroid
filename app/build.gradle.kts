@@ -207,6 +207,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor)
     implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
+    implementation("com.github.wendykierp:JTransforms:3.1")
     implementation(libs.androidx.media)
 
     // 液态玻璃

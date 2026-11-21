@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="player_volume_settings">Volume settings</string>
+    <string name="player_system_media_volume">System media volume</string>
+    <string name="player_volume_percent">%1$d%%</string>
+    <string name="player_system_volume_hint">Synced with system media volume. You can also use the phone volume buttons.</string>
+    <string name="player_system_volume_fixed">Media volume is controlled by the system or an external device.</string>
+    <string name="player_volume_change_failed">Unable to change media volume. Please use the phone volume buttons.</string>
+    <string name="stem_separation">Vocal and instrumental mix</string>
+    <string name="stem_separation_hint">Separate audio on this device when enabled. Uses additional power and memory.</string>
+    <string name="stem_room_unavailable">Audio separation is unavailable during Listen Together to keep room playback in sync.</string>
+    <string name="stem_vocals">Vocals</string>
+    <string name="stem_instrumental">Instrumental</string>
+    <string name="stem_reset_mix">Reset original mix</string>
+    <string name="stem_download_confirmation">First use downloads a 64 MB separation model from GitHub. Wi-Fi is recommended. Audio is processed only on this device. Enabling or seeking needs about 6 seconds of audio buffering; actual waiting time depends on the device. Separation quality varies by song. Download and enable?</string>
+    <string name="stem_enable_download">Download and enable</string>
+    <string name="stem_downloading">Downloading model: %1$d%%. Turn off to cancel.</string>
+    <string name="stem_preparing">Verifying and loading model. Turn off to cancel…</string>
+    <string name="stem_buffer_hint">Enabling or seeking needs about 6 seconds of audio buffering. Turn off to return to original audio.</string>
+    <string name="stem_prepare_failed">Unable to download, verify, or load the model. Original playback continues. Turn on again to retry.</string>
+    <string name="stem_processing_failed">Audio separation failed. Original playback restored.</string>
+    <string name="stem_device_too_slow">This device cannot sustain real-time separation. Original playback restored.</string>
+    <string name="stem_format_unsupported">This audio channel format does not support separation. Original playback restored.</string>
     <string name="app_name">Neko Music</string>
     <string name="widget_description">Neko Music Desktop Player</string>
     <string name="widget_previous_desc">Previous track</string>

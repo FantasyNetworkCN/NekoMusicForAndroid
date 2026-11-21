@@ -19,6 +19,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import androidx.core.graphics.drawable.toBitmap
 import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.DefaultRenderersFactory
+import com.google.android.exoplayer2.audio.AudioSink
+import com.google.android.exoplayer2.audio.DefaultAudioSink
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.neko.music.data.manager.PlaylistManager
@@ -94,6 +97,15 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_SHUFFLE_STATE = "shuffle_state"
     private val KEY_AUDIO_QUALITY = "audio_quality"
     private val KEY_PREFERRED_AUDIO_QUALITY = "preferred_audio_quality"
+
+    internal val stemSeparation = StemSeparationController(appContext) {
+        // 在同一播放器当前位置刷新音频管线，保留队列、倍速、音频焦点和通知会话。
+        activePlayer.currentMediaItem?.let { item ->
+            val position = activePlayer.currentPosition.coerceAtLeast(0L)
+            activePlayer.setMediaItem(item, position)
+            activePlayer.prepare()
+        }
+    }
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
@@ -106,6 +118,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
     fun setRoomPlaybackDelegate(delegate: RoomPlaybackDelegate?) {
         roomPlaybackDelegate = delegate
+        stemSeparation.setRoomPlaybackActive(delegate != null)
     }
 
     /** 房间同步写入真实播放器时临时关闭路由，避免再次把服务端状态发回服务器。 */
@@ -160,7 +173,16 @@ class MusicPlayerManager private constructor(context: Context) {
     private val PLAYBACK_GUARD_INTERVAL_MS = 1_000L
 
     private fun createPlayer(context: Context, handleAudioFocus: Boolean = true): ExoPlayer =
-        ExoPlayer.Builder(context)
+        ExoPlayer.Builder(context, object : DefaultRenderersFactory(context) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+                enableOffload: Boolean,
+            ): AudioSink = DefaultAudioSink.Builder(context)
+                .setAudioProcessors(arrayOf(StemAudioProcessor(stemSeparation)))
+                .build()
+        })
             .setMediaSourceFactory(
                 com.google.android.exoplayer2.source.DefaultMediaSourceFactory(
                     nekoMediaDataSourceFactory(context)
@@ -464,6 +486,7 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
         _playbackSpeed.value = speed
+        stemSeparation.playbackSpeed = speed
         activePlayer.setPlaybackSpeed(speed)
         Log.d("MusicPlayerManager", "播放速度设置为: $speed")
     }

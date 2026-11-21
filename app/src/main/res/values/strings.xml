@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="player_volume_settings">音量设置喵</string>
+    <string name="player_system_media_volume">系统媒体音量</string>
+    <string name="player_volume_percent">%1$d%%</string>
+    <string name="player_system_volume_hint">和系统媒体音量同步喵，也可以用手机音量键调节。</string>
+    <string name="player_system_volume_fixed">当前媒体音量由系统或外接设备控制喵。</string>
+    <string name="player_volume_change_failed">暂时调不了系统媒体音量，请用手机音量键喵。</string>
+    <string name="stem_separation">人声与伴奏调节</string>
+    <string name="stem_separation_hint">按需开启，在本机分离音频，会增加耗电和内存占用喵。</string>
+    <string name="stem_room_unavailable">一起听期间暂时不能分离音频，先保持房间播放同步喵。</string>
+    <string name="stem_vocals">人声</string>
+    <string name="stem_instrumental">伴奏</string>
+    <string name="stem_reset_mix">恢复原声比例</string>
+    <string name="stem_download_confirmation">首次开启需要从 GitHub 下载约 64 MB 模型，建议连上 Wi-Fi 喵。音频只在本机处理；开启和拖动进度后需要缓冲约 6 秒，实际等待取决于手机性能，分离效果因歌曲而异。要下载并开启吗？</string>
+    <string name="stem_enable_download">下载并开启</string>
+    <string name="stem_downloading">正在下载模型：%1$d%%，关闭开关就能取消喵</string>
+    <string name="stem_preparing">正在校验并加载模型，关闭开关就能取消喵…</string>
+    <string name="stem_buffer_hint">开启和拖动进度后需缓冲约 6 秒；关闭就恢复原曲喵。</string>
+    <string name="stem_prepare_failed">模型下载、校验或加载失败，原曲会继续播放，可以重新开启试试喵。</string>
+    <string name="stem_processing_failed">音源分离失败，已经恢复原曲播放喵。</string>
+    <string name="stem_device_too_slow">手机暂时跟不上实时分离，已经恢复原曲播放喵。</string>
+    <string name="stem_format_unsupported">当前音频声道格式还不支持分离，已经恢复原曲播放喵。</string>
     <string name="app_name">Neko歌姬计划</string>
     <string name="widget_description">Neko歌姬计划桌面播放器喵</string>
     <string name="widget_previous_desc">上一曲喵</string>

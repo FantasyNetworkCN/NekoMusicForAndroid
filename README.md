@@ -32,6 +32,19 @@ Android 使用系统浏览器完成 NekoAuth 授权，注册、账号中心与�
 客户端接收一次性 handoff 并建立登录态。
 登录回跳只携带一次性 handoff，不会把账号访问令牌放进链接。
 
+### 播放音量与音源分离
+
+播放页「更多」菜单中的「音量设置」默认调整系统媒体音量，与手机音量键和系统音量面板同步。
+「人声与伴奏调节」默认关闭，开启后在客户端分块处理解码后的音频，分别控制人声和伴奏的音量。
+首次开启会询问是否从 GitHub 下载约 64 MB 的模型；模型仅保存在应用私有目录，歌曲音频不会上传。
+开启、切歌和拖动进度后需要约 6 秒音频缓冲，实际等待时间、分离效果和持续实时处理能力取决于设备及歌曲。
+连续处理跟不上播放速度或发生错误时，会提示并恢复原曲。一起听期间暂不支持分离，以保持房间同步。
+
+模型为 [UVR-MDX-NET-Inst_HQ_3](https://github.com/TRvlvr/model_repo/releases/tag/all_public_uvr_models)，
+输入规格与推理参数参考 [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui)。
+推理使用 [ONNX Runtime](https://github.com/microsoft/onnxruntime)，频谱变换使用
+[JTransforms](https://github.com/wendykierp/JTransforms)。模型下载后验证固定的 SHA-256，再加载到内存。
+
 ### 界面预览
 
 | 首页与每日推荐 | 播放页与逐字歌词 |
