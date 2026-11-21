@@ -184,14 +184,12 @@ import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.LocalLiquidLayerBackdrop
 import com.neko.music.ui.components.ShareSheetLiquidSection
 import com.neko.music.ui.components.MoreSheetDragState
-import com.neko.music.ui.components.PlayerVolumeSection
+import com.neko.music.ui.components.PlayerVolumeModal
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlin.math.pow
 import org.json.JSONObject
 
@@ -489,6 +487,7 @@ fun PlayerScreen(
 
     // 分享对话框
     var showShareDialog by remember { mutableStateOf(false) }
+    var showVolumeModal by rememberSaveable { mutableStateOf(false) }
 
     // 分享视频渲染
     var showVideoRenderDialog by remember { mutableStateOf(false) }
@@ -806,11 +805,7 @@ fun PlayerScreen(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isCommentsPage = pagerState.currentPage == 0
     // 评论页只保留悬浮迷你播放器，给评论列表和输入框让出完整空间。
-    val stemControlsVisible by remember(playerManager) {
-        playerManager.stemSeparation.state.map { it.enabled }.distinctUntilChanged()
-    }.collectAsState(initial = playerManager.stemSeparation.state.value.enabled)
-    val fullBottomReserve = (if (isLandscape) 154.dp else 248.dp) +
-        if (stemControlsVisible) 88.dp else 0.dp
+    val fullBottomReserve = if (isLandscape) 154.dp else 248.dp
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val miniPlayerReserve = 84.dp + navigationBarBottom
     val lyricsControlsHidden = showLyrics && !lyricsControlsVisible
@@ -914,7 +909,7 @@ fun PlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(if (pagerState.currentPage == 1 && !showShareDialog) dismissDragModifier else Modifier)
+            .then(if (pagerState.currentPage == 1 && !showShareDialog && !showVolumeModal) dismissDragModifier else Modifier)
             .pointerInput(showLyrics) {
                 if (!showLyrics) return@pointerInput
                 awaitEachGesture {
@@ -1209,6 +1204,7 @@ fun PlayerScreen(
                     },
                     onFavoriteClick = onFavoriteToggle,
                     onPlaylistClick = onPlaylistClick,
+                    onVolumeClick = { showVolumeModal = true },
                     onPlayModeClick = {
                         if (togetherActive) TogetherSessionManager.cyclePlayMode()
                         else playerManager.togglePlayMode()
@@ -1454,6 +1450,9 @@ fun PlayerScreen(
                         }
                     },
                 )
+            }
+            if (showVolumeModal) {
+                PlayerVolumeModal(onDismiss = { showVolumeModal = false })
             }
             AnimatedVisibility(
                 visible = showVideoRenderDialog,
@@ -2924,6 +2923,7 @@ private fun PlayerBottomBar(
     onNextClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onPlaylistClick: () -> Unit,
+    onVolumeClick: () -> Unit,
     onPlayModeClick: () -> Unit,
     onQualitySelected: (AudioQuality) -> Unit,
     onOpenPlayer: () -> Unit,
@@ -2999,6 +2999,7 @@ private fun PlayerBottomBar(
                         isDarkTheme = isDarkTheme,
                         compact = true,
                         onPlaylistClick = onPlaylistClick,
+                        onVolumeClick = onVolumeClick,
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -3050,6 +3051,7 @@ private fun PlayerBottomBar(
                 PlayerUtilityRow(
                     isDarkTheme = isDarkTheme,
                     onPlaylistClick = onPlaylistClick,
+                    onVolumeClick = onVolumeClick,
                 )
             }
         }
@@ -3061,6 +3063,7 @@ private fun PlayerUtilityRow(
     isDarkTheme: Boolean,
     compact: Boolean = false,
     onPlaylistClick: () -> Unit,
+    onVolumeClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val useLiquidStyle = isLiquidGlassEffectActive(LocalLiquidLayerBackdrop.current)
@@ -3082,7 +3085,17 @@ private fun PlayerUtilityRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlayerVolumeSection(modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Box(
+            modifier = Modifier.size(actionSize).clickable(onClick = onVolumeClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            NekoSymbolIcon(
+                symbol = NekoSymbol.Volume,
+                contentDescription = stringResource(R.string.player_volume_settings),
+                color = muted,
+                modifier = Modifier.size(actionIconSize),
+            )
+        }
         Box(
             modifier = Modifier
                 .size(actionSize)
