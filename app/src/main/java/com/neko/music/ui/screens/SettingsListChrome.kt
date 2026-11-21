@@ -176,8 +176,9 @@ fun SettingSwitchItem(
     onCheckedChange: (Boolean) -> Unit,
     useDarkAppearance: Boolean? = null,
     showSeparator: Boolean = false,
+    enabled: Boolean = true,
 ) {
-    SettingsToggleRow(title, subtitle, checked, onCheckedChange, useDarkAppearance, showSeparator) {
+    SettingsToggleRow(title, subtitle, checked, onCheckedChange, useDarkAppearance, showSeparator, enabled) {
         NekoSymbolIcon(symbol, null, Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
     }
 }
@@ -190,6 +191,7 @@ private fun SettingsToggleRow(
     onCheckedChange: (Boolean) -> Unit,
     dark: Boolean?,
     separator: Boolean,
+    enabled: Boolean,
     leading: @Composable () -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -199,7 +201,7 @@ private fun SettingsToggleRow(
     }
     SettingsListRow(
         title, subtitle, separator,
-        modifier = Modifier.toggleable(checked, role = Role.Switch, onValueChange = change),
+        modifier = Modifier.toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = change),
         leading = leading,
     ) {
         Box(
@@ -207,7 +209,7 @@ private fun SettingsToggleRow(
             contentAlignment = Alignment.Center,
         ) {
             // 保留液态开关的拖动手势；无障碍状态由整行提供，避免重复朗读。
-            LiquidGlassSwitch(checked, change, isDarkChrome = dark ?: isAppDarkTheme())
+            LiquidGlassSwitch(checked, change, isDarkChrome = dark ?: isAppDarkTheme(), enabled = enabled)
         }
     }
 }

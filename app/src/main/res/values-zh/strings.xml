@@ -10,7 +10,7 @@
     <string name="player_system_volume_fixed">当前设备的媒体音量由系统或外接设备控制。</string>
     <string name="player_volume_change_failed">暂时无法调整系统媒体音量，请使用手机音量键。</string>
     <string name="stem_separation">人声与伴奏调节</string>
-    <string name="stem_separation_hint">按需开启，在本机分离音频，会增加耗电和内存占用。</string>
+    <string name="stem_separation_hint">开启后可在播放页底部调节人声和伴奏音量。在本机分离音频，会增加耗电和内存占用。</string>
     <string name="stem_room_unavailable">一起听期间暂不支持音源分离，以保持房间播放同步。</string>
     <string name="stem_vocals">人声</string>
     <string name="stem_instrumental">伴奏</string>

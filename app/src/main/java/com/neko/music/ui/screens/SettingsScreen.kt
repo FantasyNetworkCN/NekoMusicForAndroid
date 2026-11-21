@@ -45,6 +45,7 @@ import com.neko.music.ui.components.PlaylistPageDarkTintOverlay
 import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.util.AppHaptics
+import com.neko.music.service.MusicPlayerManager
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -88,6 +89,17 @@ fun SettingsScreen(
     // 焦点锁定设置
     val focusLockPrefs = remember { context.getSharedPreferences("player_prefs", Context.MODE_PRIVATE) }
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
+    val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
+    val stemState by stemSeparation.state.collectAsState()
+    var showStemDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    val stemSubtitle = when {
+        stemState.roomPlaybackActive -> stringResource(R.string.stem_room_unavailable)
+        stemState.preparing -> stemState.downloadProgress?.let {
+            stringResource(R.string.stem_downloading, (it * 100).roundToInt())
+        } ?: stringResource(R.string.stem_preparing)
+        stemState.errorRes != null -> stringResource(stemState.errorRes!!)
+        else -> stringResource(R.string.stem_separation_hint)
+    }
 
     // 语言设置
     val languagePrefs = remember { context.getSharedPreferences("app_settings", Context.MODE_PRIVATE) }
@@ -213,6 +225,8 @@ fun SettingsScreen(
             stringResource(R.string.language), getLanguageDisplayName(context, currentLanguage), appTitle, "语言 language 中文 English"),
         SettingsSearchEntry(SettingsEntryId.AudioFocus, SettingsSectionId.Playback,
             stringResource(R.string.focus_lock), stringResource(R.string.focus_lock_subtitle), playbackTitle, "焦点 播放 focus audio playback"),
+        SettingsSearchEntry(SettingsEntryId.StemSeparation, SettingsSectionId.Playback,
+            stringResource(R.string.stem_separation), stemSubtitle, playbackTitle, "人声 伴奏 音量 分离 vocals instrumental separation volume"),
         SettingsSearchEntry(SettingsEntryId.CacheEnabled, SettingsSectionId.Playback,
             stringResource(R.string.cache_enabled), stringResource(R.string.cache_enabled_subtitle), playbackTitle, "缓存 离线 cache offline"),
         SettingsSearchEntry(SettingsEntryId.CacheManagement, SettingsSectionId.Playback,
@@ -340,6 +354,27 @@ fun SettingsScreen(
                                                             cachePrefs.edit().putBoolean("cache_enabled", enabled).apply()
                                                         },
                                                     )
+                                                    SettingsEntryId.StemSeparation -> {
+                                                        SettingSwitchItem(
+                                                            NekoSymbol.AutoMix, item.title, item.subtitle,
+                                                            checked = stemState.enabled || stemState.preparing,
+                                                            showSeparator = separator,
+                                                            enabled = !stemState.roomPlaybackActive,
+                                                            onCheckedChange = { enabled ->
+                                                                if (enabled && !stemSeparation.modelDownloaded) {
+                                                                    showStemDownloadDialog = true
+                                                                } else {
+                                                                    stemSeparation.setEnabled(enabled)
+                                                                }
+                                                            },
+                                                        )
+                                                        if (stemState.enabled) {
+                                                            TextButton(onClick = {
+                                                                stemSeparation.setVocals(1f)
+                                                                stemSeparation.setInstrumental(1f)
+                                                            }) { Text(stringResource(R.string.stem_reset_mix)) }
+                                                        }
+                                                    }
                                                     SettingsEntryId.CacheManagement -> SettingItem(
                                                         NekoSymbol.Storage, item.title, item.subtitle,
                                                         showSeparator = separator, onClick = onNavigateToCache,
@@ -373,6 +408,25 @@ fun SettingsScreen(
                                 TextButton(onClick = { search = "" }) { Text(stringResource(R.string.settings_search_clear)) }
                             }
                         }
+                    }
+
+                    if (showStemDownloadDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showStemDownloadDialog = false },
+                            title = { Text(stringResource(R.string.stem_separation)) },
+                            text = { Text(stringResource(R.string.stem_download_confirmation)) },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showStemDownloadDialog = false
+                                    stemSeparation.setEnabled(true)
+                                }) { Text(stringResource(R.string.stem_enable_download)) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showStemDownloadDialog = false }) {
+                                    Text(stringResource(R.string.cancel))
+                                }
+                            },
+                        )
                     }
 
                     // 更新对话框

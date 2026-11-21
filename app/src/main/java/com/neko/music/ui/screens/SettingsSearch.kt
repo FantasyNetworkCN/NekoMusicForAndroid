@@ -5,7 +5,7 @@ internal enum class SettingsSectionId {
 }
 
 internal enum class SettingsEntryId {
-    Appearance, Lyrics, Language, CacheEnabled, CacheManagement, AudioFocus, Haptics, Privacy, Update,
+    Appearance, Lyrics, Language, CacheEnabled, CacheManagement, AudioFocus, StemSeparation, Haptics, Privacy, Update,
 }
 
 internal data class SettingsSearchEntry(

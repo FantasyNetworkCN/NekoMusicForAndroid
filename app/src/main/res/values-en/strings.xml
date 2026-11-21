@@ -10,7 +10,7 @@
     <string name="player_system_volume_fixed">Media volume is controlled by the system or an external device.</string>
     <string name="player_volume_change_failed">Unable to change media volume. Please use the phone volume buttons.</string>
     <string name="stem_separation">Vocal and instrumental mix</string>
-    <string name="stem_separation_hint">Separate audio on this device when enabled. Uses additional power and memory.</string>
+    <string name="stem_separation_hint">Enable vocal and instrumental sliders at the bottom of the player. Audio is separated on this device, using additional power and memory.</string>
     <string name="stem_room_unavailable">Audio separation is unavailable during Listen Together to keep room playback in sync.</string>
     <string name="stem_vocals">Vocals</string>
     <string name="stem_instrumental">Instrumental</string>

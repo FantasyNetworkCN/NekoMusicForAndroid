@@ -190,6 +190,8 @@ import com.neko.music.ui.components.rememberLiquidPageBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlin.math.pow
 import org.json.JSONObject
 
@@ -804,7 +806,11 @@ fun PlayerScreen(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isCommentsPage = pagerState.currentPage == 0
     // 评论页只保留悬浮迷你播放器，给评论列表和输入框让出完整空间。
-    val fullBottomReserve = if (isLandscape) 132.dp else 232.dp
+    val stemControlsVisible by remember(playerManager) {
+        playerManager.stemSeparation.state.map { it.enabled }.distinctUntilChanged()
+    }.collectAsState(initial = playerManager.stemSeparation.state.value.enabled)
+    val fullBottomReserve = (if (isLandscape) 154.dp else 248.dp) +
+        if (stemControlsVisible) 96.dp else 0.dp
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val miniPlayerReserve = 84.dp + navigationBarBottom
     val lyricsControlsHidden = showLyrics && !lyricsControlsVisible
@@ -3063,7 +3069,7 @@ private fun PlayerUtilityRow(
     } else {
         scheme.onSurfaceVariant
     }
-    val actionSize = if (useLiquidStyle) 32.dp else 40.dp
+    val actionSize = 48.dp
     val actionIconSize = if (useLiquidStyle) {
         if (compact) 17.dp else 18.dp
     } else {
@@ -3072,10 +3078,11 @@ private fun PlayerUtilityRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (useLiquidStyle) (if (compact) 26.dp else 32.dp) else 40.dp),
-        horizontalArrangement = Arrangement.End,
+            .heightIn(min = actionSize),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        PlayerVolumeSection(modifier = Modifier.weight(1f).padding(end = 12.dp))
         Box(
             modifier = Modifier
                 .size(actionSize)
@@ -4136,10 +4143,6 @@ fun ShareDialogContent(
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
-
-        PlayerVolumeSection()
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = stringResource(id = R.string.playback_speed),
