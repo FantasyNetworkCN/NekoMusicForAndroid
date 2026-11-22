@@ -97,7 +97,11 @@ class StemAudioProcessorTest {
     @Test
     fun sourceCanAppearAfterPlaybackStarted() {
         val control = Control(null)
-        val output = pipeline(control)
+        val processor = StemAudioProcessor(control)
+        val output = AudioProcessingPipeline(ImmutableList.of<AudioProcessor>(processor)).also {
+            it.configure(format)
+            it.flush()
+        }
         try {
             val passthrough = pcm(50)
             output.queueInput(passthrough)
@@ -112,10 +116,33 @@ class StemAudioProcessorTest {
                 accompaniment = StemCachedSamples.fromFloats(FloatArray(50 * 2) { 1000 / 32768f }),
             ))
             control.source = StemTrackInference(track)
+            processor.setInputTimestampUs((50L * 1_000_000 + 22_050) / 44_100)
             control.state.value = control.state.value.copy(vocals = 0f, instrumental = 1f)
             output.queueInput(pcm(50))
             val separated = ByteBuffer.wrap(drain(output)).order(ByteOrder.nativeOrder())
             while (separated.hasRemaining()) assertEquals(1000, separated.short.toInt())
+        } finally {
+            output.reset()
+        }
+    }
+
+    @Test
+    fun pairedStemsReplaceOriginalTogetherWithoutResidual() {
+        val track = StemTrackCache("music:4:hq")
+        track.ready.complete(Unit)
+        track.put(44_100, StemCachedChunk(
+            0,
+            vocals = StemCachedSamples.fromFloats(FloatArray(100 * 2)),
+            accompaniment = StemCachedSamples.fromFloats(FloatArray(100 * 2) { 2000 / 32768f }),
+        ))
+        val control = Control(StemTrackInference(track)).apply {
+            state.value = state.value.copy(vocals = 1f, instrumental = 1f)
+        }
+        val output = pipeline(control)
+        try {
+            output.queueInput(pcm(100))
+            val mixed = ByteBuffer.wrap(drain(output)).order(ByteOrder.nativeOrder())
+            while (mixed.hasRemaining()) assertEquals(2000, mixed.short.toInt())
         } finally {
             output.reset()
         }

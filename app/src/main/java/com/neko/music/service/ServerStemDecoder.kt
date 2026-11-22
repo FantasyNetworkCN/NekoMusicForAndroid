@@ -20,7 +20,8 @@ internal object ServerStemDecoder {
     /** MPEG-1 Layer III 常见编码器前置延迟；分片尾部多余部分在输出时裁掉。 */
     private const val MP3_ENCODER_DELAY_FRAMES = 1_105
 
-    fun decode(file: File, startSec: Double, endSec: Double, targetRate: Int): StemCachedSamples {
+    fun decode(file: File, startSec: Double, endSec: Double, targetRate: Int,
+               checkActive: () -> Unit = {}): StemCachedSamples {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         try {
@@ -42,7 +43,10 @@ internal object ServerStemDecoder {
 
             var inputDone = false
             var outputDone = false
+            val deadline = System.nanoTime() + 120_000_000_000L
             while (!outputDone) {
+                checkActive()
+                check(System.nanoTime() < deadline) { "分离音频解码超时" }
                 if (!inputDone) {
                     val inputIndex = codec.dequeueInputBuffer(DECODER_TIMEOUT_US)
                     if (inputIndex >= 0) {
@@ -100,6 +104,7 @@ internal object ServerStemDecoder {
         targetRate: Int,
         chunkSeconds: Double,
         onChunk: ((DecodedStemChunk) -> Unit)? = null,
+        checkActive: () -> Unit = {},
     ): List<DecodedStemChunk> {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
@@ -116,8 +121,8 @@ internal object ServerStemDecoder {
             var channels = inputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
             var frameBytes = channels * Short.SIZE_BYTES
             var sourceChunkFrames = (chunkSeconds * sourceRate).roundToInt().coerceAtLeast(1)
-            var leadingTrimFrames =
-                (MP3_ENCODER_DELAY_FRAMES.toDouble() * sourceRate / 44_100.0).roundToInt()
+            var layout = StemMp3ChunkLayout(sourceChunkFrames)
+            var rawChunkPosition = 0
             val currentPcm = ByteArrayOutputStream()
             var currentSourceFrames = 0
             var nextStartFrame = 0L
@@ -139,11 +144,12 @@ internal object ServerStemDecoder {
                         startTrimFrames = 0,
                     ),
                 )
-                chunks += chunk
+                if (onChunk == null) chunks += chunk
                 onChunk?.invoke(chunk)
                 nextStartFrame += targetFrames
                 currentPcm.reset()
                 currentSourceFrames = 0
+                rawChunkPosition = 0
             }
 
             codec = MediaCodec.createDecoderByType(mime)
@@ -151,7 +157,10 @@ internal object ServerStemDecoder {
             codec.start()
             var inputDone = false
             var outputDone = false
+            val deadline = System.nanoTime() + 120_000_000_000L
             while (!outputDone) {
+                checkActive()
+                check(System.nanoTime() < deadline) { "整曲分离解码超时" }
                 if (!inputDone) {
                     val inputIndex = codec.dequeueInputBuffer(DECODER_TIMEOUT_US)
                     if (inputIndex >= 0) {
@@ -183,9 +192,7 @@ internal object ServerStemDecoder {
                         sourceChunkFrames =
                             (chunkSeconds * sourceRate).roundToInt().coerceAtLeast(1)
                         if (currentSourceFrames == 0) {
-                            leadingTrimFrames =
-                                (MP3_ENCODER_DELAY_FRAMES.toDouble() * sourceRate / 44_100.0)
-                                    .roundToInt()
+                            layout = StemMp3ChunkLayout(sourceChunkFrames)
                         }
                     }
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
@@ -199,22 +206,21 @@ internal object ServerStemDecoder {
                                 output.get(bytes)
                                 var byteOffset = 0
                                 var availableFrames = bytes.size / frameBytes
-                                if (leadingTrimFrames > 0 && availableFrames > 0) {
-                                    val trimFrames = minOf(leadingTrimFrames, availableFrames)
-                                    byteOffset += trimFrames * frameBytes
-                                    availableFrames -= trimFrames
-                                    leadingTrimFrames -= trimFrames
-                                }
                                 while (availableFrames > 0) {
+                                    val regionEnd = layout.nextBoundary(rawChunkPosition)
                                     val takeFrames = minOf(
                                         availableFrames,
-                                        sourceChunkFrames - currentSourceFrames,
+                                        regionEnd - rawChunkPosition,
                                     )
-                                    currentPcm.write(bytes, byteOffset, takeFrames * frameBytes)
-                                    currentSourceFrames += takeFrames
+                                    if (layout.isAudio(rawChunkPosition)) {
+                                        currentPcm.write(bytes, byteOffset, takeFrames * frameBytes)
+                                        currentSourceFrames += takeFrames
+                                    }
                                     availableFrames -= takeFrames
                                     byteOffset += takeFrames * frameBytes
-                                    if (currentSourceFrames >= sourceChunkFrames) flushChunk()
+                                    rawChunkPosition += takeFrames
+                                    // 后端完整 MP3 是独立编码分片的串联，必须逐片去掉编码延迟和尾部填充。
+                                    if (rawChunkPosition == layout.encodedFrames) flushChunk()
                                 }
                             }
                         }
@@ -245,6 +251,7 @@ internal object ServerStemDecoder {
         require(sourceRate > 0 && channels > 0)
         val frameBytes = channels * Short.SIZE_BYTES
         val decodedFrames = pcm.size / frameBytes
+        require(decodedFrames > 0) { "分离解码采样为空" }
         val expectedSourceFrames = ((endSec - startSec).coerceAtLeast(0.0) * sourceRate)
             .roundToInt().coerceAtLeast(1)
         val extra = (decodedFrames - expectedSourceFrames).coerceAtLeast(0)
@@ -270,6 +277,7 @@ internal object ServerStemDecoder {
     ): StemCachedSamples {
         val frameBytes = channels * Short.SIZE_BYTES
         val decodedFrames = pcm.size / frameBytes
+        require(decodedFrames > 0 && sourceFrames > 0 && targetFrames > 0) { "分离解码采样为空" }
         val shortBuffer = ByteBuffer.wrap(pcm).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
         val output = ShortArray(targetFrames * 2)
         val sourceStep = sourceFrames.toDouble() / targetFrames

@@ -99,18 +99,7 @@ class MusicPlayerManager private constructor(context: Context) {
     private val KEY_AUDIO_QUALITY = "audio_quality"
     private val KEY_PREFERRED_AUDIO_QUALITY = "preferred_audio_quality"
 
-    private fun refreshAudioPipeline() {
-        // 在同一播放器当前位置刷新音频管线，保留队列、倍速、音频焦点和通知会话。
-        activePlayer.currentMediaItem?.let { item ->
-            val position = activePlayer.currentPosition.coerceAtLeast(0L)
-            activePlayer.setMediaItem(item, position)
-            activePlayer.prepare()
-            _currentPosition.value = position
-            if (activePlayer.playWhenReady) startPositionUpdate()
-        }
-    }
-
-    internal val stemSeparation = StemSeparationController(appContext) { refreshAudioPipeline() }
+    internal val stemSeparation = StemSeparationController(appContext)
     internal val equalizer = EqualizerController(appContext)
     
     private val player = createPlayer(context)
@@ -291,7 +280,22 @@ class MusicPlayerManager private constructor(context: Context) {
 
     // 重试计数器 - 用于跟踪当前音乐的重试次数
     private var retryCount = 0
+    private var retryPosition = 0L
     private val MAX_RETRY_COUNT = 2 // 最大重试次数
+    private var playbackRequest = 0L
+    private var pendingRetry: Runnable? = null
+
+    private fun cancelPlaybackRetry() {
+        pendingRetry?.let(mainHandler::removeCallbacks)
+        pendingRetry = null
+        playbackRequest++
+    }
+
+    /** 所有起播/恢复/音质切换/错误重试共用本地缓存优先规则。 */
+    private fun cachedPlaybackUrl(id: Int?, url: String, quality: String = _audioQuality.value.id): String =
+        if (id != null && id > 0 && !UrlConfig.isLocalUri(url)) {
+            MusicCacheManager.getInstance(appContext).getCachedMusicFile(id, quality)?.absolutePath ?: url
+        } else url
 
     // 媒体会话 - 延迟初始化
     private var mediaSession: MediaSessionCompat? = null
@@ -499,6 +503,7 @@ class MusicPlayerManager private constructor(context: Context) {
         quality: AudioQuality,
         previousQuality: AudioQuality
     ) {
+        cancelPlaybackRetry()
         val player = activePlayer
         val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
         stemSeparation.onTrackChanged("music:$musicId:${quality.id}", musicId)
@@ -513,7 +518,7 @@ class MusicPlayerManager private constructor(context: Context) {
 
         try {
             // resetPosition=false：位置由下一行的 seekTo 精确接管，避免回到 0
-            player.setMediaItem(MediaItem.fromUri(url), /* resetPosition = */ false)
+            player.setMediaItem(MediaItem.fromUri(cachedPlaybackUrl(musicId, url, quality.id)), /* resetPosition = */ false)
             player.seekTo(position)
             player.prepare()
         } catch (e: Exception) {
@@ -1023,29 +1028,47 @@ class MusicPlayerManager private constructor(context: Context) {
                 val currentUrl = _currentMusicUrl.value
                 val currentId = _currentMusicId.value
                 val currentTitle = _currentMusicTitle.value
-                val currentArtist = _currentMusicArtist.value
-                val currentCover = _currentMusicCover.value
+                val resumePosition = maxOf(activePlayer.currentPosition, _currentPosition.value).coerceAtLeast(0)
+                val request = playbackRequest
+                val intendedPlaying = playIntent
+                val failedLocalFile = UrlConfig.isLocalUri(
+                    activePlayer.currentMediaItem?.localConfiguration?.uri?.toString())
+                pendingRetry?.let(mainHandler::removeCallbacks)
 
                 if (currentUrl != null && retryCount < MAX_RETRY_COUNT) {
                     Log.d("MusicPlayerManager", "尝试重新播放: $currentTitle (第 $retryCount 次重试)")
                     // 延迟 500ms 后重试
-                    mainHandler.postDelayed({
+                    val retry = Runnable {
+                        if (request != playbackRequest || currentId != _currentMusicId.value ||
+                            currentUrl != _currentMusicUrl.value) return@Runnable
                         try {
-                            val mediaItem = MediaItem.fromUri(currentUrl)
+                            // 损坏的本地缓存回退网络，同一文件不能无限重试。
+                            val retryUrl = if (failedLocalFile && !UrlConfig.isLocalUri(currentUrl)) {
+                                currentUrl
+                            } else cachedPlaybackUrl(currentId, currentUrl)
+                            val mediaItem = MediaItem.fromUri(retryUrl)
                             // 重试同样不能用 stop()：那会释放音频焦点，重试时焦点请求失败又会被静默暂停
-                            activePlayer.setMediaItem(mediaItem, true)
+                            activePlayer.setMediaItem(mediaItem, resumePosition)
+                            retryPosition = resumePosition
                             activePlayer.prepare()
-                            playIntent = true
-                            lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
-                            activePlayer.play()
+                            if (intendedPlaying && playIntent) {
+                                lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
+                                activePlayer.play()
+                            }
                         } catch (e: Exception) {
                             Log.e("MusicPlayerManager", "重试播放失败: ${e.message}", e)
                         }
-                    }, 500)
+                    }
+                    pendingRetry = retry
+                    mainHandler.postDelayed(retry, 500)
                 } else {
-                    // 重试次数达到上限,自动切换到下一首
-                    Log.d("MusicPlayerManager", "重试次数达到上限 ($MAX_RETRY_COUNT), 自动切换到下一首")
-                    next()
+                    // 网络/解码错误不等于曲目播放完成，保留当前曲目和进度供用户重试。
+                    Log.w("MusicPlayerManager", "播放重试已达上限，保留当前曲目")
+                    _isBuffering.value = false
+                    cancelPlaybackRetry()
+                    playIntent = false
+                    activePlayer.pause()
+                    syncPlayingState()
                 }
             }
 
@@ -1066,8 +1089,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     }
                     Player.STATE_READY -> {
                         Log.d("MusicPlayerManager", "ExoPlayer 准备就绪，开始播放。总时长: ${activePlayer.duration} ms")
-                        // 本次曲目已经成功起播，重试计数必须清零，否则会累加到上限后误判为"重试失败"而跳歌
-                        retryCount = 0
+                        // READY 只表示缓冲就绪；稳定播放后再清重试次数，避免坏源反复 READY/ERROR 无限重试。
                         if (!isReleased) {
                             _isBuffering.value = false
                             _duration.value = activePlayer.duration
@@ -1085,6 +1107,12 @@ class MusicPlayerManager private constructor(context: Context) {
                         if (activeRoomDelegate() != null) {
                             // 房间切歌由服务端统一推进，避免每个客户端都触发 next 造成连跳。
                             updatePlaybackState()
+                            return
+                        }
+                        if (activePlayer.duration <= 0 || activePlayer.currentPosition <= 0 ||
+                            activePlayer.currentPosition + 1_500L < activePlayer.duration) {
+                            Log.w("MusicPlayerManager", "忽略未到曲尾的结束状态，保留当前曲目")
+                            pause()
                             return
                         }
                         activePlayer.seekTo(0)
@@ -1415,6 +1443,10 @@ class MusicPlayerManager private constructor(context: Context) {
             while (true) {
                 delay(100)
                 _currentPosition.value = activePlayer.currentPosition.coerceAtLeast(0L)
+                if (activePlayer.isPlaying && _currentPosition.value >= retryPosition + 5_000L) {
+                    retryCount = 0
+                }
+                stemSeparation.onPlaybackPosition(_currentPosition.value)
             }
         }
     }
@@ -1426,6 +1458,15 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 淡入效果
     private fun fadeIn() {
+        if (activePlayer.playerError != null) {
+            _currentMusicUrl.value?.let { url ->
+                cancelPlaybackRetry()
+                retryCount = 0
+                activePlayer.setMediaItem(MediaItem.fromUri(cachedPlaybackUrl(_currentMusicId.value, url)),
+                    _currentPosition.value.coerceAtLeast(0))
+                activePlayer.prepare()
+            }
+        }
         fadeToken = Any()
         playIntent = true
         lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
@@ -1608,11 +1649,13 @@ class MusicPlayerManager private constructor(context: Context) {
             Log.e("MusicPlayerManager", "拒绝为本地音乐使用非本地地址: id=$id, url=$baseUrl")
             return
         }
+        val requestedQuality = _audioQuality.value.id
         val normalizedUrl = if (id != null && id > 0 && baseUrl.contains("/api/music/file/")) {
             UrlConfig.getMusicFileUrl(id, _audioQuality.value.id)
         } else {
             baseUrl
         }
+        cancelPlaybackRetry()
         Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$normalizedUrl")
         stemSeparation.onTrackChanged(
             id?.let { "music:$it:${_audioQuality.value.id}" } ?: normalizedUrl,
@@ -1630,6 +1673,9 @@ class MusicPlayerManager private constructor(context: Context) {
         preloadedNextMusicFullCoverUrl = null
 
         if (_currentMusicUrl.value != normalizedUrl) {
+            _currentPosition.value = 0
+            _duration.value = 0
+            retryPosition = 0
             // 添加到历史记录（如果不是重复播放同一首歌）
             if (id != null && _currentMusicId.value != id) {
                 playHistory.add(id)
@@ -1675,12 +1721,7 @@ class MusicPlayerManager private constructor(context: Context) {
             scheduleAlbumSessionArtLoad()
 
             // 优先使用缓存文件
-            val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
-            val playUrl = if (id != null && !isLocalMusicId(id) && !UrlConfig.isLocalUri(normalizedUrl)) {
-                cacheManager.getCachedMusicFile(id, _audioQuality.value.id)?.absolutePath ?: normalizedUrl
-            } else {
-                normalizedUrl
-            }
+            val playUrl = cachedPlaybackUrl(id, normalizedUrl)
 
             // 直接替换 MediaItem，不要用 stop() + clearMediaItems()：
             // ExoPlayer 的 stop() 会把状态置为 IDLE，而 AudioFocusManager.updateAudioFocus(playWhenReady, STATE_IDLE)
@@ -1731,17 +1772,11 @@ class MusicPlayerManager private constructor(context: Context) {
                     val cacheManager = com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
                     
                     if (cacheManager.isCacheEnabled()) {
-                        // 检查是否已缓存，如果没有则开始缓存
-                        if (cacheManager.getCachedMusicFile(id, _audioQuality.value.id) == null) {
-                            cacheManager.cacheMusicFile(id, normalizedUrl, title, artist, _audioQuality.value.id)
-                                .onSuccess { 
-                                    Log.d("MusicPlayerManager", "音乐缓存成功: $title")
-                                }
-                                .onFailure { e ->
-                                    Log.e("MusicPlayerManager", "音乐缓存失败: $title", e)
-                                }
+                        // 原曲始终承担播放时钟，分离开关不影响原曲缓存读写。
+                        if (cacheManager.getCachedMusicFile(id, requestedQuality) == null) {
+                            cacheManager.cacheMusicFile(id, normalizedUrl, title, artist, requestedQuality)
+                                .onFailure { Log.w("MusicPlayerManager", "音乐缓存失败: $title", it) }
                         } else {
-                            // 更新缓存中的音乐标题和演唱者
                             cacheManager.updateMusicTitle(id, title)
                             cacheManager.updateMusicArtist(id, artist)
                         }
@@ -1833,6 +1868,7 @@ class MusicPlayerManager private constructor(context: Context) {
             it.pause()
             return
         }
+        cancelPlaybackRetry()
         fadeOut {}
     }
     
@@ -1854,6 +1890,7 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
         activePlayer.seekTo(position)
+        stemSeparation.onPlaybackPosition(position)
         _currentPosition.value = position
         updatePlaybackState()
     }
@@ -2051,7 +2088,8 @@ class MusicPlayerManager private constructor(context: Context) {
             withContext(Dispatchers.Main) {
                 try {
                     Log.d("MusicPlayerManager", "正在主线程恢复最后播放的媒体源: $url")
-                    val mediaItem = MediaItem.fromUri(url)
+                    cancelPlaybackRetry()
+                    val mediaItem = MediaItem.fromUri(cachedPlaybackUrl(music.id, url))
                     activePlayer.setMediaItem(mediaItem)
                     activePlayer.prepare()
                 } catch (e: Exception) {

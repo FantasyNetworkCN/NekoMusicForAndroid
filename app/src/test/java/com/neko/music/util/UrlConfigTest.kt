@@ -19,4 +19,10 @@ class UrlConfigTest {
             UrlConfig.getTogetherWsUrl("a+b/c"),
         )
     }
+
+    @Test
+    fun localPlaybackUrlDoesNotInvokeRemoteResolution() {
+        val local = "file:///cache/music_42_hq.mp3"
+        assertEquals(local, MusicUrlResolver.resolveBlocking(local))
+    }
 }

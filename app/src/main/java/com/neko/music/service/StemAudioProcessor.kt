@@ -58,6 +58,8 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
             streaming?.reset()
             streaming = null
             source = currentSource
+            // 原曲一直在推进；换分片会话时从当前 PCM 时间戳接续，而非重用旧会话帧号。
+            nextSourceFrame = null
         }
         if (nextSourceFrame == null) {
             nextSourceFrame = (inputTimestampUs * inputAudioFormat.sampleRate + 500_000L) / 1_000_000L
@@ -81,7 +83,10 @@ internal class StemAudioProcessor(private val controller: StemProcessingControl)
             replaceOutputBuffer(inputBuffer.remaining()).apply { put(inputBuffer); flip() }
             return
         }
+        val consumedBefore = inputBuffer.remaining()
         current.queueInput(inputBuffer)
+        nextSourceFrame = nextSourceFrame!! +
+            (consumedBefore - inputBuffer.remaining()) / (inputAudioFormat.channelCount * Short.SIZE_BYTES)
     }
 
     override fun onFlush() {

@@ -3,8 +3,8 @@ package com.neko.music.service
 import android.content.Context
 import com.neko.music.debug.NekoLog as Log
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,10 +12,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.roundToLong
 
 internal data class StemSeparationState(
     val enabled: Boolean = false,
@@ -35,17 +39,15 @@ internal data class StemProcessingProgress(
     val fraction: Float?
         get() = if (totalChunks > 0) {
             (completedChunks.toFloat() / totalChunks).coerceIn(0f, 1f)
-        } else {
-            null
-        }
+        } else null
 }
 
+/** 原曲始终承担播放时钟，服务端双轨只在后台准备；失败不能阻塞或替换主播放源。 */
 internal class StemSeparationController(
     context: Context,
-    private val refreshAudio: () -> Unit,
 ) : StemProcessingControl {
     private val appContext = context.applicationContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val prefs = appContext.getSharedPreferences("stem_settings", Context.MODE_PRIVATE)
     private val _state = MutableStateFlow(StemSeparationState(
         enabled = prefs.getBoolean("enabled", false),
@@ -61,21 +63,27 @@ internal class StemSeparationController(
     val processingProgress = _processingProgress.asStateFlow()
     private val api = ServerStemApi()
     private val chunkDirectory = File(appContext.cacheDir, "server-stem-chunks")
-    @Volatile private var targetSampleRate = 44_100
-    @Volatile private var currentIdentity: String? = null
-    @Volatile private var currentMusicId: Int? = null
+    private val disk = StemDiskCache(chunkDirectory)
+    private var currentMusicId: Int? = null
     @Volatile private var track: StemTrackCache? = null
     @Volatile private var source: StemTrackInference? = null
     private var streamJob: Job? = null
+    private var prefetchJob: Job? = null
+    @Volatile private var playbackFrame = 0L
+    private var lastPrefetchMs = 0L
+    @Volatile private var prepared = false
+    @Volatile private var generation = 0L
 
     override val stemSource: StemTrackInference?
         get() = source.takeIf { _state.value.enabled }
 
     init {
-        // 彻底移除旧版本地 AI 模型和推理缓存。
-        File(appContext.noBackupFilesDir, "audio-models").deleteRecursively()
-        File(appContext.noBackupFilesDir, "ai-stem-cache").deleteRecursively()
-        File(appContext.cacheDir, "separated-audio-v1").deleteRecursively()
+        scope.launch {
+            // 清理不再使用的旧版模型，磁盘遍历不放在播放器主线程。
+            File(appContext.noBackupFilesDir, "audio-models").deleteRecursively()
+            File(appContext.noBackupFilesDir, "ai-stem-cache").deleteRecursively()
+            File(appContext.cacheDir, "separated-audio-v1").deleteRecursively()
+        }
         prefs.edit().remove("realtime").apply()
     }
 
@@ -84,196 +92,176 @@ internal class StemSeparationController(
     }
 
     fun setVocals(value: Float) {
-        if (value.isFinite()) {
-            val gain = value.coerceIn(0f, 1f)
-            prefs.edit().putFloat("vocals", gain).apply()
-            _state.update { it.copy(vocals = gain) }
-        }
+        if (!value.isFinite()) return
+        val gain = validGain(value)
+        prefs.edit().putFloat("vocals", gain).apply()
+        _state.update { it.copy(vocals = gain) }
     }
 
     fun setInstrumental(value: Float) {
-        if (value.isFinite()) {
-            val gain = value.coerceIn(0f, 1f)
-            prefs.edit().putFloat("instrumental", gain).apply()
-            _state.update { it.copy(instrumental = gain) }
-        }
+        if (!value.isFinite()) return
+        val gain = validGain(value)
+        prefs.edit().putFloat("instrumental", gain).apply()
+        _state.update { it.copy(instrumental = gain) }
     }
 
+    @Synchronized
     fun setEnabled(enabled: Boolean) {
         if (_state.value.enabled == enabled) return
         prefs.edit().putBoolean("enabled", enabled).apply()
         _state.update { it.copy(enabled = enabled) }
-        if (enabled) {
-            startStream()
-        } else {
-            stopStream()
-            replaceTrack()
-        }
-        refreshAudio()
+        if (enabled) startStream() else stopStream()
+        // 音频处理器始终存在，开关不需要重新 setMediaItem 或 prepare。
     }
 
+    @Synchronized
     fun retry() {
         if (!_state.value.enabled) return
         stopStream()
-        replaceTrack()
+        prepared = false
         startStream()
-        refreshAudio()
     }
 
-    /** 播放器准备音频管线前通知当前采样率；变化时重新准备分片。 */
-    override fun setPlaybackSampleRate(sampleRate: Int) {
-        if (sampleRate <= 0 || targetSampleRate == sampleRate) return
-        targetSampleRate = sampleRate
-        if (currentMusicId != null) {
-            stopStream()
-            replaceTrack()
-            startStream()
-        }
-    }
+    // 分离采样固定为 44.1kHz，播放时按采样率视图读取；切音质不再清空整曲分片。
+    override fun setPlaybackSampleRate(sampleRate: Int) = Unit
 
     override fun reportStemPhase(source: StemChunkSource?, phase: StemStreamPhase) {
         if (_state.value.enabled && this.source === source) {
-            // 登录 / VIP 是服务端鉴权终态，不能被播放线程随后的 WAITING / FALLBACK 覆盖。
-            if (_streamPhase.value in setOf(
-                    StemStreamPhase.LOGIN_REQUIRED,
-                    StemStreamPhase.VIP_REQUIRED,
-                ) && phase != _streamPhase.value) {
-                return
+            _streamPhase.update { previous ->
+                if (previous == StemStreamPhase.LOGIN_REQUIRED || previous == StemStreamPhase.VIP_REQUIRED ||
+                    previous == StemStreamPhase.FAILED) previous else phase
             }
-            if (_streamPhase.value != phase) {
-                Log.d("StemSeparation", "服务端分离状态: ${_streamPhase.value} -> $phase")
-            }
-            _streamPhase.value = phase
         }
     }
 
-    /** 切歌时取消旧 SSE 与解码任务，旧分片只保留到新曲目状态建立前。 */
+    @Synchronized
     fun onTrackChanged(identity: String, musicId: Int?) {
-        val changed = currentIdentity != identity || currentMusicId != musicId
-        currentIdentity = identity
-        currentMusicId = musicId
-        if (changed) {
+        if (currentMusicId != musicId || track == null) {
             stopStream()
-            replaceTrack()
+            track?.release()
+            currentMusicId = musicId
+            track = musicId?.takeIf { it > 0 }?.let { StemTrackCache("music:$it") }
+            source = track?.let(::StemTrackInference)
+            playbackFrame = 0
+            prepared = false
         }
-        if (_state.value.enabled && musicId != null && musicId > 0) startStream()
+        if (_state.value.enabled) startStream()
     }
 
-    private fun replaceTrack() {
-        track?.release()
-        _statusMessage.value = null
-        _processingProgress.value = StemProcessingProgress()
-        val identity = currentIdentity
-        if (identity == null) {
-            track = null
-            source = null
-            return
+    private fun isCurrent(current: StemTrackCache) =
+        track === current && !current.released && _state.value.enabled
+
+    /** 跳转、循环和连续播放共用磁盘预读，只保留当前附近的双轨，避免整曲常驻挤爆内存。 */
+    @Synchronized
+    fun onPlaybackPosition(positionMs: Long) {
+        playbackFrame = positionMs.coerceAtLeast(0) * STEM_SAMPLE_RATE / 1000
+        val current = track ?: return
+        if (!_state.value.enabled || prefetchJob?.isActive == true) return
+        val now = System.nanoTime() / 1_000_000
+        if (now - lastPrefetchMs < 500) return
+        lastPrefetchMs = now
+        val musicId = currentMusicId ?: return
+        val session = generation
+        prefetchJob = scope.launch {
+            current.retainAround(playbackFrame)
+            disk.loadNear(musicId, playbackFrame,
+                needed = { current.chunkAt(STEM_SAMPLE_RATE, it) == null },
+                publish = {
+                    if (session != generation || !isCurrent(current)) throw CancellationException("预读已过期")
+                    current.put(STEM_SAMPLE_RATE, it)
+                })
         }
-        val next = StemTrackCache(identity)
-        next.ready.complete(Unit)
-        track = next
-        source = StemTrackInference(next)
-        _streamPhase.value = StemStreamPhase.WAITING
     }
 
+    @Synchronized
     private fun startStream() {
         val musicId = currentMusicId?.takeIf { it > 0 } ?: return
-        val currentTrack = track ?: return
-        if (streamJob?.isActive == true) return
+        val current = track ?: return
+        if (prepared || streamJob?.isActive == true) return
         _statusMessage.value = null
-        _processingProgress.value = StemProcessingProgress()
         _streamPhase.value = StemStreamPhase.PROCESSING
-        streamJob = scope.launch(Dispatchers.IO) {
+        val session = generation
+        streamJob = scope.launch {
+            fun active() = generation == session && isCurrent(current)
+            val starts = sortedSetOf<Long>()
+            fun publish(chunk: StemCachedChunk) {
+                if (!active()) throw CancellationException("曲目已切换")
+                current.put(STEM_SAMPLE_RATE, chunk)
+                synchronized(starts) { starts += chunk.startFrame }
+                current.retainAround(playbackFrame)
+                _processingProgress.update {
+                    it.copy(completedChunks = synchronized(starts) { starts.size },
+                        processingChunk = -1, fullFallback = false)
+                }
+            }
+            fun persist(chunk: StemCachedChunk) {
+                publish(chunk)
+                runCatching { disk.write(musicId, chunk) }
+                    .onFailure { Log.w("StemSeparation", "分片已生效，保存本地缓存失败", it) }
+            }
             try {
+                if (disk.restore(musicId, ::publish)) {
+                    if (active()) {
+                        prepared = true
+                        _processingProgress.value = StemProcessingProgress(
+                            completedChunks = starts.size, totalChunks = starts.size, finished = true)
+                    }
+                    return@launch
+                }
+                // SSE 重连会重放已完成分片；已有本地 PCM 的位置直接跳过。
                 var done = false
-                api.stream(musicId) { event ->
-                    when (event) {
-                        is ServerStemEvent.Accepted -> {
-                            _streamPhase.value = StemStreamPhase.PROCESSING
-                            _processingProgress.update {
-                                it.copy(queuePosition = event.queuePosition.coerceAtLeast(0L))
-                            }
-                        }
-                        is ServerStemEvent.Started -> {
-                            _processingProgress.update {
-                                it.copy(
-                                    queuePosition = 0L,
-                                    completedChunks = 0,
-                                    totalChunks = event.totalChunks.coerceAtLeast(0),
-                                    processingChunk = -1,
-                                    fullFallback = false,
-                                    finished = false,
-                                )
-                            }
-                        }
-                        is ServerStemEvent.Chunk -> {
-                            if (track === currentTrack && !currentTrack.released) {
-                                _processingProgress.update {
-                                    it.copy(processingChunk = event.index)
+                for (attempt in 0..2) {
+                    try {
+                        api.stream(musicId) { event ->
+                            currentCoroutineContext().ensureActive()
+                            if (!active()) throw CancellationException("曲目已切换")
+                            when (event) {
+                                is ServerStemEvent.Accepted -> _processingProgress.update {
+                                    it.copy(queuePosition = event.queuePosition.coerceAtLeast(0))
                                 }
-                                try {
-                                    ingestChunk(musicId, currentTrack, event)
-                                    _processingProgress.update {
-                                        it.copy(
-                                            completedChunks = maxOf(
-                                                it.completedChunks,
-                                                event.index + 1,
-                                            ),
-                                            processingChunk = -1,
-                                        )
-                                    }
-                                    if (currentTrack.chunkCount > 0 &&
-                                        _streamPhase.value != StemStreamPhase.ACTIVE) {
-                                        _streamPhase.value = StemStreamPhase.ACTIVE
-                                    }
-                                } catch (error: Exception) {
-                                    _processingProgress.update { it.copy(processingChunk = -1) }
-                                    _streamPhase.value = StemStreamPhase.FALLBACK
-                                    Log.w("StemSeparation", "服务端分片 ${event.index} 处理失败，继续接收后续分片", error)
+                                is ServerStemEvent.Started -> _processingProgress.update {
+                                    it.copy(queuePosition = 0, totalChunks = maxOf(it.totalChunks, event.totalChunks))
                                 }
+                                is ServerStemEvent.Chunk -> {
+                                    val start = (event.startSec * STEM_SAMPLE_RATE).roundToLong()
+                                    if (synchronized(starts) { start !in starts }) {
+                                        _processingProgress.update { it.copy(processingChunk = event.index) }
+                                        ingestChunk(musicId, event, ::persist)
+                                    }
+                                }
+                                is ServerStemEvent.Done -> {
+                                    // 缓存任务可能只发 done；补齐全曲双轨，并保持已发布的分片可播放。
+                                    val count = _processingProgress.value.totalChunks
+                                    if (count == 0 || synchronized(starts) { starts.size < count }) {
+                                        ingestFull(musicId, event, ::persist)
+                                    }
+                                    done = true
+                                }
+                                is ServerStemEvent.Failed -> throw IllegalStateException(event.message)
                             }
                         }
-                        is ServerStemEvent.Done -> {
-                            done = true
-                            _processingProgress.update {
-                                it.copy(
-                                    queuePosition = 0L,
-                                    completedChunks = if (it.totalChunks > 0) it.totalChunks else it.completedChunks,
-                                    processingChunk = -1,
-                                    finished = true,
-                                )
-                            }
-                            if (track === currentTrack && !currentTrack.released &&
-                                currentTrack.chunkCount == 0 &&
-                                event.vocalsUrl.isNotBlank() &&
-                                event.accompanimentUrl.isNotBlank()) {
-                                ingestFull(
-                                    musicId,
-                                    currentTrack,
-                                    event.vocalsUrl,
-                                    event.accompanimentUrl,
-                                )
-                            }
-                        }
-                        is ServerStemEvent.Failed -> throw IllegalStateException(event.message)
+                        check(done) { "服务端分离连接提前结束" }
+                        break
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (http: ServerStemHttpException) {
+                        throw http
+                    } catch (error: Exception) {
+                        if (attempt == 2) throw error
+                        Log.w("StemSeparation", "分离连接中断，保留已有双轨并重连", error)
+                        delay(1_000L * (attempt + 1))
                     }
                 }
-                if (!done && track === currentTrack && !currentTrack.released) {
-                    throw IllegalStateException("服务端分离连接提前结束")
+                if (active() && done) {
+                    disk.complete(musicId, synchronized(starts) { starts.toList() })
+                    prepared = true
+                    _processingProgress.value = StemProcessingProgress(completedChunks = starts.size,
+                        totalChunks = starts.size, finished = true)
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (outOfMemory: OutOfMemoryError) {
-                if (track === currentTrack) {
-                    currentTrack.release()
-                    track = null
-                    source = null
-                    _processingProgress.value = StemProcessingProgress()
-                    _streamPhase.value = StemStreamPhase.FALLBACK
-                }
-                Log.e("StemSeparation", "处理服务端分离数据时内存不足，已释放当前曲目分片", outOfMemory)
             } catch (http: ServerStemHttpException) {
-                if (track === currentTrack && _state.value.enabled) {
+                if (active()) {
                     _statusMessage.value = http.message
                     _streamPhase.value = when (http.statusCode) {
                         401 -> StemStreamPhase.LOGIN_REQUIRED
@@ -282,144 +270,98 @@ internal class StemSeparationController(
                     }
                 }
             } catch (error: Exception) {
-                if (track === currentTrack && _state.value.enabled) {
+                if (active()) {
                     _statusMessage.value = error.message
                     _streamPhase.value = StemStreamPhase.FAILED
                     ServerStemApi.logFailure(error)
                 }
+            } catch (error: OutOfMemoryError) {
+                // 避免释放已经在播放的双轨：保持原曲时钟，缺片回退到原曲。
+                Log.e("StemSeparation", "分离分片内存不足，停止后台准备", error)
+                if (active()) _streamPhase.value = StemStreamPhase.FALLBACK
             }
         }
     }
 
-    private suspend fun ingestChunk(
-        musicId: Int,
-        currentTrack: StemTrackCache,
-        event: ServerStemEvent.Chunk,
-    ) {
-        _processingProgress.update {
-            it.copy(
-                queuePosition = 0L,
-                completedChunks = 0,
-                totalChunks = 0,
-                processingChunk = -1,
-                fullFallback = true,
-                finished = false,
-            )
+    private suspend fun ingestChunk(musicId: Int, event: ServerStemEvent.Chunk,
+                                    publish: (StemCachedChunk) -> Unit) = coroutineScope {
+        val dir = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
+        suspend fun load(vocal: Boolean): StemCachedSamples {
+            val stem = if (vocal) "vocals" else "accompaniment"
+            val file = File(dir, "$stem-${event.index}.mp3")
+            ensureCachedMedia(if (vocal) event.vocalsUrl else event.accompanimentUrl, file)
+            val context = currentCoroutineContext()
+            context.ensureActive()
+            return ServerStemDecoder.decode(file, event.startSec, event.endSec, STEM_SAMPLE_RATE) {
+                context.ensureActive()
+            }
         }
-        val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
-        val vocalsFile = File(directory, "vocals-${event.index}.mp3")
-        val accompanimentFile = File(directory, "accompaniment-${event.index}.mp3")
-        if (!vocalsFile.isFile || vocalsFile.length() == 0L) {
-            api.download(event.vocalsUrl, vocalsFile)
-        }
-        if (!accompanimentFile.isFile || accompanimentFile.length() == 0L) {
-            api.download(event.accompanimentUrl, accompanimentFile)
-        }
-        try {
-            val vocals = ServerStemDecoder.decode(
-                vocalsFile,
-                event.startSec,
-                event.endSec,
-                targetSampleRate,
-            )
-            val accompaniment = ServerStemDecoder.decode(
-                accompanimentFile,
-                event.startSec,
-                event.endSec,
-                targetSampleRate,
-            )
-            val startFrame = (event.startSec * targetSampleRate).toLong().coerceAtLeast(0L)
-            currentTrack.put(
-                targetSampleRate,
-                StemCachedChunk(startFrame, vocals, accompaniment),
-            )
-        } finally {
-            runCatching { vocalsFile.delete() }
-            runCatching { accompanimentFile.delete() }
-        }
+        val vocals = async { load(true) }
+        val accompaniment = async { load(false) }
+        publish(StemCachedChunk((event.startSec * STEM_SAMPLE_RATE).roundToLong(),
+            vocals.await(), accompaniment.await()))
     }
 
-    private suspend fun ingestFull(
-        musicId: Int,
-        currentTrack: StemTrackCache,
-        vocalsUrl: String,
-        accompanimentUrl: String,
-    ) {
-        val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
-        val vocalsFile = File(directory, "full-vocals.mp3")
-        val accompanimentFile = File(directory, "full-accompaniment.mp3")
-        try {
-            val vocalsByStart = ConcurrentHashMap<Long, StemCachedSamples>()
-            val accompanimentByStart = ConcurrentHashMap<Long, StemCachedSamples>()
-            val completed = AtomicInteger(0)
-            fun pairAvailableChunks(startFrame: Long) {
-                val vocals = vocalsByStart.remove(startFrame) ?: return
-                val accompaniment = accompanimentByStart.remove(startFrame) ?: return
-                currentTrack.put(
-                    targetSampleRate,
-                    StemCachedChunk(startFrame, vocals, accompaniment),
-                )
-                val completedCount = completed.incrementAndGet()
-                _processingProgress.update {
-                    it.copy(
-                        completedChunks = completedCount,
-                        fullFallback = false,
-                        finished = false,
-                    )
-                }
-                _streamPhase.value = StemStreamPhase.ACTIVE
+    private suspend fun ingestFull(musicId: Int, event: ServerStemEvent.Done,
+                                   publish: (StemCachedChunk) -> Unit) = coroutineScope {
+        _processingProgress.update { it.copy(fullFallback = true) }
+        val dir = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
+        val vocalsPending = Semaphore(2)
+        val accompanimentPending = Semaphore(2)
+        val pairingDeadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2)
+        val pairing = StemPairAssembler {
+            try {
+                publish(it)
+            } finally {
+                vocalsPending.release()
+                accompanimentPending.release()
             }
-
-            coroutineScope {
-                val vocalsJob = async(Dispatchers.IO) {
-                    api.download(vocalsUrl, vocalsFile)
-                    ServerStemDecoder.decodeFullChunks(
-                        vocalsFile,
-                        targetSampleRate,
-                        StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
-                    ) { chunk ->
-                        vocalsByStart[chunk.startFrame] = chunk.samples
-                        pairAvailableChunks(chunk.startFrame)
-                    }
-                }
-                val accompanimentJob = async(Dispatchers.IO) {
-                    api.download(accompanimentUrl, accompanimentFile)
-                    ServerStemDecoder.decodeFullChunks(
-                        accompanimentFile,
-                        targetSampleRate,
-                        StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
-                    ) { chunk ->
-                        accompanimentByStart[chunk.startFrame] = chunk.samples
-                        pairAvailableChunks(chunk.startFrame)
-                    }
-                }
-                vocalsJob.await()
-                accompanimentJob.await()
-            }
-            val completedCount = completed.get()
-            if (completedCount > 0) {
-                _processingProgress.value = StemProcessingProgress(
-                    completedChunks = completedCount,
-                    totalChunks = completedCount,
-                    finished = true,
-                )
-                _streamPhase.value = StemStreamPhase.ACTIVE
-            }
-        } finally {
-            runCatching { vocalsFile.delete() }
-            runCatching { accompanimentFile.delete() }
         }
+        suspend fun load(vocal: Boolean) {
+            val file = File(dir, if (vocal) "full-vocals.mp3" else "full-accompaniment.mp3")
+            ensureCachedMedia(if (vocal) event.vocalsUrl else event.accompanimentUrl, file)
+            val context = currentCoroutineContext()
+            ServerStemDecoder.decodeFullChunks(file, STEM_SAMPLE_RATE,
+                StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
+                onChunk = {
+                    val slots = if (vocal) vocalsPending else accompanimentPending
+                    // 单路过快时最多领先两片，不能把尚未配对的整轨全部堆进内存。
+                    while (!slots.tryAcquire(100, TimeUnit.MILLISECONDS)) {
+                        context.ensureActive()
+                        check(System.nanoTime() < pairingDeadline) { "双轨解码配对等待超时" }
+                    }
+                    context.ensureActive()
+                    pairing.put(it.startFrame, it.samples, vocal)
+                },
+                checkActive = { context.ensureActive() })
+        }
+        val vocals = async { load(true) }
+        val accompaniment = async { load(false) }
+        vocals.await()
+        accompaniment.await()
+    }
+
+    private suspend fun ensureCachedMedia(url: String, destination: File) {
+        if (destination.isFile && destination.length() > 0L &&
+            System.currentTimeMillis() - destination.lastModified() < CACHE_TTL_MS) return
+        require(url.isNotBlank()) { "服务端未返回分离媒体地址" }
+        api.download(url, destination)
     }
 
     private fun stopStream() {
+        generation++
         streamJob?.cancel()
         streamJob = null
+        prefetchJob?.cancel()
+        prefetchJob = null
+        lastPrefetchMs = 0
         _statusMessage.value = null
         _processingProgress.value = StemProcessingProgress()
         _streamPhase.value = StemStreamPhase.WAITING
     }
 
     private companion object {
+        const val CACHE_TTL_MS = 180L * 24 * 60 * 60 * 1000
         fun validGain(value: Float): Float = if (value.isFinite()) value.coerceIn(0f, 1f) else 1f
     }
 }

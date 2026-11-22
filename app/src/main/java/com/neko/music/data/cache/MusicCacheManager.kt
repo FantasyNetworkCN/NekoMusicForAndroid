@@ -4,6 +4,9 @@ import android.content.Context
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.util.MusicUrlResolver
 import com.neko.music.util.applyNekoClientHeaders
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -52,6 +55,10 @@ private val lyricsDir: File by lazy {
     File(cacheDir, LYRICS_DIR)
 }
 
+private val serverStemDir: File by lazy {
+    File(context.cacheDir, "server-stem-chunks")
+}
+
 // 创建缓存目录（仅在缓存启用时调用）
 private fun ensureCacheDirs() {
     if (!cacheDir.exists()) {
@@ -67,6 +74,8 @@ private fun ensureCacheDirs() {
         lyricsDir.mkdirs()
     }
 }
+
+    private val downloadLocks = Array(32) { Mutex() }
 
     private val prefs by lazy {
         context.getSharedPreferences("music_cache", Context.MODE_PRIVATE)
@@ -85,21 +94,15 @@ private fun ensureCacheDirs() {
     fun getCachedMusicFile(musicId: Int, quality: String = "hq"): File? {
         if (!isCacheEnabled()) return null
 
-        // 检查是否正在缓存中
-        val isCaching = prefs.getBoolean("music_${musicId}_caching", false)
-        if (isCaching) {
-            Log.d(TAG, "音乐文件正在缓存中: $musicId")
-            return null
-        }
-
         // 从 SharedPreferences 获取该音乐的扩展名
         val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
         val extension = prefs.getString("music_${musicId}_${normalizedQuality}_ext", "mp3") ?: "mp3"
         val fileName = "music_${musicId}_${normalizedQuality}.$extension"
         val file = File(musicDir, fileName)
+        val expectedSize = prefs.getLong("music_${musicId}_${normalizedQuality}_size", 0)
 
         // 检查文件是否存在且大小合理（至少 1KB）
-        if (file.exists() && file.length() > 1024) {
+        if (file.isFile && file.length() > 1024 && (expectedSize <= 0 || file.length() == expectedSize)) {
             return file
         }
 
@@ -163,41 +166,45 @@ private fun ensureCacheDirs() {
             return@withContext Result.failure(Exception("缓存未启用"))
         }
 
-        try {
-            // 确保缓存目录存在
-            ensureCacheDirs()
+        val lock = downloadLocks[(musicId.hashCode() and Int.MAX_VALUE) % downloadLocks.size]
+        lock.withLock {
+            getCachedMusicFile(musicId, quality)?.let { return@withLock Result.success(it) }
+            try {
+                // 确保缓存目录存在
+                ensureCacheDirs()
 
-            // 标记正在缓存
-            prefs.edit()
-                .putBoolean("music_${musicId}_caching", true)
-                .apply()
+                // 标记正在缓存
+                prefs.edit()
+                    .putBoolean("music_${musicId}_caching", true)
+                    .apply()
 
-            // 下载文件并获取扩展名；音质接口返回 JSON，需先解析成固定媒体地址
-            val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
-            val resolvedUrl = MusicUrlResolver.resolveBlocking(url)
-            val (extension, file) = downloadFileWithExtension(resolvedUrl, musicId, normalizedQuality)
+                // 下载文件并获取扩展名；音质接口返回 JSON，需先解析成固定媒体地址
+                val normalizedQuality = quality.trim().lowercase().ifEmpty { "hq" }
+                val resolvedUrl = MusicUrlResolver.resolveBlocking(url)
+                val (extension, file) = downloadFileWithExtension(resolvedUrl, musicId, normalizedQuality)
 
-            // 记录缓存信息
-            prefs.edit()
-                .putLong("music_${musicId}_${normalizedQuality}_time", System.currentTimeMillis())
-                .putLong("music_${musicId}_${normalizedQuality}_size", file.length())
-                .putString("music_${musicId}_${normalizedQuality}_title", title)
-                .putString("music_${musicId}_${normalizedQuality}_artist", artist)
-                .putString("music_${musicId}_${normalizedQuality}_ext", extension)
-                .putBoolean("music_${musicId}_caching", false)
-                .apply()
+                // 记录缓存信息
+                prefs.edit()
+                    .putLong("music_${musicId}_${normalizedQuality}_time", System.currentTimeMillis())
+                    .putLong("music_${musicId}_${normalizedQuality}_size", file.length())
+                    .putString("music_${musicId}_${normalizedQuality}_title", title)
+                    .putString("music_${musicId}_${normalizedQuality}_artist", artist)
+                    .putString("music_${musicId}_${normalizedQuality}_ext", extension)
+                    .putBoolean("music_${musicId}_caching", false)
+                    .apply()
 
-            Log.d(TAG, "音乐文件缓存成功: $musicId ($extension)")
-            Result.success(file)
-        } catch (e: Exception) {
-            // 缓存失败，移除标记并删除不完整的文件
-            prefs.edit()
-                .putBoolean("music_${musicId}_caching", false)
-                .apply()
-            // 删除可能存在的不完整文件
-            musicDir.listFiles()?.filter { it.name.startsWith("music_${musicId}_") }?.forEach { it.delete() }
-            Log.e(TAG, "缓存音乐文件失败: $musicId", e)
-            Result.failure(e)
+                Log.d(TAG, "音乐文件缓存成功: $musicId ($extension)")
+                Result.success(file)
+            } catch (e: Exception) {
+                // 缓存失败，移除标记并删除不完整的文件
+                prefs.edit()
+                    .putBoolean("music_${musicId}_caching", false)
+                    .apply()
+                // 下载先写暂存文件；失败不能删除已经存在的其他音质缓存。
+                if (e is CancellationException) throw e
+                Log.e(TAG, "缓存音乐文件失败: $musicId", e)
+                Result.failure(e)
+            }
         }
     }
 
@@ -351,6 +358,7 @@ private fun ensureCacheDirs() {
             getCachedCoverFile(musicId)?.delete()
             getCachedLyricsFile(musicId)?.delete()
             getCachedRichLyricsFile(musicId)?.delete()
+            File(serverStemDir, musicId.toString()).deleteRecursively()
 
             // 清除缓存记录
             prefs.edit()
@@ -399,6 +407,7 @@ private fun ensureCacheDirs() {
      */
     fun clearAllCache() {
         try {
+            serverStemDir.deleteRecursively()
             if (!isCacheEnabled()) {
                 Log.d(TAG, "缓存未启用，跳过清空缓存")
                 return
@@ -425,13 +434,15 @@ private fun ensureCacheDirs() {
      * 获取缓存大小（字节）
      */
     fun getCacheSize(): Long {
-        if (!cacheDir.exists()) {
-            return 0L
-        }
-        return cacheDir.walkTopDown()
+        val musicBytes = if (cacheDir.exists()) cacheDir.walkTopDown()
             .filter { it.isFile }
             .map { it.length() }
-            .sum()
+            .sum() else 0L
+        val stemBytes = if (serverStemDir.exists()) serverStemDir.walkTopDown()
+            .filter { it.isFile }
+            .map { it.length() }
+            .sum() else 0L
+        return musicBytes + stemBytes
     }
 
     /**
@@ -504,10 +515,20 @@ private fun ensureCacheDirs() {
         // 创建具有正确扩展名的文件
         val file = File(musicDir, "music_${musicId}_${quality}.$extension")
 
-        connection.inputStream.use { input ->
-            FileOutputStream(file).use { output ->
-                input.copyTo(output)
+        val temporary = File.createTempFile("music-${musicId}-${quality}-", ".part", musicDir)
+        try {
+            check(connection.responseCode == HttpURLConnection.HTTP_OK) { "音乐下载失败 HTTP ${connection.responseCode}" }
+            val expected = connection.contentLengthLong
+            connection.inputStream.use { input ->
+                FileOutputStream(temporary).use { output -> input.copyTo(output) }
             }
+            check(temporary.length() > 1024 && (expected < 0 || temporary.length() == expected)) {
+                "音乐缓存下载不完整"
+            }
+            check(temporary.renameTo(file)) { "音乐缓存原子替换失败" }
+        } finally {
+            temporary.delete()
+            connection.disconnect()
         }
 
         return Pair(extension, file)
