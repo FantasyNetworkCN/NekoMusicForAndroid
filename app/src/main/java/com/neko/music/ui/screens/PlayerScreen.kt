@@ -3691,13 +3691,16 @@ private fun AudioQualitySelector(
         "standard" -> 0
         "sq" -> 2
         "hires" -> 3
+        "dolby" -> 4
         else -> 1
     }
+    val dolbyLabel = stringResource(id = R.string.audio_quality_dolby)
     val selectedLabel = when (selected) {
         AudioQuality.STANDARD -> "标准"
         AudioQuality.HQ -> "HQ"
         AudioQuality.SQ -> "SQ"
         AudioQuality.HIRES -> "Hi-Res"
+        AudioQuality.DOLBY -> dolbyLabel
     }
     Box(modifier = modifier) {
         Row(
@@ -3747,6 +3750,7 @@ private fun AudioQualitySelector(
                             AudioQuality.HQ -> "HQ"
                             AudioQuality.SQ -> "SQ"
                             AudioQuality.HIRES -> "Hi-Res"
+                            AudioQuality.DOLBY -> dolbyLabel
                         })
                     },
                     enabled = index <= maxRank,

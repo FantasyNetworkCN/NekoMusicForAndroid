@@ -546,6 +546,9 @@ private fun ensureCacheDirs() {
             contentType.contains("m4a") || contentType.contains("mp4") -> "m4a"
             contentType.contains("wma") -> "wma"
             contentType.contains("ape") -> "ape"
+            contentType.contains("eac3") -> "eac3"
+            contentType.contains("ac3") -> "ac3"
+            contentType.contains("truehd") || contentType.contains("mlp") -> "thd"
             contentType.contains("mpeg") || contentType.contains("mp3") -> "mp3"
             else -> {
                 Log.w(TAG, "未知的 Content-Type: $contentType，使用 mp3")

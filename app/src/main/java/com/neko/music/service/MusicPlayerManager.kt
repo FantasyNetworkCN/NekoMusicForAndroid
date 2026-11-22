@@ -50,7 +50,7 @@ enum class PlayMode {
 }
 
 enum class AudioQuality(val id: String) {
-    STANDARD("standard"), HQ("hq"), SQ("sq"), HIRES("hires");
+    STANDARD("standard"), HQ("hq"), SQ("sq"), HIRES("hires"), DOLBY("dolby");
 
     companion object {
         fun from(value: String?): AudioQuality = entries.firstOrNull { it.id == value?.trim()?.lowercase() } ?: HQ
@@ -483,6 +483,7 @@ class MusicPlayerManager private constructor(context: Context) {
         AudioQuality.HQ -> 1
         AudioQuality.SQ -> 2
         AudioQuality.HIRES -> 3
+        AudioQuality.DOLBY -> 4
     }
 
     private fun qualityRank(value: String?): Int = qualityRank(AudioQuality.from(value))

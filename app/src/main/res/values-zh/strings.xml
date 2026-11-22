@@ -914,4 +914,6 @@
     <string name="recognition_history_empty">还没有识别记录，听到喜欢的歌就来试试吧</string>
     <string name="recognition_history_hint">最近识别成功的歌曲，点按即可播放</string>
     <string name="recognition_float_result_description">已识别：%1$s，%2$s。点按展开</string>
+
+    <string name="audio_quality_dolby">杜比</string>
 </resources>

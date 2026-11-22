@@ -935,4 +935,6 @@
     <string name="recognition_history_empty">No identified songs yet. Try identifying some music.</string>
     <string name="recognition_history_hint">Recently identified songs. Tap a song to play.</string>
     <string name="recognition_float_result_description">Identified: %1$s, %2$s. Tap to expand.</string>
+
+    <string name="audio_quality_dolby">Dolby</string>
 </resources>
