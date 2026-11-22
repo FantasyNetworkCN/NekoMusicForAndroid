@@ -125,7 +125,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -139,6 +138,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -396,6 +396,7 @@ fun PlayerScreen(
     artworkExpansionProgress: () -> Float = { 1f },
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val haptics = LocalHapticFeedback.current
     val playerManager = MusicPlayerManager.getInstance(context)
     val tokenManager = com.neko.music.data.manager.TokenManager(context)
@@ -416,6 +417,13 @@ fun PlayerScreen(
 
     // 检查登录状态
     val isLoggedIn = tokenManager.isLoggedIn()
+
+    // 播放页停留期间保持屏幕常亮，离开页面后恢复宿主视图原本的设置。
+    DisposableEffect(view) {
+        val previousKeepScreenOn = view.keepScreenOn
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = previousKeepScreenOn }
+    }
 
     // 播放位置每 100ms 更新一次。这里保留 State 而不在 PlayerScreen 顶层解包，
     // 让订阅只发生在进度条与当前歌词行，避免封面、评论和整页玻璃层跟着重组。
@@ -3480,87 +3488,30 @@ fun PlaybackControls(
             )
         }
 
-        val materialPlayButtonColor = if (musicFileUrl == null) {
-            scheme.primary.copy(alpha = 0.38f)
-        } else {
-            scheme.primary
-        }
-        val playIconColor = if (useLiquidStyle) {
-            if (isDarkTheme) Color.White else Color(0xFF17171A)
-        } else {
-            scheme.onPrimary
-        }
-        if (useLiquidStyle) {
-            val glass = LiquidGlassDefaults.playerBottomChrome
-            val interactionSource = remember {
-                androidx.compose.foundation.interaction.MutableInteractionSource()
-            }
-            GlassSurface(
-                modifier = Modifier.size(playSize),
-                shape = CircleShape,
-                backgroundAlpha = glass.tint.background(isDarkTheme),
-                borderAlpha = glass.tint.border(isDarkTheme),
-                highlightAlpha = glass.tint.highlight(isDarkTheme),
-                borderColor = if (isDarkTheme) Color.White else Color(0xFF1C1C1E),
-                liquidBlur = glass.liquid.blur,
-                liquidLensHeight = glass.liquid.lensHeight,
-                liquidLensAmount = glass.liquid.lensAmount,
-                surfaceTint = if (musicFileUrl == null) {
-                    scheme.primary.copy(alpha = 0.12f)
+        Box(
+            modifier = Modifier
+                .size(playSize)
+                .clickable(
+                    enabled = !isLoading && musicFileUrl != null,
+                    onClick = onPlayPauseClick,
+                    indication = null,
+                    interactionSource = remember {
+                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            PlaybackButtonContent(
+                isLoading = isLoading,
+                musicFileUrl = musicFileUrl,
+                isPlaying = isPlaying,
+                compact = compact,
+                iconColor = if (musicFileUrl == null) {
+                    iconColor.copy(alpha = 0.38f)
                 } else {
-                    null
+                    iconColor
                 },
-                material3Shape = CircleShape,
-                material3Container = scheme.surfaceContainerHigh,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            enabled = !isLoading && musicFileUrl != null,
-                            onClick = onPlayPauseClick,
-                            indication = null,
-                            interactionSource = interactionSource,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PlaybackButtonContent(
-                        isLoading = isLoading,
-                        musicFileUrl = musicFileUrl,
-                        isPlaying = isPlaying,
-                        compact = compact,
-                        iconColor = playIconColor,
-                    )
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(playSize)
-                    .clickable(
-                        enabled = !isLoading && musicFileUrl != null,
-                        onClick = onPlayPauseClick,
-                        indication = null,
-                        interactionSource = remember {
-                            androidx.compose.foundation.interaction.MutableInteractionSource()
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_gear_play_button_bg),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    colorFilter = ColorFilter.tint(materialPlayButtonColor),
-                )
-                PlaybackButtonContent(
-                    isLoading = isLoading,
-                    musicFileUrl = musicFileUrl,
-                    isPlaying = isPlaying,
-                    compact = compact,
-                    iconColor = playIconColor,
-                )
-            }
+            )
         }
 
         PlayerTransportButton(
