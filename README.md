@@ -9,7 +9,7 @@
 - ## 请勿通过非官方渠道获取安装包。本站被大量非法黑产生成盗版客户端诈骗，如你通过第三方平台获取安装包导致被骗本站拒绝一切赔偿
 
 <p align="center">
-  <img src="docs/images/readme/android-hero.png" alt="Neko 歌姬计划 Android 首页、播放页与听歌识曲" width="100%">
+  <img src="docs/images/readme/android-hero.png" alt="Neko 歌姬计划 Android 手机与平板界面" width="100%">
 </p>
 
 ## 项目介绍
@@ -67,6 +67,10 @@ EQ 位于人声/伴奏混音之后，只处理最终音频；调节 EQ 或切换
 | 播放菜单与定时关闭 | 后台听歌识曲 |
 | --- | --- |
 | ![Android 播放菜单](docs/images/readme/android-player-menu.png) | ![Android 听歌识曲](docs/images/readme/android-recognition.png) |
+
+| 平板大屏播放 | 十段 EQ 调音 |
+| --- | --- |
+| ![Android 平板大屏播放](docs/images/readme/android-tablet-player.png) | ![Android 十段 EQ](docs/images/readme/android-tablet-eq.png) |
 
 ### 获取外部歌单api
 获取qq歌单列表`https://music.nekocore.cn/loser1/getSongListDetail?disstid=歌单id`
