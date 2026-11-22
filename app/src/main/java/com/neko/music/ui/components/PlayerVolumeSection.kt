@@ -52,7 +52,6 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val separation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val state by separation.state.collectAsState()
-    val modelState by separation.modelState.collectAsState()
     val streamPhase by separation.streamPhase.collectAsState()
     val lifecycle = LocalLifecycleOwner.current
     var volume by remember { mutableStateOf(MediaVolume()) }
@@ -88,7 +87,7 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
             VolumeSlider(stringResource(R.string.stem_instrumental), state.instrumental, onValueChange = separation::setInstrumental)
             if (streamPhase != StemStreamPhase.ACTIVE) {
                 Text(
-                    text = stemPreparationDescription(modelState, streamPhase),
+                    text = stemPreparationDescription(streamPhase),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

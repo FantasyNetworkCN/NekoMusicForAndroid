@@ -501,7 +501,7 @@ class MusicPlayerManager private constructor(context: Context) {
     ) {
         val player = activePlayer
         val url = UrlConfig.getMusicFileUrl(musicId, quality.id)
-        stemSeparation.onTrackChanged("music:$musicId:${quality.id}")
+        stemSeparation.onTrackChanged("music:$musicId:${quality.id}", musicId)
         val position = player.currentPosition.coerceAtLeast(0L)
         // 播放意图完全以 playWhenReady 为准：原地换源不会改动它，所以既不重新申请音频焦点，
         // 也不会出现"界面显示播放中但一声不响"（旧的双播放器接管方案正是在这里出的问题）。
@@ -1614,7 +1614,10 @@ class MusicPlayerManager private constructor(context: Context) {
             baseUrl
         }
         Log.d("MusicPlayerManager", "playMusic() 被调用: id=$id, title=$title, url=$normalizedUrl")
-        stemSeparation.onTrackChanged(id?.let { "music:$it:${_audioQuality.value.id}" } ?: normalizedUrl)
+        stemSeparation.onTrackChanged(
+            id?.let { "music:$it:${_audioQuality.value.id}" } ?: normalizedUrl,
+            id,
+        )
         // 重置重试计数器
         retryCount = 0
 
@@ -2029,7 +2032,7 @@ class MusicPlayerManager private constructor(context: Context) {
         lastPlayed?.let { music ->
             val musicApi = com.neko.music.data.api.MusicApi(appContext)
             val url = musicApi.getMusicFileUrl(music)
-            stemSeparation.onTrackChanged("music:${music.id}:${_audioQuality.value.id}")
+            stemSeparation.onTrackChanged("music:${music.id}:${_audioQuality.value.id}", music.id)
             val fullCoverUrl = buildPlayableCoverUrl(music)
             
             _currentMusicUrl.value = url

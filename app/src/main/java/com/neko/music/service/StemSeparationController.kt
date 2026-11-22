@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 internal data class StemSeparationState(
     val enabled: Boolean = false,
@@ -34,109 +33,29 @@ internal class StemSeparationController(
         instrumental = validGain(prefs.getFloat("instrumental", 1f)),
     ))
     override val state = _state.asStateFlow()
-    private val models = StemModelRepository(File(appContext.noBackupFilesDir, "audio-models/vocals-mdx-9703.onnx"))
-    val modelState = models.state
-    private var modelRequest: Job? = null
-    private var verifiedModel: File? = null
-    private val chunkCache = StemChunkCache(File(appContext.noBackupFilesDir, "ai-stem-cache"))
-    private var trackCache: StemTrackCache? = null
-    @Volatile private var trackInference: StemTrackInference? = null
-    private var prefetchJob: Job? = null
-    private val worker = MutableStateFlow<StemInferenceWorker?>(null)
-    override val aiInference: StemChunkInference?
-        get() = trackInference.takeIf { _state.value.enabled }
     private val _streamPhase = MutableStateFlow(StemStreamPhase.WAITING)
     val streamPhase = _streamPhase.asStateFlow()
+    private val api = ServerStemApi()
+    private val chunkDirectory = File(appContext.cacheDir, "server-stem-chunks")
+    @Volatile private var targetSampleRate = 44_100
+    @Volatile private var currentIdentity: String? = null
+    @Volatile private var currentMusicId: Int? = null
+    @Volatile private var track: StemTrackCache? = null
+    @Volatile private var source: StemTrackInference? = null
+    private var streamJob: Job? = null
+
+    override val stemSource: StemTrackInference?
+        get() = source.takeIf { _state.value.enabled }
 
     init {
-        // 清理旧版整曲分离模型，避免继续占用约 64 MB 私有空间。
-        File(appContext.noBackupFilesDir, "audio-models/inst-hq3.onnx").delete()
-        // 无 AI 方案已移除，清理旧版方式偏好。
+        // 彻底移除旧版本地 AI 模型和推理缓存。
+        File(appContext.noBackupFilesDir, "audio-models").deleteRecursively()
+        File(appContext.noBackupFilesDir, "ai-stem-cache").deleteRecursively()
+        File(appContext.cacheDir, "separated-audio-v1").deleteRecursively()
         prefs.edit().remove("realtime").apply()
-        if (_state.value.enabled) requestAiModel()
-    }
-
-    fun requestAiModel() {
-        if (modelRequest?.isActive == true) return
-        if (verifiedModel?.isFile == true) {
-            updateWorker()
-            return
-        }
-        modelRequest = scope.launch {
-            try {
-                verifiedModel = withContext(Dispatchers.IO) { models.ensureAvailable() }
-                updateWorker()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.e("StemSeparation", "AI 模型下载或校验失败，可在设置页重试", error)
-            }
-        }
-    }
-
-    private fun updateWorker() {
-        val state = _state.value
-        val model = verifiedModel
-        if (state.enabled && model != null) {
-            if (worker.value == null) {
-                // 已有整曲缓存无需创建推理会话，缺片首次提交时才加载模型。
-                worker.value = StemInferenceWorker(
-                    { preference -> MdxStemEngine(model, preference) },
-                    chunkCache,
-                )
-            }
-        } else {
-            val previous = worker.value
-            worker.value = null
-            previous?.close()
-            _streamPhase.value = StemStreamPhase.WAITING
-        }
-    }
-
-    override fun reportAiPhase(inference: StemChunkInference?, phase: StemStreamPhase) {
-        if (_state.value.enabled && aiInference === inference) {
-            if (_streamPhase.value != phase) {
-                Log.d("StemSeparation", "AI 分片状态: ${_streamPhase.value} -> $phase")
-            }
-            _streamPhase.value = phase
-        }
-    }
-
-    /** 在设置媒体源之前立即启动整曲缓存准备；切歌释放上一首的全部内存引用。 */
-    fun onTrackChanged(identity: String) {
-        if (trackCache?.identity != identity) {
-            prefetchJob?.cancel()
-            prefetchJob = null
-            trackCache?.release()
-            val track = StemTrackCache(identity)
-            trackCache = track
-            trackInference = StemTrackInference(track) { worker.value }
-        }
-        startTrackPrefetch()
-    }
-
-    private fun startTrackPrefetch() {
-        val track = trackCache ?: return
-        if (!_state.value.enabled || track.ready.isDone || prefetchJob?.isActive == true) return
-        Log.d("StemSeparation", "起播准备：开始读取整曲已有分离缓存，曲目=${track.identity}")
-        prefetchJob = scope.launch(Dispatchers.IO) {
-            val started = System.nanoTime()
-            try {
-                chunkCache.prepareTrack(track)
-            } catch (error: Exception) {
-                Log.w("StemSeparation", "整曲缓存读取失败，缺失范围将在后台补全", error)
-            } finally {
-                track.ready.complete(Unit)
-                if (!track.released) {
-                    val elapsedMs = (System.nanoTime() - started) / 1_000_000
-                    Log.d("StemSeparation", "起播准备完成：整曲缓存已读取 ${track.chunkCount} 片，耗时=${elapsedMs}ms")
-                }
-            }
-        }
     }
 
     fun setRoomPlaybackActive(active: Boolean) {
-        // 房间状态仅供界面说明，不中断本地分离任务，也不触发换源或房间控制。
         _state.update { it.copy(roomPlaybackActive = active) }
     }
 
@@ -160,20 +79,171 @@ internal class StemSeparationController(
         if (_state.value.enabled == enabled) return
         prefs.edit().putBoolean("enabled", enabled).apply()
         _state.update { it.copy(enabled = enabled) }
-        updateWorker()
-        if (enabled) requestAiModel()
-        if (enabled) startTrackPrefetch()
+        if (enabled) {
+            startStream()
+        } else {
+            stopStream()
+            replaceTrack()
+        }
         refreshAudio()
     }
 
     fun retry() {
         if (!_state.value.enabled) return
-        val previous = worker.value
-        worker.value = null
-        previous?.close()
-        _streamPhase.value = StemStreamPhase.WAITING
-        requestAiModel()
+        stopStream()
+        replaceTrack()
+        startStream()
         refreshAudio()
+    }
+
+    /** 播放器准备音频管线前通知当前采样率；变化时重新准备分片。 */
+    override fun setPlaybackSampleRate(sampleRate: Int) {
+        if (sampleRate <= 0 || targetSampleRate == sampleRate) return
+        targetSampleRate = sampleRate
+        if (currentMusicId != null) {
+            stopStream()
+            replaceTrack()
+            startStream()
+        }
+    }
+
+    override fun reportStemPhase(source: StemChunkSource?, phase: StemStreamPhase) {
+        if (_state.value.enabled && this.source === source) {
+            if (_streamPhase.value != phase) {
+                Log.d("StemSeparation", "服务端分离状态: ${_streamPhase.value} -> $phase")
+            }
+            _streamPhase.value = phase
+        }
+    }
+
+    /** 切歌时取消旧 SSE 与解码任务，旧分片只保留到新曲目状态建立前。 */
+    fun onTrackChanged(identity: String, musicId: Int?) {
+        val changed = currentIdentity != identity || currentMusicId != musicId
+        currentIdentity = identity
+        currentMusicId = musicId
+        if (changed) {
+            stopStream()
+            replaceTrack()
+        }
+        if (_state.value.enabled && musicId != null && musicId > 0) startStream()
+    }
+
+    private fun replaceTrack() {
+        track?.release()
+        val identity = currentIdentity
+        if (identity == null) {
+            track = null
+            source = null
+            return
+        }
+        val next = StemTrackCache(identity)
+        next.ready.complete(Unit)
+        track = next
+        source = StemTrackInference(next)
+        _streamPhase.value = StemStreamPhase.WAITING
+    }
+
+    private fun startStream() {
+        val musicId = currentMusicId?.takeIf { it > 0 } ?: return
+        val currentTrack = track ?: return
+        if (streamJob?.isActive == true) return
+        _streamPhase.value = StemStreamPhase.PROCESSING
+        streamJob = scope.launch(Dispatchers.IO) {
+            try {
+                var done = false
+                api.stream(musicId) { event ->
+                    when (event) {
+                        is ServerStemEvent.Accepted -> {
+                            _streamPhase.value = StemStreamPhase.PROCESSING
+                        }
+                        is ServerStemEvent.Started -> Unit
+                        is ServerStemEvent.Chunk -> {
+                            if (track === currentTrack && !currentTrack.released) {
+                                try {
+                                    ingestChunk(musicId, currentTrack, event)
+                                    if (currentTrack.chunkCount > 0 &&
+                                        _streamPhase.value != StemStreamPhase.ACTIVE) {
+                                        _streamPhase.value = StemStreamPhase.ACTIVE
+                                    }
+                                } catch (error: Exception) {
+                                    _streamPhase.value = StemStreamPhase.FALLBACK
+                                    Log.w("StemSeparation", "服务端分片 ${event.index} 处理失败，继续接收后续分片", error)
+                                }
+                            }
+                        }
+                        is ServerStemEvent.Done -> {
+                            done = true
+                            if (track === currentTrack && !currentTrack.released &&
+                                currentTrack.chunkCount == 0 && event.accompanimentUrl.isNotBlank()) {
+                                ingestFull(musicId, currentTrack, event.accompanimentUrl)
+                            }
+                        }
+                        is ServerStemEvent.Failed -> throw IllegalStateException(event.message)
+                    }
+                }
+                if (!done && track === currentTrack && !currentTrack.released) {
+                    throw IllegalStateException("服务端分离连接提前结束")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (track === currentTrack && _state.value.enabled) {
+                    _streamPhase.value = StemStreamPhase.FAILED
+                    ServerStemApi.logFailure(error)
+                }
+            }
+        }
+    }
+
+    private suspend fun ingestChunk(
+        musicId: Int,
+        currentTrack: StemTrackCache,
+        event: ServerStemEvent.Chunk,
+    ) {
+        val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
+        val file = File(directory, "accompaniment-${event.index}.mp3")
+        if (!file.isFile || file.length() == 0L) {
+            api.download(event.accompanimentUrl, file)
+        }
+        try {
+            val samples = ServerStemDecoder.decode(
+                file,
+                event.startSec,
+                event.endSec,
+                targetSampleRate,
+            )
+            val startFrame = (event.startSec * targetSampleRate).toLong().coerceAtLeast(0L)
+            currentTrack.put(targetSampleRate, StemCachedChunk(startFrame, samples))
+        } finally {
+            runCatching { file.delete() }
+        }
+    }
+
+    private suspend fun ingestFull(
+        musicId: Int,
+        currentTrack: StemTrackCache,
+        accompanimentUrl: String,
+    ) {
+        val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
+        val file = File(directory, "full-accompaniment.mp3")
+        try {
+            api.download(accompanimentUrl, file)
+            val chunks = ServerStemDecoder.decodeFullChunks(
+                file,
+                targetSampleRate,
+                StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
+            )
+            chunks.forEach { currentTrack.put(targetSampleRate, it) }
+            if (chunks.isNotEmpty()) _streamPhase.value = StemStreamPhase.ACTIVE
+        } finally {
+            runCatching { file.delete() }
+        }
+    }
+
+    private fun stopStream() {
+        streamJob?.cancel()
+        streamJob = null
+        _streamPhase.value = StemStreamPhase.WAITING
     }
 
     private companion object {

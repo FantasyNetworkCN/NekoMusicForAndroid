@@ -5,7 +5,7 @@ import android.os.StatFs
 import java.io.File
 
 enum class AppStorageKind {
-    INSTALL, MUSIC, MEDIA, AI_MODEL, AI_CACHE, DATABASE, PREFERENCES,
+    INSTALL, MUSIC, MEDIA, AI_CACHE, DATABASE, PREFERENCES,
     LOCAL_FILES, OTHER_CACHE, OTHER_DATA, EXTERNAL_CACHE,
 }
 
@@ -63,9 +63,7 @@ object AppStorageManager {
         val musicCache = File(roots.cacheDir, "music_cache/music").byteCount()
         val mediaCache = File(roots.cacheDir, "music_cache/cover").byteCount() +
             File(roots.cacheDir, "music_cache/lyrics").byteCount()
-        val aiCache = File(roots.noBackupDir, "ai-stem-cache").byteCount() +
-            File(roots.cacheDir, "separated-audio-v1").byteCount()
-        val aiModel = File(roots.noBackupDir, "audio-models").byteCount()
+        val aiCache = File(roots.cacheDir, "server-stem-chunks").byteCount()
         val database = roots.databasesDir.byteCount()
         val preferences = roots.preferencesDir.byteCount()
         val localFiles = roots.filesDir.byteCount()
@@ -82,7 +80,6 @@ object AppStorageManager {
             AppStorageItem(AppStorageKind.INSTALL, install),
             AppStorageItem(AppStorageKind.MUSIC, musicCache),
             AppStorageItem(AppStorageKind.MEDIA, mediaCache),
-            AppStorageItem(AppStorageKind.AI_MODEL, aiModel),
             AppStorageItem(AppStorageKind.AI_CACHE, aiCache),
             AppStorageItem(AppStorageKind.DATABASE, database),
             AppStorageItem(AppStorageKind.PREFERENCES, preferences),

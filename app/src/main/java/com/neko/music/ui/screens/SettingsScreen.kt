@@ -56,7 +56,6 @@ import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.util.AppHaptics
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.StemStreamPhase
-import com.neko.music.ui.components.StemAiModelSection
 import com.neko.music.ui.components.stemPreparationDescription
 import com.kyant.backdrop.backdrops.layerBackdrop
 import kotlinx.coroutines.launch
@@ -103,10 +102,9 @@ fun SettingsScreen(
     var isFocusLockEnabled by remember { mutableStateOf(focusLockPrefs.getBoolean("focus_lock_enabled", false)) }
     val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val stemState by stemSeparation.state.collectAsState()
-    val stemModelState by stemSeparation.modelState.collectAsState()
     val stemStreamPhase by stemSeparation.streamPhase.collectAsState()
     val stemSubtitle = when {
-        stemState.enabled -> stemPreparationDescription(stemModelState, stemStreamPhase)
+        stemState.enabled -> stemPreparationDescription(stemStreamPhase)
         else -> stringResource(R.string.stem_separation_hint)
     } + if (stemState.roomPlaybackActive) "\n" + stringResource(R.string.stem_local_only) else ""
 
@@ -387,10 +385,6 @@ fun SettingsScreen(
                                                             checked = stemState.enabled,
                                                             showSeparator = separator,
                                                             onCheckedChange = stemSeparation::setEnabled,
-                                                        )
-                                                        StemAiModelSection(
-                                                            modelState = stemModelState,
-                                                            onRetryDownload = stemSeparation::requestAiModel,
                                                         )
                                                         if (stemState.enabled) {
                                                             if (stemStreamPhase == StemStreamPhase.FAILED) {

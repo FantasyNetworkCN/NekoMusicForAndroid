@@ -32,6 +32,10 @@ object UrlConfig {
         }
     }
 
+    /** VIP 人声 / 伴奏分离 SSE：分片完成后立即推送双轨媒体地址。 */
+    fun getServerStemStreamUrl(musicId: Int): String =
+        "$BASE_URL/api/music/file/$musicId/stream?separate=1"
+
     fun isLocalUri(value: String?): Boolean {
         if (value.isNullOrBlank()) return false
         if (value.startsWith("content://") || value.startsWith("file://")) return true

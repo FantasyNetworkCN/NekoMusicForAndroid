@@ -553,7 +553,6 @@ private fun storageKindLabel(kind: AppStorageKind): String = stringResource(
         AppStorageKind.INSTALL -> R.string.storage_category_install
         AppStorageKind.MUSIC -> R.string.storage_category_music
         AppStorageKind.MEDIA -> R.string.storage_category_media
-        AppStorageKind.AI_MODEL -> R.string.storage_category_ai_model
         AppStorageKind.AI_CACHE -> R.string.storage_category_ai_cache
         AppStorageKind.DATABASE -> R.string.storage_category_database
         AppStorageKind.PREFERENCES -> R.string.storage_category_preferences
