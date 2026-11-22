@@ -3,7 +3,10 @@ package com.neko.music.service
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
-internal enum class StemStreamPhase { WAITING, PROCESSING, ACTIVE, FALLBACK, FAILED, UNSUPPORTED }
+internal enum class StemStreamPhase {
+    WAITING, PROCESSING, ACTIVE, FALLBACK, FAILED, UNSUPPORTED,
+    LOGIN_REQUIRED, VIP_REQUIRED,
+}
 
 internal interface StemChunkSource {
     val cachePrepared: Boolean get() = true

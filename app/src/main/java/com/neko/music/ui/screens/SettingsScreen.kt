@@ -103,8 +103,9 @@ fun SettingsScreen(
     val stemSeparation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val stemState by stemSeparation.state.collectAsState()
     val stemStreamPhase by stemSeparation.streamPhase.collectAsState()
+    val stemStatusMessage by stemSeparation.statusMessage.collectAsState()
     val stemSubtitle = when {
-        stemState.enabled -> stemPreparationDescription(stemStreamPhase)
+        stemState.enabled -> stemPreparationDescription(stemStreamPhase, stemStatusMessage)
         else -> stringResource(R.string.stem_separation_hint)
     } + if (stemState.roomPlaybackActive) "\n" + stringResource(R.string.stem_local_only) else ""
 

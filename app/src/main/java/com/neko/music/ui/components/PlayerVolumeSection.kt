@@ -53,6 +53,7 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
     val separation = remember(context) { MusicPlayerManager.getInstance(context).stemSeparation }
     val state by separation.state.collectAsState()
     val streamPhase by separation.streamPhase.collectAsState()
+    val statusMessage by separation.statusMessage.collectAsState()
     val lifecycle = LocalLifecycleOwner.current
     var volume by remember { mutableStateOf(MediaVolume()) }
     val failureText = stringResource(R.string.player_volume_change_failed)
@@ -87,7 +88,7 @@ internal fun PlayerVolumeSection(modifier: Modifier = Modifier) {
             VolumeSlider(stringResource(R.string.stem_instrumental), state.instrumental, onValueChange = separation::setInstrumental)
             if (streamPhase != StemStreamPhase.ACTIVE) {
                 Text(
-                    text = stemPreparationDescription(streamPhase),
+                    text = stemPreparationDescription(streamPhase, statusMessage),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

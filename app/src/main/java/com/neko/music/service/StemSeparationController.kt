@@ -35,6 +35,8 @@ internal class StemSeparationController(
     override val state = _state.asStateFlow()
     private val _streamPhase = MutableStateFlow(StemStreamPhase.WAITING)
     val streamPhase = _streamPhase.asStateFlow()
+    private val _statusMessage = MutableStateFlow<String?>(null)
+    val statusMessage = _statusMessage.asStateFlow()
     private val api = ServerStemApi()
     private val chunkDirectory = File(appContext.cacheDir, "server-stem-chunks")
     @Volatile private var targetSampleRate = 44_100
@@ -109,6 +111,13 @@ internal class StemSeparationController(
 
     override fun reportStemPhase(source: StemChunkSource?, phase: StemStreamPhase) {
         if (_state.value.enabled && this.source === source) {
+            // 登录 / VIP 是服务端鉴权终态，不能被播放线程随后的 WAITING / FALLBACK 覆盖。
+            if (_streamPhase.value in setOf(
+                    StemStreamPhase.LOGIN_REQUIRED,
+                    StemStreamPhase.VIP_REQUIRED,
+                ) && phase != _streamPhase.value) {
+                return
+            }
             if (_streamPhase.value != phase) {
                 Log.d("StemSeparation", "服务端分离状态: ${_streamPhase.value} -> $phase")
             }
@@ -130,6 +139,7 @@ internal class StemSeparationController(
 
     private fun replaceTrack() {
         track?.release()
+        _statusMessage.value = null
         val identity = currentIdentity
         if (identity == null) {
             track = null
@@ -147,6 +157,7 @@ internal class StemSeparationController(
         val musicId = currentMusicId?.takeIf { it > 0 } ?: return
         val currentTrack = track ?: return
         if (streamJob?.isActive == true) return
+        _statusMessage.value = null
         _streamPhase.value = StemStreamPhase.PROCESSING
         streamJob = scope.launch(Dispatchers.IO) {
             try {
@@ -186,8 +197,26 @@ internal class StemSeparationController(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (outOfMemory: OutOfMemoryError) {
+                if (track === currentTrack) {
+                    currentTrack.release()
+                    track = null
+                    source = null
+                    _streamPhase.value = StemStreamPhase.FALLBACK
+                }
+                Log.e("StemSeparation", "处理服务端分离数据时内存不足，已释放当前曲目分片", outOfMemory)
+            } catch (http: ServerStemHttpException) {
+                if (track === currentTrack && _state.value.enabled) {
+                    _statusMessage.value = http.message
+                    _streamPhase.value = when (http.statusCode) {
+                        401 -> StemStreamPhase.LOGIN_REQUIRED
+                        403 -> StemStreamPhase.VIP_REQUIRED
+                        else -> StemStreamPhase.FAILED
+                    }
+                }
             } catch (error: Exception) {
                 if (track === currentTrack && _state.value.enabled) {
+                    _statusMessage.value = error.message
                     _streamPhase.value = StemStreamPhase.FAILED
                     ServerStemApi.logFailure(error)
                 }
@@ -243,6 +272,7 @@ internal class StemSeparationController(
     private fun stopStream() {
         streamJob?.cancel()
         streamJob = null
+        _statusMessage.value = null
         _streamPhase.value = StemStreamPhase.WAITING
     }
 

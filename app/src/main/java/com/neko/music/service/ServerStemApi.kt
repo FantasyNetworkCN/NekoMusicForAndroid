@@ -10,11 +10,13 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.readLine
 import java.io.Closeable
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -38,6 +40,11 @@ internal sealed interface ServerStemEvent {
     data class Done(val vocalsUrl: String, val accompanimentUrl: String) : ServerStemEvent
     data class Failed(val message: String) : ServerStemEvent
 }
+
+internal class ServerStemHttpException(
+    val statusCode: Int,
+    message: String,
+) : IOException(message)
 
 /** 服务端人声 / 伴奏分离 SSE 与媒体分片下载。 */
 internal class ServerStemApi : Closeable {
@@ -65,7 +72,13 @@ internal class ServerStemApi : Closeable {
             }
         }
         if (response.status.value != 200) {
-            throw IllegalStateException("分离服务 HTTP ${response.status.value}")
+            val message = runCatching {
+                json.parseToJsonElement(response.bodyAsText()).jsonObject.string("message")
+            }.getOrDefault("")
+            throw ServerStemHttpException(
+                response.status.value,
+                message.ifBlank { "HTTP ${response.status.value}" },
+            )
         }
 
         val channel = response.bodyAsChannel()
