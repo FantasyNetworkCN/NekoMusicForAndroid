@@ -44,6 +44,10 @@
     <string name="stem_stream_active">Server-separated audio mixing is active.</string>
     <string name="stem_stream_processing">Fetching server-separated chunks…</string>
     <string name="stem_track_waiting">Waiting for server-separated chunks.</string>
+    <string name="stem_progress_queue">Queued with %1$d tasks ahead.</string>
+    <string name="stem_progress_chunks">Server separation progress: %1$d/%2$d chunks.</string>
+    <string name="stem_progress_ready_chunks">%1$d separated chunks ready.</string>
+    <string name="stem_progress_preparing">Preparing full-track separation…</string>
     <string name="stem_retry">Retry server separation</string>
     <string name="lan_permission_enable">Enable LAN discovery</string>
     <string name="lan_permission_hint">Allow nearby device access to discover playlists on the same network. Local playback remains available.</string>

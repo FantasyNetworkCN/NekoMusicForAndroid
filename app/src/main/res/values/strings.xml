@@ -44,6 +44,10 @@
     <string name="stem_stream_active">服务端分离分片的混音已经生效喵。</string>
     <string name="stem_stream_processing">正在获取服务端分离分片喵…</string>
     <string name="stem_track_waiting">等待服务端分离分片喵。</string>
+    <string name="stem_progress_queue">正在排队喵，前方还有 %1$d 个任务。</string>
+    <string name="stem_progress_chunks">服务端分离进度喵：%1$d/%2$d 片。</string>
+    <string name="stem_progress_ready_chunks">已经准备好 %1$d 个分离分片喵。</string>
+    <string name="stem_progress_preparing">正在准备整曲分离喵…</string>
     <string name="stem_retry">重试服务端分离</string>
     <string name="lan_permission_enable">启用局域网发现喵</string>
     <string name="lan_permission_hint">允许访问附近设备后，就能发现同一网络里的播放列表，本机播放不受影响喵。</string>

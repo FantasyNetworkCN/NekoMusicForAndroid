@@ -46,8 +46,13 @@ internal class StemCachedSamples private constructor(
     }
 }
 
-internal data class StemCachedChunk(val startFrame: Long, val samples: StemCachedSamples) {
-    val endFrame: Long get() = startFrame + samples.frames
+internal data class StemCachedChunk(
+    val startFrame: Long,
+    val vocals: StemCachedSamples,
+    val accompaniment: StemCachedSamples,
+) {
+    val frames: Int get() = minOf(vocals.frames, accompaniment.frames)
+    val endFrame: Long get() = startFrame + frames
 }
 
 /** 当前歌曲持有的服务端分离分片；切歌立即释放，不在音频线程读写磁盘。 */

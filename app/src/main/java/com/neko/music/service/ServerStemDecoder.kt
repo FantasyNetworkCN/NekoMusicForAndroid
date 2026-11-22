@@ -9,6 +9,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
 
+internal data class DecodedStemChunk(
+    val startFrame: Long,
+    val samples: StemCachedSamples,
+)
+
 /** 把服务端伴奏 MP3 分片解码为当前播放采样率的双声道 PCM。 */
 internal object ServerStemDecoder {
     private const val DECODER_TIMEOUT_US = 10_000L
@@ -90,7 +95,12 @@ internal object ServerStemDecoder {
         }
     }
 
-    fun decodeFullChunks(file: File, targetRate: Int, chunkSeconds: Double): List<StemCachedChunk> {
+    fun decodeFullChunks(
+        file: File,
+        targetRate: Int,
+        chunkSeconds: Double,
+        onChunk: ((DecodedStemChunk) -> Unit)? = null,
+    ): List<DecodedStemChunk> {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         return try {
@@ -111,7 +121,7 @@ internal object ServerStemDecoder {
             val currentPcm = ByteArrayOutputStream()
             var currentSourceFrames = 0
             var nextStartFrame = 0L
-            val chunks = ArrayList<StemCachedChunk>()
+            val chunks = ArrayList<DecodedStemChunk>()
             val info = MediaCodec.BufferInfo()
 
             fun flushChunk() {
@@ -119,7 +129,7 @@ internal object ServerStemDecoder {
                 val targetFrames = (currentSourceFrames.toDouble() * targetRate / sourceRate)
                     .roundToInt()
                     .coerceAtLeast(1)
-                chunks += StemCachedChunk(
+                val chunk = DecodedStemChunk(
                     startFrame = nextStartFrame,
                     samples = convertPcm(
                         pcm = currentPcm.toByteArray(),
@@ -129,6 +139,8 @@ internal object ServerStemDecoder {
                         startTrimFrames = 0,
                     ),
                 )
+                chunks += chunk
+                onChunk?.invoke(chunk)
                 nextStartFrame += targetFrames
                 currentPcm.reset()
                 currentSourceFrames = 0

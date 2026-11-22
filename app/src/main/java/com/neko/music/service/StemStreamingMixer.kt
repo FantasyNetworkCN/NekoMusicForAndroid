@@ -97,9 +97,16 @@ internal class StemStreamingMixer(
             repeat(channels) { channel ->
                 val index = frame * 2 + channel
                 val original = chunk.original[index]
-                val instrumental = chunk.cached?.samples?.sample(chunk.cachedOffset + frame, channel)
-                val mixed = if (instrumental == null) original else
-                    mixStemSample(original, instrumental, gains.vocals, gains.instrumental)
+                val vocals = chunk.cached?.vocals?.sample(chunk.cachedOffset + frame, channel)
+                val instrumental = chunk.cached?.accompaniment?.sample(
+                    chunk.cachedOffset + frame,
+                    channel,
+                )
+                val mixed = if (vocals == null || instrumental == null) {
+                    original
+                } else {
+                    mixStemSample(vocals, instrumental, gains.vocals, gains.instrumental)
+                }
                 output.putShort((mixed.coerceIn(-1f, 1f) * 32768f).roundToInt()
                     .coerceIn(-32768, 32767).toShort())
             }
@@ -130,7 +137,6 @@ internal fun resampleStereo(input: FloatArray, outputFrames: Int): FloatArray {
     }
 }
 
-/** 两路均为 100% 时逐样本恢复原声，避免分离残差改变默认听感。 */
-internal fun mixStemSample(original: Float, instrumental: Float, vocals: Float, backing: Float): Float =
-    if (vocals == backing) original * vocals else
-        (original - instrumental) * vocals + instrumental * backing
+/** 人声与伴奏都直接来自服务端分离结果，避免用原曲相减造成延迟叠音。 */
+internal fun mixStemSample(vocalSample: Float, instrumental: Float, vocals: Float, backing: Float): Float =
+    vocalSample * vocals + instrumental * backing

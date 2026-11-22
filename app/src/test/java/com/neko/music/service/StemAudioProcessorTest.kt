@@ -46,7 +46,8 @@ class StemAudioProcessorTest {
         track.ready.complete(Unit)
         track.put(44_100, StemCachedChunk(
             0,
-            StemCachedSamples.fromFloats(FloatArray(882 * 2) { 2000 / 32768f }),
+            vocals = StemCachedSamples.fromFloats(FloatArray(882 * 2) { 4000 / 32768f }),
+            accompaniment = StemCachedSamples.fromFloats(FloatArray(882 * 2) { 2000 / 32768f }),
         ))
         val control = Control(StemTrackInference(track))
         val output = pipeline(control)
@@ -81,7 +82,8 @@ class StemAudioProcessorTest {
 
             track.put(44_100, StemCachedChunk(
                 100,
-                StemCachedSamples.fromFloats(FloatArray(100 * 2) { 2000 / 32768f }),
+                vocals = StemCachedSamples.fromFloats(FloatArray(100 * 2)),
+                accompaniment = StemCachedSamples.fromFloats(FloatArray(100 * 2) { 2000 / 32768f }),
             ))
             control.state.value = control.state.value.copy(vocals = 0f, instrumental = 1f)
             output.queueInput(pcm(100))
@@ -106,7 +108,8 @@ class StemAudioProcessorTest {
             track.ready.complete(Unit)
             track.put(44_100, StemCachedChunk(
                 50,
-                StemCachedSamples.fromFloats(FloatArray(50 * 2) { 1000 / 32768f }),
+                vocals = StemCachedSamples.fromFloats(FloatArray(50 * 2)),
+                accompaniment = StemCachedSamples.fromFloats(FloatArray(50 * 2) { 1000 / 32768f }),
             ))
             control.source = StemTrackInference(track)
             control.state.value = control.state.value.copy(vocals = 0f, instrumental = 1f)

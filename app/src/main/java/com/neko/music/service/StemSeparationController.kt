@@ -3,11 +3,15 @@ package com.neko.music.service
 import android.content.Context
 import com.neko.music.debug.NekoLog as Log
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -19,6 +23,22 @@ internal data class StemSeparationState(
     val instrumental: Float = 1f,
     val roomPlaybackActive: Boolean = false,
 )
+
+internal data class StemProcessingProgress(
+    val queuePosition: Long = 0L,
+    val completedChunks: Int = 0,
+    val totalChunks: Int = 0,
+    val processingChunk: Int = -1,
+    val fullFallback: Boolean = false,
+    val finished: Boolean = false,
+) {
+    val fraction: Float?
+        get() = if (totalChunks > 0) {
+            (completedChunks.toFloat() / totalChunks).coerceIn(0f, 1f)
+        } else {
+            null
+        }
+}
 
 internal class StemSeparationController(
     context: Context,
@@ -37,6 +57,8 @@ internal class StemSeparationController(
     val streamPhase = _streamPhase.asStateFlow()
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage = _statusMessage.asStateFlow()
+    private val _processingProgress = MutableStateFlow(StemProcessingProgress())
+    val processingProgress = _processingProgress.asStateFlow()
     private val api = ServerStemApi()
     private val chunkDirectory = File(appContext.cacheDir, "server-stem-chunks")
     @Volatile private var targetSampleRate = 44_100
@@ -140,6 +162,7 @@ internal class StemSeparationController(
     private fun replaceTrack() {
         track?.release()
         _statusMessage.value = null
+        _processingProgress.value = StemProcessingProgress()
         val identity = currentIdentity
         if (identity == null) {
             track = null
@@ -158,6 +181,7 @@ internal class StemSeparationController(
         val currentTrack = track ?: return
         if (streamJob?.isActive == true) return
         _statusMessage.value = null
+        _processingProgress.value = StemProcessingProgress()
         _streamPhase.value = StemStreamPhase.PROCESSING
         streamJob = scope.launch(Dispatchers.IO) {
             try {
@@ -166,17 +190,44 @@ internal class StemSeparationController(
                     when (event) {
                         is ServerStemEvent.Accepted -> {
                             _streamPhase.value = StemStreamPhase.PROCESSING
+                            _processingProgress.update {
+                                it.copy(queuePosition = event.queuePosition.coerceAtLeast(0L))
+                            }
                         }
-                        is ServerStemEvent.Started -> Unit
+                        is ServerStemEvent.Started -> {
+                            _processingProgress.update {
+                                it.copy(
+                                    queuePosition = 0L,
+                                    completedChunks = 0,
+                                    totalChunks = event.totalChunks.coerceAtLeast(0),
+                                    processingChunk = -1,
+                                    fullFallback = false,
+                                    finished = false,
+                                )
+                            }
+                        }
                         is ServerStemEvent.Chunk -> {
                             if (track === currentTrack && !currentTrack.released) {
+                                _processingProgress.update {
+                                    it.copy(processingChunk = event.index)
+                                }
                                 try {
                                     ingestChunk(musicId, currentTrack, event)
+                                    _processingProgress.update {
+                                        it.copy(
+                                            completedChunks = maxOf(
+                                                it.completedChunks,
+                                                event.index + 1,
+                                            ),
+                                            processingChunk = -1,
+                                        )
+                                    }
                                     if (currentTrack.chunkCount > 0 &&
                                         _streamPhase.value != StemStreamPhase.ACTIVE) {
                                         _streamPhase.value = StemStreamPhase.ACTIVE
                                     }
                                 } catch (error: Exception) {
+                                    _processingProgress.update { it.copy(processingChunk = -1) }
                                     _streamPhase.value = StemStreamPhase.FALLBACK
                                     Log.w("StemSeparation", "服务端分片 ${event.index} 处理失败，继续接收后续分片", error)
                                 }
@@ -184,9 +235,24 @@ internal class StemSeparationController(
                         }
                         is ServerStemEvent.Done -> {
                             done = true
+                            _processingProgress.update {
+                                it.copy(
+                                    queuePosition = 0L,
+                                    completedChunks = if (it.totalChunks > 0) it.totalChunks else it.completedChunks,
+                                    processingChunk = -1,
+                                    finished = true,
+                                )
+                            }
                             if (track === currentTrack && !currentTrack.released &&
-                                currentTrack.chunkCount == 0 && event.accompanimentUrl.isNotBlank()) {
-                                ingestFull(musicId, currentTrack, event.accompanimentUrl)
+                                currentTrack.chunkCount == 0 &&
+                                event.vocalsUrl.isNotBlank() &&
+                                event.accompanimentUrl.isNotBlank()) {
+                                ingestFull(
+                                    musicId,
+                                    currentTrack,
+                                    event.vocalsUrl,
+                                    event.accompanimentUrl,
+                                )
                             }
                         }
                         is ServerStemEvent.Failed -> throw IllegalStateException(event.message)
@@ -202,6 +268,7 @@ internal class StemSeparationController(
                     currentTrack.release()
                     track = null
                     source = null
+                    _processingProgress.value = StemProcessingProgress()
                     _streamPhase.value = StemStreamPhase.FALLBACK
                 }
                 Log.e("StemSeparation", "处理服务端分离数据时内存不足，已释放当前曲目分片", outOfMemory)
@@ -229,43 +296,118 @@ internal class StemSeparationController(
         currentTrack: StemTrackCache,
         event: ServerStemEvent.Chunk,
     ) {
+        _processingProgress.update {
+            it.copy(
+                queuePosition = 0L,
+                completedChunks = 0,
+                totalChunks = 0,
+                processingChunk = -1,
+                fullFallback = true,
+                finished = false,
+            )
+        }
         val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
-        val file = File(directory, "accompaniment-${event.index}.mp3")
-        if (!file.isFile || file.length() == 0L) {
-            api.download(event.accompanimentUrl, file)
+        val vocalsFile = File(directory, "vocals-${event.index}.mp3")
+        val accompanimentFile = File(directory, "accompaniment-${event.index}.mp3")
+        if (!vocalsFile.isFile || vocalsFile.length() == 0L) {
+            api.download(event.vocalsUrl, vocalsFile)
+        }
+        if (!accompanimentFile.isFile || accompanimentFile.length() == 0L) {
+            api.download(event.accompanimentUrl, accompanimentFile)
         }
         try {
-            val samples = ServerStemDecoder.decode(
-                file,
+            val vocals = ServerStemDecoder.decode(
+                vocalsFile,
+                event.startSec,
+                event.endSec,
+                targetSampleRate,
+            )
+            val accompaniment = ServerStemDecoder.decode(
+                accompanimentFile,
                 event.startSec,
                 event.endSec,
                 targetSampleRate,
             )
             val startFrame = (event.startSec * targetSampleRate).toLong().coerceAtLeast(0L)
-            currentTrack.put(targetSampleRate, StemCachedChunk(startFrame, samples))
+            currentTrack.put(
+                targetSampleRate,
+                StemCachedChunk(startFrame, vocals, accompaniment),
+            )
         } finally {
-            runCatching { file.delete() }
+            runCatching { vocalsFile.delete() }
+            runCatching { accompanimentFile.delete() }
         }
     }
 
     private suspend fun ingestFull(
         musicId: Int,
         currentTrack: StemTrackCache,
+        vocalsUrl: String,
         accompanimentUrl: String,
     ) {
         val directory = File(chunkDirectory, musicId.toString()).apply { mkdirs() }
-        val file = File(directory, "full-accompaniment.mp3")
+        val vocalsFile = File(directory, "full-vocals.mp3")
+        val accompanimentFile = File(directory, "full-accompaniment.mp3")
         try {
-            api.download(accompanimentUrl, file)
-            val chunks = ServerStemDecoder.decodeFullChunks(
-                file,
-                targetSampleRate,
-                StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
-            )
-            chunks.forEach { currentTrack.put(targetSampleRate, it) }
-            if (chunks.isNotEmpty()) _streamPhase.value = StemStreamPhase.ACTIVE
+            val vocalsByStart = ConcurrentHashMap<Long, StemCachedSamples>()
+            val accompanimentByStart = ConcurrentHashMap<Long, StemCachedSamples>()
+            val completed = AtomicInteger(0)
+            fun pairAvailableChunks(startFrame: Long) {
+                val vocals = vocalsByStart.remove(startFrame) ?: return
+                val accompaniment = accompanimentByStart.remove(startFrame) ?: return
+                currentTrack.put(
+                    targetSampleRate,
+                    StemCachedChunk(startFrame, vocals, accompaniment),
+                )
+                val completedCount = completed.incrementAndGet()
+                _processingProgress.update {
+                    it.copy(
+                        completedChunks = completedCount,
+                        fullFallback = false,
+                        finished = false,
+                    )
+                }
+                _streamPhase.value = StemStreamPhase.ACTIVE
+            }
+
+            coroutineScope {
+                val vocalsJob = async(Dispatchers.IO) {
+                    api.download(vocalsUrl, vocalsFile)
+                    ServerStemDecoder.decodeFullChunks(
+                        vocalsFile,
+                        targetSampleRate,
+                        StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
+                    ) { chunk ->
+                        vocalsByStart[chunk.startFrame] = chunk.samples
+                        pairAvailableChunks(chunk.startFrame)
+                    }
+                }
+                val accompanimentJob = async(Dispatchers.IO) {
+                    api.download(accompanimentUrl, accompanimentFile)
+                    ServerStemDecoder.decodeFullChunks(
+                        accompanimentFile,
+                        targetSampleRate,
+                        StemAudioProcessor.SERVER_STEM_CHUNK_SECONDS,
+                    ) { chunk ->
+                        accompanimentByStart[chunk.startFrame] = chunk.samples
+                        pairAvailableChunks(chunk.startFrame)
+                    }
+                }
+                vocalsJob.await()
+                accompanimentJob.await()
+            }
+            val completedCount = completed.get()
+            if (completedCount > 0) {
+                _processingProgress.value = StemProcessingProgress(
+                    completedChunks = completedCount,
+                    totalChunks = completedCount,
+                    finished = true,
+                )
+                _streamPhase.value = StemStreamPhase.ACTIVE
+            }
         } finally {
-            runCatching { file.delete() }
+            runCatching { vocalsFile.delete() }
+            runCatching { accompanimentFile.delete() }
         }
     }
 
@@ -273,6 +415,7 @@ internal class StemSeparationController(
         streamJob?.cancel()
         streamJob = null
         _statusMessage.value = null
+        _processingProgress.value = StemProcessingProgress()
         _streamPhase.value = StemStreamPhase.WAITING
     }
 
