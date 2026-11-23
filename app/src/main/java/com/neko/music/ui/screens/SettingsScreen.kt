@@ -40,6 +40,7 @@ import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
 import com.neko.music.data.manager.TokenManager
 import com.neko.music.data.api.MusicSourceVerifier
+import com.neko.music.data.api.MusicSourceComplianceMonitor
 import com.neko.music.data.cache.AppStorageManager
 import com.neko.music.data.cache.AppStorageUsage
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
@@ -580,6 +581,7 @@ private fun MusicSourceDialog(
                                     }
                                     onApplied(applied)
                                     onDismiss()
+                                    MusicSourceComplianceMonitor.restart(context)
                                     if (switched && context is android.app.Activity) {
                                         context.recreate()
                                     }
@@ -610,6 +612,7 @@ private fun MusicSourceDialog(
                             TokenManager(context).clearToken()
                         }
                         UrlConfig.resetToDefault(context)
+                        MusicSourceComplianceMonitor.restart(context)
                         onApplied(normalizedDefault)
                         onDismiss()
                         if (switched && context is android.app.Activity) {

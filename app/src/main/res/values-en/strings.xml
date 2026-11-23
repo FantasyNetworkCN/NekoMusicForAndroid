@@ -91,7 +91,7 @@
     <string name="settings_privacy_subtitle">Personal data, permissions and contact details</string>
     <string name="settings_music_source">Music source</string>
     <string name="settings_music_source_url">Server base URL</string>
-    <string name="settings_music_source_hint">The target server must publish an AGPL source manifest at /api/music/source. Remote servers must use HTTPS; localhost may use HTTP.</string>
+    <string name="settings_music_source_hint">The target server must publish an AGPL source manifest at /api/music/source and point to its GitHub repository. Non-official sources are rechecked through the GitHub API; remote servers must use HTTPS.</string>
     <string name="settings_music_source_relogin">You will need to sign in again after switching. The previous server token is never sent to the new server.</string>
     <string name="settings_music_source_verify">Verify and switch</string>
     <string name="settings_music_source_reset">Use default</string>

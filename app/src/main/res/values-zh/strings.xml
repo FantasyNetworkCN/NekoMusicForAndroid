@@ -91,7 +91,7 @@
     <string name="settings_privacy_subtitle">个人信息处理、权限使用与联系方式</string>
     <string name="settings_music_source">音乐连接源</string>
     <string name="settings_music_source_url">服务器基础 URL</string>
-    <string name="settings_music_source_hint">目标服务必须在 /api/music/source 公开 AGPL 来源清单。远程地址仅允许 HTTPS，localhost 可使用 HTTP。</string>
+    <string name="settings_music_source_hint">目标服务必须在 /api/music/source 公开 AGPL 来源清单，源码地址必须是对应的 GitHub 仓库。非官方源会持续通过 GitHub API 复核；远程地址仅允许 HTTPS。</string>
     <string name="settings_music_source_relogin">切换连接源后需重新登录，旧服务器的登录态不会发送到新服务器。</string>
     <string name="settings_music_source_verify">校验并切换</string>
     <string name="settings_music_source_reset">恢复默认</string>
