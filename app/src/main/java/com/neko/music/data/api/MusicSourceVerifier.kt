@@ -10,6 +10,7 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import java.net.URI
+import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,8 +18,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 data class VerifiedMusicSource(
     val baseUrl: String,
@@ -38,6 +41,20 @@ object MusicSourceVerifier {
     private const val EXPECTED_API_PROTOCOL = 1
     private const val TIMEOUT_MS = 12_000L
     private val AGPL_SPDX_IDS = setOf("AGPL-3.0", "AGPL-3.0-only", "AGPL-3.0-or-later")
+    private const val MIN_SOURCE_BLOBS = 50
+    private const val MIN_TOTAL_SOURCE_BYTES = 100_000L
+    private val REQUIRED_SOURCE_FILES = mapOf(
+        "backend/pom.xml" to 4_096L,
+        "backend/src/main/java/com/neko/music/Main.java" to 1_024L,
+        "backend/src/main/java/com/neko/music/handlers/AgplSourceManifestHandler.java" to 1_024L,
+        "backend/src/main/java/com/neko/music/handlers/ServletRegistrar.java" to 4_096L,
+        "frontend/package.json" to 256L,
+        "frontend/src/main.js" to 256L,
+        "README.md" to 256L,
+    )
+    private val LICENSE_PATHS = setOf(
+        "LICENSE", "LICENSE.txt", "LICENSE.md", "COPYING", "COPYING.txt",
+    )
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -126,6 +143,57 @@ object MusicSourceVerifier {
         val htmlUrl = repo["html_url"]?.jsonPrimitive?.content.orEmpty()
         if (!htmlUrl.trimEnd('/').equals(sourceUrl.trimEnd('/'), ignoreCase = true)) {
             throw IllegalStateException("GitHub 仓库身份不匹配")
+        }
+        val defaultBranch = repo["default_branch"]?.jsonPrimitive?.content
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
+            ?: throw IllegalStateException("GitHub 仓库缺少默认分支")
+        verifyGithubSourceTree(client, owner, repository, defaultBranch)
+    }
+
+    private suspend fun verifyGithubSourceTree(
+        client: HttpClient,
+        owner: String,
+        repository: String,
+        defaultBranch: String,
+    ) {
+        val encodedBranch = URLEncoder.encode(defaultBranch, "UTF-8").replace("+", "%20")
+        val response = client.get(
+            "https://api.github.com/repos/$owner/$repository/git/trees/$encodedBranch?recursive=1"
+        ) {
+            header("Accept", "application/vnd.github+json")
+            header("X-GitHub-Api-Version", "2022-11-28")
+        }
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("GitHub 源码树校验失败：HTTP ${response.status.value}")
+        }
+        val tree = json.parseToJsonElement(response.bodyAsText()) as? JsonObject
+            ?: throw IllegalStateException("GitHub 源码树响应无效")
+        if (tree["truncated"]?.jsonPrimitive?.booleanOrNull == true) {
+            throw IllegalStateException("GitHub 源码树不完整，无法完成校验")
+        }
+        val blobs = tree["tree"]?.jsonArray
+            ?.mapNotNull { it as? JsonObject }
+            ?.filter { it["type"]?.jsonPrimitive?.content == "blob" }
+            .orEmpty()
+        if (blobs.size < MIN_SOURCE_BLOBS) {
+            throw IllegalStateException("GitHub 仓库文件过少，疑似空仓库")
+        }
+        val totalBytes = blobs.sumOf { it["size"]?.jsonPrimitive?.longOrNull ?: 0L }
+        if (totalBytes < MIN_TOTAL_SOURCE_BYTES) {
+            throw IllegalStateException("GitHub 仓库源码体积异常")
+        }
+        val byPath = blobs.associateBy { it["path"]?.jsonPrimitive?.content.orEmpty() }
+        if (LICENSE_PATHS.none(byPath::containsKey)) {
+            throw IllegalStateException("GitHub 仓库根目录缺少许可证文件")
+        }
+        for ((path, minimumSize) in REQUIRED_SOURCE_FILES) {
+            val entry = byPath[path]
+                ?: throw IllegalStateException("GitHub 仓库缺少核心源码文件：$path")
+            val size = entry["size"]?.jsonPrimitive?.longOrNull ?: 0L
+            if (size < minimumSize) {
+                throw IllegalStateException("GitHub 源码文件内容异常：$path")
+            }
         }
     }
 
