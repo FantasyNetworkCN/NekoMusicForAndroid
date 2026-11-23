@@ -89,6 +89,13 @@
     <string name="settings_update_failed">Unable to check. Please try again later</string>
     <string name="settings_privacy_title">Privacy policy</string>
     <string name="settings_privacy_subtitle">Personal data, permissions and contact details</string>
+    <string name="settings_music_source">Music source</string>
+    <string name="settings_music_source_url">Server base URL</string>
+    <string name="settings_music_source_hint">The target server must publish an AGPL source manifest at /api/music/source. Remote servers must use HTTPS; localhost may use HTTP.</string>
+    <string name="settings_music_source_relogin">You will need to sign in again after switching. The previous server token is never sent to the new server.</string>
+    <string name="settings_music_source_verify">Verify and switch</string>
+    <string name="settings_music_source_reset">Use default</string>
+    <string name="settings_music_source_failed">Verification failed. Make sure the server is reachable and declares its AGPL source availability.</string>
     <string name="general">General</string>
     <string name="haptics_section">Haptics</string>
     <string name="haptics_enabled">Haptic feedback</string>

@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.neko.music.debug.NekoLog as Log
+import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.NekoAcceptLanguage
 import com.neko.music.widget.MusicWidgetPreviewRegistrar
@@ -36,6 +37,9 @@ class NekoMusicApplication : Application(), SingletonImageLoader.Factory {
 
         // 应用语言设置
         applyLanguage()
+
+        // 先恢复音乐连接源，再加载登录 Token；Token 会按连接源隔离，防止跨服务器复用。
+        UrlConfig.initialize(this)
 
         // 把落盘的登录令牌读进进程内存：网络层（Ktor 令牌注入插件）没有 Context，靠这一份同步取用
         com.neko.music.data.manager.TokenManager.primeProcessToken(this)

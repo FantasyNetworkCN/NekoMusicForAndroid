@@ -59,7 +59,8 @@ class QrLoginApi(private val token: String?) {
         }
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     /** 上报已扫码（PC 端会提示「已扫码，请在手机上确认」） */
     suspend fun scan(sessionId: String): QrLoginResult = post("/api/user/qrlogin/scan", sessionId, approve = null)

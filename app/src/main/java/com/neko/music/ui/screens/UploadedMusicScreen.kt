@@ -107,10 +107,12 @@ import com.neko.music.ui.components.AppPageBackgroundImage
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.launch
 import java.nio.charset.StandardCharsets
 
-const val baseUrl = "https://music.nekocore.cn"
+val baseUrl: String
+    get() = UrlConfig.getBaseUrl()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -128,7 +128,8 @@ class CommentApi(private val context: android.content.Context) {
         }
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     private fun HttpRequestBuilder.auth(token: String?) {
         if (!token.isNullOrBlank()) {

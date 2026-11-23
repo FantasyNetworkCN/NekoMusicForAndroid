@@ -73,7 +73,8 @@ class MusicApi(private val context: Context) {
         install(WebSockets)
     }
     
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
     private val cacheManager = MusicCacheManager.getInstance(context)
 
     fun close() {

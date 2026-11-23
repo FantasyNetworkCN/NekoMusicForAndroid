@@ -3,6 +3,7 @@ package com.neko.music.data.api
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.model.Music
 import com.neko.music.data.model.SearchItem
+import com.neko.music.util.UrlConfig
 import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffixOrEmpty
@@ -85,7 +86,7 @@ class QqMusicPlaylistApi {
 
     suspend fun fetchPlaylistDetail(disstid: String): Result<QqSongListDetailResponse> {
         return try {
-            val url = "https://music.nekocore.cn/loser1/getSongListDetail?disstid=$disstid"
+            val url = "${UrlConfig.getBaseUrl()}/loser1/getSongListDetail?disstid=$disstid"
             Log.d(TAG, "请求 QQ 歌单: disstid=$disstid url=$url")
             val response = client.get(url).body<QqSongListDetailResponse>()
             Result.success(response)

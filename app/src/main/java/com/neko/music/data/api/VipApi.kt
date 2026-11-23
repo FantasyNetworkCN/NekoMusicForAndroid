@@ -80,7 +80,8 @@ class VipApi(private val bearerToken: String) {
         }
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     private fun authHeader(): String {
         val t = bearerToken.trim()

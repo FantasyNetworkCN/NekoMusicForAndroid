@@ -31,7 +31,8 @@ class FavoriteApi(private val context: android.content.Context) {
         }
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     /**
      * 获取收藏列表

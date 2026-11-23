@@ -38,6 +38,8 @@ import com.neko.music.ui.icons.NekoSymbol
 import com.neko.music.ui.icons.NekoSymbolIcon
 import com.neko.music.data.manager.AppUpdateManager
 import com.neko.music.data.manager.UpdateInfo
+import com.neko.music.data.manager.TokenManager
+import com.neko.music.data.api.MusicSourceVerifier
 import com.neko.music.data.cache.AppStorageManager
 import com.neko.music.data.cache.AppStorageUsage
 import com.neko.music.ui.components.AppUpdateDownloadProgressDialog
@@ -54,6 +56,7 @@ import com.neko.music.ui.components.LiquidGlassDefaults
 import com.neko.music.ui.components.LiquidGlassSlider
 import com.neko.music.ui.components.isLiquidGlassEffectActive
 import com.neko.music.util.AppHaptics
+import com.neko.music.util.UrlConfig
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.service.StemStreamPhase
 import com.neko.music.ui.components.stemPreparationDescription
@@ -113,6 +116,8 @@ fun SettingsScreen(
     val languagePrefs = remember { context.getSharedPreferences("app_settings", Context.MODE_PRIVATE) }
     var currentLanguage by remember { mutableStateOf(languagePrefs.getString("language", "system") ?: "system") }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var currentMusicSource by remember { mutableStateOf(UrlConfig.getBaseUrl()) }
+    var showMusicSourceDialog by remember { mutableStateOf(false) }
 
     val themeMode =
         languagePrefs.getString(AppConfig.PrefConfig.KEY_THEME, AppConfig.PrefConfig.DEFAULT_THEME)
@@ -243,6 +248,9 @@ fun SettingsScreen(
             "歌词 字号 翻译 音译 lyrics font translation"),
         SettingsSearchEntry(SettingsEntryId.Language, SettingsSectionId.App,
             stringResource(R.string.language), getLanguageDisplayName(context, currentLanguage), appTitle, "语言 language 中文 English"),
+        SettingsSearchEntry(SettingsEntryId.MusicSource, SettingsSectionId.App,
+            stringResource(R.string.settings_music_source), currentMusicSource, appTitle,
+            "音乐 连接源 服务器 url AGPL 开源 music source server"),
         SettingsSearchEntry(SettingsEntryId.AudioFocus, SettingsSectionId.Playback,
             stringResource(R.string.focus_lock), stringResource(R.string.focus_lock_subtitle), playbackTitle, "焦点 播放 focus audio playback"),
         SettingsSearchEntry(SettingsEntryId.StemSeparation, SettingsSectionId.Playback,
@@ -361,6 +369,10 @@ fun SettingsScreen(
                                                     SettingsEntryId.Language -> SettingItem(
                                                         NekoSymbol.Switch, item.title, item.subtitle,
                                                         showSeparator = separator, onClick = { showLanguageDialog = true },
+                                                    )
+                                                    SettingsEntryId.MusicSource -> SettingItem(
+                                                        NekoSymbol.RadioWaves, item.title, item.subtitle,
+                                                        showSeparator = separator, onClick = { showMusicSourceDialog = true },
                                                     )
                                                     SettingsEntryId.AudioFocus -> SettingSwitchItem(
                                                         NekoSymbol.Volume, item.title, item.subtitle,
@@ -485,10 +497,138 @@ fun SettingsScreen(
                             }
                         )
                     }
+
+                    if (showMusicSourceDialog) {
+                        MusicSourceDialog(
+                            currentUrl = currentMusicSource,
+                            onDismiss = { showMusicSourceDialog = false },
+                            onApplied = { currentMusicSource = it },
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MusicSourceDialog(
+    currentUrl: String,
+    onDismiss: () -> Unit,
+    onApplied: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var value by remember(currentUrl) { mutableStateOf(currentUrl) }
+    var verifying by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    val normalizedDefault = UrlConfig.DEFAULT_BASE_URL
+
+    AlertDialog(
+        onDismissRequest = { if (!verifying) onDismiss() },
+        title = { Text(stringResource(R.string.settings_music_source)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_music_source_hint),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp,
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = {
+                        value = it
+                        failed = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.settings_music_source_url)) },
+                    singleLine = true,
+                    enabled = !verifying,
+                )
+                Text(
+                    text = stringResource(R.string.settings_music_source_relogin),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                )
+                if (failed) {
+                    Text(
+                        text = stringResource(R.string.settings_music_source_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !verifying && value.isNotBlank(),
+                onClick = {
+                    scope.launch {
+                        verifying = true
+                        failed = false
+                        val result = MusicSourceVerifier.verify(value)
+                        verifying = false
+                        result.fold(
+                            onSuccess = { verified ->
+                                val applied = UrlConfig.setVerifiedBaseUrl(context, verified.baseUrl)
+                                if (applied == null) {
+                                    failed = true
+                                } else {
+                                    val switched = applied != currentUrl
+                                    if (applied != currentUrl) {
+                                        TokenManager(context).clearToken()
+                                    }
+                                    onApplied(applied)
+                                    onDismiss()
+                                    if (switched && context is android.app.Activity) {
+                                        context.recreate()
+                                    }
+                                }
+                            },
+                            onFailure = {
+                                Log.w("SettingsScreen", "音乐连接源校验失败", it)
+                                failed = true
+                            },
+                        )
+                    }
+                },
+            ) {
+                if (verifying) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.settings_music_source_verify))
+                }
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(
+                    enabled = !verifying && currentUrl != normalizedDefault,
+                    onClick = {
+                        val switched = currentUrl != normalizedDefault
+                        if (switched) {
+                            TokenManager(context).clearToken()
+                        }
+                        UrlConfig.resetToDefault(context)
+                        onApplied(normalizedDefault)
+                        onDismiss()
+                        if (switched && context is android.app.Activity) {
+                            context.recreate()
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.settings_music_source_reset))
+                }
+                TextButton(
+                    enabled = !verifying,
+                    onClick = onDismiss,
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    )
 }
 
 @Composable

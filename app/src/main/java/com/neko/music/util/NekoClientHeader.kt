@@ -47,7 +47,8 @@ const val NEKO_AUTHORIZATION_HEADER = "Authorization"
  * 请求标头与用户令牌只发给本站——发往第三方（更新检查 / CDN /
  * 天气等）的请求一律不带，避免身份外泄。
  */
-internal val NEKO_BACKEND_HOST: String by lazy { Url(UrlConfig.getBaseUrl()).host }
+internal val NEKO_BACKEND_HOST: String
+    get() = Url(UrlConfig.getBaseUrl()).host
 
 /**
  * 给该 HttpClient 的所有请求加上 User-Agent 标头。

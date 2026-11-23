@@ -89,6 +89,13 @@
     <string name="settings_update_failed">检查失败，请稍后重试</string>
     <string name="settings_privacy_title">隐私政策</string>
     <string name="settings_privacy_subtitle">个人信息处理、权限使用与联系方式</string>
+    <string name="settings_music_source">音乐连接源</string>
+    <string name="settings_music_source_url">服务器基础 URL</string>
+    <string name="settings_music_source_hint">目标服务必须在 /api/music/source 公开 AGPL 来源清单。远程地址仅允许 HTTPS，localhost 可使用 HTTP。</string>
+    <string name="settings_music_source_relogin">切换连接源后需重新登录，旧服务器的登录态不会发送到新服务器。</string>
+    <string name="settings_music_source_verify">校验并切换</string>
+    <string name="settings_music_source_reset">恢复默认</string>
+    <string name="settings_music_source_failed">校验失败，请确认目标服务可访问且已履行 AGPL 开源义务。</string>
     <string name="general">通用</string>
     <string name="haptics_section">振动触感</string>
     <string name="haptics_enabled">触感反馈</string>

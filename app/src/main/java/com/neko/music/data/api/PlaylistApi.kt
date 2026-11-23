@@ -158,7 +158,8 @@ class PlaylistApi(private val token: String?, private val context: android.conte
         }
     }
 
-    private val baseUrl = "${UrlConfig.getBaseUrl()}/api/user/playlist"
+    private val baseUrl: String
+        get() = "${UrlConfig.getBaseUrl()}/api/user/playlist"
 
     /**
      * 调用 `/api/playlists/search`。

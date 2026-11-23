@@ -43,7 +43,8 @@ class UserApi(private val token: String? = null) {
         }
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     /** 获取 NekoAuth SSO 授权地址。 */
     suspend fun startSso(client: String = "android", returnTo: String = "/"): SsoStartResult {

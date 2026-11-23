@@ -2,6 +2,7 @@ package com.neko.music.data.manager
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.neko.music.util.UrlConfig
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -23,6 +24,7 @@ class TokenManager(context: Context) {
 
         private const val KEY_TOKEN = "token"
         private const val KEY_ID_TOKEN = "id_token"
+        private const val KEY_SERVER_BASE_URL = "server_base_url"
 
         /**
          * 进程内缓存的令牌：网络层（Ktor 插件）拿不到 Context，需要一个同步入口。
@@ -40,6 +42,12 @@ class TokenManager(context: Context) {
         fun primeProcessToken(context: Context) {
             val prefs = context.applicationContext
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val tokenServer = prefs.getString(KEY_SERVER_BASE_URL, null)
+            val tokenBelongsToCurrentServer = tokenServer == UrlConfig.getBaseUrl()
+                || (tokenServer == null && UrlConfig.isUsingDefaultBaseUrl())
+            if (prefs.getString(KEY_TOKEN, null) != null && !tokenBelongsToCurrentServer) {
+                prefs.edit().clear().apply()
+            }
             cachedToken = prefs.getString(KEY_TOKEN, null)
             cachedIdToken = prefs.getString(KEY_ID_TOKEN, null)
         }
@@ -104,6 +112,7 @@ class TokenManager(context: Context) {
     ) {
         editor.putString(KEY_TOKEN, token)
         editor.putString(KEY_ID_TOKEN, idToken)
+        editor.putString(KEY_SERVER_BASE_URL, UrlConfig.getBaseUrl())
         editor.apply()
         cachedToken = token
         cachedIdToken = idToken
@@ -167,6 +176,13 @@ class TokenManager(context: Context) {
      * 获取 Token
      */
     fun getToken(): String? {
+        val tokenServer = sharedPref.getString(KEY_SERVER_BASE_URL, null)
+        val tokenBelongsToCurrentServer = tokenServer == UrlConfig.getBaseUrl()
+            || (tokenServer == null && UrlConfig.isUsingDefaultBaseUrl())
+        if (sharedPref.getString(KEY_TOKEN, null) != null && !tokenBelongsToCurrentServer) {
+            clearToken()
+            return null
+        }
         // 顺带刷新进程内缓存：没有走 saveToken / primeProcessToken 的路径（例如先读后写）也能补上
         val token = sharedPref.getString(KEY_TOKEN, null)
         cachedToken = token

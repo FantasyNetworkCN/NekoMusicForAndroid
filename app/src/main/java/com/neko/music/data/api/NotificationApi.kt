@@ -104,7 +104,8 @@ class NotificationApi(private val token: String?) {
             .build()
     }
 
-    private val baseUrl = UrlConfig.getBaseUrl()
+    private val baseUrl: String
+        get() = UrlConfig.getBaseUrl()
 
     /** 收件箱列表；失败返回 null（调用方按「这次没补拉成功」处理即可） */
     suspend fun list(since: Int? = null, before: Int? = null, limit: Int = 20): NotificationPage? {
