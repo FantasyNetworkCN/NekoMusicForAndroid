@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.widget.Toast
 import com.neko.music.ui.icons.NekoIcon
 
 import com.neko.music.debug.NekoLog as Log
@@ -488,6 +489,8 @@ fun MusicItem(
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val musicApi = remember { MusicApi(context) }
+    val isPlayable = music.playable
+    val notPlayableText = stringResource(id = R.string.music_not_playable)
     var coverUrl by remember { mutableStateOf<String?>(null) }
     var actionsExpanded by remember { mutableStateOf(false) }
     val isDarkTheme = isAppDarkTheme()
@@ -502,11 +505,18 @@ fun MusicItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
+            .alpha(if (isPlayable) 1f else 0.45f)
             .scale(pressScale)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
+                onClick = {
+                    if (isPlayable) {
+                        onClick()
+                    } else {
+                        Toast.makeText(context, notPlayableText, Toast.LENGTH_SHORT).show()
+                    }
+                },
             ),
         shape = RoundedCornerShape(18.dp),
         backgroundAlpha = listTint.background(isDarkTheme),
@@ -610,9 +620,10 @@ fun MusicItem(
                                 modifier = Modifier.size(18.dp),
                             )
                         },
+                        enabled = isPlayable,
                         onClick = {
                             actionsExpanded = false
-                            onPlayNext()
+                            if (isPlayable) onPlayNext()
                         },
                     )
                 }

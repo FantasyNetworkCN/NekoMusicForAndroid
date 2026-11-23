@@ -1,5 +1,6 @@
 package com.neko.music.ui.screens
 
+import android.widget.Toast
 import com.neko.music.ui.icons.NekoIcon
 
 import com.neko.music.debug.NekoLog as Log
@@ -40,6 +41,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -137,6 +139,7 @@ fun ArtistDetailScreen(
                             val artist = musicJson["artist"]?.jsonPrimitive?.content ?: ""
                             val album = musicJson["album"]?.jsonPrimitive?.content ?: ""
                             val duration = musicJson["duration"]?.jsonPrimitive?.int ?: 0
+                            val playable = musicJson["playable"]?.jsonPrimitive?.content?.toBooleanStrictOrNull() ?: true
 
                             musics.add(
                                 Music(
@@ -148,7 +151,8 @@ fun ArtistDetailScreen(
                                     filePath = "$baseUrl/api/music/file/$id",
                                     coverFilePath = "$baseUrl/api/music/cover/$id",
                                     uploadUserId = 0,
-                                    createdAt = ""
+                                    createdAt = "",
+                                    playable = playable
                                 )
                             )
                         }
@@ -360,7 +364,7 @@ fun ArtistDetailScreen(
                                                 scope.launch {
                                                     try {
                                                         playerManager.playMusicListAndAwait(
-                                                            musicList,
+                                                            musicList.filter { it.playable },
                                                             0,
                                                         )
                                                     } catch (e: Exception) {
@@ -436,12 +440,22 @@ fun ArtistMusicItem(
     val coverUrl = music.coverFilePath?.takeIf { it.isNotEmpty() }
     val isDarkTheme = isAppDarkTheme()
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val isPlayable = music.playable
+    val notPlayableText = stringResource(id = R.string.music_not_playable)
 
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clickable(onClick = onClick),
+            .alpha(if (isPlayable) 1f else 0.45f)
+            .clickable {
+                if (isPlayable) {
+                    onClick()
+                } else {
+                    Toast.makeText(context, notPlayableText, Toast.LENGTH_SHORT).show()
+                }
+            },
         shape = RoundedCornerShape(12.dp),
         backgroundAlpha = glassBg,
         borderAlpha = glassBorder,

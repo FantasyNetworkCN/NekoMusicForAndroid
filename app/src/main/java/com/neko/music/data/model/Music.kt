@@ -18,6 +18,8 @@ data class Music(
     val favoriteCount: Int? = null,
     /** 是否有有效歌词（单条 query 搜索响应字段） */
     val lrc: Boolean = false,
+    /** 当前账号在该接口下是否可播放；服务端禁播时为 false。 */
+    val playable: Boolean = true,
     val maxQuality: String? = null,
     val albumArtist: String? = null,
     val composer: String? = null,

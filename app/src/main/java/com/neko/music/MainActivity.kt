@@ -1716,7 +1716,7 @@ fun MainScreen() {
                     onAddAllToPlaylist = { musics ->
                         scope.launch {
                             val playlistManager = PlaylistManager.getInstance(context)
-                            musics.forEach { music ->
+                            musics.filter { it.playable }.forEach { music ->
                                 playlistManager.addToPlaylist(music)
                             }
                             Toast.makeText(
@@ -1730,7 +1730,8 @@ fun MainScreen() {
                         }
                     },
                     onPlayAll = { musicList, startIndex ->
-                        val queue = musicList.map { playlistMusic ->
+                        val clicked = musicList.getOrNull(startIndex)
+                        val queue = musicList.filter { it.playable }.map { playlistMusic ->
                             Music(
                                 id = playlistMusic.id,
                                 title = playlistMusic.title,
@@ -1740,15 +1741,27 @@ fun MainScreen() {
                                 filePath = playlistMusic.filePath,
                                 coverFilePath = playlistMusic.coverPath ?: "",
                                 uploadUserId = 0,
-                                createdAt = ""
+                                createdAt = "",
+                                playable = playlistMusic.playable
                             )
                         }
-                        playerManager.playMusicList(queue, startIndex)
-                        Toast.makeText(
-                            context,
-                            "已添加 ${queue.size} 首歌曲到播放列表",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (queue.isEmpty()) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.music_not_playable),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            val playableStart = clicked?.let { track ->
+                                queue.indexOfFirst { it.id == track.id }
+                            }?.takeIf { it >= 0 } ?: 0
+                            playerManager.playMusicList(queue, playableStart)
+                            Toast.makeText(
+                                context,
+                                "已添加 ${queue.size} 首歌曲到播放列表",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     onPlaylistBatchModeChange = { inBatch ->
                         playlistBatchHidingChrome = inBatch

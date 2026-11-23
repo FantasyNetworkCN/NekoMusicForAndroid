@@ -80,7 +80,9 @@ data class PlaylistMusic(
     val fileFormat: String,
     val language: String,
     val position: Int,
-    val addedAt: String
+    val addedAt: String,
+    /** 当前账号在该接口下是否可播放；服务端禁播时为 false。 */
+    val playable: Boolean = true
 )
 
 @Serializable

@@ -284,11 +284,82 @@ class MusicPlayerManager private constructor(context: Context) {
     private val MAX_RETRY_COUNT = 2 // 最大重试次数
     private var playbackRequest = 0L
     private var pendingRetry: Runnable? = null
+    private var playabilityWatchJob: Job? = null
+    private val blockedMusicUntilMs = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+    private val BLOCKED_TRACK_TTL_MS = 30_000L
 
     private fun cancelPlaybackRetry() {
         pendingRetry?.let(mainHandler::removeCallbacks)
         pendingRetry = null
         playbackRequest++
+    }
+
+    private fun isBlockedNow(musicId: Int): Boolean {
+        val until = blockedMusicUntilMs[musicId] ?: return false
+        if (until > System.currentTimeMillis()) return true
+        blockedMusicUntilMs.remove(musicId)
+        return false
+    }
+
+    private fun markBlocked(musicId: Int) {
+        if (musicId > 0)
+            blockedMusicUntilMs[musicId] = System.currentTimeMillis() + BLOCKED_TRACK_TTL_MS
+    }
+
+    private fun isForbiddenPlaybackError(error: Throwable?): Boolean {
+        var current = error
+        while (current != null) {
+            if (current is com.google.android.exoplayer2.upstream.HttpDataSource.InvalidResponseCodeException
+                && current.responseCode == 403
+            ) {
+                return true
+            }
+            val message = current.message.orEmpty()
+            if (message.contains("403") || message.contains("Forbidden", ignoreCase = true))
+                return true
+            current = current.cause
+        }
+        return false
+    }
+
+    /** 当前在线曲目每隔 10 秒复核一次播放权限；管理端禁播后无需重进页面即可生效。 */
+    private fun startPlayabilityWatch(musicId: Int) {
+        playabilityWatchJob?.cancel()
+        if (musicId <= 0 || isLocalMusicId(musicId)) return
+        playabilityWatchJob = scope.launch {
+            delay(1_000)
+            while (isActive && _currentMusicId.value == musicId) {
+                val api = com.neko.music.data.api.MusicApi(appContext)
+                val result = try {
+                    api.getMusicInfo(musicId)
+                } finally {
+                    api.close()
+                }
+                if (_currentMusicId.value != musicId) return@launch
+                val music = result.getOrNull()
+                if (music != null && !music.playable) {
+                    handleBlockedCurrentTrack(musicId)
+                    return@launch
+                }
+                delay(10_000)
+            }
+        }
+    }
+
+    private fun handleBlockedCurrentTrack(musicId: Int) {
+        if (_currentMusicId.value != musicId) return
+        markBlocked(musicId)
+        com.neko.music.data.cache.MusicCacheManager.getInstance(appContext)
+            .deletePlaybackCache(musicId)
+        android.widget.Toast.makeText(
+            appContext,
+            appContext.getString(com.neko.music.R.string.music_not_playable),
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
+        playIntent = false
+        activePlayer.pause()
+        syncPlayingState()
+        next()
     }
 
     /** 所有起播/恢复/音质切换/错误重试共用本地缓存优先规则。 */
@@ -1022,6 +1093,12 @@ class MusicPlayerManager private constructor(context: Context) {
 
             override fun onPlayerError(error: com.google.android.exoplayer2.PlaybackException) {
                 Log.e("MusicPlayerManager", "播放错误: code = ${error.errorCode}, message = ${error.message}, 重试次数: $retryCount", error)
+                val blockedId = _currentMusicId.value
+                if (blockedId != null && blockedId > 0 && isForbiddenPlaybackError(error)) {
+                    Log.w("MusicPlayerManager", "服务端返回 403，曲目禁播，自动切换下一首: id=$blockedId")
+                    handleBlockedCurrentTrack(blockedId)
+                    return
+                }
                 // 增加重试计数器
                 retryCount++
 
@@ -1459,6 +1536,7 @@ class MusicPlayerManager private constructor(context: Context) {
     
     // 淡入效果
     private fun fadeIn() {
+        _currentMusicId.value?.let(::startPlayabilityWatch)
         if (activePlayer.playerError != null) {
             _currentMusicUrl.value?.let { url ->
                 cancelPlaybackRetry()
@@ -1642,6 +1720,23 @@ class MusicPlayerManager private constructor(context: Context) {
         activeRoomDelegate()?.let { delegate ->
             if (id != null && id > 0) {
                 delegate.playTrack(id)
+            }
+            return
+        }
+        if (id != null && id > 0 && isBlockedNow(id)) {
+            Log.w("MusicPlayerManager", "跳过本会话已确认禁播的曲目: id=$id")
+            clearPreloadedNextCache()
+            forcedNextQueue.removeAll { it.id == id }
+            scope.launch {
+                val total = playlistManager.getPlaylistCount()
+                val blockedCount = blockedMusicUntilMs.keys.count { isBlockedNow(it) }
+                if (total > 0 && blockedCount >= total) {
+                    playIntent = false
+                    activePlayer.pause()
+                    syncPlayingState()
+                } else {
+                    next()
+                }
             }
             return
         }
@@ -1835,6 +1930,7 @@ class MusicPlayerManager private constructor(context: Context) {
         }
 
         try {
+            blockedMusicUntilMs.clear()
             playlistManager.replacePlaylist(musicList)
             // 播放列表被整体替换，之前排的「下一首播放」不再有效
             clearForcedNextQueue()

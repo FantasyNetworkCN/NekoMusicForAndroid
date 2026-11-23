@@ -383,6 +383,27 @@ private fun ensureCacheDirs() {
     }
 
     /**
+     * 禁播后只清播放相关缓存，保留封面与歌词，避免服务端状态变化连带破坏展示数据。
+     */
+    fun deletePlaybackCache(musicId: Int) {
+        try {
+            getCachedMusicFile(musicId)?.delete()
+            File(serverStemDir, musicId.toString()).deleteRecursively()
+            prefs.edit()
+                .remove("music_${musicId}_time")
+                .remove("music_${musicId}_size")
+                .remove("music_${musicId}_title")
+                .remove("music_${musicId}_artist")
+                .remove("music_${musicId}_ext")
+                .remove("music_${musicId}_caching")
+                .apply()
+            Log.d(TAG, "已清理禁播曲目播放缓存: $musicId")
+        } catch (e: Exception) {
+            Log.w(TAG, "清理禁播曲目播放缓存失败: $musicId", e)
+        }
+    }
+
+    /**
      * 更新已缓存音乐的标题
      */
     fun updateMusicTitle(musicId: Int, title: String) {

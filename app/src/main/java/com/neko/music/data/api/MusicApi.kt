@@ -15,6 +15,7 @@ import com.neko.music.util.installNekoClientHeader
 import com.neko.music.util.preferHttp2AlpnOverHttp1
 import com.neko.music.util.protocolLogSuffix
 import com.neko.music.util.protocolLogSuffixOrEmpty
+import com.neko.music.data.manager.TokenManager
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -548,7 +549,11 @@ class MusicApi(private val context: Context) {
     suspend fun getMusicInfo(id: Int): Result<Music> {
         return try {
             Log.d("MusicApi", "Fetching music info for id: $id")
-            val response = client.get("$baseUrl/api/music/info/$id")
+            val response = client.get("$baseUrl/api/music/info/$id") {
+                TokenManager.processToken()?.takeIf { it.isNotBlank() }?.let {
+                    header("Authorization", it)
+                }
+            }
             Log.d("MusicApi", "Response status: ${response.status}${response.protocolLogSuffix()}")
             val responseText = response.body<String>()
             Log.d("MusicApi", "Response raw text: $responseText${response.protocolLogSuffix()}")

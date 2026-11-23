@@ -98,6 +98,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -1756,19 +1757,27 @@ fun PlaylistMusicItem(
     val playNextText = stringResource(id = R.string.play_next)
     val moreActionsText = stringResource(id = R.string.more)
     var actionsExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val isPlayable = music.playable
+    val notPlayableText = stringResource(id = R.string.music_not_playable)
 
     val coverUrl = remember(music.id) {
         UrlConfig.getMusicCoverUrl(music.id)
     }
 
     val rowClick = {
-        if (selectionMode) onToggleSelect() else onClick()
+        when {
+            selectionMode -> onToggleSelect()
+            isPlayable -> onClick()
+            else -> Toast.makeText(context, notPlayableText, Toast.LENGTH_SHORT).show()
+        }
     }
 
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
+            .alpha(if (isPlayable) 1f else 0.45f)
             .combinedClickable(
                 interactionSource = remember(music.id, selectionMode) { MutableInteractionSource() },
                 indication = ripple(),
@@ -1914,9 +1923,10 @@ fun PlaylistMusicItem(
                                     modifier = Modifier.size(18.dp)
                                 )
                             },
+                            enabled = isPlayable,
                             onClick = {
                                 actionsExpanded = false
-                                onPlayNext()
+                                if (isPlayable) onPlayNext()
                             }
                         )
                         if (showDeleteButton) {
@@ -1958,5 +1968,6 @@ private fun PlaylistMusic.toLocalMusic(): Music =
         filePath = filePath,
         coverFilePath = coverPath ?: "",
         uploadUserId = 0,
-        createdAt = ""
+        createdAt = "",
+        playable = playable
     )
