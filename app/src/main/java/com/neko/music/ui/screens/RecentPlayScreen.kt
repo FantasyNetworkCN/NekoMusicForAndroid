@@ -212,18 +212,16 @@ fun RecentPlayScreen(
                     }
                 }
 
-                if (!isLoading && playHistory.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    PlaylistSearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        liquidGlass = liquidGlass,
-                        placeholder = stringResource(id = R.string.search_songs),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(8.dp))
+                PlaylistSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    liquidGlass = liquidGlass,
+                    placeholder = stringResource(id = R.string.search_songs),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
 
                 if (isLoading) {
                     Box(

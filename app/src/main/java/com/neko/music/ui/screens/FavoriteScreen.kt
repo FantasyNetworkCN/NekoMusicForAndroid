@@ -266,29 +266,17 @@ fun FavoriteScreen(
                     }
                 }
 
-                AnimatedVisibility(
-                    visible = isLoggedIn &&
-                        !isLoading &&
-                        errorMessage.isEmpty() &&
-                        favorites.isNotEmpty() &&
-                        collapseProgress < 0.32f,
-                    enter = fadeIn(tween(160)) +
-                        expandVertically(animationSpec = tween(200), expandFrom = Alignment.Top),
-                    exit = fadeOut(tween(120)) +
-                        shrinkVertically(animationSpec = tween(200), shrinkTowards = Alignment.Top),
-                ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        PlaylistSearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            liquidGlass = liquidGlass,
-                            placeholder = stringResource(id = R.string.search_songs),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
-                    }
+                Column {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PlaylistSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        liquidGlass = liquidGlass,
+                        placeholder = stringResource(id = R.string.search_songs),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    )
                 }
 
                 when {
