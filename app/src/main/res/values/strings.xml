@@ -761,6 +761,9 @@
     <string name="local_music">本地音乐喵</string>
     <string name="local_music_song_count">%d 首本地歌喵</string>
     <string name="local_music_search_count">找到 %d 首喵</string>
+    <string name="local_music_scanning">正在扫描本地音乐喵…</string>
+    <string name="local_music_scan_progress">正在补齐本地音乐 %1$d/%2$d喵</string>
+    <string name="local_music_scan_failed">扫描本地音乐失败了，再试一次喵</string>
     <string name="local_music_empty">没扫到本地音乐喵</string>
     <string name="local_music_permission_title">要读本地音乐喵</string>
     <string name="local_music_permission_message">允许后就能扫描设备里的音频文件，直接在这里播放喵</string>

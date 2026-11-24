@@ -40,7 +40,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,8 +63,10 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.neko.music.R
 import com.neko.music.data.manager.LocalMusicManager
+import com.neko.music.data.manager.LocalMusicScanUpdate
 import com.neko.music.data.manager.TogetherSessionManager
 import com.neko.music.data.model.Music
+import com.neko.music.debug.NekoLog as Log
 import com.neko.music.service.MusicPlayerManager
 import com.neko.music.ui.components.AppPageBackgroundImage
 import com.neko.music.ui.components.GlassSurface
@@ -75,6 +79,7 @@ import com.neko.music.ui.theme.RoseRed
 import com.neko.music.ui.theme.SakuraPink
 import com.neko.music.ui.theme.SkyBlue
 import com.neko.music.ui.theme.isAppDarkTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -106,34 +111,66 @@ fun LocalMusicScreen(
     val glassBorder = glassTint.border(isDarkTheme)
     val glassHighlight = glassTint.highlight(isDarkTheme)
 
-    var localMusic by remember { mutableStateOf<List<Music>>(emptyList()) }
+    val localMusic = remember { mutableStateListOf<Music>() }
     var isLoading by remember { mutableStateOf(false) }
+    var scanError by remember { mutableStateOf<String?>(null) }
+    var scannedCount by remember { mutableStateOf(0) }
+    var totalCount by remember { mutableStateOf(0) }
+    var refreshToken by remember { mutableStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
+    val scanFailedMessage = androidx.compose.ui.res.stringResource(R.string.local_music_scan_failed)
 
-    fun loadLocalMusic() {
-        if (!hasPermission || isLoading || togetherActive) return
+    LaunchedEffect(hasPermission, togetherActive, refreshToken) {
+        if (!hasPermission || togetherActive) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        localMusic.clear()
+        scanError = null
+        scannedCount = 0
+        totalCount = 0
         isLoading = true
-        scope.launch {
-            localMusic = localMusicManager.scanLocalMusic()
+        try {
+            localMusicManager.scanLocalMusicIncrementally().collect { update ->
+                when (update) {
+                    is LocalMusicScanUpdate.Started -> totalCount = update.total
+                    is LocalMusicScanUpdate.Item -> {
+                        val index = localMusic.indexOfFirst { it.filePath == update.music.filePath }
+                        if (index >= 0) {
+                            if (update.enriched) localMusic[index] = update.music
+                        } else {
+                            localMusic.add(update.music)
+                        }
+                    }
+                    is LocalMusicScanUpdate.Progress -> {
+                        scannedCount = update.completed
+                        totalCount = update.total
+                    }
+                    LocalMusicScanUpdate.Completed -> Unit
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("LocalMusicScreen", "扫描本地音乐失败", e)
+            scanError = scanFailedMessage
+            android.widget.Toast.makeText(context, scanFailedMessage, android.widget.Toast.LENGTH_SHORT).show()
+        } finally {
             isLoading = false
         }
     }
 
-    LaunchedEffect(hasPermission, togetherActive) {
-        if (hasPermission && !togetherActive) {
-            loadLocalMusic()
-        }
-    }
-
-    val filteredMusic = remember(localMusic, searchQuery) {
-        val query = searchQuery.trim()
-        if (query.isEmpty()) {
-            localMusic
-        } else {
-            localMusic.filter { music ->
-                music.title.contains(query, ignoreCase = true) ||
-                    music.artist.contains(query, ignoreCase = true) ||
-                    music.album.contains(query, ignoreCase = true)
+    val filteredMusic by remember(searchQuery) {
+        derivedStateOf {
+            val query = searchQuery.trim()
+            if (query.isEmpty()) {
+                localMusic.toList()
+            } else {
+                localMusic.filter { music ->
+                    music.title.contains(query, ignoreCase = true) ||
+                        music.artist.contains(query, ignoreCase = true) ||
+                        music.album.contains(query, ignoreCase = true)
+                }
             }
         }
     }
@@ -175,7 +212,7 @@ fun LocalMusicScreen(
                     count = localMusic.size,
                     isDarkTheme = isDarkTheme,
                     onBackClick = onBackClick,
-                    onRefreshClick = { loadLocalMusic() },
+                    onRefreshClick = { refreshToken++ },
                     canRefresh = hasPermission && !isLoading && !togetherActive,
                 )
 
@@ -199,18 +236,43 @@ fun LocalMusicScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = if (searchQuery.isBlank()) {
-                                androidx.compose.ui.res.stringResource(R.string.local_music_song_count, localMusic.size)
-                            } else {
-                                androidx.compose.ui.res.stringResource(R.string.local_music_search_count, filteredMusic.size)
-                            },
-                            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.82f) else scheme.onSurfaceVariant,
-                            fontSize = 13.sp,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    color = RoseRed,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = when {
+                                    isLoading && totalCount > 0 ->
+                                        androidx.compose.ui.res.stringResource(
+                                            R.string.local_music_scan_progress,
+                                            scannedCount,
+                                            totalCount,
+                                        )
+                                    isLoading -> androidx.compose.ui.res.stringResource(
+                                        R.string.local_music_scanning
+                                    )
+                                    searchQuery.isBlank() ->
+                                        androidx.compose.ui.res.stringResource(
+                                            R.string.local_music_song_count,
+                                            localMusic.size,
+                                        )
+                                    else -> androidx.compose.ui.res.stringResource(
+                                        R.string.local_music_search_count,
+                                        filteredMusic.size,
+                                    )
+                                },
+                                color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.82f) else scheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                            )
+                        }
                         TextButton(
                             onClick = { playMusicList(0) },
-                            enabled = filteredMusic.isNotEmpty() && !isLoading,
+                            enabled = filteredMusic.isNotEmpty(),
                         ) {
                             NekoIcon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -254,6 +316,15 @@ fun LocalMusicScreen(
                         !hasPermission -> {
                             LocalMusicPermissionState(
                                 onRequestPermission = { permissionState.launchPermissionRequest() },
+                                isDarkTheme = isDarkTheme,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        scanError != null && localMusic.isEmpty() -> {
+                            LocalMusicErrorState(
+                                message = scanError.orEmpty(),
+                                onRetry = { refreshToken++ },
                                 isDarkTheme = isDarkTheme,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -606,6 +677,36 @@ private fun LocalMusicEmptyState(
             color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.82f) else scheme.onSurfaceVariant,
             fontSize = 16.sp,
         )
+    }
+}
+
+@Composable
+private fun LocalMusicErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            color = if (isDarkTheme) Color(0xFFB8B8D1).copy(alpha = 0.82f) else scheme.onSurfaceVariant,
+            fontSize = 16.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = RoseRed),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Text(text = androidx.compose.ui.res.stringResource(R.string.retry))
+        }
     }
 }
 

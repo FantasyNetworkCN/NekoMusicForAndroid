@@ -9,11 +9,23 @@ import android.provider.MediaStore
 import com.neko.music.debug.NekoLog as Log
 import com.neko.music.data.cache.MusicCacheManager
 import com.neko.music.data.model.Music
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import java.io.File
 import java.nio.charset.Charset
 import kotlin.math.absoluteValue
+
+sealed interface LocalMusicScanUpdate {
+    data class Started(val total: Int) : LocalMusicScanUpdate
+    data class Item(val music: Music, val enriched: Boolean) : LocalMusicScanUpdate
+    data class Progress(val completed: Int, val total: Int) : LocalMusicScanUpdate
+    data object Completed : LocalMusicScanUpdate
+}
 
 class LocalMusicManager(private val context: Context) {
 
@@ -21,10 +33,41 @@ class LocalMusicManager(private val context: Context) {
         private const val TAG = "LocalMusicManager"
     }
 
-    suspend fun scanLocalMusic(): List<Music> = withContext(Dispatchers.IO) {
+    private data class LocalMusicEntry(
+        val music: Music,
+        val dataPath: String?,
+    )
+
+    /**
+     * 增量扫描本地音乐：先快速返回 MediaStore 基础列表，再逐首补齐嵌入元数据、封面与歌词。
+     * 列表可以在补齐期间立即显示和播放，避免用户对着空白加载页等待整个媒体库处理完成。
+     */
+    fun scanLocalMusicIncrementally(): Flow<LocalMusicScanUpdate> = flow {
+        val entries = queryLocalMusicEntries()
+        emit(LocalMusicScanUpdate.Started(entries.size))
+        entries.forEach { entry ->
+            emit(LocalMusicScanUpdate.Item(entry.music, enriched = false))
+        }
+
+        entries.forEachIndexed { index, entry ->
+            currentCoroutineContext().ensureActive()
+            val enriched = try {
+                enrichLocalMusic(entry)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "补齐本地音乐元数据失败: ${entry.music.filePath}", e)
+                entry.music
+            }
+            emit(LocalMusicScanUpdate.Item(enriched, enriched = true))
+            emit(LocalMusicScanUpdate.Progress(index + 1, entries.size))
+        }
+        emit(LocalMusicScanUpdate.Completed)
+    }.flowOn(Dispatchers.IO)
+
+    private fun queryLocalMusicEntries(): List<LocalMusicEntry> {
         val appContext = context.applicationContext
         val resolver = appContext.contentResolver
-        val cacheManager = MusicCacheManager.getInstance(appContext)
         val collection =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -45,7 +88,7 @@ class LocalMusicManager(private val context: Context) {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC, ${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
 
-        val songs = mutableListOf<Music>()
+        val songs = mutableListOf<LocalMusicEntry>()
         resolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -77,65 +120,84 @@ class LocalMusicManager(private val context: Context) {
                 val durationMs = cursor.getLongOrZero(durationColumn)
                 val dateAddedSec = cursor.getLongOrZero(dateAddedColumn)
                 val localMusicId = mediaId.toLocalMusicId()
-                val metadata = readEmbeddedMetadata(contentUri)
-                val lyrics = readSidecarLyrics(filePath) ?: readId3Lyrics(filePath)
-                val coverFile = metadata.coverBytes?.let { bytes ->
-                    cacheManager.saveLocalCover(localMusicId, bytes).getOrNull()
-                }
-                if (!lyrics.isNullOrBlank()) {
-                    cacheManager.saveLocalLyrics(localMusicId, lyrics)
-                }
-                val title = metadata.title
-                    ?.takeUnless { it.isUnknownMediaStoreValue() }
-                    ?.takeIf { it.isNotBlank() }
-                    ?: fallbackTitle
-                val artist = metadata.artist
-                    ?.takeUnless { it.isUnknownMediaStoreValue() }
-                    ?.takeIf { it.isNotBlank() }
-                    ?: fallbackArtist
-                val album = metadata.album
-                    ?.takeUnless { it.isUnknownMediaStoreValue() }
-                    ?.takeIf { it.isNotBlank() }
-                    ?: fallbackAlbum
-                val resolvedDurationMs = metadata.durationMs.takeIf { it > 0L } ?: durationMs
-                val extraMetadata = buildLocalMetadataSummary(
-                    albumArtist = metadata.albumArtist,
-                    composer = metadata.composer,
-                    genre = metadata.genre,
-                    year = metadata.year,
-                    discNumber = metadata.discNumber,
-                    trackNumber = metadata.trackNumber,
-                    displayName = displayName,
-                    hasLyrics = !lyrics.isNullOrBlank(),
-                )
-
-                songs += Music(
-                    id = localMusicId,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    duration = (resolvedDurationMs / 1000L).toInt().coerceAtLeast(0),
-                    filePath = uri,
-                    coverFilePath = coverFile?.absolutePath,
-                    uploadUserId = null,
-                    createdAt = extraMetadata.ifBlank {
-                        (dateAddedSec * 1000L).takeIf { it > 0L }?.toString().orEmpty()
-                    },
-                    lrc = !lyrics.isNullOrBlank(),
-                    albumArtist = metadata.albumArtist,
-                    composer = metadata.composer,
-                    genre = metadata.genre,
-                    year = metadata.year,
-                    discNumber = metadata.discNumber,
-                    trackNumber = metadata.trackNumber,
-                    fileName = displayName,
-                    lyricsPreview = lyrics?.lines()
-                        ?.map { it.trim() }
-                        ?.firstOrNull { it.isNotBlank() }
+                songs += LocalMusicEntry(
+                    music = Music(
+                        id = localMusicId,
+                        title = fallbackTitle,
+                        artist = fallbackArtist,
+                        album = fallbackAlbum,
+                        duration = (durationMs / 1000L).toInt().coerceAtLeast(0),
+                        filePath = uri,
+                        uploadUserId = null,
+                        createdAt = (dateAddedSec * 1000L)
+                            .takeIf { it > 0L }
+                            ?.toString()
+                            .orEmpty(),
+                        fileName = displayName,
+                    ),
+                    dataPath = filePath,
                 )
             }
         }
-        songs
+        return songs
+    }
+
+    private suspend fun enrichLocalMusic(entry: LocalMusicEntry): Music {
+        val appContext = context.applicationContext
+        val cacheManager = MusicCacheManager.getInstance(appContext)
+        val music = entry.music
+        val contentUri = Uri.parse(music.filePath ?: return music)
+        val metadata = readEmbeddedMetadata(contentUri)
+        val lyrics = readSidecarLyrics(entry.dataPath) ?: readId3Lyrics(entry.dataPath)
+        val coverFile = metadata.coverBytes?.let { bytes ->
+            cacheManager.saveLocalCover(music.id, bytes).getOrNull()
+        }
+        if (!lyrics.isNullOrBlank()) {
+            cacheManager.saveLocalLyrics(music.id, lyrics)
+        }
+        val title = metadata.title
+            ?.takeUnless { it.isUnknownMediaStoreValue() }
+            ?.takeIf { it.isNotBlank() }
+            ?: music.title
+        val artist = metadata.artist
+            ?.takeUnless { it.isUnknownMediaStoreValue() }
+            ?.takeIf { it.isNotBlank() }
+            ?: music.artist
+        val album = metadata.album
+            ?.takeUnless { it.isUnknownMediaStoreValue() }
+            ?.takeIf { it.isNotBlank() }
+            ?: music.album
+        val resolvedDurationMs = metadata.durationMs.takeIf { it > 0L }
+            ?: (music.duration * 1000L)
+        val extraMetadata = buildLocalMetadataSummary(
+            albumArtist = metadata.albumArtist,
+            composer = metadata.composer,
+            genre = metadata.genre,
+            year = metadata.year,
+            discNumber = metadata.discNumber,
+            trackNumber = metadata.trackNumber,
+            displayName = music.fileName.orEmpty(),
+            hasLyrics = !lyrics.isNullOrBlank(),
+        )
+        return music.copy(
+            title = title,
+            artist = artist,
+            album = album,
+            duration = (resolvedDurationMs / 1000L).toInt().coerceAtLeast(0),
+            coverFilePath = coverFile?.absolutePath ?: music.coverFilePath,
+            createdAt = extraMetadata.ifBlank { music.createdAt },
+            lrc = !lyrics.isNullOrBlank() || music.lrc,
+            albumArtist = metadata.albumArtist ?: music.albumArtist,
+            composer = metadata.composer ?: music.composer,
+            genre = metadata.genre ?: music.genre,
+            year = metadata.year ?: music.year,
+            discNumber = metadata.discNumber ?: music.discNumber,
+            trackNumber = metadata.trackNumber ?: music.trackNumber,
+            lyricsPreview = lyrics?.lines()
+                ?.map { it.trim() }
+                ?.firstOrNull { it.isNotBlank() }
+                ?: music.lyricsPreview,
+        )
     }
 
     private data class EmbeddedMetadata(
