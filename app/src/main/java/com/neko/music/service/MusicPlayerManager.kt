@@ -4,11 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.graphics.Bitmap
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
 import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import com.neko.music.debug.NekoLog as Log
+import com.neko.music.config.AppConfig
 import coil3.ImageLoader
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.ImageRequest
@@ -57,6 +63,12 @@ enum class AudioQuality(val id: String) {
     }
 }
 
+/** 当前可用的 USB 音频输出设备。 */
+data class UsbDacOutput(
+    val id: Int,
+    val name: String,
+)
+
 /** 一起听房间接管播放器用户操作时使用；内部应用服务端状态时必须绕过。 */
 interface RoomPlaybackDelegate {
     fun playTrack(musicId: Int)
@@ -101,6 +113,13 @@ class MusicPlayerManager private constructor(context: Context) {
 
     internal val stemSeparation = StemSeparationController(appContext)
     internal val equalizer = EqualizerController(appContext)
+
+    private val _musicExclusiveEnabled = MutableStateFlow(
+        prefs.getBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, false)
+    )
+    val musicExclusiveEnabled: StateFlow<Boolean> = _musicExclusiveEnabled.asStateFlow()
+    private val _usbDacOutputs = MutableStateFlow<List<UsbDacOutput>>(emptyList())
+    val usbDacOutputs: StateFlow<List<UsbDacOutput>> = _usbDacOutputs.asStateFlow()
     
     private val player = createPlayer(context)
     private var activePlayer: ExoPlayer = player
@@ -143,6 +162,28 @@ class MusicPlayerManager private constructor(context: Context) {
      * 可能全程不持有焦点，其他应用抢走焦点时我们既收不到通知也不会暂停。
      */
     private var handleAudioFocusByPlayer = true
+    private var focusLockEnabled = prefs.getBoolean(AppConfig.PrefConfig.KEY_FOCUS_LOCK, false)
+
+    private val audioManager by lazy {
+        appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    /** API 26+ 的 AudioFocusRequest；用 Any 保存，避免旧系统加载播放器类时解析不到新 API 类型。 */
+    private var exclusiveAudioFocusRequest: Any? = null
+    @Volatile
+    private var exclusiveAudioFocusHeld = false
+    private var routedUsbDacId: Int? = null
+    private val exclusiveAudioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        mainHandler.post { handleExclusiveAudioFocusChange(focusChange) }
+    }
+    private val usbDacCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            refreshUsbDacOutputs()
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            refreshUsbDacOutputs()
+        }
+    }
 
     /** 淡出令牌：新一轮淡入/淡出会让上一轮 fadeOut 的 pause() 失效，避免"切歌时被上一轮淡出暂停"。 */
     private var fadeToken: Any? = null
@@ -358,6 +399,7 @@ class MusicPlayerManager private constructor(context: Context) {
         ).show()
         playIntent = false
         activePlayer.pause()
+        abandonExclusiveAudioFocus()
         syncPlayingState()
         next()
     }
@@ -627,19 +669,282 @@ class MusicPlayerManager private constructor(context: Context) {
             return
         }
 
-        val handleAudioFocus = !focusLockEnabled
-        handleAudioFocusByPlayer = handleAudioFocus
-        Log.d("MusicPlayerManager", "更新音频属性: 焦点锁定=$focusLockEnabled, 处理音频焦点=$handleAudioFocus")
-
-        // 设置音频属性
-        activePlayer.setAudioAttributes(buildAudioAttributes(), handleAudioFocus)
+        this.focusLockEnabled = focusLockEnabled
+        if (_musicExclusiveEnabled.value && !applyUsbDacRoute()) {
+            _musicExclusiveEnabled.value = false
+            prefs.edit().putBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, false).apply()
+            clearUsbDacRoute()
+        }
+        applyAudioFocusPolicy()
 
         // 从「焦点锁定」切回「处理焦点」时，ExoPlayer 不会补申请焦点，要等下一次 play()/prepare() 才申请，
         // 而那时若申请未立即通过就会静默暂停。这里立刻补一次（play() 内部会重新 requestAudioFocus）。
-        if (handleAudioFocus && playIntent) {
+        if (handleAudioFocusByPlayer && playIntent) {
             lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
             activePlayer.play()
         }
+    }
+
+    /**
+     * 切换 USB DAC 独占。开启后把媒体输出固定到当前 USB DAC，并请求独占媒体音频焦点；
+     * 关闭、暂停或拔出 DAC 时释放焦点并恢复默认音频输出。
+     */
+    fun setMusicExclusiveEnabled(enabled: Boolean) {
+        if (isReleased) {
+            Log.w("MusicPlayerManager", "ExoPlayer 已释放，忽略 USB DAC 独占设置")
+            return
+        }
+        if (_musicExclusiveEnabled.value == enabled) return
+
+        if (enabled && !applyUsbDacRoute()) {
+            android.widget.Toast.makeText(
+                appContext,
+                appContext.getString(com.neko.music.R.string.player_exclusive_usb_required),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+
+        _musicExclusiveEnabled.value = enabled
+        prefs.edit().putBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, enabled).apply()
+        Log.d("MusicPlayerManager", "USB DAC 独占已${if (enabled) "开启" else "关闭"}")
+
+        if (enabled) {
+            applyAudioFocusPolicy()
+            if (playIntent && _currentMusicId.value != null && !requestExclusiveAudioFocus()) {
+                disableMusicExclusiveAfterFocusFailure()
+            }
+        } else {
+            abandonExclusiveAudioFocus()
+            clearUsbDacRoute()
+            applyAudioFocusPolicy()
+            if (handleAudioFocusByPlayer && playIntent) {
+                lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
+                activePlayer.play()
+            }
+        }
+    }
+
+    /** 停止前台播放服务时释放独占；下次起播会按用户设置重新申请。 */
+    fun releaseMusicExclusiveFocus() {
+        abandonExclusiveAudioFocus()
+        clearUsbDacRoute()
+    }
+
+    /** 独占焦点与焦点锁定同时开启时，以独占请求为准，保证其他应用先让出媒体输出。 */
+    private fun applyAudioFocusPolicy() {
+        val handleAudioFocus = !focusLockEnabled && !_musicExclusiveEnabled.value
+        handleAudioFocusByPlayer = handleAudioFocus
+        Log.d(
+            "MusicPlayerManager",
+            "更新音频焦点策略: 焦点锁定=$focusLockEnabled, USB DAC 独占=${_musicExclusiveEnabled.value}, 处理音频焦点=$handleAudioFocus"
+        )
+        activePlayer.setAudioAttributes(buildAudioAttributes(), handleAudioFocus)
+    }
+
+    private fun currentUsbDacDevices(): List<AudioDeviceInfo> {
+        val usbTypes = setOf(
+            AudioDeviceInfo.TYPE_USB_DEVICE,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_USB_ACCESSORY,
+        )
+        return try {
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                .filter { it.type in usbTypes }
+        } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "读取 USB 音频输出设备失败", e)
+            emptyList()
+        }
+    }
+
+    /** 选中当前 USB DAC 并把它设为 ExoPlayer 的首选输出设备。 */
+    private fun applyUsbDacRoute(): Boolean {
+        val current = currentUsbDacDevices()
+        val device = current.firstOrNull { it.id == routedUsbDacId } ?: current.firstOrNull()
+        if (device == null) {
+            routedUsbDacId = null
+            return false
+        }
+        return try {
+            activePlayer.setPreferredAudioDevice(device)
+            routedUsbDacId = device.id
+            Log.d(
+                "MusicPlayerManager",
+                "USB DAC 输出已切换: ${device.productName} (id=${device.id}, type=${device.type})"
+            )
+            true
+        } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "切换 USB DAC 输出失败", e)
+            false
+        }
+    }
+
+    private fun clearUsbDacRoute() {
+        routedUsbDacId = null
+        try {
+            activePlayer.setPreferredAudioDevice(null)
+        } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "恢复默认音频输出失败", e)
+        }
+    }
+
+    private fun refreshUsbDacOutputs(initializing: Boolean = false) {
+        val outputs = currentUsbDacDevices().map { device ->
+            UsbDacOutput(
+                id = device.id,
+                name = device.productName?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: appContext.getString(com.neko.music.R.string.player_exclusive_usb_dac),
+            )
+        }
+        if (_usbDacOutputs.value == outputs) return
+
+        _usbDacOutputs.value = outputs
+        Log.d("MusicPlayerManager", "USB DAC 输出设备变化: ${outputs.map { it.name }}")
+
+        if (outputs.isEmpty()) {
+            if (_musicExclusiveEnabled.value) {
+                if (initializing) {
+                    _musicExclusiveEnabled.value = false
+                    prefs.edit().putBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, false).apply()
+                } else {
+                    handleUsbDacDisconnected()
+                }
+            }
+        } else if (_musicExclusiveEnabled.value && !applyUsbDacRoute()) {
+            Log.w("MusicPlayerManager", "USB DAC 已连接，但无法应用到播放器")
+        }
+    }
+
+    /** USB DAC 被拔出时立即静音并暂停，避免声音突然从手机扬声器漏出。 */
+    private fun handleUsbDacDisconnected() {
+        if (!_musicExclusiveEnabled.value) return
+        Log.w("MusicPlayerManager", "USB DAC 已断开，退出独占并暂停播放")
+
+        fadeJob?.cancel()
+        cancelPlaybackRetry()
+        stopPlaybackGuard()
+        stopPositionUpdate()
+        activePlayer.volume = 0f
+        playIntent = false
+        activePlayer.pause()
+        abandonExclusiveAudioFocus()
+        clearUsbDacRoute()
+        _musicExclusiveEnabled.value = false
+        prefs.edit().putBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, false).apply()
+        applyAudioFocusPolicy()
+        activePlayer.volume = 1f
+        releaseWakeLock()
+        syncPlayingState()
+        android.widget.Toast.makeText(
+            appContext,
+            appContext.getString(com.neko.music.R.string.player_exclusive_usb_disconnected),
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
+    }
+
+    private fun buildPlatformAudioAttributes(): android.media.AudioAttributes =
+        android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+    private fun requestExclusiveAudioFocus(): Boolean {
+        if (!_musicExclusiveEnabled.value || routedUsbDacId == null) return false
+        if (exclusiveAudioFocusHeld) return true
+
+        val result = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val request = exclusiveAudioFocusRequest as? AudioFocusRequest ?: AudioFocusRequest.Builder(
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
+                )
+                    .setAudioAttributes(buildPlatformAudioAttributes())
+                    .setWillPauseWhenDucked(true)
+                    .setOnAudioFocusChangeListener(exclusiveAudioFocusListener, mainHandler)
+                    .build()
+                    .also { exclusiveAudioFocusRequest = it }
+                audioManager.requestAudioFocus(request)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    exclusiveAudioFocusListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE,
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("MusicPlayerManager", "请求 USB DAC 独占音频焦点失败", e)
+            AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        }
+
+        exclusiveAudioFocusHeld = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        Log.d(
+            "MusicPlayerManager",
+            "请求 USB DAC 独占音频焦点: ${if (exclusiveAudioFocusHeld) "已获得" else "未获得"} (result=$result)"
+        )
+        return exclusiveAudioFocusHeld
+    }
+
+    private fun abandonExclusiveAudioFocus() {
+        if (exclusiveAudioFocusRequest == null && !exclusiveAudioFocusHeld) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                (exclusiveAudioFocusRequest as? AudioFocusRequest)?.let(audioManager::abandonAudioFocusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(exclusiveAudioFocusListener)
+            }
+        } catch (e: Exception) {
+            Log.w("MusicPlayerManager", "释放 USB DAC 独占音频焦点失败", e)
+        } finally {
+            exclusiveAudioFocusHeld = false
+        }
+    }
+
+    private fun handleExclusiveAudioFocusChange(focusChange: Int) {
+        if (!_musicExclusiveEnabled.value) return
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                exclusiveAudioFocusHeld = true
+                Log.d("MusicPlayerManager", "USB DAC 独占音频焦点已恢复")
+                if (playIntent && !activePlayer.playWhenReady) {
+                    activePlayer.play()
+                    syncPlayingState()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                exclusiveAudioFocusHeld = false
+                Log.w("MusicPlayerManager", "USB DAC 独占音频焦点被系统或其他应用收回: $focusChange")
+                if (playIntent && activePlayer.playWhenReady) {
+                    activePlayer.pause()
+                    syncPlayingState()
+                }
+            }
+        }
+    }
+
+    private fun disableMusicExclusiveAfterFocusFailure() {
+        fadeJob?.cancel()
+        cancelPlaybackRetry()
+        stopPlaybackGuard()
+        stopPositionUpdate()
+        activePlayer.volume = 0f
+        playIntent = false
+        activePlayer.pause()
+        _musicExclusiveEnabled.value = false
+        prefs.edit().putBoolean(AppConfig.PrefConfig.KEY_MUSIC_EXCLUSIVE, false).apply()
+        abandonExclusiveAudioFocus()
+        clearUsbDacRoute()
+        applyAudioFocusPolicy()
+        activePlayer.volume = 1f
+        releaseWakeLock()
+        syncPlayingState()
+        android.widget.Toast.makeText(
+            appContext,
+            appContext.getString(com.neko.music.R.string.player_exclusive_focus_failed),
+            android.widget.Toast.LENGTH_SHORT,
+        ).show()
     }
 
     private var sleepTimerJob: kotlinx.coroutines.Job? = null
@@ -1065,6 +1370,9 @@ class MusicPlayerManager private constructor(context: Context) {
     private val playerListener: Player.Listener
 
     init {
+        audioManager.registerAudioDeviceCallback(usbDacCallback, mainHandler)
+        refreshUsbDacOutputs(initializing = true)
+
         // 设置 MediaSession 回调（如果 MediaSession 已初始化）
         setupMediaSessionCallback()
 
@@ -1146,6 +1454,7 @@ class MusicPlayerManager private constructor(context: Context) {
                     cancelPlaybackRetry()
                     playIntent = false
                     activePlayer.pause()
+                    abandonExclusiveAudioFocus()
                     syncPlayingState()
                 }
             }
@@ -1549,6 +1858,16 @@ class MusicPlayerManager private constructor(context: Context) {
         fadeToken = Any()
         playIntent = true
         lastPlayRequestAt = android.os.SystemClock.elapsedRealtime()
+        if (_currentMusicId.value != null && _musicExclusiveEnabled.value) {
+            if (!applyUsbDacRoute()) {
+                handleUsbDacDisconnected()
+                return
+            }
+            if (!requestExclusiveAudioFocus()) {
+                disableMusicExclusiveAfterFocusFailure()
+                return
+            }
+        }
         startPlaybackGuard()
         fadeJob?.cancel()
         fadeJob = scope.launch {
@@ -1590,6 +1909,7 @@ class MusicPlayerManager private constructor(context: Context) {
             // 否则 300ms 的淡出动画会在新歌起播之后又把它暂停掉（偶发"切歌后自动暂停"）。
             if (fadeToken !== token) return@launch
             activePlayer.pause()
+            abandonExclusiveAudioFocus()
             stopPositionUpdate()
             activePlayer.volume = 1f
             // 播放状态一律由播放器回调同步（syncPlayingState），这里不再手写 _isPlaying
@@ -1733,6 +2053,7 @@ class MusicPlayerManager private constructor(context: Context) {
                 if (total > 0 && blockedCount >= total) {
                     playIntent = false
                     activePlayer.pause()
+                    abandonExclusiveAudioFocus()
                     syncPlayingState()
                 } else {
                     next()

@@ -182,10 +182,10 @@ internal fun PlayerVolumeModal(onDismiss: () -> Unit) {
                         },
                         label = "audioSettingsTabContent",
                     ) { tab ->
-                        if (tab == 0) {
-                            PlayerVolumeSection(Modifier.fillMaxWidth())
-                        } else {
-                            EqualizerPanel(Modifier.fillMaxWidth())
+                        when (tab) {
+                            0 -> PlayerVolumeSection(Modifier.fillMaxWidth())
+                            1 -> EqualizerPanel(Modifier.fillMaxWidth())
+                            else -> MusicExclusivePanel(Modifier.fillMaxWidth())
                         }
                     }
                 }
@@ -207,6 +207,7 @@ private fun AudioSettingsTabStrip(
     val labels = listOf(
         stringResource(R.string.player_volume_tab),
         stringResource(R.string.player_eq_tab),
+        stringResource(R.string.player_exclusive_tab),
     )
     val select: (Int) -> Unit = { index ->
         if (selectedTab != index) {

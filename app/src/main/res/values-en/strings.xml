@@ -20,6 +20,15 @@
     <string name="eq_title">10-band frequency control</string>
     <string name="player_eq_tab">EQ</string>
     <string name="player_volume_tab">Volume</string>
+    <string name="player_exclusive_tab">Exclusive</string>
+    <string name="player_exclusive_title">USB DAC exclusive</string>
+    <string name="player_exclusive_subtitle_usb">%1$s is connected. Output will be fixed to this USB DAC with exclusive media audio focus.</string>
+    <string name="player_exclusive_usb_dac">USB DAC</string>
+    <string name="player_exclusive_usb_required">Connect a USB DAC before enabling exclusive output.</string>
+    <string name="player_exclusive_hint">Other apps are asked to pause and audio is routed to the USB DAC. Exclusive focus is released when you turn it off or pause playback.</string>
+    <string name="player_exclusive_compatibility">The system negotiates the sample rate with the DAC. Playback pauses and exclusive mode exits if the DAC disconnects. Calls and high-priority system audio may still interrupt playback.</string>
+    <string name="player_exclusive_focus_failed">Could not obtain exclusive audio focus. Playback paused and normal output was restored.</string>
+    <string name="player_exclusive_usb_disconnected">The USB DAC was disconnected and exclusive mode exited.</string>
     <string name="storage_category_external_cache">External cache</string>
     <string name="storage_category_other_data">Other app data</string>
     <string name="storage_category_other_cache">Other cache</string>

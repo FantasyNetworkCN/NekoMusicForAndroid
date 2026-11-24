@@ -20,6 +20,15 @@
     <string name="eq_title">10 段频段调节</string>
     <string name="player_eq_tab">EQ 调音</string>
     <string name="player_volume_tab">音量</string>
+    <string name="player_exclusive_tab">独占</string>
+    <string name="player_exclusive_title">USB DAC 独占</string>
+    <string name="player_exclusive_subtitle_usb">已连接 %1$s，开启后固定从该 USB DAC 输出并独占媒体音频焦点。</string>
+    <string name="player_exclusive_usb_dac">USB DAC</string>
+    <string name="player_exclusive_usb_required">请先连接 USB DAC 再开启独占。</string>
+    <string name="player_exclusive_hint">开启后其他应用会暂停发声，音频固定走 USB DAC；关闭开关或暂停播放时释放独占。</string>
+    <string name="player_exclusive_compatibility">采样率由系统与 DAC 协商，连接断开会自动暂停并退出独占；通话和系统高优先级音频仍可能打断播放。</string>
+    <string name="player_exclusive_focus_failed">暂时无法获得独占音频焦点，已暂停播放并恢复普通输出。</string>
+    <string name="player_exclusive_usb_disconnected">USB DAC 已断开，已退出独占。</string>
     <string name="storage_category_external_cache">外部缓存</string>
     <string name="storage_category_other_data">其他应用数据</string>
     <string name="storage_category_other_cache">其他缓存</string>

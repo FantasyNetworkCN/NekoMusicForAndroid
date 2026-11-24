@@ -1,11 +1,11 @@
 package com.neko.music.ui.components
 
 import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,12 +13,14 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
@@ -68,41 +71,40 @@ fun LiquidGlassSwitch(
     sampleBackdrop: LayerBackdrop? = null,
 ) {
     val backdrop = sampleBackdrop ?: LocalLiquidLayerBackdrop.current
-
-    if (!enabled || backdrop == null || !isLiquidGlassEffectActive(backdrop)) {
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            modifier = modifier,
-            colors = SwitchDefaults.colors(),
-        )
-        return
-    }
-
-    LiquidGlassSwitchLiquid(
+    LiquidGlassSwitchVisual(
         checked = checked,
         onCheckedChange = onCheckedChange,
-        backdrop = backdrop,
+        backdrop = backdrop?.takeIf { isLiquidGlassEffectActive(it) },
         isDarkChrome = isDarkChrome,
-        modifier = modifier
+        enabled = enabled,
+        modifier = modifier,
     )
 }
 
 @Composable
-private fun LiquidGlassSwitchLiquid(
+private fun LiquidGlassSwitchVisual(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    backdrop: Backdrop,
+    backdrop: Backdrop?,
     isDarkChrome: Boolean?,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val isDark = isDarkChrome
         ?: (MaterialTheme.colorScheme.background.luminance() < 0.5f)
     val accentColor = RoseRed
-    val trackColorOff =
-        if (isDark) Color(0xFF787880).copy(alpha = 0.36f)
-        else Color(0xFF787878).copy(alpha = 0.2f)
+    val trackColorOff = when {
+        !enabled && isDark -> Color(0xFF787880).copy(alpha = 0.2f)
+        !enabled -> Color(0xFF787878).copy(alpha = 0.12f)
+        isDark -> Color(0xFF787880).copy(alpha = 0.36f)
+        else -> Color(0xFF787878).copy(alpha = 0.2f)
+    }
+    val trackColorOn = if (enabled) accentColor else accentColor.copy(alpha = 0.42f)
+    val thumbColor = when {
+        !enabled && isDark -> Color.White.copy(alpha = 0.46f)
+        !enabled -> Color.White.copy(alpha = 0.72f)
+        else -> Color.White.copy(alpha = 0.96f)
+    }
 
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -110,6 +112,8 @@ private fun LiquidGlassSwitchLiquid(
     val animationScope = rememberCoroutineScope()
     var didDrag by remember { mutableStateOf(false) }
     var fraction by remember { mutableFloatStateOf(if (checked) 1f else 0f) }
+    val currentChecked by rememberUpdatedState(checked)
+    val currentOnCheckedChange by rememberUpdatedState(onCheckedChange)
 
     val dampedDragAnimation = remember(animationScope) {
         DampedDragAnimation(
@@ -121,14 +125,12 @@ private fun LiquidGlassSwitchLiquid(
             pressedScale = 1.5f,
             onDragStarted = {},
             onDragStopped = {
-                if (didDrag) {
-                    fraction = if (targetValue >= 0.5f) 1f else 0f
-                    onCheckedChange(fraction == 1f)
-                    didDrag = false
-                } else {
-                    fraction = if (checked) 0f else 1f
-                    onCheckedChange(fraction == 1f)
-                }
+                // 视觉位置完全跟随外部 checked。若父级因条件不允许而没有接受切换，
+                // 这里不能把本地 fraction 留在乐观切换后的位置，否则液态开关会和真实状态脱节。
+                val requested = if (didDrag) targetValue >= 0.5f else !currentChecked
+                didDrag = false
+                fraction = if (currentChecked) 1f else 0f
+                currentOnCheckedChange(requested)
             },
             onDrag = { _, dragAmount ->
                 if (!didDrag && dragAmount.x != 0f) didDrag = true
@@ -168,68 +170,85 @@ private fun LiquidGlassSwitchLiquid(
             }
         }
     val sampledTrack = rememberBackdrop(trackBackdrop, trackSampleTransform)
-    val thumbBackdrop = rememberCombinedBackdrop(backdrop, sampledTrack)
-    val thumbModifier = remember(thumbBackdrop, density, dampedDragAnimation) {
-        Modifier.drawBackdrop(
-            backdrop = thumbBackdrop,
-            shape = { thumbShape },
-            effects = {
-                val progress = dampedDragAnimation.pressProgress
-                blur(with(density) { (8.dp * (1f - progress)).toPx() })
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    lens(
-                        refractionHeight = with(density) { (5.dp * progress).toPx() },
-                        refractionAmount = with(density) { (10.dp * progress).toPx() },
-                        chromaticAberration = true
+    val thumbBackdrop = if (backdrop != null) {
+        rememberCombinedBackdrop(backdrop, sampledTrack)
+    } else {
+        null
+    }
+    val thumbModifier = if (thumbBackdrop != null) {
+        remember(thumbBackdrop, density, dampedDragAnimation) {
+            Modifier.drawBackdrop(
+                backdrop = thumbBackdrop,
+                shape = { thumbShape },
+                effects = {
+                    val progress = dampedDragAnimation.pressProgress
+                    blur(with(density) { (8.dp * (1f - progress)).toPx() })
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        lens(
+                            refractionHeight = with(density) { (5.dp * progress).toPx() },
+                            refractionAmount = with(density) { (10.dp * progress).toPx() },
+                            chromaticAberration = true
+                        )
+                    }
+                },
+                highlight = {
+                    val progress = dampedDragAnimation.pressProgress
+                    Highlight.Ambient.copy(
+                        width = Highlight.Ambient.width / 1.5f,
+                        blurRadius = Highlight.Ambient.blurRadius / 1.5f,
+                        alpha = progress
                     )
+                },
+                shadow = {
+                    Shadow(
+                        radius = 4.dp,
+                        color = Color.Black.copy(alpha = 0.05f)
+                    )
+                },
+                innerShadow = {
+                    val progress = dampedDragAnimation.pressProgress
+                    InnerShadow(
+                        radius = 4.dp * progress,
+                        alpha = progress
+                    )
+                },
+                layerBlock = {
+                    scaleX = dampedDragAnimation.scaleX
+                    scaleY = dampedDragAnimation.scaleY
+                    val velocity = dampedDragAnimation.velocity / 50f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                },
+                onDrawSurface = {
+                    val progress = dampedDragAnimation.pressProgress
+                    drawRect(Color.White.copy(alpha = 1f - progress))
                 }
-            },
-            highlight = {
-                val progress = dampedDragAnimation.pressProgress
-                Highlight.Ambient.copy(
-                    width = Highlight.Ambient.width / 1.5f,
-                    blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                    alpha = progress
-                )
-            },
-            shadow = {
-                Shadow(
-                    radius = 4.dp,
-                    color = Color.Black.copy(alpha = 0.05f)
-                )
-            },
-            innerShadow = {
-                val progress = dampedDragAnimation.pressProgress
-                InnerShadow(
-                    radius = 4.dp * progress,
-                    alpha = progress
-                )
-            },
-            layerBlock = {
-                scaleX = dampedDragAnimation.scaleX
-                scaleY = dampedDragAnimation.scaleY
-                val velocity = dampedDragAnimation.velocity / 50f
-                scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-            },
-            onDrawSurface = {
-                val progress = dampedDragAnimation.pressProgress
-                drawRect(Color.White.copy(alpha = 1f - progress))
-            }
-        )
+            )
+        }
+    } else {
+        remember(thumbColor, thumbShape) {
+            Modifier
+                .shadow(2.dp, thumbShape)
+                .clip(thumbShape)
+                .background(thumbColor)
+                .border(0.5.dp, Color.Black.copy(alpha = 0.08f), thumbShape)
+        }
     }
 
     Box(
-        modifier = modifier.semantics { role = Role.Switch },
+        modifier = modifier.semantics {
+            role = Role.Switch
+            if (!enabled) disabled()
+        },
         contentAlignment = Alignment.CenterStart
     ) {
         Box(
             Modifier
-                .layerBackdrop(trackBackdrop)
+                .then(if (backdrop != null) Modifier.layerBackdrop(trackBackdrop) else Modifier)
                 .clip(trackShape)
                 .drawBehind {
                     val f = dampedDragAnimation.value
-                    drawRect(lerp(trackColorOff, accentColor, f))
+                    drawRect(lerp(trackColorOff, trackColorOn, f))
                 }
                 .size(TrackWidth, TrackHeight)
         )
@@ -243,7 +262,7 @@ private fun LiquidGlassSwitchLiquid(
                         if (isLtr) lerp(padding, padding + dragWidth, f)
                         else lerp(-padding, -(padding + dragWidth), f)
                 }
-                .then(dampedDragAnimation.modifier)
+                .then(if (enabled) dampedDragAnimation.modifier else Modifier)
                 .then(thumbModifier)
                 .size(ThumbWidth, ThumbHeight)
         )

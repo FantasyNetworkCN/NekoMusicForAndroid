@@ -229,6 +229,7 @@ class MusicPlayerService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        playerManager.releaseMusicExclusiveFocus()
         super.onDestroy()
     }
 

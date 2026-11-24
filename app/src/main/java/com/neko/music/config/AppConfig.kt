@@ -107,6 +107,8 @@ object AppConfig {
         const val KEY_DESKTOP_LYRIC = "desktop_lyric_enabled"
         const val KEY_CACHE = "cache_enabled"
         const val KEY_FOCUS_LOCK = "focus_lock_enabled"
+        /** USB DAC 独占：固定 USB 音频输出并请求独占媒体音频焦点。 */
+        const val KEY_MUSIC_EXCLUSIVE = "music_exclusive_enabled"
         
         const val DEFAULT_LANGUAGE = "system"
         const val DEFAULT_THEME = "auto"
